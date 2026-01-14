@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 
 const Login = () => {
   const [formData, setFormData] = useState({
@@ -133,10 +134,6 @@ const Login = () => {
     alert('Forgot Password feature - Coming soon!');
   };
 
-  const handleSignupRedirect = () => {
-    alert('Redirect to Signup page - Coming soon!');
-  };
-
   return (
     <div style={styles.container}>
       {/* Left Side - Login Form */}
@@ -265,14 +262,9 @@ const Login = () => {
           <div style={styles.signupLink}>
             <p style={styles.signupText}>
               Don't have an account?{' '}
-              <button 
-                type="button"
-                onClick={handleSignupRedirect}
-                style={styles.linkButton}
-                disabled={isSubmitting}
-              >
+              <Link to="/register" style={styles.linkButton}>
                 Sign Up
-              </button>
+              </Link>
             </p>
           </div>
         </div>
