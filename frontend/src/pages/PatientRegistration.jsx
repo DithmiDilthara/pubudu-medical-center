@@ -35,7 +35,7 @@ const FormInput = ({ label, name, type = "text", value, onChange, onBlur, placeh
           ...(isValid && { borderColor: "#27ae60", backgroundColor: "#f0fff4" })
         }}
       />
-      {hasError && <span style={{ display: "block", color: "#e74c3c", fontSize: "13px", marginTop: "6px", fontWeight: "600" }}>⚠️ {error}</span>}
+      {hasError && <span style={{ display: "block", color: "#e74c3c", fontSize: "13px", marginTop: "6px", fontWeight: "600" }}>{error}</span>}
       {isValid && <span style={{ display: "block", color: "#27ae60", fontSize: "13px", marginTop: "6px", fontWeight: "bold" }}>✓</span>}
     </div>
   );
@@ -79,7 +79,7 @@ const FormSelect = ({ label, name, value, onChange, onBlur, options, touched, er
           </option>
         ))}
       </select>
-      {hasError && <span style={{ display: "block", color: "#e74c3c", fontSize: "13px", marginTop: "6px", fontWeight: "600" }}>⚠️ {error}</span>}
+      {hasError && <span style={{ display: "block", color: "#e74c3c", fontSize: "13px", marginTop: "6px", fontWeight: "600" }}> {error}</span>}
       {isValid && <span style={{ display: "block", color: "#27ae60", fontSize: "13px", marginTop: "6px", fontWeight: "bold" }}>✓</span>}
     </div>
   );
@@ -103,10 +103,18 @@ const FormCheckbox = ({ label, name, checked, onChange, onBlur, error, required,
           {label} {required && <span style={{ color: "#e74c3c" }}>*</span>}
         </label>
       </div>
-      {error && <span style={{ display: "block", color: "#e74c3c", fontSize: "13px", marginTop: "-10px", marginBottom: "10px", fontWeight: "600" }}>⚠️ {error}</span>}
+      {error && <span style={{ display: "block", color: "#e74c3c", fontSize: "13px", marginTop: "-10px", marginBottom: "10px", fontWeight: "600" }}> {error}</span>}
     </>
   );
 };
+
+// Section Header Component
+const SectionHeader = ({ icon, title }) => (
+  <div style={styles.sectionHeader}>
+    <span style={styles.sectionIcon}>{icon}</span>
+    <h3 style={styles.sectionTitle}>{title}</h3>
+  </div>
+);
 
 function PatientRegistration() {
   const [formData, setFormData] = useState({
@@ -217,7 +225,7 @@ function PatientRegistration() {
       pattern: /^[a-zA-Z0-9_]+$/,
       messages: {
         required: "Username is required",
-        minLength: "Username must be at least 3 characters",
+        minLength: "Username must be at least 8 characters",
         pattern: "Username can only contain letters, numbers, and underscores"
       }
     },
@@ -449,6 +457,9 @@ function PatientRegistration() {
           {successMessage && <div style={styles.successMessage}>{successMessage}</div>}
 
           <form onSubmit={handleSubmit}>
+            {/* Personal Information Section */}
+            <SectionHeader title="Personal Information" />
+
             <div style={styles.formRow}>
               <FormSelect
                 label="Title"
@@ -476,7 +487,7 @@ function PatientRegistration() {
                 onBlur={handleBlur}
                 touched={touched.firstName}
                 error={errors.firstName}
-                placeholder="John"
+                placeholder="sayumi"
                 required
                 style={{ flex: 1, marginRight: "10px" }}
               />
@@ -488,7 +499,7 @@ function PatientRegistration() {
                 onBlur={handleBlur}
                 touched={touched.lastName}
                 error={errors.lastName}
-                placeholder="Doe"
+                placeholder="manujana"
                 required
                 style={{ flex: 1 }}
               />
@@ -536,7 +547,7 @@ function PatientRegistration() {
                 onBlur={handleBlur}
                 touched={touched.email}
                 error={errors.email}
-                placeholder="john@example.com"
+                placeholder="sayumi@example.com"
                 required
                 style={{ flex: 1, marginRight: "10px" }}
               />
@@ -576,11 +587,14 @@ function PatientRegistration() {
                 onBlur={handleBlur}
                 touched={touched.address}
                 error={errors.address}
-                placeholder="123 Main St"
+                placeholder="123 Main St, Colombo"
                 required
                 style={{ flex: 1 }}
               />
             </div>
+
+            {/* Account Details Section */}
+            <SectionHeader  title="Account Information" />
 
             <FormInput
               label="Username"
@@ -590,7 +604,7 @@ function PatientRegistration() {
               onBlur={handleBlur}
               touched={touched.username}
               error={errors.username}
-              placeholder="john_doe"
+              placeholder="Sayumi_01"
               required
             />
 
@@ -621,6 +635,8 @@ function PatientRegistration() {
               placeholder="••••••••"
               required
             />
+
+            <div style={styles.divider}></div>
 
             <FormCheckbox
               label="I agree to the Terms of Service and Privacy Policy"
@@ -688,7 +704,34 @@ const styles = {
   quoteSubtext: { fontSize: "16px", color: "rgba(255, 255, 255, 0.9)", lineHeight: "1.6" },
   formContainer: { width: "100%", maxWidth: "700px", backgroundColor: "white", padding: "40px", borderRadius: "12px", boxShadow: "0 10px 40px rgba(0,0,0,0.08)" },
   welcomeTitle: { textAlign: "center", marginBottom: "10px", fontSize: "28px", color: "#333", fontWeight: "bold" },
-  welcomeSubtitle: { textAlign: "center", marginBottom: "25px", fontSize: "15px", color: "#666" },
+  welcomeSubtitle: { textAlign: "center", marginBottom: "30px", fontSize: "15px", color: "#666" },
+  
+  // Section Header Styles
+  sectionHeader: {
+    display: "flex",
+    alignItems: "center",
+    marginTop: "25px",
+    marginBottom: "20px",
+    paddingBottom: "12px",
+    borderBottom: "2px solid #333"
+  },
+  sectionIcon: {
+    fontSize: "24px",
+    marginRight: "10px"
+  },
+  sectionTitle: {
+    margin: 0,
+    fontSize: "18px",
+    fontWeight: "700",
+    color: "#333"
+  },
+  
+  divider: {
+    height: "1px",
+    backgroundColor: "#e0e0e0",
+    margin: "25px 0"
+  },
+  
   formRow: { display: "flex", gap: "0", marginBottom: "0" },
   generalError: { padding: "12px 15px", backgroundColor: "#fee", border: "1px solid #e74c3c", borderRadius: "8px", color: "#e74c3c", marginBottom: "20px", fontSize: "14px", fontWeight: "600" },
   successMessage: { padding: "12px 15px", backgroundColor: "#efe", border: "1px solid #27ae60", borderRadius: "8px", color: "#27ae60", marginBottom: "20px", fontSize: "14px", fontWeight: "600" },
