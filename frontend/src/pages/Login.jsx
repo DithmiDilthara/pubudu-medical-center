@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 
 const Login = () => {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     username: '',
     password: ''
@@ -11,7 +12,6 @@ const Login = () => {
   const [touched, setTouched] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Handle input change
   const handleChange = (e) => {
     const { name, value } = e.target;
     
@@ -20,7 +20,6 @@ const Login = () => {
       [name]: value
     });
 
-    // Clear error when user starts typing
     if (errors[name]) {
       setErrors({
         ...errors,
@@ -29,7 +28,6 @@ const Login = () => {
     }
   };
 
-  // Handle input blur (when user leaves the field)
   const handleBlur = (e) => {
     const { name } = e.target;
     setTouched({
@@ -39,7 +37,6 @@ const Login = () => {
     validateField(name, formData[name]);
   };
 
-  // Validate individual field
   const validateField = (fieldName, value) => {
     let error = '';
 
@@ -91,12 +88,10 @@ const Login = () => {
     return error === '';
   };
 
-  // Validate entire form
   const validateForm = () => {
     const usernameValid = validateField('username', formData.username);
     const passwordValid = validateField('password', formData.password);
 
-    // Mark all fields as touched
     setTouched({
       username: true,
       password: true
@@ -105,24 +100,17 @@ const Login = () => {
     return usernameValid && passwordValid;
   };
 
-  // Handle form submission
   const handleSubmit = async () => {
     setIsSubmitting(true);
 
     if (validateForm()) {
-      // Simulate API call delay
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       console.log('Login Data:', formData);
-      alert(`✅ Validation Passed!\n\nUsername: ${formData.username}\nPassword: ${'*'.repeat(formData.password.length)}`);
+      alert(`✅ Login Successful!\n\nUsername: ${formData.username}`);
       
-      // Here you would normally send data to backend:
-      // try {
-      //   const response = await axios.post('http://localhost:5000/api/login', formData);
-      //   console.log('Success:', response.data);
-      // } catch (error) {
-      //   console.error('Error:', error);
-      // }
+      // Navigate to Patient Dashboard after successful login
+      navigate('/patient/dashboard');
     } else {
       alert('❌ Please fix the errors before submitting');
     }
@@ -134,15 +122,17 @@ const Login = () => {
     alert('Forgot Password feature - Coming soon!');
   };
 
+  const handleSignupRedirect = () => {
+    navigate('/register');
+  };
+
   return (
     <div style={styles.container}>
-      {/* Left Side - Login Form */}
       <div style={styles.leftSide}>
         <div style={styles.formContainer}>
           <h2 style={styles.welcomeTitle}>Welcome to Pubudu Medical Center</h2>
           <p style={styles.welcomeSubtitle}>Please login to continue</p>
 
-          {/* Username Field */}
           <div style={styles.formGroup}>
             <label style={styles.label}>
               Username <span style={styles.required}>*</span>
@@ -169,7 +159,6 @@ const Login = () => {
             )}
           </div>
 
-          {/* Password Field */}
           <div style={styles.formGroup}>
             <label style={styles.label}>
               Password <span style={styles.required}>*</span>
@@ -195,7 +184,6 @@ const Login = () => {
               <span style={styles.successMessage}>✓ Valid password</span>
             )}
             
-            {/* Password Requirements */}
             {formData.password && (
               <div style={styles.passwordRequirements}>
                 <p style={styles.requirementsTitle}>Password must contain:</p>
@@ -233,7 +221,6 @@ const Login = () => {
             )}
           </div>
 
-          {/* Forgot Password Link */}
           <div style={styles.forgotPassword}>
             <button 
               type="button" 
@@ -245,7 +232,6 @@ const Login = () => {
             </button>
           </div>
 
-          {/* Submit Button */}
           <button 
             type="button" 
             onClick={handleSubmit}
@@ -258,19 +244,22 @@ const Login = () => {
             {isSubmitting ? 'Logging in...' : 'Login'}
           </button>
 
-          {/* Signup Link */}
           <div style={styles.signupLink}>
             <p style={styles.signupText}>
               Don't have an account?{' '}
-              <Link to="/register" style={styles.linkButton}>
+              <button 
+                type="button"
+                onClick={handleSignupRedirect}
+                style={styles.linkButton}
+                disabled={isSubmitting}
+              >
                 Sign Up
-              </Link>
+              </button>
             </p>
           </div>
         </div>
       </div>
 
-      {/* Right Side - Logo and Quote */}
       <div style={styles.rightSide}>
         <div style={styles.rightContent}>
           <div style={styles.logoContainer}>
