@@ -5,7 +5,8 @@ const Login = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     username: '',
-    password: ''
+    password: '',
+    userType: 'patient'
   });
 
   const [errors, setErrors] = useState({});
@@ -107,10 +108,19 @@ const Login = () => {
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       console.log('Login Data:', formData);
-      alert(`✅ Login Successful!\n\nUsername: ${formData.username}`);
       
-      // Navigate to Patient Dashboard after successful login
-      navigate('/patient/dashboard');
+      // Store user info in localStorage
+      localStorage.setItem('userType', formData.userType);
+      localStorage.setItem('username', formData.username);
+      
+      alert(`✅ Login Successful!\n\nUsername: ${formData.username}\nRole: ${formData.userType === 'doctor' ? 'Doctor' : 'Patient'}`);
+      
+      // Navigate based on user type
+      if (formData.userType === 'doctor') {
+        navigate('/doctor/dashboard');
+      } else {
+        navigate('/patient/dashboard');
+      }
     } else {
       alert('❌ Please fix the errors before submitting');
     }
@@ -132,6 +142,36 @@ const Login = () => {
         <div style={styles.formContainer}>
           <h2 style={styles.welcomeTitle}>Welcome to Pubudu Medical Center</h2>
           <p style={styles.welcomeSubtitle}>Please login to continue</p>
+
+          <div style={styles.formGroup}>
+            <label style={styles.label}>
+              Login As <span style={styles.required}>*</span>
+            </label>
+            <div style={styles.radioGroup}>
+              <label style={styles.radioLabel}>
+                <input
+                  type="radio"
+                  name="userType"
+                  value="patient"
+                  checked={formData.userType === 'patient'}
+                  onChange={handleChange}
+                  style={styles.radio}
+                />
+                <span style={styles.radioText}>Patient</span>
+              </label>
+              <label style={styles.radioLabel}>
+                <input
+                  type="radio"
+                  name="userType"
+                  value="doctor"
+                  checked={formData.userType === 'doctor'}
+                  onChange={handleChange}
+                  style={styles.radio}
+                />
+                <span style={styles.radioText}>Doctor</span>
+              </label>
+            </div>
+          </div>
 
           <div style={styles.formGroup}>
             <label style={styles.label}>
@@ -452,6 +492,28 @@ const styles = {
   forgotPassword: {
     textAlign: 'right',
     marginBottom: '20px'
+  },
+  radioGroup: {
+    display: 'flex',
+    gap: '24px',
+    marginTop: '8px'
+  },
+  radioLabel: {
+    display: 'flex',
+    alignItems: 'center',
+    cursor: 'pointer',
+    fontSize: '15px',
+    color: '#555'
+  },
+  radio: {
+    marginRight: '8px',
+    cursor: 'pointer',
+    width: '18px',
+    height: '18px',
+    accentColor: '#667eea'
+  },
+  radioText: {
+    fontWeight: '500'
   },
   linkButton: {
     background: 'none',
