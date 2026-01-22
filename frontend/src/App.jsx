@@ -11,6 +11,11 @@ import DoctorAppointments from './pages/DoctorAppointments';
 import PatientDetailsDoctor from './pages/PatientDetailsDoctor';
 import DoctorPatients from './pages/DoctorPatients';
 import DoctorAvailability from './pages/DoctorAvailability';
+import ReceptionistDashboard from './pages/receptionist/ReceptionistDashboard';
+import AddPatient from './pages/receptionist/AddPatient';
+import NewBooking from './pages/receptionist/NewBooking';
+import AppointmentsManagement from './pages/receptionist/AppointmentsManagement';
+import ConfirmPayment from './pages/receptionist/ConfirmPayment';
 
 function App() {
   return (
@@ -28,6 +33,12 @@ function App() {
         <Route path="/doctor/patient-details" element={<PatientDetailsDoctor />} />
         <Route path="/doctor/patients" element={<DoctorPatients />} />
         <Route path="/doctor/availability" element={<DoctorAvailability />} />
+        <Route path="/receptionist/dashboard" element={<ReceptionistDashboard />} />
+        <Route path="/receptionist/patients" element={<AddPatient />} />
+        <Route path="/receptionist/patients/add" element={<AddPatient />} />
+        <Route path="/receptionist/appointments" element={<AppointmentsManagement />} />
+        <Route path="/receptionist/appointments/new" element={<NewBooking />} />
+        <Route path="/receptionist/payment" element={<ConfirmPayment />} />
       </Routes>
     </Router>
   );

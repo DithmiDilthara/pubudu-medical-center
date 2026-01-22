@@ -6,7 +6,7 @@ const Login = () => {
   const [formData, setFormData] = useState({
     username: '',
     password: '',
-    userType: 'patient'
+    userType: 'receptionist'
   });
 
   const [errors, setErrors] = useState({});
@@ -113,11 +113,19 @@ const Login = () => {
       localStorage.setItem('userType', formData.userType);
       localStorage.setItem('username', formData.username);
       
-      alert(`✅ Login Successful!\n\nUsername: ${formData.username}\nRole: ${formData.userType === 'doctor' ? 'Doctor' : 'Patient'}`);
+      const roleNames = {
+        doctor: 'Doctor',
+        patient: 'Patient',
+        receptionist: 'Receptionist'
+      };
+      
+      alert(`✅ Login Successful!\n\nUsername: ${formData.username}\nRole: ${roleNames[formData.userType]}`);
       
       // Navigate based on user type
       if (formData.userType === 'doctor') {
         navigate('/doctor/dashboard');
+      } else if (formData.userType === 'receptionist') {
+        navigate('/receptionist/dashboard');
       } else {
         navigate('/patient/dashboard');
       }
@@ -148,6 +156,17 @@ const Login = () => {
               Login As <span style={styles.required}>*</span>
             </label>
             <div style={styles.radioGroup}>
+              <label style={styles.radioLabel}>
+                <input
+                  type="radio"
+                  name="userType"
+                  value="receptionist"
+                  checked={formData.userType === 'receptionist'}
+                  onChange={handleChange}
+                  style={styles.radio}
+                />
+                <span style={styles.radioText}>Receptionist</span>
+              </label>
               <label style={styles.radioLabel}>
                 <input
                   type="radio"
