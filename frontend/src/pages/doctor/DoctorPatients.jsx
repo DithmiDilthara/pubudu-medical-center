@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import DoctorHeader from '../components/DoctorHeader';
+import DoctorHeader from '../../components/DoctorHeader';
+import DoctorSidebar from '../../components/DoctorSidebar';
 
 function DoctorPatients() {
   const navigate = useNavigate();
@@ -65,11 +66,19 @@ function DoctorPatients() {
     patient.patientId.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  return (
-    <div style={styles.container}>
-      <DoctorHeader />
+  const handleLogout = () => {
+    localStorage.clear();
+    navigate('/');
+  };
 
-      <main style={styles.mainContent}>
+  return (
+    <div style={styles.pageContainer}>
+      <DoctorSidebar onLogout={handleLogout} />
+      
+      <div style={styles.mainContainer}>
+        <DoctorHeader />
+
+        <main style={styles.mainContent}>
         {/* Header */}
         <div style={styles.header}>
           <div>
@@ -195,17 +204,23 @@ function DoctorPatients() {
             </div>
           </section>
         )}
-      </main>
+        </main>
+      </div>
     </div>
   );
 }
 
 const styles = {
-  container: {
-    display: 'flex',
-    flexDirection: 'column',
-    minHeight: '100vh',
-    background: 'linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%)'
+  pageContainer: {
+    display: "flex",
+    minHeight: "100vh",
+    backgroundColor: "#f9fafb",
+    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+  },
+  mainContainer: {
+    flex: 1,
+    display: "flex",
+    flexDirection: "column"
   },
   mainContent: {
     flex: 1,
@@ -218,17 +233,17 @@ const styles = {
     marginBottom: '24px'
   },
   pageTitle: {
-    fontSize: '32px',
-    fontWeight: 'bold',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-    WebkitBackgroundClip: 'text',
-    WebkitTextFillColor: 'transparent',
-    margin: '0 0 8px 0'
+    fontSize: '28px',
+    fontWeight: '700',
+    color: '#1f2937',
+    margin: '0 0 8px 0',
+    fontFamily: "'Inter', 'Segoe UI', sans-serif"
   },
   pageSubtitle: {
-    fontSize: '15px',
+    fontSize: '14px',
     color: '#6b7280',
-    margin: 0
+    margin: 0,
+    fontFamily: "'Inter', 'Segoe UI', sans-serif"
   },
   searchSection: {
     marginBottom: '24px',
@@ -263,9 +278,9 @@ const styles = {
     transition: 'all 0.3s'
   },
   filterButtonActive: {
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    background: '#8b9dff',
     color: 'white',
-    border: '2px solid #667eea'
+    border: '2px solid #8b9dff'
   },
   tableSection: {
     marginBottom: '32px'
@@ -274,7 +289,7 @@ const styles = {
     background: 'white',
     borderRadius: '12px',
     boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
-    border: '1px solid rgba(102, 126, 234, 0.1)',
+    border: '1px solid #e5e7eb',
     overflow: 'hidden'
   },
   table: {
@@ -282,8 +297,8 @@ const styles = {
     borderCollapse: 'collapse'
   },
   tableHeader: {
-    background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(118, 75, 162, 0.08) 100%)',
-    borderBottom: '2px solid rgba(102, 126, 234, 0.2)'
+    background: 'rgba(139, 157, 255, 0.08)',
+    borderBottom: '2px solid rgba(139, 157, 255, 0.2)'
   },
   th: {
     padding: '16px',
@@ -300,7 +315,7 @@ const styles = {
     cursor: 'pointer'
   },
   tableRowSelected: {
-    background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(118, 75, 162, 0.08) 100%)'
+    background: 'rgba(139, 157, 255, 0.08)'
   },
   td: {
     padding: '16px',
@@ -324,19 +339,20 @@ const styles = {
     padding: '8px 16px',
     fontSize: '14px',
     fontWeight: '600',
-    color: '#667eea',
+    color: '#8b9dff',
     background: 'white',
-    border: '2px solid #667eea',
+    border: '2px solid #8b9dff',
     borderRadius: '8px',
     cursor: 'pointer',
-    transition: 'all 0.3s'
+    transition: 'all 0.3s',
+    fontFamily: "'Inter', 'Segoe UI', sans-serif"
   },
   selectedSection: {
     background: 'white',
     borderRadius: '12px',
     padding: '24px',
     boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
-    border: '1px solid rgba(102, 126, 234, 0.1)'
+    border: '1px solid #e5e7eb'
   },
   selectedTitle: {
     fontSize: '22px',
@@ -379,23 +395,25 @@ const styles = {
     fontSize: '15px',
     fontWeight: '700',
     color: 'white',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    background: '#8b9dff',
     border: 'none',
     borderRadius: '8px',
     cursor: 'pointer',
-    boxShadow: '0 4px 12px rgba(102, 126, 234, 0.4)',
-    transition: 'all 0.3s'
+    boxShadow: '0 4px 12px rgba(139, 157, 255, 0.4)',
+    transition: 'all 0.3s',
+    fontFamily: "'Inter', 'Segoe UI', sans-serif"
   },
   actionButtonSecondary: {
     padding: '12px 24px',
     fontSize: '15px',
     fontWeight: '600',
-    color: '#667eea',
+    color: '#8b9dff',
     background: 'white',
-    border: '2px solid #667eea',
+    border: '2px solid #8b9dff',
     borderRadius: '8px',
     cursor: 'pointer',
-    transition: 'all 0.3s'
+    transition: 'all 0.3s',
+    fontFamily: "'Inter', 'Segoe UI', sans-serif"
   }
 };
 

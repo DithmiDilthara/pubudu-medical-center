@@ -1,7 +1,7 @@
 import { Link, useNavigate } from "react-router-dom";
 import { FiCalendar, FiSearch, FiClipboard, FiCheckSquare, FiClock } from 'react-icons/fi';
-import PatientSidebar from "../components/PatientSidebar";
-import PatientHeader from "../components/PatientHeader";
+import PatientSidebar from "../../components/PatientSidebar";
+import PatientHeader from "../../components/PatientHeader";
 
 const upcomingAppointments = [
   {
@@ -81,113 +81,99 @@ function PatientDashboard() {
 
   return (
     <div style={styles.container}>
-      {/* Sidebar */}
       <PatientSidebar onLogout={handleLogout} />
 
-      {/* Main Content */}
       <div style={styles.mainWrapper}>
-        {/* Header */}
         <PatientHeader patientName="Dithmi" />
 
-        {/* Dashboard Content */}
         <main style={styles.mainContent}>
-        {/* Header */}
-        <div style={styles.headerSection}>
-          <div>
-            <h1 style={styles.welcomeTitle}>Welcome, Dithmi</h1>
-            <p style={styles.welcomeSubtitle}>
-              Your personalized health overview
-            </p>
-          </div>
-        </div>
-
-        {/* Quick actions */}
-        <section style={styles.quickActionsSection}>
-          <h3 style={styles.quickActionsTitle}>
-            Quick Actions
-          </h3>
-          <div style={styles.quickActionsButtons}>
-            <Link
-              to="/patient/appointments"
-              style={styles.primaryButton}
-            >
-              <FiCalendar style={{ marginRight: '8px', verticalAlign: 'middle' }} />
-              Book Appointment
-            </Link>
-            <Link
-              to="/patient/find-doctor"
-              style={styles.secondaryButton}
-            >
-              <FiSearch style={{ marginRight: '8px', verticalAlign: 'middle' }} />
-              Find Doctor
-            </Link>
-            <Link
-              to="/patient/appointments"
-              style={styles.tertiaryButton}
-            >
-              <FiClipboard style={{ marginRight: '8px', verticalAlign: 'middle' }} />
-              My Appointments
-            </Link>
-          </div>
-        </section>
-
-        {/* Top grid: Upcoming + Calendar */}
-        <div style={styles.topGrid}>
-          {/* Upcoming appointments list */}
-          <section style={styles.appointmentsSection}>
-            <div style={styles.sectionHeader}>
-              <h2 style={styles.sectionTitle}>
-                <FiCheckSquare style={{ marginRight: '8px', verticalAlign: 'middle' }} />
-                Upcoming Appointments
-              </h2>
+          {/* Quick actions */}
+          <section style={styles.quickActionsSection}>
+            <h3 style={styles.quickActionsTitle}>
+              Quick Actions
+            </h3>
+            <div style={styles.quickActionsButtons}>
+              <Link
+                to="/patient/find-doctor"
+                style={styles.primaryButton}
+              >
+                <FiCalendar style={{ marginRight: '8px', verticalAlign: 'middle' }} />
+                Book Appointment
+              </Link>
+              <Link
+                to="/patient/find-doctor"
+                style={styles.secondaryButton}
+              >
+                <FiSearch style={{ marginRight: '8px', verticalAlign: 'middle' }} />
+                Find Doctor
+              </Link>
               <Link
                 to="/patient/appointments"
-                style={styles.bookLink}
+                style={styles.tertiaryButton}
               >
-                View All →
+                <FiClipboard style={{ marginRight: '8px', verticalAlign: 'middle' }} />
+                My Appointments
               </Link>
             </div>
+          </section>
 
-            <div style={styles.appointmentsList}>
-              {upcomingAppointments.length > 0 ? (
-                upcomingAppointments.map((appt) => (
-                  <div
-                    key={appt.id}
-                    style={styles.appointmentCard}
-                  >
-                    <div style={styles.appointmentCardHeader}>
-                      <div>
-                        <p style={styles.appointmentTitle}>{appt.title}</p>
-                        <p style={styles.appointmentDoctor}>
-                          {appt.doctor} · {appt.specialty}
-                        </p>
+          {/* Top grid: Upcoming + Calendar */}
+          <div style={styles.topGrid}>
+            {/* Upcoming appointments list */}
+            <section style={styles.appointmentsSection}>
+              <div style={styles.sectionHeader}>
+                <h2 style={styles.sectionTitle}>
+                  <FiCheckSquare style={{ marginRight: '8px', verticalAlign: 'middle' }} />
+                  Upcoming Appointments
+                </h2>
+                <Link
+                  to="/patient/appointments"
+                  style={styles.bookLink}
+                >
+                  View All →
+                </Link>
+              </div>
+
+              <div style={styles.appointmentsList}>
+                {upcomingAppointments.length > 0 ? (
+                  upcomingAppointments.map((appt) => (
+                    <div
+                      key={appt.id}
+                      style={styles.appointmentCard}
+                    >
+                      <div style={styles.appointmentCardHeader}>
+                        <div>
+                          <p style={styles.appointmentTitle}>{appt.title}</p>
+                          <p style={styles.appointmentDoctor}>
+                            {appt.doctor} · {appt.specialty}
+                          </p>
+                        </div>
+                        <button style={styles.payButton}>
+                          Pay Now
+                        </button>
                       </div>
-                      <button style={styles.payButton}>
-                        Pay Now
-                      </button>
+                      <p style={styles.appointmentDateTime}>
+                        <FiCalendar style={{ marginRight: '6px', verticalAlign: 'middle' }} />
+                        {new Date(appt.date).toLocaleDateString()}
+                        <FiClock style={{ margin: '0 6px 0 12px', verticalAlign: 'middle' }} />
+                        {appt.time}
+                      </p>
                     </div>
-                    <p style={styles.appointmentDateTime}>
-                      <FiCalendar style={{ marginRight: '6px', verticalAlign: 'middle' }} />
-                      {new Date(appt.date).toLocaleDateString()}
-                      <FiClock style={{ margin: '0 6px 0 12px', verticalAlign: 'middle' }} />
-                      {appt.time}
-                    </p>
-                  </div>
-                ))
-              ) : (
-                <p style={styles.noAppointmentsText}>No upcoming appointments</p>
-              )}
-            </div>
-          </section>
+                  ))
+                ) : (
+                  <p style={styles.noAppointmentsText}>No upcoming appointments</p>
+                )}
+              </div>
+            </section>
 
-          {/* Calendar */}
-          <section style={styles.calendarSection}>
-            <MiniCalendar
-              highlightedDates={upcomingAppointments.map((a) => a.date)}
-            />
-          </section>
-        </div>
-      </main>
+            {/* Calendar */}
+            <section style={styles.calendarSection}>
+              <MiniCalendar
+                highlightedDates={upcomingAppointments.map((a) => a.date)}
+              />
+            </section>
+          </div>
+        </main>
       </div>
     </div>
   );
@@ -198,7 +184,8 @@ const styles = {
     display: 'flex',
     flexDirection: 'row',
     minHeight: '100vh',
-    background: 'linear-gradient(135deg, #f5f5f5 0%, #f9fafb 100%)'
+    background: 'linear-gradient(135deg, #f5f5f5 0%, #f9fafb 100%)',
+    fontFamily: "'Inter', 'Segoe UI', sans-serif"
   },
   mainWrapper: {
     flex: 1,
@@ -208,30 +195,6 @@ const styles = {
   mainContent: {
     flex: 1,
     padding: '32px'
-  },
-  headerSection: {
-    marginBottom: '24px',
-    display: 'flex',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: '16px'
-  },
-  welcomeTitle: {
-    fontSize: '32px',
-    fontWeight: 'bold',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-    WebkitBackgroundClip: 'text',
-    WebkitTextFillColor: 'transparent',
-    margin: 0,
-    fontFamily: '\'Inter\', \'Segoe UI\', sans-serif'
-  },
-  welcomeSubtitle: {
-    fontSize: '15px',
-    color: '#666',
-    margin: 0,
-    marginTop: '8px',
-    fontFamily: '\'Inter\', \'Segoe UI\', sans-serif'
   },
   quickActionsSection: {
     marginBottom: '32px',
@@ -247,7 +210,7 @@ const styles = {
     color: 'white',
     marginBottom: '16px',
     marginTop: 0,
-    fontFamily: '\'Inter\', \'Segoe UI\', sans-serif'
+    fontFamily: "'Inter', 'Segoe UI', sans-serif"
   },
   quickActionsButtons: {
     display: 'flex',
@@ -268,7 +231,7 @@ const styles = {
     transition: 'all 0.3s',
     border: '2px solid white',
     cursor: 'pointer',
-    fontFamily: '\'Inter\', \'Segoe UI\', sans-serif'
+    fontFamily: "'Inter', 'Segoe UI', sans-serif"
   },
   secondaryButton: {
     borderRadius: '8px',
@@ -283,7 +246,7 @@ const styles = {
     alignItems: 'center',
     transition: 'all 0.3s',
     cursor: 'pointer',
-    fontFamily: '\'Inter\', \'Segoe UI\', sans-serif'
+    fontFamily: "'Inter', 'Segoe UI', sans-serif"
   },
   tertiaryButton: {
     borderRadius: '8px',
@@ -298,7 +261,7 @@ const styles = {
     alignItems: 'center',
     transition: 'all 0.3s',
     cursor: 'pointer',
-    fontFamily: '\'Inter\', \'Segoe UI\', sans-serif'
+    fontFamily: "'Inter', 'Segoe UI', sans-serif"
   },
   topGrid: {
     display: 'grid',
@@ -329,7 +292,7 @@ const styles = {
     margin: 0,
     display: 'inline-flex',
     alignItems: 'center',
-    fontFamily: '\'Inter\', \'Segoe UI\', sans-serif'
+    fontFamily: "'Inter', 'Segoe UI', sans-serif"
   },
   bookLink: {
     fontSize: '14px',
@@ -338,7 +301,7 @@ const styles = {
     textDecoration: 'none',
     transition: 'all 0.2s',
     cursor: 'pointer',
-    fontFamily: '\'Inter\', \'Segoe UI\', sans-serif'
+    fontFamily: "'Inter', 'Segoe UI', sans-serif"
   },
   appointmentsList: {
     display: 'flex',
@@ -367,14 +330,14 @@ const styles = {
     margin: 0,
     textTransform: 'uppercase',
     letterSpacing: '0.5px',
-    fontFamily: '\'Inter\', \'Segoe UI\', sans-serif'
+    fontFamily: "'Inter', 'Segoe UI', sans-serif"
   },
   appointmentDoctor: {
     fontSize: '16px',
     fontWeight: '700',
     color: '#667eea',
     margin: 0,
-    fontFamily: '\'Inter\', \'Segoe UI\', sans-serif'
+    fontFamily: "'Inter', 'Segoe UI', sans-serif"
   },
   payButton: {
     fontSize: '13px',
@@ -387,7 +350,7 @@ const styles = {
     cursor: 'pointer',
     transition: 'all 0.3s',
     boxShadow: '0 4px 10px rgba(102, 126, 234, 0.3)',
-    fontFamily: '\'Inter\', \'Segoe UI\', sans-serif'
+    fontFamily: "'Inter', 'Segoe UI', sans-serif"
   },
   appointmentDateTime: {
     fontSize: '13px',
@@ -396,7 +359,7 @@ const styles = {
     fontWeight: '500',
     display: 'flex',
     alignItems: 'center',
-    fontFamily: '\'Inter\', \'Segoe UI\', sans-serif'
+    fontFamily: "'Inter', 'Segoe UI', sans-serif"
   },
   noAppointmentsText: {
     fontSize: '14px',
@@ -404,7 +367,7 @@ const styles = {
     textAlign: 'center',
     padding: '20px',
     margin: 0,
-    fontFamily: '\'Inter\', \'Segoe UI\', sans-serif'
+    fontFamily: "'Inter', 'Segoe UI', sans-serif"
   },
   calendarSection: {
     gridColumn: 'span 1'
@@ -432,7 +395,7 @@ const styles = {
     WebkitBackgroundClip: 'text',
     WebkitTextFillColor: 'transparent',
     margin: 0,
-    fontFamily: '\'Inter\', \'Segoe UI\', sans-serif'
+    fontFamily: "'Inter', 'Segoe UI', sans-serif"
   },
   calendarBadge: {
     fontSize: '12px',
@@ -440,7 +403,7 @@ const styles = {
     WebkitBackgroundClip: 'text',
     WebkitTextFillColor: 'transparent',
     fontWeight: '700',
-    fontFamily: '\'Inter\', \'Segoe UI\', sans-serif'
+    fontFamily: "'Inter', 'Segoe UI', sans-serif"
   },
   calendarGrid: {
     display: 'grid',
@@ -454,7 +417,7 @@ const styles = {
     fontSize: '12px',
     fontWeight: '700',
     padding: '8px 0',
-    fontFamily: '\'Inter\', \'Segoe UI\', sans-serif'
+    fontFamily: "'Inter', 'Segoe UI', sans-serif"
   },
   dayCell: {
     height: '36px',
@@ -464,7 +427,7 @@ const styles = {
     justifyContent: 'center',
     fontSize: '14px',
     fontWeight: '500',
-    fontFamily: '\'Inter\', \'Segoe UI\', sans-serif'
+    fontFamily: "'Inter', 'Segoe UI', sans-serif"
   },
   highlightedDay: {
     fontWeight: 'bold',

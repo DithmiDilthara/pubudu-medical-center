@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { FiCheck, FiX, FiActivity } from "react-icons/fi";
 
 // Reusable FormInput Component (inline)
 const FormInput = ({ label, name, type = "text", value, onChange, onBlur, placeholder, touched, error, required, disabled, style }) => {
@@ -28,7 +29,7 @@ const FormInput = ({ label, name, type = "text", value, onChange, onBlur, placeh
           boxSizing: "border-box",
           transition: "all 0.3s ease",
           outline: "none",
-          fontFamily: "Arial, sans-serif",
+          fontFamily: "'Inter', 'Segoe UI', sans-serif",
           backgroundColor: disabled ? "#f5f5f5" : "#fff",
           cursor: disabled ? "not-allowed" : "text",
           ...(hasError && { borderColor: "#e74c3c", backgroundColor: "#fff5f5" }),
@@ -36,7 +37,11 @@ const FormInput = ({ label, name, type = "text", value, onChange, onBlur, placeh
         }}
       />
       {hasError && <span style={{ display: "block", color: "#e74c3c", fontSize: "13px", marginTop: "6px", fontWeight: "600" }}>{error}</span>}
-      {isValid && <span style={{ display: "block", color: "#27ae60", fontSize: "13px", marginTop: "6px", fontWeight: "bold" }}>✓</span>}
+      {isValid && (
+        <span style={{ display: "flex", alignItems: "center", gap: "4px", color: "#27ae60", fontSize: "13px", marginTop: "6px", fontWeight: "bold" }}>
+          <FiCheck style={{ fontSize: "14px" }} />
+        </span>
+      )}
     </div>
   );
 };
@@ -66,7 +71,7 @@ const FormSelect = ({ label, name, value, onChange, onBlur, options, touched, er
           boxSizing: "border-box",
           transition: "all 0.3s ease",
           outline: "none",
-          fontFamily: "Arial, sans-serif",
+          fontFamily: "'Inter', 'Segoe UI', sans-serif",
           backgroundColor: disabled ? "#f5f5f5" : "#fff",
           cursor: "pointer",
           ...(hasError && { borderColor: "#e74c3c", backgroundColor: "#fff5f5" }),
@@ -80,7 +85,11 @@ const FormSelect = ({ label, name, value, onChange, onBlur, options, touched, er
         ))}
       </select>
       {hasError && <span style={{ display: "block", color: "#e74c3c", fontSize: "13px", marginTop: "6px", fontWeight: "600" }}> {error}</span>}
-      {isValid && <span style={{ display: "block", color: "#27ae60", fontSize: "13px", marginTop: "6px", fontWeight: "bold" }}>✓</span>}
+      {isValid && (
+        <span style={{ display: "flex", alignItems: "center", gap: "4px", color: "#27ae60", fontSize: "13px", marginTop: "6px", fontWeight: "bold" }}>
+          <FiCheck style={{ fontSize: "14px" }} />
+        </span>
+      )}
     </div>
   );
 };
@@ -97,7 +106,7 @@ const FormCheckbox = ({ label, name, checked, onChange, onBlur, error, required,
           onChange={onChange}
           onBlur={onBlur}
           disabled={disabled}
-          style={{ marginTop: "4px", cursor: "pointer", width: "18px", height: "18px", flexShrink: 0, accentColor: "#667eea" }}
+          style={{ marginTop: "4px", cursor: "pointer", width: "18px", height: "18px", flexShrink: 0, accentColor: "#8b9dff" }}
         />
         <label style={{ fontSize: "14px", color: "#555", lineHeight: "1.5", cursor: "pointer" }}>
           {label} {required && <span style={{ color: "#e74c3c" }}>*</span>}
@@ -414,33 +423,43 @@ function PatientRegistration() {
     <div style={styles.passwordRequirements}>
       <p style={styles.requirementsTitle}>Password Requirements:</p>
       <div style={styles.requirement}>
-        <span style={/(?=.*[a-z])/.test(formData.password) ? styles.checkmark : styles.cross}>
-          {/(?=.*[a-z])/.test(formData.password) ? "✓" : "✗"}
-        </span>
+        {/(?=.*[a-z])/.test(formData.password) ? (
+          <FiCheck style={styles.checkmark} />
+        ) : (
+          <FiX style={styles.cross} />
+        )}
         <span>Lowercase letter</span>
       </div>
       <div style={styles.requirement}>
-        <span style={/(?=.*[A-Z])/.test(formData.password) ? styles.checkmark : styles.cross}>
-          {/(?=.*[A-Z])/.test(formData.password) ? "✓" : "✗"}
-        </span>
+        {/(?=.*[A-Z])/.test(formData.password) ? (
+          <FiCheck style={styles.checkmark} />
+        ) : (
+          <FiX style={styles.cross} />
+        )}
         <span>Uppercase letter</span>
       </div>
       <div style={styles.requirement}>
-        <span style={/(?=.*\d)/.test(formData.password) ? styles.checkmark : styles.cross}>
-          {/(?=.*\d)/.test(formData.password) ? "✓" : "✗"}
-        </span>
+        {/(?=.*\d)/.test(formData.password) ? (
+          <FiCheck style={styles.checkmark} />
+        ) : (
+          <FiX style={styles.cross} />
+        )}
         <span>Number</span>
       </div>
       <div style={styles.requirement}>
-        <span style={/(?=.*[@#$!%*?&])/.test(formData.password) ? styles.checkmark : styles.cross}>
-          {/(?=.*[@#$!%*?&])/.test(formData.password) ? "✓" : "✗"}
-        </span>
+        {/(?=.*[@#$!%*?&])/.test(formData.password) ? (
+          <FiCheck style={styles.checkmark} />
+        ) : (
+          <FiX style={styles.cross} />
+        )}
         <span>Special character (@, #, $, !, %, *, ?, &)</span>
       </div>
       <div style={styles.requirement}>
-        <span style={formData.password.length >= 8 ? styles.checkmark : styles.cross}>
-          {formData.password.length >= 8 ? "✓" : "✗"}
-        </span>
+        {formData.password.length >= 8 ? (
+          <FiCheck style={styles.checkmark} />
+        ) : (
+          <FiX style={styles.cross} />
+        )}
         <span>Minimum 8 characters</span>
       </div>
     </div>
@@ -674,7 +693,9 @@ function PatientRegistration() {
       <div style={styles.rightSide}>
         <div style={styles.rightContent}>
           <div style={styles.logoContainer}>
-            <div style={styles.logoIcon}>+</div>
+            <div style={styles.logoIcon}>
+              <FiActivity style={styles.logoIconSvg} />
+            </div>
           </div>
           <h1 style={styles.centerName}>Pubudu Medical Center</h1>
           <p style={styles.tagline}>E-Channeling System</p>
@@ -691,12 +712,13 @@ function PatientRegistration() {
 }
 
 const styles = {
-  container: { minHeight: "100vh", display: "flex", fontFamily: "Arial, sans-serif" },
+  container: { minHeight: "100vh", display: "flex", fontFamily: "'Inter', 'Segoe UI', sans-serif" },
   leftSide: { flex: 3, display: "flex", justifyContent: "center", alignItems: "center", backgroundColor: "#f5f5f5", padding: "40px", overflowY: "auto" },
-  rightSide: { flex: 1, background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", display: "flex", justifyContent: "center", alignItems: "center", padding: "40px", color: "white", minHeight: "100vh" },
+  rightSide: { flex: 1, background: "linear-gradient(135deg, #8b9dff 0%, #9b7bc8 100%)", display: "flex", justifyContent: "center", alignItems: "center", padding: "40px", color: "white", minHeight: "100vh" },
   rightContent: { textAlign: "center", maxWidth: "500px" },
   logoContainer: { display: "flex", justifyContent: "center", marginBottom: "30px" },
-  logoIcon: { width: "120px", height: "120px", backgroundColor: "rgba(255, 255, 255, 0.2)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "72px", color: "white", fontWeight: "bold", border: "3px solid white" },
+  logoIcon: { width: "120px", height: "120px", backgroundColor: "rgba(255, 255, 255, 0.2)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", color: "white", border: "3px solid white" },
+  logoIconSvg: { fontSize: "72px" },
   centerName: { fontSize: "36px", fontWeight: "bold", marginBottom: "10px", color: "white" },
   tagline: { fontSize: "18px", marginBottom: "50px", color: "rgba(255, 255, 255, 0.9)" },
   quoteContainer: { marginTop: "60px", padding: "30px", backgroundColor: "rgba(255, 255, 255, 0.1)", borderRadius: "15px", backdropFilter: "blur(10px)" },
@@ -738,13 +760,13 @@ const styles = {
   passwordRequirements: { marginTop: "15px", marginBottom: "20px", padding: "15px", backgroundColor: "#f8f9fa", borderRadius: "8px", border: "1px solid #e0e0e0" },
   requirementsTitle: { fontSize: "13px", fontWeight: "700", color: "#333", marginBottom: "10px" },
   requirement: { display: "flex", alignItems: "center", fontSize: "13px", color: "#555", marginBottom: "6px" },
-  checkmark: { color: "#27ae60", fontWeight: "bold", marginRight: "8px", fontSize: "15px" },
-  cross: { color: "#e74c3c", fontWeight: "bold", marginRight: "8px", fontSize: "15px" },
-  submitButton: { width: "100%", padding: "14px", backgroundColor: "#667eea", color: "white", border: "none", borderRadius: "8px", fontSize: "16px", fontWeight: "600", cursor: "pointer", transition: "background-color 0.3s", marginBottom: "15px" },
+  checkmark: { color: "#27ae60", marginRight: "8px", fontSize: "16px", flexShrink: 0 },
+  cross: { color: "#e74c3c", marginRight: "8px", fontSize: "16px", flexShrink: 0 },
+  submitButton: { width: "100%", padding: "14px", backgroundColor: "#8b9dff", color: "white", border: "none", borderRadius: "8px", fontSize: "16px", fontWeight: "600", cursor: "pointer", transition: "background-color 0.3s", marginBottom: "15px", fontFamily: "'Inter', 'Segoe UI', sans-serif" },
   submitButtonDisabled: { backgroundColor: "#a0a0a0", cursor: "not-allowed" },
   loginLink: { textAlign: "center" },
   loginText: { margin: "0", fontSize: "14px", color: "#666" },
-  linkButton: { background: "none", border: "none", color: "#667eea", cursor: "pointer", fontSize: "14px", textDecoration: "underline", padding: "0" }
+  linkButton: { background: "none", border: "none", color: "#8b9dff", cursor: "pointer", fontSize: "14px", textDecoration: "underline", padding: "0", fontFamily: "'Inter', 'Segoe UI', sans-serif" }
 };
 
 export default PatientRegistration;

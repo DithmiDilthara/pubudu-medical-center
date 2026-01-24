@@ -1,12 +1,12 @@
 import { FiUser } from "react-icons/fi";
 
-function DoctorHeader({ doctorName = "Dr. Kanya Ekanalyake" }) {
+function PatientHeader({ patientName = "Dithmi" }) {
   return (
     <header style={styles.header}>
       {/* Welcome Section */}
       <div style={styles.welcomeContainer}>
         <p style={styles.welcomeText}>
-          Welcome, <span style={styles.doctorName}>{doctorName}!</span>
+          Welcome, <span style={styles.patientName}>{patientName}!</span>
         </p>
         <div style={styles.avatar}>
           <FiUser style={styles.avatarIcon} />
@@ -15,7 +15,6 @@ function DoctorHeader({ doctorName = "Dr. Kanya Ekanalyake" }) {
     </header>
   );
 }
-
 
 const styles = {
   header: {
@@ -39,7 +38,7 @@ const styles = {
     fontWeight: "500",
     fontFamily: "'Inter', 'Segoe UI', sans-serif"
   },
-  doctorName: {
+  patientName: {
     color: "#8b9dff",
     fontWeight: "700"
   },
@@ -58,4 +57,4 @@ const styles = {
   }
 };
 
-export default DoctorHeader;
+export default PatientHeader;

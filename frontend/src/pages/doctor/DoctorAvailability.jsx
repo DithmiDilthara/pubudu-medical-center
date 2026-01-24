@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import DoctorHeader from '../components/DoctorHeader';
+import { FiCheck, FiMinus, FiX } from 'react-icons/fi';
+import DoctorHeader from '../../components/DoctorHeader';
+import DoctorSidebar from '../../components/DoctorSidebar';
 
 function DoctorAvailability() {
   const navigate = useNavigate();
@@ -68,9 +70,9 @@ function DoctorAvailability() {
           <span style={styles.calendarDayNumber}>{day}</span>
           {dayAvailability && (
             <span style={styles.calendarDayStatus}>
-              {dayAvailability.status === 'available' && '✓'}
-              {dayAvailability.status === 'half-day' && '~'}
-              {dayAvailability.status === 'unavailable' && '✕'}
+              {dayAvailability.status === 'available' && <FiCheck />}
+              {dayAvailability.status === 'half-day' && <FiMinus />}
+              {dayAvailability.status === 'unavailable' && <FiX />}
             </span>
           )}
         </div>
@@ -165,11 +167,19 @@ function DoctorAvailability() {
     alert(`Recurring availability set for the next 3 months on ${recurringDays.map(i => daysOfWeek[i]).join(', ')}`);
   };
 
-  return (
-    <div style={styles.container}>
-      <DoctorHeader />
+  const handleLogout = () => {
+    localStorage.clear();
+    navigate('/');
+  };
 
-      <main style={styles.mainContent}>
+  return (
+    <div style={styles.pageContainer}>
+      <DoctorSidebar onLogout={handleLogout} />
+      
+      <div style={styles.mainContainer}>
+        <DoctorHeader />
+
+        <main style={styles.mainContent}>
         {/* Header */}
         <div style={styles.header}>
           <div>
@@ -313,17 +323,23 @@ function DoctorAvailability() {
             </div>
           </section>
         </div>
-      </main>
+        </main>
+      </div>
     </div>
   );
 }
 
 const styles = {
-  container: {
-    display: 'flex',
-    flexDirection: 'column',
-    minHeight: '100vh',
-    background: 'linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%)'
+  pageContainer: {
+    display: "flex",
+    minHeight: "100vh",
+    backgroundColor: "#f9fafb",
+    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+  },
+  mainContainer: {
+    flex: 1,
+    display: "flex",
+    flexDirection: "column"
   },
   mainContent: {
     flex: 1,
@@ -336,17 +352,17 @@ const styles = {
     marginBottom: '24px'
   },
   pageTitle: {
-    fontSize: '32px',
-    fontWeight: 'bold',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-    WebkitBackgroundClip: 'text',
-    WebkitTextFillColor: 'transparent',
-    margin: '0 0 8px 0'
+    fontSize: '28px',
+    fontWeight: '700',
+    color: '#1f2937',
+    margin: '0 0 8px 0',
+    fontFamily: "'Inter', 'Segoe UI', sans-serif"
   },
   pageSubtitle: {
-    fontSize: '15px',
+    fontSize: '14px',
     color: '#6b7280',
-    margin: 0
+    margin: 0,
+    fontFamily: "'Inter', 'Segoe UI', sans-serif"
   },
   content: {
     display: 'grid',
@@ -358,7 +374,7 @@ const styles = {
     borderRadius: '12px',
     padding: '24px',
     boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
-    border: '1px solid rgba(102, 126, 234, 0.1)'
+    border: '1px solid #e5e7eb'
   },
   calendarHeader: {
     display: 'flex',
@@ -369,13 +385,14 @@ const styles = {
   monthButton: {
     padding: '8px 16px',
     fontSize: '18px',
-    fontWeight: 'bold',
-    color: '#667eea',
+    fontWeight: '700',
+    color: '#8b9dff',
     background: 'white',
-    border: '2px solid #667eea',
+    border: '2px solid #8b9dff',
     borderRadius: '8px',
     cursor: 'pointer',
-    transition: 'all 0.3s'
+    transition: 'all 0.3s',
+    fontFamily: "'Inter', 'Segoe UI', sans-serif"
   },
   monthTitle: {
     fontSize: '24px',
@@ -414,8 +431,9 @@ const styles = {
     fontWeight: '700',
     color: '#374151',
     textAlign: 'center',
-    background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(118, 75, 162, 0.08) 100%)',
-    borderRadius: '8px'
+    background: 'rgba(139, 157, 255, 0.08)',
+    borderRadius: '8px',
+    fontFamily: "'Inter', 'Segoe UI', sans-serif"
   },
   calendarDay: {
     aspectRatio: '1',
@@ -456,23 +474,25 @@ const styles = {
     borderColor: '#ef4444'
   },
   calendarDaySelected: {
-    borderColor: '#667eea',
+    borderColor: '#8b9dff',
     borderWidth: '3px',
-    boxShadow: '0 0 0 3px rgba(102, 126, 234, 0.2)'
+    boxShadow: '0 0 0 3px rgba(139, 157, 255, 0.2)'
   },
   selectedDateInfo: {
     marginTop: '20px',
     padding: '16px',
-    background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(118, 75, 162, 0.08) 100%)',
+    background: 'rgba(139, 157, 255, 0.08)',
     borderRadius: '8px',
     fontSize: '15px',
     color: '#1f2937',
-    textAlign: 'center'
+    textAlign: 'center',
+    fontFamily: "'Inter', 'Segoe UI', sans-serif"
   },
   currentStatus: {
     marginLeft: '12px',
-    color: '#667eea',
-    fontWeight: '600'
+    color: '#8b9dff',
+    fontWeight: '600',
+    fontFamily: "'Inter', 'Segoe UI', sans-serif"
   },
   settingsSection: {
     display: 'flex',
@@ -565,9 +585,9 @@ const styles = {
     transition: 'all 0.3s'
   },
   dayButtonActive: {
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    background: '#8b9dff',
     color: 'white',
-    borderColor: '#667eea'
+    borderColor: '#8b9dff'
   },
   applyRecurringButton: {
     width: '100%',
@@ -575,12 +595,13 @@ const styles = {
     fontSize: '15px',
     fontWeight: '700',
     color: 'white',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    background: '#8b9dff',
     border: 'none',
     borderRadius: '8px',
     cursor: 'pointer',
-    boxShadow: '0 4px 12px rgba(102, 126, 234, 0.4)',
-    transition: 'all 0.3s'
+    boxShadow: '0 4px 12px rgba(139, 157, 255, 0.4)',
+    transition: 'all 0.3s',
+    fontFamily: "'Inter', 'Segoe UI', sans-serif"
   }
 };
 

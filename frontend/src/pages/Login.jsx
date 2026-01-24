@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { FiAlertCircle, FiCheck, FiX, FiActivity } from 'react-icons/fi';
 
 const Login = () => {
   const navigate = useNavigate();
@@ -116,13 +117,16 @@ const Login = () => {
       const roleNames = {
         doctor: 'Doctor',
         patient: 'Patient',
-        receptionist: 'Receptionist'
+        receptionist: 'Receptionist',
+        admin: 'Admin'
       };
       
       alert(`✅ Login Successful!\n\nUsername: ${formData.username}\nRole: ${roleNames[formData.userType]}`);
       
       // Navigate based on user type
-      if (formData.userType === 'doctor') {
+      if (formData.userType === 'admin') {
+        navigate('/admin/dashboard');
+      } else if (formData.userType === 'doctor') {
         navigate('/doctor/dashboard');
       } else if (formData.userType === 'receptionist') {
         navigate('/receptionist/dashboard');
@@ -189,6 +193,17 @@ const Login = () => {
                 />
                 <span style={styles.radioText}>Doctor</span>
               </label>
+              <label style={styles.radioLabel}>
+                <input
+                  type="radio"
+                  name="userType"
+                  value="admin"
+                  checked={formData.userType === 'admin'}
+                  onChange={handleChange}
+                  style={styles.radio}
+                />
+                <span style={styles.radioText}>Admin</span>
+              </label>
             </div>
           </div>
 
@@ -211,10 +226,14 @@ const Login = () => {
               disabled={isSubmitting}
             />
             {touched.username && errors.username && (
-              <span style={styles.errorMessage}>⚠️ {errors.username}</span>
+              <span style={styles.errorMessage}>
+                <FiAlertCircle style={styles.messageIcon} /> {errors.username}
+              </span>
             )}
             {touched.username && !errors.username && formData.username && (
-              <span style={styles.successMessage}>✓ Valid username</span>
+              <span style={styles.successMessage}>
+                <FiCheck style={styles.messageIcon} /> Valid username
+              </span>
             )}
           </div>
 
@@ -237,43 +256,57 @@ const Login = () => {
               disabled={isSubmitting}
             />
             {touched.password && errors.password && (
-              <span style={styles.errorMessage}>⚠️ {errors.password}</span>
+              <span style={styles.errorMessage}>
+                <FiAlertCircle style={styles.messageIcon} /> {errors.password}
+              </span>
             )}
             {touched.password && !errors.password && formData.password && (
-              <span style={styles.successMessage}>✓ Valid password</span>
+              <span style={styles.successMessage}>
+                <FiCheck style={styles.messageIcon} /> Valid password
+              </span>
             )}
             
             {formData.password && (
               <div style={styles.passwordRequirements}>
                 <p style={styles.requirementsTitle}>Password must contain:</p>
                 <div style={styles.requirement}>
-                  <span style={/(?=.*[a-z])/.test(formData.password) ? styles.checkmark : styles.cross}>
-                    {/(?=.*[a-z])/.test(formData.password) ? '✓' : '✗'}
-                  </span>
+                  {/(?=.*[a-z])/.test(formData.password) ? (
+                    <FiCheck style={styles.checkmark} />
+                  ) : (
+                    <FiX style={styles.cross} />
+                  )}
                   <span>At least one lowercase letter</span>
                 </div>
                 <div style={styles.requirement}>
-                  <span style={/(?=.*[A-Z])/.test(formData.password) ? styles.checkmark : styles.cross}>
-                    {/(?=.*[A-Z])/.test(formData.password) ? '✓' : '✗'}
-                  </span>
+                  {/(?=.*[A-Z])/.test(formData.password) ? (
+                    <FiCheck style={styles.checkmark} />
+                  ) : (
+                    <FiX style={styles.cross} />
+                  )}
                   <span>At least one uppercase letter</span>
                 </div>
                 <div style={styles.requirement}>
-                  <span style={/(?=.*\d)/.test(formData.password) ? styles.checkmark : styles.cross}>
-                    {/(?=.*\d)/.test(formData.password) ? '✓' : '✗'}
-                  </span>
+                  {/(?=.*\d)/.test(formData.password) ? (
+                    <FiCheck style={styles.checkmark} />
+                  ) : (
+                    <FiX style={styles.cross} />
+                  )}
                   <span>At least one number</span>
                 </div>
                 <div style={styles.requirement}>
-                  <span style={/(?=.*[@#$!%*?&])/.test(formData.password) ? styles.checkmark : styles.cross}>
-                    {/(?=.*[@#$!%*?&])/.test(formData.password) ? '✓' : '✗'}
-                  </span>
+                  {/(?=.*[@#$!%*?&])/.test(formData.password) ? (
+                    <FiCheck style={styles.checkmark} />
+                  ) : (
+                    <FiX style={styles.cross} />
+                  )}
                   <span>At least one special character (@, #, $, !, %, *, ?, &)</span>
                 </div>
                 <div style={styles.requirement}>
-                  <span style={formData.password.length >= 8 ? styles.checkmark : styles.cross}>
-                    {formData.password.length >= 8 ? '✓' : '✗'}
-                  </span>
+                  {formData.password.length >= 8 ? (
+                    <FiCheck style={styles.checkmark} />
+                  ) : (
+                    <FiX style={styles.cross} />
+                  )}
                   <span>Minimum 8 characters</span>
                 </div>
               </div>
@@ -322,7 +355,9 @@ const Login = () => {
       <div style={styles.rightSide}>
         <div style={styles.rightContent}>
           <div style={styles.logoContainer}>
-            <div style={styles.logoIcon}>+</div>
+            <div style={styles.logoIcon}>
+              <FiActivity style={styles.logoIconSvg} />
+            </div>
           </div>
           <h1 style={styles.centerName}>Pubudu Medical Center</h1>
           <p style={styles.tagline}>E-Channeling System</p>
@@ -344,7 +379,7 @@ const styles = {
   container: {
     minHeight: '100vh',
     display: 'flex',
-    fontFamily: 'Arial, sans-serif'
+    fontFamily: "'Inter', 'Segoe UI', sans-serif"
   },
   leftSide: {
     flex: 3,
@@ -356,7 +391,7 @@ const styles = {
   },
   rightSide: {
     flex: 1,
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    background: 'linear-gradient(135deg, #8b9dff 0%, #9b7bc8 100%)',
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
@@ -380,10 +415,11 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    fontSize: '72px',
     color: 'white',
-    fontWeight: 'bold',
     border: '3px solid white'
+  },
+  logoIconSvg: {
+    fontSize: '72px'
   },
   centerName: {
     fontSize: '36px',
@@ -463,18 +499,26 @@ const styles = {
     backgroundColor: '#f0fff4'
   },
   errorMessage: {
-    display: 'block',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
     color: '#e74c3c',
     fontSize: '13px',
     marginTop: '6px',
     fontWeight: '500'
   },
   successMessage: {
-    display: 'block',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
     color: '#27ae60',
     fontSize: '13px',
     marginTop: '6px',
     fontWeight: '500'
+  },
+  messageIcon: {
+    fontSize: '14px',
+    flexShrink: 0
   },
   passwordRequirements: {
     marginTop: '12px',
@@ -498,15 +542,15 @@ const styles = {
   },
   checkmark: {
     color: '#27ae60',
-    fontWeight: 'bold',
     marginRight: '8px',
-    fontSize: '14px'
+    fontSize: '16px',
+    flexShrink: 0
   },
   cross: {
     color: '#e74c3c',
-    fontWeight: 'bold',
     marginRight: '8px',
-    fontSize: '14px'
+    fontSize: '16px',
+    flexShrink: 0
   },
   forgotPassword: {
     textAlign: 'right',
@@ -529,7 +573,7 @@ const styles = {
     cursor: 'pointer',
     width: '18px',
     height: '18px',
-    accentColor: '#667eea'
+    accentColor: '#8b9dff'
   },
   radioText: {
     fontWeight: '500'
@@ -537,16 +581,17 @@ const styles = {
   linkButton: {
     background: 'none',
     border: 'none',
-    color: '#667eea',
+    color: '#8b9dff',
     cursor: 'pointer',
     fontSize: '14px',
     textDecoration: 'underline',
-    padding: '0'
+    padding: '0',
+    fontFamily: "'Inter', 'Segoe UI', sans-serif"
   },
   loginButton: {
     width: '100%',
     padding: '14px',
-    backgroundColor: '#667eea',
+    backgroundColor: '#8b9dff',
     color: 'white',
     border: 'none',
     borderRadius: '8px',
@@ -554,7 +599,8 @@ const styles = {
     fontWeight: '600',
     cursor: 'pointer',
     transition: 'background-color 0.3s',
-    marginBottom: '20px'
+    marginBottom: '20px',
+    fontFamily: "'Inter', 'Segoe UI', sans-serif"
   },
   loginButtonDisabled: {
     backgroundColor: '#a0a0a0',

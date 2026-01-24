@@ -208,7 +208,7 @@ const styles = {
     borderRadius: '8px',
     border: '1px solid #d1d5db',
     fontSize: '14px',
-    fontFamily: 'Inter, system-ui, sans-serif',
+    fontFamily: "'Inter', 'Segoe UI', sans-serif",
     backgroundColor: '#ffffff',
     cursor: 'pointer',
     outline: 'none',
