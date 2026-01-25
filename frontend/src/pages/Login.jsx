@@ -48,8 +48,8 @@ const Login = () => {
           error = 'Username is required';
         } else if (value.trim().length < 3) {
           error = 'Username must be at least 3 characters';
-        } else if (value.trim().length > 50) {
-          error = 'Username must not exceed 50 characters';
+        } else if (value.trim().length > 10) {
+          error = 'Username must not exceed 10 characters';
         } else if (!/^[a-zA-Z0-9_]+$/.test(value)) {
           error = 'Username can only contain letters, numbers, and underscores';
         }
@@ -60,8 +60,8 @@ const Login = () => {
           error = 'Password is required';
         } else if (value.length < 8) {
           error = 'Password must be at least 8 characters';
-        } else if (value.length > 100) {
-          error = 'Password must not exceed 100 characters';
+        } else if (value.length > 10) {
+          error = 'Password must not exceed 10 characters';
         } else if (!/(?=.*[a-z])/.test(value)) {
           error = 'Password must contain at least one lowercase letter';
         } else if (!/(?=.*[A-Z])/.test(value)) {
@@ -134,7 +134,7 @@ const Login = () => {
         navigate('/patient/dashboard');
       }
     } else {
-      alert('❌ Please fix the errors before submitting');
+      alert(' Please fix the errors before submitting');
     }
 
     setIsSubmitting(false);
