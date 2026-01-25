@@ -21,35 +21,40 @@ const styles = {
     display: "flex",
     alignItems: "center",
     justifyContent: "flex-end",
-    padding: "20px 32px",
+    padding: "24px 40px",
     backgroundColor: "white",
-    borderBottom: "1px solid #e5e7eb",
-    boxShadow: "0 1px 3px rgba(0, 0, 0, 0.05)"
+    borderBottom: "1px solid #E5E7EB",
+    boxShadow: "0 1px 3px rgba(0, 0, 0, 0.02)",
+    position: "sticky",
+    top: 0,
+    zIndex: 50
   },
   welcomeContainer: {
     display: "flex",
     alignItems: "center",
-    gap: "12px"
+    gap: "16px"
   },
   welcomeText: {
     fontSize: "15px",
-    color: "#6b7280",
+    color: "#6B7280",
     margin: 0,
-    fontWeight: "500",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    fontWeight: "600",
+    fontFamily: "'Inter', sans-serif"
   },
   receptionistName: {
-    color: "#8b9dff",
+    color: "#0066CC",
     fontWeight: "700"
   },
   avatar: {
-    width: "40px",
-    height: "40px",
+    width: "44px",
+    height: "44px",
     borderRadius: "50%",
-    background: "linear-gradient(135deg, #8b9dff 0%, #9b7bc8 100%)",
+    background: "linear-gradient(135deg, #0066CC 0%, #0052A3 100%)",
     display: "flex",
     alignItems: "center",
-    justifyContent: "center"
+    justifyContent: "center",
+    boxShadow: "0 4px 12px rgba(0, 102, 204, 0.25)",
+    border: "2px solid #E6F2FF"
   },
   avatarIcon: {
     fontSize: "20px",

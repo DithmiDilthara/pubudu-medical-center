@@ -106,6 +106,14 @@ function FindDoctor() {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 style={styles.searchInput}
+                onFocus={(e) => {
+                  e.target.style.borderColor = '#0066CC';
+                  e.target.style.boxShadow = '0 0 0 3px rgba(0, 102, 204, 0.1)';
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = '#E5E7EB';
+                  e.target.style.boxShadow = 'none';
+                }}
               />
             </div>
 
@@ -118,6 +126,18 @@ function FindDoctor() {
                     ...styles.specialtyButton,
                     ...(selectedSpecialty === specialty ? styles.specialtyButtonActive : {})
                   }}
+                  onMouseEnter={(e) => {
+                    if (selectedSpecialty !== specialty) {
+                      e.currentTarget.style.borderColor = '#0066CC';
+                      e.currentTarget.style.color = '#0066CC';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (selectedSpecialty !== specialty) {
+                      e.currentTarget.style.borderColor = '#E5E7EB';
+                      e.currentTarget.style.color = '#6B7280';
+                    }
+                  }}
                 >
                   {specialty}
                 </button>
@@ -129,7 +149,20 @@ function FindDoctor() {
             {filteredDoctors.length > 0 ? (
               <div style={styles.doctorsList}>
                 {filteredDoctors.map((doctor) => (
-                  <div key={doctor.id} style={styles.doctorCard}>
+                  <div 
+                    key={doctor.id} 
+                    style={styles.doctorCard}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.08)';
+                      e.currentTarget.style.borderColor = '#0066CC';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = '0 1px 2px rgba(0, 0, 0, 0.05)';
+                      e.currentTarget.style.borderColor = '#F3F4F6';
+                    }}
+                  >
                     <div style={styles.doctorCardLeft}>
                       <div style={styles.doctorAvatar}>
                         {doctor.name.charAt(3)}
@@ -143,6 +176,14 @@ function FindDoctor() {
                       <button
                         onClick={() => handleBookAppointment(doctor)}
                         style={styles.bookButton}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.transform = 'translateY(-2px)';
+                          e.currentTarget.style.boxShadow = '0 6px 20px rgba(0, 102, 204, 0.35)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.transform = 'translateY(0)';
+                          e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 102, 204, 0.25)';
+                        }}
                       >
                         <FiUser style={{ marginRight: '8px' }} />
                         Book Appointment
@@ -169,8 +210,8 @@ const styles = {
     display: 'flex',
     flexDirection: 'row',
     minHeight: '100vh',
-    background: 'linear-gradient(135deg, #f5f5f5 0%, #f9fafb 100%)',
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    background: '#F9FAFB',
+    fontFamily: "'Inter', sans-serif"
   },
   mainWrapper: {
     flex: 1,
@@ -179,59 +220,61 @@ const styles = {
   },
   mainContent: {
     flex: 1,
-    padding: '32px',
-    maxWidth: '1200px',
+    padding: '40px',
+    maxWidth: '1400px',
     width: '100%',
     margin: '0 auto'
   },
   headerSection: {
-    marginBottom: '28px'
+    marginBottom: '32px'
   },
   pageTitle: {
-    fontSize: '32px',
-    fontWeight: 'bold',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-    WebkitBackgroundClip: 'text',
-    WebkitTextFillColor: 'transparent',
+    fontSize: '36px',
+    fontWeight: '800',
+    color: '#111827',
     margin: 0,
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    fontFamily: "'Plus Jakarta Sans', 'Inter', sans-serif",
+    letterSpacing: '-0.5px'
   },
   pageSubtitle: {
-    fontSize: '15px',
-    color: '#6b7280',
-    margin: '8px 0 0 0',
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    fontSize: '16px',
+    color: '#6B7280',
+    margin: '10px 0 0 0',
+    fontFamily: "'Inter', sans-serif",
+    fontWeight: '500'
   },
   filterSection: {
-    marginBottom: '24px',
+    marginBottom: '28px',
     background: 'white',
-    padding: '20px',
-    borderRadius: '12px',
-    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)',
-    border: '1px solid rgba(102, 126, 234, 0.1)'
+    padding: '28px',
+    borderRadius: '16px',
+    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
+    border: '1px solid #E5E7EB'
   },
   searchContainer: {
-    marginBottom: '16px',
+    marginBottom: '20px',
     position: 'relative',
     display: 'flex',
     alignItems: 'center'
   },
   searchIcon: {
     position: 'absolute',
-    left: '16px',
-    color: '#9ca3af',
+    left: '18px',
+    color: '#9CA3AF',
     fontSize: '20px'
   },
   searchInput: {
     width: '100%',
-    padding: '12px 16px 12px 48px',
+    padding: '14px 18px 14px 52px',
     fontSize: '15px',
-    border: '2px solid #e5e7eb',
-    borderRadius: '8px',
+    border: '2px solid #E5E7EB',
+    borderRadius: '12px',
     outline: 'none',
-    transition: 'all 0.3s',
+    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
     boxSizing: 'border-box',
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    fontFamily: "'Inter', sans-serif",
+    color: '#111827',
+    backgroundColor: '#FFFFFF'
   },
   specialtyFilters: {
     display: 'flex',
@@ -239,29 +282,29 @@ const styles = {
     gap: '10px'
   },
   specialtyButton: {
-    padding: '8px 16px',
+    padding: '10px 20px',
     fontSize: '14px',
     fontWeight: '600',
-    border: '2px solid #e5e7eb',
-    borderRadius: '8px',
+    border: '2px solid #E5E7EB',
+    borderRadius: '10px',
     background: 'white',
-    color: '#6b7280',
+    color: '#6B7280',
     cursor: 'pointer',
-    transition: 'all 0.3s',
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+    fontFamily: "'Inter', sans-serif"
   },
   specialtyButtonActive: {
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    background: 'linear-gradient(135deg, #0066CC 0%, #0052A3 100%)',
     color: 'white',
-    border: '2px solid #667eea',
-    boxShadow: '0 4px 10px rgba(102, 126, 234, 0.3)'
+    border: '2px solid #0066CC',
+    boxShadow: '0 4px 12px rgba(0, 102, 204, 0.25)'
   },
   doctorsSection: {
     background: 'white',
-    padding: '24px',
-    borderRadius: '12px',
-    boxShadow: '0 10px 25px rgba(0, 0, 0, 0.08)',
-    border: '1px solid rgba(102, 126, 234, 0.1)'
+    padding: '32px',
+    borderRadius: '16px',
+    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
+    border: '1px solid #E5E7EB'
   },
   doctorsList: {
     display: 'flex',
@@ -272,32 +315,34 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: '16px',
-    border: '2px solid #f0f0f0',
-    borderRadius: '10px',
-    background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.03) 0%, rgba(118, 75, 162, 0.03) 100%)',
-    transition: 'all 0.3s'
+    padding: '20px',
+    border: '1px solid #F3F4F6',
+    borderRadius: '14px',
+    background: '#FFFFFF',
+    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+    boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)'
   },
   doctorCardLeft: {
     display: 'flex',
     alignItems: 'center',
-    gap: '16px',
+    gap: '18px',
     flex: 1
   },
   doctorAvatar: {
-    width: '56px',
-    height: '56px',
+    width: '64px',
+    height: '64px',
     borderRadius: '50%',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    background: 'linear-gradient(135deg, #0066CC 0%, #0052A3 100%)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     fontSize: '24px',
     fontWeight: 'bold',
     color: 'white',
-    boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)',
+    boxShadow: '0 4px 12px rgba(0, 102, 204, 0.25)',
     flexShrink: 0,
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    fontFamily: "'Inter', sans-serif",
+    border: '3px solid #E6F2FF'
   },
   doctorInfo: {
     flex: 1
@@ -305,49 +350,54 @@ const styles = {
   doctorName: {
     fontSize: '18px',
     fontWeight: '700',
-    color: '#1f2937',
-    margin: '0 0 4px 0',
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    color: '#111827',
+    margin: '0 0 6px 0',
+    fontFamily: "'Plus Jakarta Sans', 'Inter', sans-serif"
   },
   doctorSpecialty: {
     fontSize: '14px',
-    color: '#667eea',
+    color: '#0066CC',
     fontWeight: '600',
     margin: 0,
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    fontFamily: "'Inter', sans-serif",
+    backgroundColor: '#E6F2FF',
+    padding: '4px 12px',
+    borderRadius: '6px',
+    display: 'inline-block'
   },
   doctorCardRight: {
     display: 'flex',
     alignItems: 'center'
   },
   bookButton: {
-    padding: '10px 20px',
+    padding: '12px 24px',
     fontSize: '14px',
     fontWeight: '700',
     color: 'white',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    background: 'linear-gradient(135deg, #0066CC 0%, #0052A3 100%)',
     border: 'none',
-    borderRadius: '8px',
+    borderRadius: '10px',
     cursor: 'pointer',
-    boxShadow: '0 4px 10px rgba(102, 126, 234, 0.3)',
-    transition: 'all 0.3s',
+    boxShadow: '0 4px 12px rgba(0, 102, 204, 0.25)',
+    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
     whiteSpace: 'nowrap',
     display: 'flex',
     alignItems: 'center',
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    fontFamily: "'Inter', sans-serif"
   },
   noResults: {
     textAlign: 'center',
-    padding: '40px 20px',
+    padding: '60px 20px',
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center'
   },
   noResultsText: {
     fontSize: '16px',
-    color: '#9ca3af',
+    color: '#9CA3AF',
     margin: 0,
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    fontFamily: "'Inter', sans-serif",
+    fontWeight: '500'
   }
 };
 

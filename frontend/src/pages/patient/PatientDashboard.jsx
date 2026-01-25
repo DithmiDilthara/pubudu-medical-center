@@ -199,9 +199,9 @@ const styles = {
   quickActionsSection: {
     marginBottom: '32px',
     borderRadius: '12px',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    background: 'linear-gradient(135deg, #0066CC 0%, #0052A3 100%)',
     padding: '24px',
-    boxShadow: '0 10px 30px rgba(102, 126, 234, 0.2)',
+    boxShadow: '0 10px 30px rgba(0, 102, 204, 0.2)',
     border: '1px solid rgba(255, 255, 255, 0.1)'
   },
   quickActionsTitle: {
@@ -223,7 +223,7 @@ const styles = {
     padding: '12px 24px',
     fontSize: '15px',
     fontWeight: '600',
-    color: '#667eea',
+    color: '#0066CC',
     boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
     textDecoration: 'none',
     display: 'inline-flex',
@@ -273,7 +273,7 @@ const styles = {
     backgroundColor: 'white',
     padding: '24px',
     boxShadow: '0 10px 25px rgba(0, 0, 0, 0.08)',
-    border: '1px solid rgba(102, 126, 234, 0.1)'
+    border: '1px solid rgba(0, 102, 204, 0.1)'
   },
   sectionHeader: {
     marginBottom: '20px',
@@ -286,7 +286,7 @@ const styles = {
   sectionTitle: {
     fontSize: '20px',
     fontWeight: '700',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    background: 'linear-gradient(135deg, #0066CC 0%, #0052A3 100%)',
     WebkitBackgroundClip: 'text',
     WebkitTextFillColor: 'transparent',
     margin: 0,
@@ -297,7 +297,7 @@ const styles = {
   bookLink: {
     fontSize: '14px',
     fontWeight: '600',
-    color: '#667eea',
+    color: '#0066CC',
     textDecoration: 'none',
     transition: 'all 0.2s',
     cursor: 'pointer',
@@ -312,7 +312,7 @@ const styles = {
     borderRadius: '10px',
     border: '2px solid #f0f0f0',
     padding: '16px',
-    background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%)',
+    background: 'linear-gradient(135deg, rgba(0, 102, 204, 0.05) 0%, rgba(0, 82, 163, 0.05) 100%)',
     boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)',
     display: 'flex',
     flexDirection: 'column',
@@ -335,7 +335,7 @@ const styles = {
   appointmentDoctor: {
     fontSize: '16px',
     fontWeight: '700',
-    color: '#667eea',
+    color: '#0066CC',
     margin: 0,
     fontFamily: "'Inter', 'Segoe UI', sans-serif"
   },
@@ -343,13 +343,13 @@ const styles = {
     fontSize: '13px',
     fontWeight: '700',
     color: 'white',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    background: 'linear-gradient(135deg, #0066CC 0%, #0052A3 100%)',
     border: 'none',
     borderRadius: '6px',
     padding: '8px 16px',
     cursor: 'pointer',
     transition: 'all 0.3s',
-    boxShadow: '0 4px 10px rgba(102, 126, 234, 0.3)',
+    boxShadow: '0 4px 10px rgba(0, 102, 204, 0.3)',
     fontFamily: "'Inter', 'Segoe UI', sans-serif"
   },
   appointmentDateTime: {
@@ -374,7 +374,7 @@ const styles = {
   },
   calendarContainer: {
     borderRadius: '12px',
-    border: '1px solid rgba(102, 126, 234, 0.15)',
+    border: '1px solid rgba(0, 102, 204, 0.15)',
     backgroundColor: 'white',
     padding: '20px',
     boxShadow: '0 10px 25px rgba(0, 0, 0, 0.08)',
@@ -391,7 +391,7 @@ const styles = {
   calendarMonth: {
     fontSize: '16px',
     fontWeight: '700',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    background: 'linear-gradient(135deg, #0066CC 0%, #0052A3 100%)',
     WebkitBackgroundClip: 'text',
     WebkitTextFillColor: 'transparent',
     margin: 0,
@@ -399,7 +399,7 @@ const styles = {
   },
   calendarBadge: {
     fontSize: '12px',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    background: 'linear-gradient(135deg, #0066CC 0%, #0052A3 100%)',
     WebkitBackgroundClip: 'text',
     WebkitTextFillColor: 'transparent',
     fontWeight: '700',
@@ -413,7 +413,7 @@ const styles = {
     fontSize: '14px'
   },
   dayLabel: {
-    color: '#667eea',
+    color: '#0066CC',
     fontSize: '12px',
     fontWeight: '700',
     padding: '8px 0',
@@ -432,9 +432,9 @@ const styles = {
   highlightedDay: {
     fontWeight: 'bold',
     color: 'white',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-    border: '2px solid #667eea',
-    boxShadow: '0 4px 10px rgba(102, 126, 234, 0.3)'
+    background: 'linear-gradient(135deg, #0066CC 0%, #0052A3 100%)',
+    border: '2px solid #0066CC',
+    boxShadow: '0 4px 10px rgba(0, 102, 204, 0.3)'
   },
   normalDay: {
     color: '#555',
@@ -446,3 +446,5 @@ const styles = {
 };
 
 export default PatientDashboard;
+
+

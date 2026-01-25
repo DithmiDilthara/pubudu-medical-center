@@ -126,7 +126,7 @@ const styles = {
     justifyContent: "center",
     gap: "10px",
     padding: "14px 24px",
-    backgroundColor: "#8b9dff",
+    backgroundColor: "#0066CC",
     color: "white",
     border: "none",
     borderRadius: "8px",
@@ -190,3 +190,4 @@ const styles = {
 };
 
 export default AdminDashboard;
+

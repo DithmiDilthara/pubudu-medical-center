@@ -363,7 +363,7 @@ const styles = {
   pageTitle: {
     fontSize: '32px',
     fontWeight: 'bold',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    background: 'linear-gradient(135deg, #0066CC 0%, #0052A3 100%)',
     WebkitBackgroundClip: 'text',
     WebkitTextFillColor: 'transparent',
     margin: '0 0 8px 0'
@@ -391,7 +391,7 @@ const styles = {
     borderRadius: '16px',
     padding: '32px',
     boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
-    border: '1px solid rgba(102, 126, 234, 0.1)'
+    border: '1px solid rgba(0, 102, 204, 0.1)'
   },
   section: {
     marginBottom: '32px'
@@ -425,9 +425,9 @@ const styles = {
     transition: 'all 0.2s'
   },
   methodButtonActive: {
-    borderColor: '#667eea',
-    background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%)',
-    color: '#667eea'
+    borderColor: '#0066CC',
+    background: 'linear-gradient(135deg, rgba(0, 102, 204, 0.1) 0%, rgba(0, 82, 163, 0.1) 100%)',
+    color: '#0066CC'
   },
   formGroup: {
     marginBottom: '20px'
@@ -529,7 +529,7 @@ const styles = {
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: '20px',
-    background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%)',
+    background: 'linear-gradient(135deg, rgba(0, 102, 204, 0.1) 0%, rgba(0, 82, 163, 0.1) 100%)',
     borderRadius: '12px',
     marginBottom: '24px'
   },
@@ -541,14 +541,14 @@ const styles = {
   totalAmount: {
     fontSize: '24px',
     fontWeight: 'bold',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    background: 'linear-gradient(135deg, #0066CC 0%, #0052A3 100%)',
     WebkitBackgroundClip: 'text',
     WebkitTextFillColor: 'transparent'
   },
   payButton: {
     width: '100%',
     padding: '16px',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    background: 'linear-gradient(135deg, #0066CC 0%, #0052A3 100%)',
     color: 'white',
     border: 'none',
     borderRadius: '12px',

@@ -260,8 +260,8 @@ const styles = {
     borderCollapse: "collapse"
   },
   tableHeader: {
-    background: "rgba(139, 157, 255, 0.08)",
-    borderBottom: "2px solid rgba(139, 157, 255, 0.2)"
+    background: "rgba(0, 102, 204, 0.08)",
+    borderBottom: "2px solid rgba(0, 102, 204, 0.2)"
   },
   th: {
     padding: "16px",
@@ -312,9 +312,9 @@ const styles = {
     padding: "8px 16px",
     fontSize: "14px",
     fontWeight: "600",
-    color: "#8b9dff",
+    color: "#0066CC",
     background: "white",
-    border: "2px solid #8b9dff",
+    border: "2px solid #0066CC",
     borderRadius: "8px",
     cursor: "pointer",
     transition: "all 0.3s",
@@ -323,3 +323,4 @@ const styles = {
 };
 
 export default DoctorAppointments;
+

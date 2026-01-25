@@ -106,7 +106,7 @@ const FormCheckbox = ({ label, name, checked, onChange, onBlur, error, required,
           onChange={onChange}
           onBlur={onBlur}
           disabled={disabled}
-          style={{ marginTop: "4px", cursor: "pointer", width: "18px", height: "18px", flexShrink: 0, accentColor: "#8b9dff" }}
+          style={{ marginTop: "4px", cursor: "pointer", width: "18px", height: "18px", flexShrink: 0, accentColor: "#0066CC" }}
         />
         <label style={{ fontSize: "14px", color: "#555", lineHeight: "1.5", cursor: "pointer" }}>
           {label} {required && <span style={{ color: "#e74c3c" }}>*</span>}
@@ -714,7 +714,7 @@ function PatientRegistration() {
 const styles = {
   container: { minHeight: "100vh", display: "flex", fontFamily: "'Inter', 'Segoe UI', sans-serif" },
   leftSide: { flex: 3, display: "flex", justifyContent: "center", alignItems: "center", backgroundColor: "#f5f5f5", padding: "40px", overflowY: "auto" },
-  rightSide: { flex: 1, background: "linear-gradient(135deg, #8b9dff 0%, #9b7bc8 100%)", display: "flex", justifyContent: "center", alignItems: "center", padding: "40px", color: "white", minHeight: "100vh" },
+  rightSide: { flex: 1, background: "linear-gradient(135deg, #0066CC 0%, #0052A3 100%)", display: "flex", justifyContent: "center", alignItems: "center", padding: "40px", color: "white", minHeight: "100vh" },
   rightContent: { textAlign: "center", maxWidth: "500px" },
   logoContainer: { display: "flex", justifyContent: "center", marginBottom: "30px" },
   logoIcon: { width: "120px", height: "120px", backgroundColor: "rgba(255, 255, 255, 0.2)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", color: "white", border: "3px solid white" },
@@ -762,11 +762,11 @@ const styles = {
   requirement: { display: "flex", alignItems: "center", fontSize: "13px", color: "#555", marginBottom: "6px" },
   checkmark: { color: "#27ae60", marginRight: "8px", fontSize: "16px", flexShrink: 0 },
   cross: { color: "#e74c3c", marginRight: "8px", fontSize: "16px", flexShrink: 0 },
-  submitButton: { width: "100%", padding: "14px", backgroundColor: "#8b9dff", color: "white", border: "none", borderRadius: "8px", fontSize: "16px", fontWeight: "600", cursor: "pointer", transition: "background-color 0.3s", marginBottom: "15px", fontFamily: "'Inter', 'Segoe UI', sans-serif" },
+  submitButton: { width: "100%", padding: "14px", backgroundColor: "#0066CC", color: "white", border: "none", borderRadius: "8px", fontSize: "16px", fontWeight: "600", cursor: "pointer", transition: "background-color 0.3s", marginBottom: "15px", fontFamily: "'Inter', 'Segoe UI', sans-serif" },
   submitButtonDisabled: { backgroundColor: "#a0a0a0", cursor: "not-allowed" },
   loginLink: { textAlign: "center" },
   loginText: { margin: "0", fontSize: "14px", color: "#666" },
-  linkButton: { background: "none", border: "none", color: "#8b9dff", cursor: "pointer", fontSize: "14px", textDecoration: "underline", padding: "0", fontFamily: "'Inter', 'Segoe UI', sans-serif" }
+  linkButton: { background: "none", border: "none", color: "#0066CC", cursor: "pointer", fontSize: "14px", textDecoration: "underline", padding: "0", fontFamily: "'Inter', 'Segoe UI', sans-serif" }
 };
 
 export default PatientRegistration;

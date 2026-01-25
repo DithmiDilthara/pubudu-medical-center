@@ -1,62 +1,6 @@
-import { Link, useLocation } from "react-router-dom";
-import { FiHome, FiUsers, FiCalendar, FiUser, FiLogOut, FiActivity } from "react-icons/fi";
+// Shared styles for consistent design across the application
 
-function PatientSidebar({ onLogout }) {
-  const location = useLocation();
-
-  const menuItems = [
-    { path: "/patient/dashboard", label: "Dashboard", icon: FiHome },
-    { path: "/patient/find-doctor", label: "Find Doctor", icon: FiUsers },
-    { path: "/patient/appointments", label: "Appointments", icon: FiCalendar },
-    { path: "/patient/profile", label: "Profile", icon: FiUser }
-  ];
-
-  const isActive = (path) => location.pathname === path;
-
-  return (
-    <aside style={styles.sidebar}>
-      <div style={styles.sidebarContent}>
-        {/* Logo Section */}
-        <div style={styles.logoSection}>
-          <div style={styles.logoCircle}>
-            <FiActivity style={styles.logoIcon} />
-          </div>
-          <div>
-            <h2 style={styles.logoText}>Pubudu Medical</h2>
-            <p style={styles.roleText}>Patient Portal</p>
-          </div>
-        </div>
-
-        {/* Navigation Menu */}
-        <nav style={styles.nav}>
-          {menuItems.map((item) => (
-            <Link
-              key={item.path}
-              to={item.path}
-              style={{
-                ...styles.navItem,
-                ...(isActive(item.path) ? styles.navItemActive : {})
-              }}
-            >
-              <item.icon style={styles.navIcon} />
-              <span style={styles.navLabel}>{item.label}</span>
-            </Link>
-          ))}
-        </nav>
-
-        {/* Logout Button at Bottom */}
-        <div style={styles.logoutContainer}>
-          <button onClick={onLogout} style={styles.logoutButton}>
-            <FiLogOut style={styles.navIcon} />
-            <span style={styles.navLabel}>Logout</span>
-          </button>
-        </div>
-      </div>
-    </aside>
-  );
-}
-
-const styles = {
+export const sidebarStyles = {
   sidebar: {
     width: "280px",
     backgroundColor: "#FFFFFF",
@@ -78,7 +22,7 @@ const styles = {
   },
   logoSection: {
     padding: "0 24px",
-    marginBottom: '40px',
+    marginBottom: "40px",
     display: "flex",
     alignItems: "center",
     gap: "14px"
@@ -177,4 +121,70 @@ const styles = {
   }
 };
 
-export default PatientSidebar;
+export const headerStyles = {
+  header: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    padding: "24px 40px",
+    backgroundColor: "white",
+    borderBottom: "1px solid #E5E7EB",
+    boxShadow: "0 1px 3px rgba(0, 0, 0, 0.02)",
+    position: "sticky",
+    top: 0,
+    zIndex: 50
+  },
+  welcomeContainer: {
+    display: "flex",
+    alignItems: "center",
+    gap: "16px"
+  },
+  welcomeText: {
+    fontSize: "15px",
+    color: "#6B7280",
+    margin: 0,
+    fontWeight: "600",
+    fontFamily: "'Inter', sans-serif"
+  },
+  nameHighlight: {
+    color: "#0066CC",
+    fontWeight: "700"
+  },
+  avatar: {
+    width: "44px",
+    height: "44px",
+    borderRadius: "50%",
+    background: "linear-gradient(135deg, #0066CC 0%, #0052A3 100%)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    boxShadow: "0 4px 12px rgba(0, 102, 204, 0.25)",
+    border: "2px solid #E6F2FF"
+  },
+  avatarIcon: {
+    fontSize: "20px",
+    color: "white"
+  }
+};
+
+export const containerStyles = {
+  container: {
+    display: "flex",
+    flexDirection: "row",
+    minHeight: "100vh",
+    background: "#F9FAFB",
+    fontFamily: "'Inter', sans-serif"
+  },
+  mainWrapper: {
+    flex: 1,
+    display: "flex",
+    flexDirection: "column"
+  },
+  mainContent: {
+    flex: 1,
+    padding: "40px",
+    maxWidth: "1400px",
+    width: "100%",
+    margin: "0 auto"
+  }
+};

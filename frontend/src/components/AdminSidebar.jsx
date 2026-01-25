@@ -58,96 +58,102 @@ function AdminSidebar({ onLogout }) {
 
 const styles = {
   sidebar: {
-    width: "260px",
-    backgroundColor: "#f8f9fa",
+    width: "280px",
+    backgroundColor: "#FFFFFF",
     minHeight: "100vh",
-    boxShadow: "2px 0 10px rgba(0, 0, 0, 0.05)",
+    boxShadow: "2px 0 20px rgba(0, 0, 0, 0.04)",
     display: "flex",
     flexDirection: "column",
     position: "sticky",
     top: 0,
     left: 0,
-    borderRight: "1px solid #e5e7eb"
+    borderRight: "1px solid #E5E7EB",
+    zIndex: 100
   },
   sidebarContent: {
     display: "flex",
     flexDirection: "column",
     height: "100vh",
-    padding: "24px 0"
+    padding: "28px 0"
   },
   logoSection: {
-    padding: "0 20px",
-    marginBottom: "32px",
+    padding: "0 24px",
+    marginBottom: "40px",
     display: "flex",
     alignItems: "center",
-    gap: "12px"
+    gap: "14px"
   },
   logoCircle: {
-    width: "48px",
-    height: "48px",
-    borderRadius: "50%",
-    background: "linear-gradient(135deg, #8b9dff 0%, #9b7bc8 100%)",
+    width: "52px",
+    height: "52px",
+    borderRadius: "14px",
+    background: "linear-gradient(135deg, #0066CC 0%, #0052A3 100%)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    flexShrink: 0
+    flexShrink: 0,
+    boxShadow: "0 4px 12px rgba(0, 102, 204, 0.25)"
   },
   logoIcon: {
-    fontSize: "24px",
+    fontSize: "26px",
     color: "white"
   },
   logoText: {
-    fontSize: "18px",
+    fontSize: "19px",
     fontWeight: "800",
-    color: "#1f2937",
+    color: "#111827",
     margin: 0,
-    letterSpacing: "0.3px",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    letterSpacing: "-0.3px",
+    fontFamily: "'Plus Jakarta Sans', 'Inter', sans-serif"
   },
   roleText: {
     fontSize: "12px",
-    color: "#6b7280",
+    color: "#6B7280",
     margin: 0,
-    fontWeight: "500",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    fontWeight: "600",
+    fontFamily: "'Inter', sans-serif",
+    textTransform: "uppercase",
+    letterSpacing: "0.5px"
   },
   nav: {
     display: "flex",
     flexDirection: "column",
-    gap: "4px",
-    padding: "0 16px",
+    gap: "6px",
+    padding: "0 20px",
     flex: 1
   },
   navItem: {
     display: "flex",
     alignItems: "center",
-    gap: "12px",
-    padding: "12px 16px",
-    borderRadius: "8px",
+    gap: "14px",
+    padding: "14px 18px",
+    borderRadius: "12px",
     textDecoration: "none",
-    color: "#4b5563",
+    color: "#6B7280",
     fontSize: "15px",
-    fontWeight: "500",
-    transition: "all 0.2s",
+    fontWeight: "600",
+    transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
     cursor: "pointer",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif",
+    fontFamily: "'Inter', sans-serif",
     backgroundColor: "transparent",
-    border: "none"
+    border: "none",
+    position: "relative"
   },
   navItemActive: {
-    backgroundColor: "#8b9dff",
-    color: "white",
-    fontWeight: "600"
+    backgroundColor: "#E6F2FF",
+    color: "#0066CC",
+    fontWeight: "700",
+    boxShadow: "0 2px 8px rgba(0, 102, 204, 0.1)"
   },
   navIcon: {
-    fontSize: "20px"
+    fontSize: "21px"
   },
   navLabel: {
     fontSize: "15px",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    fontFamily: "'Inter', sans-serif"
   },
   logoutContainer: {
-    padding: "0 16px",
+    padding: "0 20px",
     marginTop: "auto",
     paddingTop: "16px"
   },

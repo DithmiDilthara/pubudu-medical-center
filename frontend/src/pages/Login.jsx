@@ -332,6 +332,18 @@ const Login = () => {
               ...(isSubmitting ? styles.loginButtonDisabled : {})
             }}
             disabled={isSubmitting}
+            onMouseEnter={(e) => {
+              if (!isSubmitting) {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 6px 20px rgba(0, 102, 204, 0.4)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!isSubmitting) {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 102, 204, 0.3)';
+              }
+            }}
           >
             {isSubmitting ? 'Logging in...' : 'Login'}
           </button>
@@ -379,141 +391,160 @@ const styles = {
   container: {
     minHeight: '100vh',
     display: 'flex',
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    backgroundColor: '#F9FAFB'
   },
   leftSide: {
-    flex: 3,
+    flex: 1,
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-    padding: '40px'
+    padding: '40px 60px',
+    backgroundColor: '#FFFFFF'
   },
   rightSide: {
     flex: 1,
-    background: 'linear-gradient(135deg, #8b9dff 0%, #9b7bc8 100%)',
+    background: 'linear-gradient(135deg, #0066CC 0%, #0052A3 100%)',
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: '40px',
-    color: 'white'
+    padding: '60px',
+    color: 'white',
+    position: 'relative',
+    overflow: 'hidden'
   },
   rightContent: {
     textAlign: 'center',
-    maxWidth: '500px'
+    maxWidth: '500px',
+    position: 'relative',
+    zIndex: 2
   },
   logoContainer: {
     display: 'flex',
     justifyContent: 'center',
-    marginBottom: '30px'
+    marginBottom: '40px'
   },
   logoIcon: {
-    width: '120px',
-    height: '120px',
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    width: '100px',
+    height: '100px',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
     borderRadius: '50%',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     color: 'white',
-    border: '3px solid white'
-  },
-  logoIconSvg: {
-    fontSize: '72px'
-  },
-  centerName: {
-    fontSize: '36px',
-    fontWeight: 'bold',
-    marginBottom: '10px',
-    color: 'white'
-  },
-  tagline: {
-    fontSize: '18px',
-    marginBottom: '50px',
-    color: 'rgba(255, 255, 255, 0.9)'
-  },
-  quoteContainer: {
-    marginTop: '60px',
-    padding: '30px',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: '15px',
+    border: '3px solid rgba(255, 255, 255, 0.3)',
+    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
     backdropFilter: 'blur(10px)'
   },
-  quote: {
-    fontSize: '24px',
-    fontStyle: 'italic',
-    marginBottom: '15px',
+  logoIconSvg: {
+    fontSize: '52px'
+  },
+  centerName: {
+    fontSize: '32px',
+    fontWeight: '700',
+    marginBottom: '12px',
+    color: 'white',
+    letterSpacing: '-0.5px',
+    fontFamily: "'Plus Jakarta Sans', 'Inter', sans-serif"
+  },
+  tagline: {
+    fontSize: '16px',
+    marginBottom: '50px',
+    color: 'rgba(255, 255, 255, 0.95)',
     fontWeight: '500'
   },
+  quoteContainer: {
+    marginTop: '80px',
+    padding: '32px',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: '16px',
+    backdropFilter: 'blur(10px)',
+    border: '1px solid rgba(255, 255, 255, 0.2)'
+  },
+  quote: {
+    fontSize: '22px',
+    fontStyle: 'italic',
+    marginBottom: '12px',
+    fontWeight: '600',
+    lineHeight: '1.4'
+  },
   quoteSubtext: {
-    fontSize: '16px',
+    fontSize: '15px',
     color: 'rgba(255, 255, 255, 0.9)',
-    lineHeight: '1.6'
+    lineHeight: '1.6',
+    margin: 0
   },
   formContainer: {
     width: '100%',
-    maxWidth: '450px'
+    maxWidth: '440px'
   },
   welcomeTitle: {
-    textAlign: 'center',
-    marginBottom: '10px',
-    fontSize: '28px',
-    color: '#333',
-    fontWeight: 'bold'
+    textAlign: 'left',
+    marginBottom: '8px',
+    fontSize: '32px',
+    color: '#111827',
+    fontWeight: '800',
+    letterSpacing: '-0.5px',
+    fontFamily: "'Plus Jakarta Sans', 'Inter', sans-serif"
   },
   welcomeSubtitle: {
-    textAlign: 'center',
-    marginBottom: '30px',
-    fontSize: '16px',
-    color: '#666'
+    textAlign: 'left',
+    marginBottom: '36px',
+    fontSize: '15px',
+    color: '#6B7280',
+    fontWeight: '500'
   },
   formGroup: {
-    marginBottom: '25px'
+    marginBottom: '24px'
   },
   label: {
     display: 'block',
     marginBottom: '8px',
     fontSize: '14px',
-    color: '#555',
-    fontWeight: '500'
+    color: '#374151',
+    fontWeight: '600'
   },
   required: {
-    color: '#e74c3c'
+    color: '#EF4444'
   },
   input: {
     width: '100%',
-    padding: '12px 15px',
+    padding: '13px 16px',
     fontSize: '15px',
-    border: '2px solid #ddd',
-    borderRadius: '8px',
+    border: '2px solid #E5E7EB',
+    borderRadius: '10px',
     boxSizing: 'border-box',
-    transition: 'all 0.3s',
-    outline: 'none'
+    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+    outline: 'none',
+    fontFamily: "'Inter', sans-serif",
+    color: '#111827',
+    backgroundColor: '#FFFFFF'
   },
   inputError: {
-    borderColor: '#e74c3c',
-    backgroundColor: '#fff5f5'
+    borderColor: '#EF4444',
+    backgroundColor: '#FEF2F2'
   },
   inputSuccess: {
-    borderColor: '#27ae60',
-    backgroundColor: '#f0fff4'
+    borderColor: '#10B981',
+    backgroundColor: '#F0FDF4'
   },
   errorMessage: {
     display: 'flex',
     alignItems: 'center',
     gap: '6px',
-    color: '#e74c3c',
+    color: '#DC2626',
     fontSize: '13px',
-    marginTop: '6px',
+    marginTop: '8px',
     fontWeight: '500'
   },
   successMessage: {
     display: 'flex',
     alignItems: 'center',
     gap: '6px',
-    color: '#27ae60',
+    color: '#059669',
     fontSize: '13px',
-    marginTop: '6px',
+    marginTop: '8px',
     fontWeight: '500'
   },
   messageIcon: {
@@ -522,97 +553,114 @@ const styles = {
   },
   passwordRequirements: {
     marginTop: '12px',
-    padding: '12px',
-    backgroundColor: '#f8f9fa',
-    borderRadius: '6px',
-    border: '1px solid #e0e0e0'
+    padding: '16px',
+    backgroundColor: '#F9FAFB',
+    borderRadius: '10px',
+    border: '1px solid #E5E7EB'
   },
   requirementsTitle: {
     fontSize: '12px',
-    fontWeight: '600',
-    color: '#666',
-    marginBottom: '8px'
+    fontWeight: '700',
+    color: '#4B5563',
+    marginBottom: '10px',
+    textTransform: 'uppercase',
+    letterSpacing: '0.5px'
   },
   requirement: {
     display: 'flex',
     alignItems: 'center',
-    fontSize: '12px',
-    color: '#666',
-    marginBottom: '4px'
+    fontSize: '13px',
+    color: '#6B7280',
+    marginBottom: '6px',
+    fontWeight: '500'
   },
   checkmark: {
-    color: '#27ae60',
-    marginRight: '8px',
+    color: '#10B981',
+    marginRight: '10px',
     fontSize: '16px',
     flexShrink: 0
   },
   cross: {
-    color: '#e74c3c',
-    marginRight: '8px',
+    color: '#EF4444',
+    marginRight: '10px',
     fontSize: '16px',
     flexShrink: 0
   },
   forgotPassword: {
     textAlign: 'right',
-    marginBottom: '20px'
+    marginBottom: '24px'
   },
   radioGroup: {
-    display: 'flex',
-    gap: '24px',
-    marginTop: '8px'
+    display: 'grid',
+    gridTemplateColumns: 'repeat(2, 1fr)',
+    gap: '12px',
+    marginTop: '10px'
   },
   radioLabel: {
     display: 'flex',
     alignItems: 'center',
     cursor: 'pointer',
-    fontSize: '15px',
-    color: '#555'
+    fontSize: '14px',
+    color: '#4B5563',
+    padding: '12px 16px',
+    backgroundColor: '#F9FAFB',
+    borderRadius: '10px',
+    border: '2px solid #E5E7EB',
+    transition: 'all 0.2s',
+    fontWeight: '600'
   },
   radio: {
-    marginRight: '8px',
+    marginRight: '10px',
     cursor: 'pointer',
     width: '18px',
     height: '18px',
-    accentColor: '#8b9dff'
+    accentColor: '#0066CC'
   },
   radioText: {
-    fontWeight: '500'
+    fontWeight: '600'
   },
   linkButton: {
     background: 'none',
     border: 'none',
-    color: '#8b9dff',
+    color: '#0066CC',
     cursor: 'pointer',
     fontSize: '14px',
-    textDecoration: 'underline',
+    textDecoration: 'none',
     padding: '0',
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    fontFamily: "'Inter', sans-serif",
+    fontWeight: '600',
+    transition: 'color 0.2s'
   },
   loginButton: {
     width: '100%',
     padding: '14px',
-    backgroundColor: '#8b9dff',
+    background: 'linear-gradient(135deg, #0066CC 0%, #0052A3 100%)',
     color: 'white',
     border: 'none',
-    borderRadius: '8px',
+    borderRadius: '10px',
     fontSize: '16px',
-    fontWeight: '600',
+    fontWeight: '700',
     cursor: 'pointer',
-    transition: 'background-color 0.3s',
-    marginBottom: '20px',
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    transition: 'all 0.2s',
+    marginBottom: '24px',
+    fontFamily: "'Inter', sans-serif",
+    boxShadow: '0 4px 12px rgba(0, 102, 204, 0.3)'
   },
   loginButtonDisabled: {
-    backgroundColor: '#a0a0a0',
-    cursor: 'not-allowed'
+    background: '#9CA3AF',
+    cursor: 'not-allowed',
+    boxShadow: 'none'
   },
   signupLink: {
-    textAlign: 'center'
+    textAlign: 'center',
+    paddingTop: '20px',
+    borderTop: '1px solid #E5E7EB'
   },
   signupText: {
     margin: '0',
     fontSize: '14px',
-    color: '#666'
+    color: '#6B7280',
+    fontWeight: '500'
   }
 };
 

@@ -394,7 +394,7 @@ const styles = {
     alignItems: "center",
     gap: "8px",
     padding: "12px 24px",
-    backgroundColor: "#8b9dff",
+    backgroundColor: "#0066CC",
     color: "white",
     border: "none",
     borderRadius: "8px",
@@ -442,7 +442,7 @@ const styles = {
   },
   editButton: {
     padding: "8px",
-    backgroundColor: "#8b9dff",
+    backgroundColor: "#0066CC",
     color: "white",
     border: "none",
     borderRadius: "6px",
@@ -565,7 +565,7 @@ const styles = {
   },
   submitButton: {
     padding: "10px 20px",
-    backgroundColor: "#8b9dff",
+    backgroundColor: "#0066CC",
     color: "white",
     border: "none",
     borderRadius: "8px",
@@ -577,3 +577,4 @@ const styles = {
 };
 
 export default ManageDoctors;
+

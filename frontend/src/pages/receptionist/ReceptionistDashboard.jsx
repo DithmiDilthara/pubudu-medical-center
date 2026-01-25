@@ -228,7 +228,7 @@ const styles = {
   pageTitle: {
     fontSize: "32px",
     fontWeight: "800",
-    background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+    background: "linear-gradient(135deg, #0066CC 0%, #0052A3 100%)",
     WebkitBackgroundClip: "text",
     WebkitTextFillColor: "transparent",
     margin: 0,
@@ -245,9 +245,9 @@ const styles = {
   quickActionsSection: {
     marginBottom: "32px",
     borderRadius: "12px",
-    background: "linear-gradient(135deg, #8b9dff 0%, #9b7bc8 100%)",
+    background: "linear-gradient(135deg, #0066CC 0%, #0052A3 100%)",
     padding: "24px",
-    boxShadow: "0 10px 30px rgba(139, 157, 255, 0.2)",
+    boxShadow: "0 10px 30px rgba(0, 102, 204, 0.2)",
     border: "1px solid rgba(255, 255, 255, 0.1)"
   },
   sectionLabel: {
@@ -269,7 +269,7 @@ const styles = {
     padding: "14px 28px",
     fontSize: "15px",
     fontWeight: "600",
-    color: "#8b9dff",
+    color: "#0066CC",
     boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
     border: "none",
     cursor: "pointer",
@@ -318,12 +318,12 @@ const styles = {
     backgroundColor: "white",
     padding: "24px",
     boxShadow: "0 10px 25px rgba(0, 0, 0, 0.08)",
-    border: "1px solid rgba(139, 157, 255, 0.1)"
+    border: "1px solid rgba(0, 102, 204, 0.1)"
   },
   tableTitle: {
     fontSize: "20px",
     fontWeight: "700",
-    background: "linear-gradient(135deg, #8b9dff 0%, #9b7bc8 100%)",
+    background: "linear-gradient(135deg, #0066CC 0%, #0052A3 100%)",
     WebkitBackgroundClip: "text",
     WebkitTextFillColor: "transparent",
     margin: 0,
@@ -345,7 +345,7 @@ const styles = {
     padding: "16px",
     fontSize: "13px",
     fontWeight: "700",
-    color: "#8b9dff",
+    color: "#0066CC",
     textTransform: "uppercase",
     letterSpacing: "0.5px",
     fontFamily: "'Inter', 'Segoe UI', sans-serif"
@@ -377,34 +377,34 @@ const styles = {
   amountBadge: {
     fontSize: "15px",
     fontWeight: "700",
-    color: "#9b7bc8",
+    color: "#0052A3",
     fontFamily: "'Inter', 'Segoe UI', sans-serif"
   },
   doctorBadge: {
     fontSize: "14px",
     fontWeight: "600",
-    color: "#8b9dff",
+    color: "#0066CC",
     fontFamily: "'Inter', 'Segoe UI', sans-serif"
   },
   actionButton: {
     fontSize: "13px",
     fontWeight: "600",
     color: "white",
-    background: "linear-gradient(135deg, #8b9dff 0%, #9b7bc8 100%)",
+    background: "linear-gradient(135deg, #0066CC 0%, #0052A3 100%)",
     border: "none",
     borderRadius: "6px",
     padding: "8px 16px",
     cursor: "pointer",
     transition: "all 0.3s",
-    boxShadow: "0 4px 10px rgba(139, 157, 255, 0.3)",
+    boxShadow: "0 4px 10px rgba(0, 102, 204, 0.3)",
     fontFamily: "'Inter', 'Segoe UI', sans-serif"
   },
   cancelButton: {
     fontSize: "13px",
     fontWeight: "600",
-    color: "#8b9dff",
+    color: "#0066CC",
     backgroundColor: "transparent",
-    border: "2px solid #8b9dff",
+    border: "2px solid #0066CC",
     borderRadius: "6px",
     padding: "6px 16px",
     cursor: "pointer",
@@ -418,7 +418,7 @@ const styles = {
   viewAllButton: {
     fontSize: "14px",
     fontWeight: "600",
-    color: "#8b9dff",
+    color: "#0066CC",
     backgroundColor: "transparent",
     border: "none",
     cursor: "pointer",

@@ -282,12 +282,12 @@ const styles = {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(139, 157, 255, 0.1)",
+    backgroundColor: "rgba(0, 102, 204, 0.1)",
     borderRadius: "10px"
   },
   statIconSvg: {
     fontSize: "28px",
-    color: "#8b9dff"
+    color: "#0066CC"
   },
   statInfo: {
     flex: 1
@@ -295,7 +295,7 @@ const styles = {
   statValue: {
     fontSize: "28px",
     fontWeight: "700",
-    color: "#8b9dff",
+    color: "#0066CC",
     fontFamily: "'Inter', 'Segoe UI', sans-serif"
   },
   statLabel: {
@@ -328,7 +328,7 @@ const styles = {
     fontFamily: "'Inter', 'Segoe UI', sans-serif"
   },
   appointmentCount: {
-    backgroundColor: "#8b9dff",
+    backgroundColor: "#0066CC",
     color: "#fff",
     padding: "4px 12px",
     borderRadius: "20px",
@@ -360,7 +360,7 @@ const styles = {
   time: {
     fontSize: "14px",
     fontWeight: "700",
-    color: "#8b9dff",
+    color: "#0066CC",
     fontFamily: "'Inter', 'Segoe UI', sans-serif"
   },
   appointmentDetails: {
@@ -413,7 +413,7 @@ const styles = {
     borderRadius: "6px",
     border: "1px solid #d1d5db",
     backgroundColor: "#fff",
-    color: "#8b9dff",
+    color: "#0066CC",
     fontWeight: "600",
     fontSize: "12px",
     cursor: "pointer",
@@ -424,7 +424,7 @@ const styles = {
     padding: "8px 12px",
     borderRadius: "6px",
     border: "none",
-    backgroundColor: "#8b9dff",
+    backgroundColor: "#0066CC",
     color: "#fff",
     fontWeight: "600",
     fontSize: "12px",
@@ -456,13 +456,13 @@ const styles = {
     padding: "16px 20px",
     borderRadius: "10px",
     border: "none",
-    backgroundColor: "#8b9dff",
+    backgroundColor: "#0066CC",
     color: "#fff",
     fontWeight: "600",
     fontSize: "14px",
     cursor: "pointer",
     transition: "all 0.3s ease",
-    boxShadow: "0 4px 12px rgba(139, 157, 255, 0.25)",
+    boxShadow: "0 4px 12px rgba(0, 102, 204, 0.25)",
     fontFamily: "'Inter', 'Segoe UI', sans-serif",
     display: "flex",
     alignItems: "center",
@@ -589,7 +589,7 @@ const styles = {
     padding: "10px 20px",
     borderRadius: "8px",
     border: "none",
-    backgroundColor: "#8b9dff",
+    backgroundColor: "#0066CC",
     color: "#fff",
     fontWeight: "600",
     cursor: "pointer",
@@ -599,3 +599,4 @@ const styles = {
 };
 
 export default DoctorDashboard;
+

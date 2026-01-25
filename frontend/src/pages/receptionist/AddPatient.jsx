@@ -853,7 +853,7 @@ const styles = {
   },
   radioInput: {
     cursor: "pointer",
-    accentColor: "#8b9dff"
+    accentColor: "#0066CC"
   },
   searchInputContainer: {
     display: "flex",
@@ -883,13 +883,13 @@ const styles = {
     fontSize: "15px",
     fontWeight: "600",
     color: "white",
-    background: "linear-gradient(135deg, #8b9dff 0%, #9b7bc8 100%)",
+    background: "linear-gradient(135deg, #0066CC 0%, #0052A3 100%)",
     border: "none",
     borderRadius: "8px",
     cursor: "pointer",
     transition: "all 0.3s",
     fontFamily: "'Inter', 'Segoe UI', sans-serif",
-    boxShadow: "0 4px 12px rgba(139, 157, 255, 0.3)"
+    boxShadow: "0 4px 12px rgba(0, 102, 204, 0.3)"
   },
   resultMessage: {
     marginTop: "16px",
@@ -1011,13 +1011,13 @@ const styles = {
     fontSize: "16px",
     fontWeight: "600",
     color: "white",
-    background: "linear-gradient(135deg, #8b9dff 0%, #9b7bc8 100%)",
+    background: "linear-gradient(135deg, #0066CC 0%, #0052A3 100%)",
     border: "none",
     borderRadius: "8px",
     cursor: "pointer",
     transition: "all 0.3s",
     fontFamily: "'Inter', 'Segoe UI', sans-serif",
-    boxShadow: "0 4px 12px rgba(139, 157, 255, 0.3)"
+    boxShadow: "0 4px 12px rgba(0, 102, 204, 0.3)"
   },
   submitButtonDisabled: {
     opacity: 0.6,

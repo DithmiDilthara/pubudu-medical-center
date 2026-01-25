@@ -309,13 +309,13 @@ const styles = {
     fontSize: "15px",
     fontWeight: "600",
     color: "white",
-    background: "linear-gradient(135deg, #8b9dff 0%, #9b7bc8 100%)",
+    background: "linear-gradient(135deg, #0066CC 0%, #0052A3 100%)",
     border: "none",
     borderRadius: "8px",
     cursor: "pointer",
     fontFamily: "'Inter', 'Segoe UI', sans-serif",
     transition: "all 0.2s",
-    boxShadow: "0 4px 12px rgba(139, 157, 255, 0.3)"
+    boxShadow: "0 4px 12px rgba(0, 102, 204, 0.3)"
   },
   secondaryButton: {
     padding: "12px 24px",

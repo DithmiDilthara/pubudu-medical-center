@@ -278,9 +278,9 @@ const styles = {
     transition: 'all 0.3s'
   },
   filterButtonActive: {
-    background: '#8b9dff',
+    background: '#0066CC',
     color: 'white',
-    border: '2px solid #8b9dff'
+    border: '2px solid #0066CC'
   },
   tableSection: {
     marginBottom: '32px'
@@ -297,8 +297,8 @@ const styles = {
     borderCollapse: 'collapse'
   },
   tableHeader: {
-    background: 'rgba(139, 157, 255, 0.08)',
-    borderBottom: '2px solid rgba(139, 157, 255, 0.2)'
+    background: 'rgba(0, 102, 204, 0.08)',
+    borderBottom: '2px solid rgba(0, 102, 204, 0.2)'
   },
   th: {
     padding: '16px',
@@ -315,7 +315,7 @@ const styles = {
     cursor: 'pointer'
   },
   tableRowSelected: {
-    background: 'rgba(139, 157, 255, 0.08)'
+    background: 'rgba(0, 102, 204, 0.08)'
   },
   td: {
     padding: '16px',
@@ -339,9 +339,9 @@ const styles = {
     padding: '8px 16px',
     fontSize: '14px',
     fontWeight: '600',
-    color: '#8b9dff',
+    color: '#0066CC',
     background: 'white',
-    border: '2px solid #8b9dff',
+    border: '2px solid #0066CC',
     borderRadius: '8px',
     cursor: 'pointer',
     transition: 'all 0.3s',
@@ -395,11 +395,11 @@ const styles = {
     fontSize: '15px',
     fontWeight: '700',
     color: 'white',
-    background: '#8b9dff',
+    background: '#0066CC',
     border: 'none',
     borderRadius: '8px',
     cursor: 'pointer',
-    boxShadow: '0 4px 12px rgba(139, 157, 255, 0.4)',
+    boxShadow: '0 4px 12px rgba(0, 102, 204, 0.4)',
     transition: 'all 0.3s',
     fontFamily: "'Inter', 'Segoe UI', sans-serif"
   },
@@ -407,9 +407,9 @@ const styles = {
     padding: '12px 24px',
     fontSize: '15px',
     fontWeight: '600',
-    color: '#8b9dff',
+    color: '#0066CC',
     background: 'white',
-    border: '2px solid #8b9dff',
+    border: '2px solid #0066CC',
     borderRadius: '8px',
     cursor: 'pointer',
     transition: 'all 0.3s',
@@ -418,3 +418,4 @@ const styles = {
 };
 
 export default DoctorPatients;
+

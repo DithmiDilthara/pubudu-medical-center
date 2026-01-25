@@ -173,7 +173,7 @@ function DoctorDetails() {
 
                 <div style={styles.calendarLegend}>
                   <div style={styles.legendItem}>
-                    <div style={{...styles.legendBox, background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'}}></div>
+                    <div style={{...styles.legendBox, background: 'linear-gradient(135deg, #0066CC 0%, #0052A3 100%)'}}></div>
                     <span>Selected</span>
                   </div>
                   <div style={styles.legendItem}>
@@ -278,14 +278,14 @@ const styles = {
     padding: '10px 20px',
     fontSize: '14px',
     fontWeight: '600',
-    color: '#667eea',
+    color: '#0066CC',
     background: 'white',
-    border: '2px solid #667eea',
+    border: '2px solid #0066CC',
     borderRadius: '10px',
     cursor: 'pointer',
     marginBottom: '24px',
     transition: 'all 0.3s',
-    boxShadow: '0 2px 8px rgba(102, 126, 234, 0.15)',
+    boxShadow: '0 2px 8px rgba(0, 102, 204, 0.15)',
     display: 'flex',
     alignItems: 'center',
     fontFamily: "'Inter', 'Segoe UI', sans-serif"
@@ -299,27 +299,27 @@ const styles = {
     borderRadius: '16px',
     marginBottom: '32px',
     boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
-    border: '1px solid rgba(102, 126, 234, 0.1)'
+    border: '1px solid rgba(0, 102, 204, 0.1)'
   },
   doctorAvatar: {
     width: '80px',
     height: '80px',
     borderRadius: '50%',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    background: 'linear-gradient(135deg, #0066CC 0%, #0052A3 100%)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     fontSize: '36px',
     fontWeight: 'bold',
     color: 'white',
-    boxShadow: '0 8px 24px rgba(102, 126, 234, 0.3)',
+    boxShadow: '0 8px 24px rgba(0, 102, 204, 0.3)',
     flexShrink: 0,
     fontFamily: "'Inter', 'Segoe UI', sans-serif"
   },
   doctorName: {
     fontSize: '28px',
     fontWeight: 'bold',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    background: 'linear-gradient(135deg, #0066CC 0%, #0052A3 100%)',
     WebkitBackgroundClip: 'text',
     WebkitTextFillColor: 'transparent',
     margin: '0 0 4px 0',
@@ -327,7 +327,7 @@ const styles = {
   },
   doctorSpecialty: {
     fontSize: '16px',
-    color: '#667eea',
+    color: '#0066CC',
     fontWeight: '600',
     margin: 0,
     fontFamily: "'Inter', 'Segoe UI', sans-serif"
@@ -342,7 +342,7 @@ const styles = {
     padding: '32px',
     borderRadius: '16px',
     boxShadow: '0 8px 32px rgba(0, 0, 0, 0.08)',
-    border: '1px solid rgba(102, 126, 234, 0.1)'
+    border: '1px solid rgba(0, 102, 204, 0.1)'
   },
   sectionTitle: {
     fontSize: '22px',
@@ -368,7 +368,7 @@ const styles = {
     height: '44px',
     fontSize: '24px',
     fontWeight: 'bold',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    background: 'linear-gradient(135deg, #0066CC 0%, #0052A3 100%)',
     color: 'white',
     border: 'none',
     borderRadius: '12px',
@@ -376,7 +376,7 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)',
+    boxShadow: '0 4px 12px rgba(0, 102, 204, 0.3)',
     transition: 'all 0.3s'
   },
   calendarMonth: {
@@ -432,11 +432,11 @@ const styles = {
     border: '1px solid #f3f4f6'
   },
   selectedDay: {
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    background: 'linear-gradient(135deg, #0066CC 0%, #0052A3 100%)',
     color: 'white',
-    border: '2px solid #667eea',
+    border: '2px solid #0066CC',
     fontWeight: 'bold',
-    boxShadow: '0 8px 20px rgba(102, 126, 234, 0.4)',
+    boxShadow: '0 8px 20px rgba(0, 102, 204, 0.4)',
     transform: 'scale(1.05)'
   },
   emptyDay: {
@@ -470,19 +470,19 @@ const styles = {
     padding: '32px',
     borderRadius: '16px',
     boxShadow: '0 8px 32px rgba(0, 0, 0, 0.08)',
-    border: '1px solid rgba(102, 126, 234, 0.1)',
+    border: '1px solid rgba(0, 102, 204, 0.1)',
     display: 'flex',
     flexDirection: 'column'
   },
   selectedDateInfo: {
     fontSize: '16px',
-    color: '#667eea',
+    color: '#0066CC',
     fontWeight: '600',
     marginBottom: '20px',
     padding: '12px 16px',
-    background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(118, 75, 162, 0.08) 100%)',
+    background: 'linear-gradient(135deg, rgba(0, 102, 204, 0.08) 0%, rgba(0, 82, 163, 0.08) 100%)',
     borderRadius: '10px',
-    border: '1px solid rgba(102, 126, 234, 0.2)',
+    border: '1px solid rgba(0, 102, 204, 0.2)',
     fontFamily: "'Inter', 'Segoe UI', sans-serif"
   },
   timeSlots: {
@@ -508,10 +508,10 @@ const styles = {
     fontFamily: "'Inter', 'Segoe UI', sans-serif"
   },
   timeSlotSelected: {
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    background: 'linear-gradient(135deg, #0066CC 0%, #0052A3 100%)',
     color: 'white',
-    border: '2px solid #667eea',
-    boxShadow: '0 8px 20px rgba(102, 126, 234, 0.4)',
+    border: '2px solid #0066CC',
+    boxShadow: '0 8px 20px rgba(0, 102, 204, 0.4)',
     transform: 'scale(1.02)'
   },
   emptyState: {
@@ -535,10 +535,10 @@ const styles = {
     fontFamily: "'Inter', 'Segoe UI', sans-serif"
   },
   summaryCard: {
-    background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%)',
+    background: 'linear-gradient(135deg, rgba(0, 102, 204, 0.05) 0%, rgba(0, 82, 163, 0.05) 100%)',
     padding: '24px',
     borderRadius: '12px',
-    border: '2px solid rgba(102, 126, 234, 0.2)'
+    border: '2px solid rgba(0, 102, 204, 0.2)'
   },
   summaryTitle: {
     fontSize: '18px',
@@ -551,7 +551,7 @@ const styles = {
     display: 'flex',
     justifyContent: 'space-between',
     padding: '10px 0',
-    borderBottom: '1px solid rgba(102, 126, 234, 0.1)'
+    borderBottom: '1px solid rgba(0, 102, 204, 0.1)'
   },
   summaryLabel: {
     fontSize: '14px',
@@ -571,15 +571,16 @@ const styles = {
     fontSize: '16px',
     fontWeight: '700',
     color: 'white',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    background: 'linear-gradient(135deg, #0066CC 0%, #0052A3 100%)',
     border: 'none',
     borderRadius: '12px',
     cursor: 'pointer',
     marginTop: '20px',
-    boxShadow: '0 8px 24px rgba(102, 126, 234, 0.4)',
+    boxShadow: '0 8px 24px rgba(0, 102, 204, 0.4)',
     transition: 'all 0.3s',
     fontFamily: "'Inter', 'Segoe UI', sans-serif"
   }
 };
 
 export default DoctorDetails;
+

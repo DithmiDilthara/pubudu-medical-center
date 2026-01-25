@@ -237,7 +237,7 @@ const styles = {
   pageTitle: {
     fontSize: '32px',
     fontWeight: 'bold',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    background: 'linear-gradient(135deg, #0066CC 0%, #0052A3 100%)',
     WebkitBackgroundClip: 'text',
     WebkitTextFillColor: 'transparent',
     margin: '0 0 8px 0',
@@ -253,11 +253,11 @@ const styles = {
     background: 'white',
     borderRadius: '20px',
     boxShadow: '0 10px 40px rgba(0, 0, 0, 0.1)',
-    border: '1px solid rgba(102, 126, 234, 0.1)',
+    border: '1px solid rgba(0, 102, 204, 0.1)',
     overflow: 'hidden'
   },
   doctorSection: {
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    background: 'linear-gradient(135deg, #0066CC 0%, #0052A3 100%)',
     padding: '32px'
   },
   doctorHeader: {
@@ -317,9 +317,9 @@ const styles = {
     alignItems: 'center',
     gap: '16px',
     padding: '20px',
-    background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%)',
+    background: 'linear-gradient(135deg, rgba(0, 102, 204, 0.05) 0%, rgba(0, 82, 163, 0.05) 100%)',
     borderRadius: '12px',
-    border: '2px solid rgba(102, 126, 234, 0.1)'
+    border: '2px solid rgba(0, 102, 204, 0.1)'
   },
   detailIcon: {
     width: '56px',
@@ -327,9 +327,9 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    background: 'linear-gradient(135deg, #0066CC 0%, #0052A3 100%)',
     borderRadius: '12px',
-    boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)'
+    boxShadow: '0 4px 12px rgba(0, 102, 204, 0.3)'
   },
   detailLabel: {
     fontSize: '13px',
@@ -351,10 +351,10 @@ const styles = {
     padding: '0 32px 32px 32px'
   },
   feeBreakdown: {
-    background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%)',
+    background: 'linear-gradient(135deg, rgba(0, 102, 204, 0.05) 0%, rgba(0, 82, 163, 0.05) 100%)',
     padding: '24px',
     borderRadius: '12px',
-    border: '2px solid rgba(102, 126, 234, 0.15)'
+    border: '2px solid rgba(0, 102, 204, 0.15)'
   },
   feeItem: {
     display: 'flex',
@@ -376,7 +376,7 @@ const styles = {
   },
   feeDivider: {
     height: '2px',
-    background: 'linear-gradient(90deg, rgba(102, 126, 234, 0.3) 0%, rgba(118, 75, 162, 0.3) 100%)',
+    background: 'linear-gradient(90deg, rgba(0, 102, 204, 0.3) 0%, rgba(0, 82, 163, 0.3) 100%)',
     margin: '16px 0',
     borderRadius: '2px'
   },
@@ -385,7 +385,7 @@ const styles = {
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: '16px',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    background: 'linear-gradient(135deg, #0066CC 0%, #0052A3 100%)',
     borderRadius: '10px',
     marginTop: '12px'
   },
@@ -479,13 +479,13 @@ const styles = {
     padding: '14px 28px',
     fontSize: '15px',
     fontWeight: '600',
-    color: '#667eea',
+    color: '#0066CC',
     background: 'white',
-    border: '2px solid #667eea',
+    border: '2px solid #0066CC',
     borderRadius: '12px',
     cursor: 'pointer',
     transition: 'all 0.3s',
-    boxShadow: '0 4px 12px rgba(102, 126, 234, 0.15)',
+    boxShadow: '0 4px 12px rgba(0, 102, 204, 0.15)',
     fontFamily: "'Inter', 'Segoe UI', sans-serif",
     display: 'flex',
     alignItems: 'center'
@@ -495,11 +495,11 @@ const styles = {
     fontSize: '16px',
     fontWeight: '700',
     color: 'white',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    background: 'linear-gradient(135deg, #0066CC 0%, #0052A3 100%)',
     border: 'none',
     borderRadius: '12px',
     cursor: 'pointer',
-    boxShadow: '0 8px 24px rgba(102, 126, 234, 0.4)',
+    boxShadow: '0 8px 24px rgba(0, 102, 204, 0.4)',
     transition: 'all 0.3s',
     flex: 1,
     fontFamily: "'Inter', 'Segoe UI', sans-serif"
@@ -507,3 +507,4 @@ const styles = {
 };
 
 export default ConfirmBooking;
+

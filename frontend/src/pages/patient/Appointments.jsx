@@ -223,7 +223,7 @@ const styles = {
   pageTitle: {
     fontSize: '32px',
     fontWeight: 'bold',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    background: 'linear-gradient(135deg, #0066CC 0%, #0052A3 100%)',
     WebkitBackgroundClip: 'text',
     WebkitTextFillColor: 'transparent',
     margin: '0 0 8px 0',
@@ -240,11 +240,11 @@ const styles = {
     fontSize: '15px',
     fontWeight: '700',
     color: 'white',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    background: 'linear-gradient(135deg, #0066CC 0%, #0052A3 100%)',
     border: 'none',
     borderRadius: '10px',
     cursor: 'pointer',
-    boxShadow: '0 6px 20px rgba(102, 126, 234, 0.4)',
+    boxShadow: '0 6px 20px rgba(0, 102, 204, 0.4)',
     transition: 'all 0.3s',
     display: 'flex',
     alignItems: 'center',
@@ -272,7 +272,7 @@ const styles = {
     padding: '24px',
     borderRadius: '16px',
     boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
-    border: '2px solid rgba(102, 126, 234, 0.1)',
+    border: '2px solid rgba(0, 102, 204, 0.1)',
     transition: 'all 0.3s'
   },
   pastCard: {
@@ -294,14 +294,14 @@ const styles = {
     width: '56px',
     height: '56px',
     borderRadius: '50%',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    background: 'linear-gradient(135deg, #0066CC 0%, #0052A3 100%)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     fontSize: '24px',
     fontWeight: 'bold',
     color: 'white',
-    boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)',
+    boxShadow: '0 4px 12px rgba(0, 102, 204, 0.3)',
     flexShrink: 0,
     fontFamily: "'Inter', 'Segoe UI', sans-serif"
   },
@@ -314,7 +314,7 @@ const styles = {
   },
   specialty: {
     fontSize: '14px',
-    color: '#667eea',
+    color: '#0066CC',
     fontWeight: '600',
     margin: 0,
     fontFamily: "'Inter', 'Segoe UI', sans-serif"
@@ -350,12 +350,12 @@ const styles = {
     alignItems: 'center',
     gap: '12px',
     padding: '12px 16px',
-    background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%)',
+    background: 'linear-gradient(135deg, rgba(0, 102, 204, 0.05) 0%, rgba(0, 82, 163, 0.05) 100%)',
     borderRadius: '10px',
-    border: '1px solid rgba(102, 126, 234, 0.1)'
+    border: '1px solid rgba(0, 102, 204, 0.1)'
   },
   detailIcon: {
-    color: '#667eea'
+    color: '#0066CC'
   },
   detailText: {
     fontSize: '14px',
@@ -409,7 +409,7 @@ const styles = {
     borderRadius: '16px',
     textAlign: 'center',
     boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
-    border: '2px dashed rgba(102, 126, 234, 0.2)'
+    border: '2px dashed rgba(0, 102, 204, 0.2)'
   },
   emptyIcon: {
     color: '#9ca3af',
@@ -427,11 +427,11 @@ const styles = {
     fontSize: '15px',
     fontWeight: '700',
     color: 'white',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    background: 'linear-gradient(135deg, #0066CC 0%, #0052A3 100%)',
     border: 'none',
     borderRadius: '10px',
     cursor: 'pointer',
-    boxShadow: '0 6px 20px rgba(102, 126, 234, 0.4)',
+    boxShadow: '0 6px 20px rgba(0, 102, 204, 0.4)',
     display: 'inline-flex',
     alignItems: 'center',
     fontFamily: "'Inter', 'Segoe UI', sans-serif"
@@ -439,3 +439,4 @@ const styles = {
 };
 
 export default Appointments;
+

@@ -569,10 +569,10 @@ const styles = {
     border: "none"
   },
   calendarDaySelected: {
-    backgroundColor: "#8b9dff",
+    backgroundColor: "#0066CC",
     color: "white",
     fontWeight: "600",
-    border: "1px solid #8b9dff"
+    border: "1px solid #0066CC"
   },
   timeSlotsContainer: {
     display: "grid",
@@ -592,9 +592,9 @@ const styles = {
     transition: "all 0.2s"
   },
   timeSlotSelected: {
-    backgroundColor: "#8b9dff",
+    backgroundColor: "#0066CC",
     color: "white",
-    border: "1px solid #8b9dff",
+    border: "1px solid #0066CC",
     fontWeight: "600"
   },
   confirmationBox: {
@@ -651,12 +651,12 @@ const styles = {
     fontSize: "15px",
     fontWeight: "600",
     color: "white",
-    background: "linear-gradient(135deg, #8b9dff 0%, #9b7bc8 100%)",
+    background: "linear-gradient(135deg, #0066CC 0%, #0052A3 100%)",
     border: "none",
     borderRadius: "8px",
     cursor: "pointer",
     fontFamily: "'Inter', 'Segoe UI', sans-serif",
-    boxShadow: "0 4px 12px rgba(139, 157, 255, 0.3)"
+    boxShadow: "0 4px 12px rgba(0, 102, 204, 0.3)"
   },
   confirmButton: {
     flex: 1,
@@ -664,12 +664,12 @@ const styles = {
     fontSize: "15px",
     fontWeight: "600",
     color: "white",
-    background: "linear-gradient(135deg, #8b9dff 0%, #9b7bc8 100%)",
+    background: "linear-gradient(135deg, #0066CC 0%, #0052A3 100%)",
     border: "none",
     borderRadius: "8px",
     cursor: "pointer",
     fontFamily: "'Inter', 'Segoe UI', sans-serif",
-    boxShadow: "0 4px 12px rgba(139, 157, 255, 0.3)"
+    boxShadow: "0 4px 12px rgba(0, 102, 204, 0.3)"
   },
   paymentButtonsContainer: {
     flex: 1,
@@ -681,9 +681,9 @@ const styles = {
     padding: "14px 24px",
     fontSize: "15px",
     fontWeight: "600",
-    color: "#8b9dff",
+    color: "#0066CC",
     backgroundColor: "white",
-    border: "2px solid #8b9dff",
+    border: "2px solid #0066CC",
     borderRadius: "8px",
     cursor: "pointer",
     fontFamily: "'Inter', 'Segoe UI', sans-serif",
@@ -695,12 +695,12 @@ const styles = {
     fontSize: "15px",
     fontWeight: "600",
     color: "white",
-    background: "linear-gradient(135deg, #8b9dff 0%, #9b7bc8 100%)",
+    background: "linear-gradient(135deg, #0066CC 0%, #0052A3 100%)",
     border: "none",
     borderRadius: "8px",
     cursor: "pointer",
     fontFamily: "'Inter', 'Segoe UI', sans-serif",
-    boxShadow: "0 4px 12px rgba(139, 157, 255, 0.3)"
+    boxShadow: "0 4px 12px rgba(0, 102, 204, 0.3)"
   }
 };
 

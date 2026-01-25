@@ -277,9 +277,9 @@ const styles = {
     padding: '10px 20px',
     fontSize: '14px',
     fontWeight: '600',
-    color: '#667eea',
+    color: '#0066CC',
     background: 'white',
-    border: '2px solid #667eea',
+    border: '2px solid #0066CC',
     borderRadius: '10px',
     cursor: 'pointer',
     marginBottom: '24px',
@@ -294,7 +294,7 @@ const styles = {
   pageTitle: {
     fontSize: '32px',
     fontWeight: 'bold',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    background: 'linear-gradient(135deg, #0066CC 0%, #0052A3 100%)',
     WebkitBackgroundClip: 'text',
     WebkitTextFillColor: 'transparent',
     margin: 0,
@@ -320,7 +320,7 @@ const styles = {
     borderRadius: '12px',
     padding: '24px',
     boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
-    border: '1px solid rgba(102, 126, 234, 0.1)'
+    border: '1px solid rgba(0, 102, 204, 0.1)'
   },
   profileHeader: {
     display: 'flex',
@@ -331,7 +331,7 @@ const styles = {
     width: '80px',
     height: '80px',
     borderRadius: '50%',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    background: 'linear-gradient(135deg, #0066CC 0%, #0052A3 100%)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -394,9 +394,9 @@ const styles = {
   },
   consultationItem: {
     padding: '16px',
-    background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%)',
+    background: 'linear-gradient(135deg, rgba(0, 102, 204, 0.05) 0%, rgba(0, 82, 163, 0.05) 100%)',
     borderRadius: '10px',
-    border: '1px solid rgba(102, 126, 234, 0.1)',
+    border: '1px solid rgba(0, 102, 204, 0.1)',
     marginBottom: '16px'
   },
   consultHeader: {
@@ -459,11 +459,11 @@ const styles = {
     fontSize: '16px',
     fontWeight: '700',
     color: 'white',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    background: 'linear-gradient(135deg, #0066CC 0%, #0052A3 100%)',
     border: 'none',
     borderRadius: '10px',
     cursor: 'pointer',
-    boxShadow: '0 6px 16px rgba(102, 126, 234, 0.4)',
+    boxShadow: '0 6px 16px rgba(0, 102, 204, 0.4)',
     transition: 'all 0.3s',
     marginTop: '8px',
     fontFamily: "'Inter', 'Segoe UI', sans-serif"
@@ -471,3 +471,4 @@ const styles = {
 };
 
 export default PatientDetailsDoctor;
+

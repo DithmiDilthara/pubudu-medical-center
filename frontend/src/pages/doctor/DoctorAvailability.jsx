@@ -386,9 +386,9 @@ const styles = {
     padding: '8px 16px',
     fontSize: '18px',
     fontWeight: '700',
-    color: '#8b9dff',
+    color: '#0066CC',
     background: 'white',
-    border: '2px solid #8b9dff',
+    border: '2px solid #0066CC',
     borderRadius: '8px',
     cursor: 'pointer',
     transition: 'all 0.3s',
@@ -431,7 +431,7 @@ const styles = {
     fontWeight: '700',
     color: '#374151',
     textAlign: 'center',
-    background: 'rgba(139, 157, 255, 0.08)',
+    background: 'rgba(0, 102, 204, 0.08)',
     borderRadius: '8px',
     fontFamily: "'Inter', 'Segoe UI', sans-serif"
   },
@@ -474,14 +474,14 @@ const styles = {
     borderColor: '#ef4444'
   },
   calendarDaySelected: {
-    borderColor: '#8b9dff',
+    borderColor: '#0066CC',
     borderWidth: '3px',
-    boxShadow: '0 0 0 3px rgba(139, 157, 255, 0.2)'
+    boxShadow: '0 0 0 3px rgba(0, 102, 204, 0.2)'
   },
   selectedDateInfo: {
     marginTop: '20px',
     padding: '16px',
-    background: 'rgba(139, 157, 255, 0.08)',
+    background: 'rgba(0, 102, 204, 0.08)',
     borderRadius: '8px',
     fontSize: '15px',
     color: '#1f2937',
@@ -490,7 +490,7 @@ const styles = {
   },
   currentStatus: {
     marginLeft: '12px',
-    color: '#8b9dff',
+    color: '#0066CC',
     fontWeight: '600',
     fontFamily: "'Inter', 'Segoe UI', sans-serif"
   },
@@ -504,7 +504,7 @@ const styles = {
     borderRadius: '12px',
     padding: '20px',
     boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
-    border: '1px solid rgba(102, 126, 234, 0.1)'
+    border: '1px solid rgba(0, 102, 204, 0.1)'
   },
   settingsTitle: {
     fontSize: '18px',
@@ -585,9 +585,9 @@ const styles = {
     transition: 'all 0.3s'
   },
   dayButtonActive: {
-    background: '#8b9dff',
+    background: '#0066CC',
     color: 'white',
-    borderColor: '#8b9dff'
+    borderColor: '#0066CC'
   },
   applyRecurringButton: {
     width: '100%',
@@ -595,14 +595,15 @@ const styles = {
     fontSize: '15px',
     fontWeight: '700',
     color: 'white',
-    background: '#8b9dff',
+    background: '#0066CC',
     border: 'none',
     borderRadius: '8px',
     cursor: 'pointer',
-    boxShadow: '0 4px 12px rgba(139, 157, 255, 0.4)',
+    boxShadow: '0 4px 12px rgba(0, 102, 204, 0.4)',
     transition: 'all 0.3s',
     fontFamily: "'Inter', 'Segoe UI', sans-serif"
   }
 };
 
 export default DoctorAvailability;
+
