@@ -1,18 +1,21 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiAlertCircle, FiCheck, FiX, FiActivity } from 'react-icons/fi';
+import { useAuth } from '../context/AuthContext';
 
 const Login = () => {
   const navigate = useNavigate();
+  const { login } = useAuth();
+  
   const [formData, setFormData] = useState({
     username: '',
-    password: '',
-    userType: 'receptionist'
+    password: ''
   });
 
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [generalError, setGeneralError] = useState('');
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -48,28 +51,14 @@ const Login = () => {
           error = 'Username is required';
         } else if (value.trim().length < 3) {
           error = 'Username must be at least 3 characters';
-        } else if (value.trim().length > 10) {
-          error = 'Username must not exceed 10 characters';
-        } else if (!/^[a-zA-Z0-9_]+$/.test(value)) {
-          error = 'Username can only contain letters, numbers, and underscores';
         }
         break;
 
       case 'password':
         if (!value) {
           error = 'Password is required';
-        } else if (value.length < 8) {
-          error = 'Password must be at least 8 characters';
-        } else if (value.length > 10) {
-          error = 'Password must not exceed 10 characters';
-        } else if (!/(?=.*[a-z])/.test(value)) {
-          error = 'Password must contain at least one lowercase letter';
-        } else if (!/(?=.*[A-Z])/.test(value)) {
-          error = 'Password must contain at least one uppercase letter';
-        } else if (!/(?=.*\d)/.test(value)) {
-          error = 'Password must contain at least one number';
-        } else if (!/(?=.*[@#$!%*?&])/.test(value)) {
-          error = 'Password must contain at least one special character (@, #, $, !, %, *, ?, &)';
+        } else if (value.length < 6) {
+          error = 'Password must be at least 6 characters';
         }
         break;
 
@@ -104,37 +93,33 @@ const Login = () => {
 
   const handleSubmit = async () => {
     setIsSubmitting(true);
+    setGeneralError('');
 
     if (validateForm()) {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      console.log('Login Data:', formData);
-      
-      // Store user info in localStorage
-      localStorage.setItem('userType', formData.userType);
-      localStorage.setItem('username', formData.username);
-      
-      const roleNames = {
-        doctor: 'Doctor',
-        patient: 'Patient',
-        receptionist: 'Receptionist',
-        admin: 'Admin'
-      };
-      
-      alert(`✅ Login Successful!\n\nUsername: ${formData.username}\nRole: ${roleNames[formData.userType]}`);
-      
-      // Navigate based on user type
-      if (formData.userType === 'admin') {
-        navigate('/admin/dashboard');
-      } else if (formData.userType === 'doctor') {
-        navigate('/doctor/dashboard');
-      } else if (formData.userType === 'receptionist') {
-        navigate('/receptionist/dashboard');
-      } else {
-        navigate('/patient/dashboard');
+      try {
+        const result = await login(formData.username, formData.password);
+
+        if (result.success) {
+          const user = result.user;
+          
+          // Navigate based on role
+          const roleId = user.role_id;
+          const roleRoutes = {
+            1: '/admin/dashboard',
+            2: '/doctor/dashboard',
+            3: '/receptionist/dashboard',
+            4: '/patient/dashboard'
+          };
+
+          navigate(roleRoutes[roleId] || '/patient/dashboard');
+        } else {
+          setGeneralError(result.error || 'Login failed. Please check your credentials.');
+        }
+      } catch (error) {
+        setGeneralError('An error occurred during login. Please try again.');
       }
     } else {
-      alert(' Please fix the errors before submitting');
+      setGeneralError('Please fix the errors before submitting');
     }
 
     setIsSubmitting(false);
@@ -155,57 +140,12 @@ const Login = () => {
           <h2 style={styles.welcomeTitle}>Welcome to Pubudu Medical Center</h2>
           <p style={styles.welcomeSubtitle}>Please login to continue</p>
 
-          <div style={styles.formGroup}>
-            <label style={styles.label}>
-              Login As <span style={styles.required}>*</span>
-            </label>
-            <div style={styles.radioGroup}>
-              <label style={styles.radioLabel}>
-                <input
-                  type="radio"
-                  name="userType"
-                  value="receptionist"
-                  checked={formData.userType === 'receptionist'}
-                  onChange={handleChange}
-                  style={styles.radio}
-                />
-                <span style={styles.radioText}>Receptionist</span>
-              </label>
-              <label style={styles.radioLabel}>
-                <input
-                  type="radio"
-                  name="userType"
-                  value="patient"
-                  checked={formData.userType === 'patient'}
-                  onChange={handleChange}
-                  style={styles.radio}
-                />
-                <span style={styles.radioText}>Patient</span>
-              </label>
-              <label style={styles.radioLabel}>
-                <input
-                  type="radio"
-                  name="userType"
-                  value="doctor"
-                  checked={formData.userType === 'doctor'}
-                  onChange={handleChange}
-                  style={styles.radio}
-                />
-                <span style={styles.radioText}>Doctor</span>
-              </label>
-              <label style={styles.radioLabel}>
-                <input
-                  type="radio"
-                  name="userType"
-                  value="admin"
-                  checked={formData.userType === 'admin'}
-                  onChange={handleChange}
-                  style={styles.radio}
-                />
-                <span style={styles.radioText}>Admin</span>
-              </label>
+          {generalError && (
+            <div style={styles.generalError}>
+              <FiAlertCircle style={{ marginRight: '8px' }} />
+              {generalError}
             </div>
-          </div>
+          )}
 
           <div style={styles.formGroup}>
             <label style={styles.label}>
@@ -494,6 +434,18 @@ const styles = {
     fontSize: '15px',
     color: '#6B7280',
     fontWeight: '500'
+  },
+  generalError: {
+    padding: '12px 16px',
+    backgroundColor: '#FEE2E2',
+    border: '1px solid #EF4444',
+    borderRadius: '8px',
+    color: '#DC2626',
+    marginBottom: '20px',
+    fontSize: '14px',
+    fontWeight: '600',
+    display: 'flex',
+    alignItems: 'center'
   },
   formGroup: {
     marginBottom: '24px'

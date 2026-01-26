@@ -1,4 +1,5 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { AuthProvider } from './context/AuthContext';
 import Login from './pages/Login';
 import PatientRegistration from './pages/PatientRegistration';
 import PatientDashboard from './pages/patient/PatientDashboard';
@@ -24,8 +25,9 @@ import Reports from './pages/admin/Reports';
 
 function App() {
   return (
-    <Router>
-      <Routes>
+    <AuthProvider>
+      <Router>
+        <Routes>
         <Route path="/" element={<Login />} />
         <Route path="/register" element={<PatientRegistration />} />
         <Route path="/patient/dashboard" element={<PatientDashboard />} />
@@ -51,6 +53,7 @@ function App() {
         <Route path="/admin/reports" element={<Reports />} />
       </Routes>
     </Router>
+    </AuthProvider>
   );
 }
 

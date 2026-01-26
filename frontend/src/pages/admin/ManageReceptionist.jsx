@@ -1,553 +1,427 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { FiEdit2, FiTrash2, FiUserPlus, FiX } from "react-icons/fi";
-import AdminSidebar from "../../components/AdminSidebar";
-import AdminHeader from "../../components/AdminHeader";
+import { useState, useEffect } from 'react';
+import { FiPlus, FiEdit2, FiTrash2, FiX, FiUser } from 'react-icons/fi';
+import AdminHeader from '../../components/AdminHeader';
+import AdminSidebar from '../../components/AdminSidebar';
+import { useAuth } from '../../context/AuthContext';
 
-function ManageReceptionist() {
-  const navigate = useNavigate();
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [receptionists, setReceptionists] = useState([
-    {
-      id: 1,
-      receptionistId: "REP001",
-      name: "Sarah Johnson",
-      nic: "199812345678",
-      phone: "0771234567",
-      email: "sarah.johnson@pubudu.lk",
-      username: "sarah.johnson"
-    },
-    {
-      id: 2,
-      receptionistId: "REP002",
-      name: "Nimali Perera",
-      nic: "199923456789",
-      phone: "0772345678",
-      email: "nimali.perera@pubudu.lk",
-      username: "nimali.perera"
-    },
-    {
-      id: 3,
-      receptionistId: "REP003",
-      name: "Kasun Fernando",
-      nic: "200034567890",
-      phone: "0773456789",
-      email: "kasun.fernando@pubudu.lk",
-      username: "kasun.fernando"
-    }
-  ]);
+const ManageReceptionist = () => {
+  const { api } = useAuth();
+  const [receptionists, setReceptionists] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showModal, setShowModal] = useState(false);
+  const [editingReceptionist, setEditingReceptionist] = useState(null);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
-  const [newReceptionist, setNewReceptionist] = useState({
-    name: "",
-    nic: "",
-    phone: "",
-    email: "",
-    username: "",
-    password: ""
+  const [formData, setFormData] = useState({
+    username: '',
+    password: '',
+    email: '',
+    contact_number: '',
+    full_name: '',
+    nic: ''
   });
 
-  const [errors, setErrors] = useState({});
+  const [formErrors, setFormErrors] = useState({});
 
-  const handleLogout = () => {
-    console.log("Admin logged out");
-    navigate("/");
-  };
+  useEffect(() => {
+    fetchReceptionists();
+  }, []);
 
-  const validateReceptionistForm = () => {
-    const newErrors = {};
-
-    // Name validation
-    if (!newReceptionist.name.trim()) {
-      newErrors.name = "Name is required";
-    } else if (newReceptionist.name.trim().length < 3) {
-      newErrors.name = "Name must be at least 3 characters";
-    }
-
-    // NIC validation (Sri Lankan NIC: 9 digits + V/X or 12 digits)
-    if (!newReceptionist.nic.trim()) {
-      newErrors.nic = "NIC is required";
-    } else if (!/^([0-9]{9}[vVxX]|[0-9]{12})$/.test(newReceptionist.nic)) {
-      newErrors.nic = "Invalid NIC format (e.g., 199812345678 or 991234567V)";
-    }
-
-    // Email validation
-    if (!newReceptionist.email.trim()) {
-      newErrors.email = "Email is required";
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newReceptionist.email)) {
-      newErrors.email = "Invalid email format";
-    }
-
-    // Phone validation
-    if (!newReceptionist.phone.trim()) {
-      newErrors.phone = "Contact number is required";
-    } else if (!/^0\d{9}$/.test(newReceptionist.phone)) {
-      newErrors.phone = "Invalid phone format (e.g., 0771234567)";
-    }
-
-    // Username validation
-    if (!newReceptionist.username.trim()) {
-      newErrors.username = "Username is required";
-    } else if (newReceptionist.username.trim().length < 3) {
-      newErrors.username = "Username must be at least 3 characters";
-    }
-
-    // Password validation
-    if (!newReceptionist.password) {
-      newErrors.password = "Password is required";
-    } else if (newReceptionist.password.length < 8) {
-      newErrors.password = "Password must be at least 8 characters";
-    } else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(newReceptionist.password)) {
-      newErrors.password = "Password must contain uppercase, lowercase, and number";
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleAddReceptionist = () => {
-    if (!validateReceptionistForm()) {
-      return;
-    }
-
-    // Auto-generate Receptionist ID
-    const nextId = receptionists.length + 1;
-    const receptionistId = `REP${String(nextId).padStart(3, '0')}`;
-
-    const receptionistToAdd = {
-      id: nextId,
-      receptionistId: receptionistId,
-      name: newReceptionist.name,
-      nic: newReceptionist.nic,
-      phone: newReceptionist.phone,
-      email: newReceptionist.email,
-      username: newReceptionist.username
-    };
-
-    setReceptionists([...receptionists, receptionistToAdd]);
-    setNewReceptionist({ 
-      name: "", 
-      nic: "", 
-      phone: "", 
-      email: "", 
-      username: "", 
-      password: "" 
-    });
-    setErrors({});
-    setShowAddModal(false);
-    alert(`Receptionist added successfully with ID: ${receptionistId}`);
-  };
-
-  const handleDeleteReceptionist = (id) => {
-    if (window.confirm("Are you sure you want to delete this receptionist?")) {
-      setReceptionists(receptionists.filter(receptionist => receptionist.id !== id));
+  const fetchReceptionists = async () => {
+    try {
+      setLoading(true);
+      const response = await api.get('/admin/receptionists');
+      if (response.data.success) {
+        setReceptionists(response.data.data);
+      }
+    } catch (error) {
+      setError('Failed to fetch receptionists');
+      console.error('Error fetching receptionists:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setNewReceptionist({ ...newReceptionist, [name]: value });
-    // Clear error for this field when user starts typing
-    if (errors[name]) {
-      setErrors({ ...errors, [name]: "" });
+    setFormData(prev => ({ ...prev, [name]: value }));
+    if (formErrors[name]) {
+      setFormErrors(prev => ({ ...prev, [name]: '' }));
     }
+  };
+
+  const validateForm = () => {
+    const errors = {};
+    
+    if (!editingReceptionist) {
+      if (!formData.username) errors.username = 'Username is required';
+      if (!formData.password) errors.password = 'Password is required';
+      else if (formData.password.length < 6) errors.password = 'Password must be at least 6 characters';
+      if (!formData.nic) errors.nic = 'NIC is required';
+    }
+    
+    if (!formData.full_name) errors.full_name = 'Full name is required';
+    
+    if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      errors.email = 'Invalid email format';
+    }
+    
+    if (formData.contact_number && !/^[0-9]{10}$/.test(formData.contact_number)) {
+      errors.contact_number = 'Contact number must be 10 digits';
+    }
+
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
+
+    if (!validateForm()) return;
+
+    try {
+      if (editingReceptionist) {
+        // Update existing receptionist
+        const response = await api.put(`/admin/receptionists/${editingReceptionist.receptionist_id}`, {
+          full_name: formData.full_name,
+          email: formData.email,
+          contact_number: formData.contact_number
+        });
+
+        if (response.data.success) {
+          setSuccess('Receptionist updated successfully');
+          fetchReceptionists();
+          closeModal();
+        }
+      } else {
+        // Create new receptionist
+        const response = await api.post('/admin/receptionists', formData);
+        
+        if (response.data.success) {
+          setSuccess('Receptionist created successfully');
+          fetchReceptionists();
+          closeModal();
+        }
+      }
+    } catch (error) {
+      setError(error.response?.data?.message || 'Failed to save receptionist');
+    }
+  };
+
+  const handleEdit = (receptionist) => {
+    setEditingReceptionist(receptionist);
+    setFormData({
+      username: receptionist.user.username,
+      password: '',
+      email: receptionist.user.email || '',
+      contact_number: receptionist.user.contact_number || '',
+      full_name: receptionist.full_name,
+      nic: receptionist.nic
+    });
+    setShowModal(true);
+  };
+
+  const handleDelete = async (receptionistId) => {
+    if (!window.confirm('Are you sure you want to delete this receptionist?')) return;
+
+    try {
+      const response = await api.delete(`/admin/receptionists/${receptionistId}`);
+      if (response.data.success) {
+        setSuccess('Receptionist deleted successfully');
+        fetchReceptionists();
+      }
+    } catch (error) {
+      setError(error.response?.data?.message || 'Failed to delete receptionist');
+    }
+  };
+
+  const openAddModal = () => {
+    setEditingReceptionist(null);
+    setFormData({
+      username: '',
+      password: '',
+      email: '',
+      contact_number: '',
+      full_name: '',
+      nic: ''
+    });
+    setFormErrors({});
+    setShowModal(true);
+  };
+
+  const closeModal = () => {
+    setShowModal(false);
+    setEditingReceptionist(null);
+    setFormData({
+      username: '',
+      password: '',
+      email: '',
+      contact_number: '',
+      full_name: '',
+      nic: ''
+    });
+    setFormErrors({});
   };
 
   return (
     <div style={styles.container}>
-      {/* Sidebar */}
-      <AdminSidebar onLogout={handleLogout} />
+      <AdminSidebar />
+      <div style={styles.mainContent}>
+        <AdminHeader title="Manage Receptionists" />
+        
+        <div style={styles.content}>
+          {/* Alert Messages */}
+          {error && (
+            <div style={styles.errorAlert}>
+              {error}
+              <button onClick={() => setError('')} style={styles.closeBtn}>×</button>
+            </div>
+          )}
+          
+          {success && (
+            <div style={styles.successAlert}>
+              {success}
+              <button onClick={() => setSuccess('')} style={styles.closeBtn}>×</button>
+            </div>
+          )}
 
-      {/* Main Content */}
-      <div style={styles.mainWrapper}>
-        {/* Header */}
-        <AdminHeader adminName="Admin User" />
-
-        {/* Dashboard Content */}
-        <main style={styles.mainContent}>
-          {/* Page Header */}
-          <div style={styles.pageHeader}>
-            <h1 style={styles.pageTitle}>Manage Receptionist</h1>
-            <button style={styles.addButton} onClick={() => setShowAddModal(true)}>
-              <FiUserPlus style={styles.buttonIcon} />
-              Add Receptionist
+          {/* Header with Add Button */}
+          <div style={styles.header}>
+            <h2 style={styles.title}>Receptionist List</h2>
+            <button onClick={openAddModal} style={styles.addButton}>
+              <FiPlus style={styles.buttonIcon} />
+              Add New Receptionist
             </button>
           </div>
 
-          {/* Receptionist Table */}
-          <div style={styles.tableContainer}>
-            <table style={styles.table}>
-              <thead>
-                <tr>
-                  <th style={styles.th}>Receptionist ID</th>
-                  <th style={styles.th}>Name</th>
-                  <th style={styles.th}>NIC</th>
-                  <th style={styles.th}>Email</th>
-                  <th style={styles.th}>Contact Number</th>
-                  <th style={styles.th}>Username</th>
-                  <th style={styles.th}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {receptionists.map((receptionist) => (
-                  <tr key={receptionist.id} style={styles.tr}>
-                    <td style={styles.td}>{receptionist.receptionistId}</td>
-                    <td style={styles.td}>{receptionist.name}</td>
-                    <td style={styles.td}>{receptionist.nic}</td>
-                    <td style={styles.td}>{receptionist.email}</td>
-                    <td style={styles.td}>{receptionist.phone}</td>
-                    <td style={styles.td}>{receptionist.username}</td>
-                    <td style={styles.td}>
-                      <div style={styles.actionButtons}>
-                        <button style={styles.editButton} title="Edit">
-                          <FiEdit2 />
-                        </button>
-                        <button 
-                          style={styles.deleteButton} 
-                          onClick={() => handleDeleteReceptionist(receptionist.id)}
-                          title="Delete"
-                        >
-                          <FiTrash2 />
-                        </button>
-                      </div>
-                    </td>
+          {/* Receptionists Table */}
+          {loading ? (
+            <div style={styles.loading}>Loading receptionists...</div>
+          ) : receptionists.length === 0 ? (
+            <div style={styles.emptyState}>
+              <FiUser style={styles.emptyIcon} />
+              <p>No receptionists found. Add your first receptionist!</p>
+            </div>
+          ) : (
+            <div style={styles.tableContainer}>
+              <table style={styles.table}>
+                <thead>
+                  <tr>
+                    <th style={styles.th}>Name</th>
+                    <th style={styles.th}>Username</th>
+                    <th style={styles.th}>NIC</th>
+                    <th style={styles.th}>Email</th>
+                    <th style={styles.th}>Contact</th>
+                    <th style={styles.th}>Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </main>
+                </thead>
+                <tbody>
+                  {receptionists.map((receptionist) => (
+                    <tr key={receptionist.receptionist_id} style={styles.tr}>
+                      <td style={styles.td}>{receptionist.full_name}</td>
+                      <td style={styles.td}>{receptionist.user.username}</td>
+                      <td style={styles.td}>{receptionist.nic}</td>
+                      <td style={styles.td}>{receptionist.user.email || 'N/A'}</td>
+                      <td style={styles.td}>{receptionist.user.contact_number || 'N/A'}</td>
+                      <td style={styles.td}>
+                        <div style={styles.actionButtons}>
+                          <button
+                            onClick={() => handleEdit(receptionist)}
+                            style={styles.editButton}
+                            title="Edit"
+                          >
+                            <FiEdit2 />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(receptionist.receptionist_id)}
+                            style={styles.deleteButton}
+                            title="Delete"
+                          >
+                            <FiTrash2 />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Add Receptionist Modal */}
-      {showAddModal && (
-        <div style={styles.modalOverlay} onClick={() => setShowAddModal(false)}>
-          <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
+      {/* Add/Edit Modal */}
+      {showModal && (
+        <div style={styles.modalOverlay}>
+          <div style={styles.modal}>
             <div style={styles.modalHeader}>
-              <h2 style={styles.modalTitle}>Add New Receptionist</h2>
-              <button style={styles.closeButton} onClick={() => setShowAddModal(false)}>
+              <h3 style={styles.modalTitle}>
+                {editingReceptionist ? 'Edit Receptionist' : 'Add New Receptionist'}
+              </h3>
+              <button onClick={closeModal} style={styles.modalCloseBtn}>
                 <FiX />
               </button>
             </div>
-            <div style={styles.modalBody}>
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Full Name</label>
-                <input
-                  type="text"
-                  name="name"
-                  value={newReceptionist.name}
-                  onChange={handleInputChange}
-                  style={{...styles.input, ...(errors.name ? styles.inputError : {})}}
-                  placeholder="John Doe"
-                />
-                {errors.name && <span style={styles.errorText}>{errors.name}</span>}
+
+            <form onSubmit={handleSubmit} style={styles.form}>
+              <div style={styles.formGrid}>
+                {!editingReceptionist && (
+                  <>
+                    <div style={styles.formGroup}>
+                      <label style={styles.label}>
+                        Username <span style={styles.required}>*</span>
+                      </label>
+                      <input
+                        type="text"
+                        name="username"
+                        value={formData.username}
+                        onChange={handleInputChange}
+                        style={styles.input}
+                        placeholder="Enter username"
+                      />
+                      {formErrors.username && <span style={styles.errorText}>{formErrors.username}</span>}
+                    </div>
+
+                    <div style={styles.formGroup}>
+                      <label style={styles.label}>
+                        Password <span style={styles.required}>*</span>
+                      </label>
+                      <input
+                        type="password"
+                        name="password"
+                        value={formData.password}
+                        onChange={handleInputChange}
+                        style={styles.input}
+                        placeholder="Enter password"
+                      />
+                      {formErrors.password && <span style={styles.errorText}>{formErrors.password}</span>}
+                    </div>
+                  </>
+                )}
+
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>
+                    Full Name <span style={styles.required}>*</span>
+                  </label>
+                  <input
+                    type="text"
+                    name="full_name"
+                    value={formData.full_name}
+                    onChange={handleInputChange}
+                    style={styles.input}
+                    placeholder="John Doe"
+                  />
+                  {formErrors.full_name && <span style={styles.errorText}>{formErrors.full_name}</span>}
+                </div>
+
+                {!editingReceptionist && (
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>
+                      NIC <span style={styles.required}>*</span>
+                    </label>
+                    <input
+                      type="text"
+                      name="nic"
+                      value={formData.nic}
+                      onChange={handleInputChange}
+                      style={styles.input}
+                      placeholder="123456789V"
+                    />
+                    {formErrors.nic && <span style={styles.errorText}>{formErrors.nic}</span>}
+                  </div>
+                )}
+
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Email</label>
+                  <input
+                    type="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleInputChange}
+                    style={styles.input}
+                    placeholder="receptionist@example.com"
+                  />
+                  {formErrors.email && <span style={styles.errorText}>{formErrors.email}</span>}
+                </div>
+
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Contact Number</label>
+                  <input
+                    type="text"
+                    name="contact_number"
+                    value={formData.contact_number}
+                    onChange={handleInputChange}
+                    style={styles.input}
+                    placeholder="0771234567"
+                  />
+                  {formErrors.contact_number && <span style={styles.errorText}>{formErrors.contact_number}</span>}
+                </div>
               </div>
-              <div style={styles.formGroup}>
-                <label style={styles.label}>NIC</label>
-                <input
-                  type="text"
-                  name="nic"
-                  value={newReceptionist.nic}
-                  onChange={handleInputChange}
-                  style={{...styles.input, ...(errors.nic ? styles.inputError : {})}}
-                  placeholder="199812345678 or 991234567V"
-                />
-                {errors.nic && <span style={styles.errorText}>{errors.nic}</span>}
+
+              <div style={styles.modalActions}>
+                <button type="button" onClick={closeModal} style={styles.cancelButton}>
+                  Cancel
+                </button>
+                <button type="submit" style={styles.submitButton}>
+                  {editingReceptionist ? 'Update Receptionist' : 'Add Receptionist'}
+                </button>
               </div>
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Email</label>
-                <input
-                  type="email"
-                  name="email"
-                  value={newReceptionist.email}
-                  onChange={handleInputChange}
-                  style={{...styles.input, ...(errors.email ? styles.inputError : {})}}
-                  placeholder="receptionist@pubudu.lk"
-                />
-                {errors.email && <span style={styles.errorText}>{errors.email}</span>}
-              </div>
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Contact Number</label>
-                <input
-                  type="tel"
-                  name="phone"
-                  value={newReceptionist.phone}
-                  onChange={handleInputChange}
-                  style={{...styles.input, ...(errors.phone ? styles.inputError : {})}}
-                  placeholder="0771234567"
-                />
-                {errors.phone && <span style={styles.errorText}>{errors.phone}</span>}
-              </div>
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Username</label>
-                <input
-                  type="text"
-                  name="username"
-                  value={newReceptionist.username}
-                  onChange={handleInputChange}
-                  style={{...styles.input, ...(errors.username ? styles.inputError : {})}}
-                  placeholder="receptionist.username"
-                />
-                {errors.username && <span style={styles.errorText}>{errors.username}</span>}
-              </div>
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Password</label>
-                <input
-                  type="password"
-                  name="password"
-                  value={newReceptionist.password}
-                  onChange={handleInputChange}
-                  style={{...styles.input, ...(errors.password ? styles.inputError : {})}}
-                  placeholder="Enter password"
-                />
-                {errors.password && <span style={styles.errorText}>{errors.password}</span>}
-              </div>
-            </div>
-            <div style={styles.modalFooter}>
-              <button style={styles.cancelButton} onClick={() => setShowAddModal(false)}>
-                Cancel
-              </button>
-              <button style={styles.submitButton} onClick={handleAddReceptionist}>
-                Add Receptionist
-              </button>
-            </div>
+            </form>
           </div>
         </div>
       )}
     </div>
   );
-}
+};
 
 const styles = {
-  container: {
-    display: "flex",
-    minHeight: "100vh",
-    backgroundColor: "#f3f4f6"
-  },
-  mainWrapper: {
-    flex: 1,
-    display: "flex",
-    flexDirection: "column"
-  },
-  mainContent: {
-    padding: "32px",
-    flex: 1
-  },
-  pageHeader: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: "32px"
-  },
-  pageTitle: {
-    fontSize: "32px",
-    fontWeight: "800",
-    color: "#1f2937",
-    margin: 0,
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
-  },
-  addButton: {
-    display: "flex",
-    alignItems: "center",
-    gap: "8px",
-    padding: "12px 24px",
-    backgroundColor: "#0066CC",
-    color: "white",
-    border: "none",
-    borderRadius: "8px",
-    fontSize: "15px",
-    fontWeight: "600",
-    cursor: "pointer",
-    transition: "all 0.2s",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
-  },
-  buttonIcon: {
-    fontSize: "18px"
-  },
-  tableContainer: {
-    backgroundColor: "white",
-    borderRadius: "12px",
-    boxShadow: "0 2px 8px rgba(0, 0, 0, 0.08)",
-    overflow: "hidden"
-  },
-  table: {
-    width: "100%",
-    borderCollapse: "collapse"
-  },
-  th: {
-    backgroundColor: "#f9fafb",
-    padding: "16px",
-    textAlign: "left",
-    fontSize: "14px",
-    fontWeight: "700",
-    color: "#374151",
-    borderBottom: "2px solid #e5e7eb",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
-  },
-  tr: {
-    borderBottom: "1px solid #e5e7eb"
-  },
-  td: {
-    padding: "16px",
-    fontSize: "14px",
-    color: "#4b5563",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
-  },
-  shiftBadgeMorning: {
-    padding: "4px 12px",
-    backgroundColor: "#dbeafe",
-    color: "#1e40af",
-    borderRadius: "12px",
-    fontSize: "13px",
-    fontWeight: "600",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
-  },
-  shiftBadgeEvening: {
-    padding: "4px 12px",
-    backgroundColor: "#fef3c7",
-    color: "#92400e",
-    borderRadius: "12px",
-    fontSize: "13px",
-    fontWeight: "600",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
-  },
-  actionButtons: {
-    display: "flex",
-    gap: "8px"
-  },
-  editButton: {
-    padding: "8px",
-    backgroundColor: "#0066CC",
-    color: "white",
-    border: "none",
-    borderRadius: "6px",
-    cursor: "pointer",
-    fontSize: "16px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    transition: "all 0.2s"
-  },
-  deleteButton: {
-    padding: "8px",
-    backgroundColor: "#ef4444",
-    color: "white",
-    border: "none",
-    borderRadius: "6px",
-    cursor: "pointer",
-    fontSize: "16px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    transition: "all 0.2s"
-  },
-  modalOverlay: {
-    position: "fixed",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    zIndex: 1000
-  },
-  modal: {
-    backgroundColor: "white",
-    borderRadius: "12px",
-    width: "90%",
-    maxWidth: "500px",
-    maxHeight: "90vh",
-    overflow: "auto",
-    boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1)"
-  },
-  modalHeader: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: "24px",
-    borderBottom: "1px solid #e5e7eb"
-  },
-  modalTitle: {
-    fontSize: "20px",
-    fontWeight: "700",
-    color: "#1f2937",
-    margin: 0,
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
-  },
-  closeButton: {
-    backgroundColor: "transparent",
-    border: "none",
-    fontSize: "24px",
-    color: "#6b7280",
-    cursor: "pointer",
-    padding: "4px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center"
-  },
-  modalBody: {
-    padding: "24px"
-  },
-  formGroup: {
-    marginBottom: "20px"
-  },
-  label: {
-    display: "block",
-    fontSize: "14px",
-    fontWeight: "600",
-    color: "#374151",
-    marginBottom: "8px",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
-  },
-  input: {
-    width: "100%",
-    padding: "12px",
-    fontSize: "14px",
-    border: "1px solid #d1d5db",
-    borderRadius: "8px",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif",
-    boxSizing: "border-box"
-  },
-  inputError: {
-    borderColor: "#ef4444"
-  },
-  errorText: {
-    color: "#ef4444",
-    fontSize: "12px",
-    marginTop: "4px",
-    display: "block",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
-  },
-  modalFooter: {
-    display: "flex",
-    justifyContent: "flex-end",
-    gap: "12px",
-    padding: "24px",
-    borderTop: "1px solid #e5e7eb"
-  },
-  cancelButton: {
-    padding: "10px 20px",
-    backgroundColor: "white",
-    color: "#4b5563",
-    border: "1px solid #d1d5db",
-    borderRadius: "8px",
-    fontSize: "14px",
-    fontWeight: "600",
-    cursor: "pointer",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
-  },
-  submitButton: {
-    padding: "10px 20px",
-    backgroundColor: "#0066CC",
-    color: "white",
-    border: "none",
-    borderRadius: "8px",
-    fontSize: "14px",
-    fontWeight: "600",
-    cursor: "pointer",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
-  }
+  container: { display: 'flex', minHeight: '100vh', backgroundColor: '#f5f5f5' },
+  mainContent: { flex: 1, marginLeft: '250px' },
+  content: { padding: '30px' },
+  
+  errorAlert: { padding: '12px 16px', backgroundColor: '#fee', color: '#c33', borderRadius: '8px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
+  successAlert: { padding: '12px 16px', backgroundColor: '#d4edda', color: '#155724', borderRadius: '8px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
+  closeBtn: { background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer', color: 'inherit' },
+  
+  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' },
+  title: { fontSize: '24px', fontWeight: '600', color: '#333' },
+  addButton: { display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', backgroundColor: '#0066CC', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '14px', fontWeight: '600' },
+  buttonIcon: { fontSize: '18px' },
+  
+  loading: { textAlign: 'center', padding: '40px', color: '#666' },
+  emptyState: { textAlign: 'center', padding: '60px 20px', color: '#999' },
+  emptyIcon: { fontSize: '64px', marginBottom: '16px' },
+  
+  tableContainer: { backgroundColor: 'white', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' },
+  table: { width: '100%', borderCollapse: 'collapse' },
+  th: { padding: '16px', textAlign: 'left', backgroundColor: '#f8f9fa', fontWeight: '600', color: '#333', borderBottom: '2px solid #dee2e6' },
+  tr: { borderBottom: '1px solid #dee2e6' },
+  td: { padding: '16px', color: '#666' },
+  
+  actionButtons: { display: 'flex', gap: '8px' },
+  editButton: { padding: '6px 12px', backgroundColor: '#0066CC', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '14px' },
+  deleteButton: { padding: '6px 12px', backgroundColor: '#dc3545', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '14px' },
+  
+  modalOverlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 },
+  modal: { backgroundColor: 'white', borderRadius: '12px', width: '90%', maxWidth: '600px', maxHeight: '90vh', overflow: 'auto' },
+  modalHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px', borderBottom: '1px solid #dee2e6' },
+  modalTitle: { fontSize: '20px', fontWeight: '600', margin: 0 },
+  modalCloseBtn: { background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer', color: '#999' },
+  
+  form: { padding: '20px' },
+  formGrid: { display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px', marginBottom: '24px' },
+  formGroup: { marginBottom: '0' },
+  label: { display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '600', color: '#333' },
+  required: { color: '#dc3545' },
+  input: { width: '100%', padding: '10px 12px', border: '2px solid #dee2e6', borderRadius: '6px', fontSize: '14px', boxSizing: 'border-box' },
+  errorText: { display: 'block', color: '#dc3545', fontSize: '12px', marginTop: '4px' },
+  
+  modalActions: { display: 'flex', justifyContent: 'flex-end', gap: '12px', paddingTop: '16px', borderTop: '1px solid #dee2e6' },
+  cancelButton: { padding: '10px 20px', backgroundColor: '#6c757d', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '14px', fontWeight: '600' },
+  submitButton: { padding: '10px 20px', backgroundColor: '#0066CC', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '14px', fontWeight: '600' }
 };
 
 export default ManageReceptionist;

@@ -1,6 +1,9 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
-import { FiCheck, FiX, FiActivity } from "react-icons/fi";
+import { Link, useNavigate } from "react-router-dom";
+import { FiCheck, FiX, FiActivity, FiAlertCircle } from "react-icons/fi";
+import axios from "axios";
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 // Reusable FormInput Component (inline)
 const FormInput = ({ label, name, type = "text", value, onChange, onBlur, placeholder, touched, error, required, disabled, style }) => {
@@ -126,19 +129,19 @@ const SectionHeader = ({ icon, title }) => (
 );
 
 function PatientRegistration() {
+  const navigate = useNavigate();
+
   const [formData, setFormData] = useState({
-    title: "",
-    firstName: "",
-    lastName: "",
-    dateOfBirth: "",
-    gender: "",
-    email: "",
-    nic: "",
-    phoneNumber: "",
-    address: "",
     username: "",
     password: "",
     confirmPassword: "",
+    email: "",
+    contact_number: "",
+    full_name: "",
+    nic: "",
+    gender: "",
+    date_of_birth: "",
+    address: "",
     agreeTerms: false
   });
 
@@ -148,168 +151,106 @@ function PatientRegistration() {
   const [generalError, setGeneralError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
 
-  // Reusable validation rules
-  const validationRules = {
-    title: {
-      required: true,
-      message: "Title is required"
-    },
-    firstName: {
-      required: true,
-      minLength: 2,
-      pattern: /^[a-zA-Z\s]+$/,
-      messages: {
-        required: "First name is required",
-        minLength: "First name must be at least 2 characters",
-        pattern: "First name can only contain letters"
-      }
-    },
-    lastName: {
-      required: true,
-      minLength: 2,
-      pattern: /^[a-zA-Z\s]+$/,
-      messages: {
-        required: "Last name is required",
-        minLength: "Last name must be at least 2 characters",
-        pattern: "Last name can only contain letters"
-      }
-    },
-    dateOfBirth: {
-      required: true,
-      custom: (value) => {
-        try {
+  // Validation rules
+  const validateField = (fieldName, value) => {
+    let error = "";
+
+    switch (fieldName) {
+      case "username":
+        if (!value.trim()) {
+          error = "Username is required";
+        } else if (value.length < 3) {
+          error = "Username must be at least 3 characters";
+        } else if (!/^[a-zA-Z0-9_]+$/.test(value)) {
+          error = "Username can only contain letters, numbers, and underscores";
+        }
+        break;
+
+      case "password":
+        if (!value) {
+          error = "Password is required";
+        } else if (value.length < 8) {
+          error = "Password must be at least 8 characters";
+        }
+        break;
+
+      case "confirmPassword":
+        if (!value) {
+          error = "Please confirm your password";
+        } else if (value !== formData.password) {
+          error = "Passwords do not match";
+        }
+        break;
+
+      case "email":
+        if (value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+          error = "Please enter a valid email";
+        }
+        break;
+
+      case "contact_number":
+        if (value && !/^[0-9]{10}$/.test(value)) {
+          error = "Contact number must be 10 digits";
+        }
+        break;
+
+      case "full_name":
+        if (!value.trim()) {
+          error = "Full name is required";
+        } else if (value.length < 2) {
+          error = "Full name must be at least 2 characters";
+        }
+        break;
+
+      case "nic":
+        if (!value.trim()) {
+          error = "NIC is required";
+        } else if (!/^[0-9]{9}[vVxX]$/.test(value) && !/^[0-9]{12}$/.test(value)) {
+          error = "Invalid NIC format";
+        }
+        break;
+
+      case "gender":
+        if (!value) {
+          error = "Gender is required";
+        }
+        break;
+
+      case "date_of_birth":
+        if (value) {
           const birthDate = new Date(value);
           const today = new Date();
           const age = today.getFullYear() - birthDate.getFullYear();
-          return age >= 18 ? null : "Must be at least 18 years old";
-        } catch (error) {
-          return "Invalid date format";
+          if (age < 18) {
+            error = "Must be at least 18 years old";
+          }
         }
-      },
-      message: "Date of birth is required"
-    },
-    gender: {
-      required: true,
-      message: "Gender is required"
-    },
-    email: {
-      required: true,
-      pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-      messages: {
-        required: "Email is required",
-        pattern: "Please enter a valid email"
-      }
-    },
-    nic: {
-      required: true,
-      minLength: 10,
-      messages: {
-        required: "NIC is required",
-        minLength: "NIC must be at least 10 characters"
-      }
-    },
-    phoneNumber: {
-      required: true,
-      custom: (value) => {
-        try {
-          const digits = value.replace(/\D/g, "");
-          return digits.length === 10 ? null : "Phone number must be 10 digits";
-        } catch (error) {
-          return "Invalid phone number";
+        break;
+
+      case "address":
+        if (value && value.length < 5) {
+          error = "Address must be at least 5 characters";
         }
-      },
-      message: "Phone number is required"
-    },
-    address: {
-      required: true,
-      minLength: 5,
-      messages: {
-        required: "Address is required",
-        minLength: "Address must be at least 5 characters"
-      }
-    },
-    username: {
-      required: true,
-      minLength: 3,
-      pattern: /^[a-zA-Z0-9_]+$/,
-      messages: {
-        required: "Username is required",
-        minLength: "Username must be at least 8 characters",
-        pattern: "Username can only contain letters, numbers, and underscores"
-      }
-    },
-    password: {
-      required: true,
-      minLength: 8,
-      custom: (value) => {
-        try {
-          if (!value) return null;
-          if (!/(?=.*[a-z])/.test(value)) return "Must contain lowercase letters";
-          if (!/(?=.*[A-Z])/.test(value)) return "Must contain uppercase letters";
-          if (!/(?=.*\d)/.test(value)) return "Must contain numbers";
-          if (!/(?=.*[@#$!%*?&])/.test(value)) return "Must contain special characters";
-          return null;
-        } catch (error) {
-          return "Password validation error";
+        break;
+
+      case "agreeTerms":
+        if (!value) {
+          error = "You must agree to the terms and conditions";
         }
-      },
-      messages: {
-        required: "Password is required",
-        minLength: "Password must be at least 8 characters"
-      }
-    },
-    confirmPassword: {
-      required: true,
-      custom: (value) => {
-        return value !== formData.password ? "Passwords do not match" : null;
-      },
-      message: "Please confirm your password"
-    },
-    agreeTerms: {
-      custom: (value) => {
-        return !value ? "You must agree to the terms and conditions" : null;
-      },
-      message: "You must agree to the terms"
+        break;
     }
-  };
 
-  // Reusable validation function with try-catch
-  const validateField = (fieldName, value) => {
-    try {
-      const rule = validationRules[fieldName];
-      if (!rule) return "";
-
-      if (rule.required && (!value || (typeof value === "string" && !value.trim()))) {
-        return rule.messages?.required || rule.message || "This field is required";
-      }
-
-      if (rule.minLength && value?.length < rule.minLength) {
-        return rule.messages?.minLength || `Minimum ${rule.minLength} characters required`;
-      }
-
-      if (rule.pattern && value && !rule.pattern.test(value)) {
-        return rule.messages?.pattern || "Invalid format";
-      }
-
-      if (rule.custom) {
-        const customError = rule.custom(value);
-        if (customError) return customError;
-      }
-
-      return "";
-    } catch (error) {
-      console.error(`Validation error for field ${fieldName}:`, error);
-      return "Validation error occurred";
-    }
+    return error;
   };
 
   const handleChange = (e) => {
     try {
       const { name, value, type, checked } = e.target;
+      const fieldValue = type === "checkbox" ? checked : value;
       
       setFormData(prev => ({
         ...prev,
-        [name]: type === "checkbox" ? checked : value
+        [name]: fieldValue
       }));
 
       if (errors[name]) {
@@ -349,17 +290,28 @@ function PatientRegistration() {
   const validateForm = () => {
     try {
       const newErrors = {};
+      const requiredFields = ["username", "password", "confirmPassword", "full_name", "nic", "gender", "agreeTerms"];
       
-      Object.keys(validationRules).forEach(fieldName => {
+      requiredFields.forEach(fieldName => {
         const error = validateField(fieldName, formData[fieldName]);
         if (error) {
           newErrors[fieldName] = error;
         }
       });
 
+      // Validate optional fields if filled
+      ["email", "contact_number", "date_of_birth", "address"].forEach(field => {
+        if (formData[field]) {
+          const error = validateField(field, formData[field]);
+          if (error) {
+            newErrors[field] = error;
+          }
+        }
+      });
+
       setErrors(newErrors);
       
-      const allTouched = Object.keys(validationRules).reduce((acc, field) => {
+      const allTouched = requiredFields.reduce((acc, field) => {
         acc[field] = true;
         return acc;
       }, {});
@@ -385,85 +337,38 @@ function PatientRegistration() {
         return;
       }
 
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // Prepare data for API
+      const registrationData = {
+        username: formData.username,
+        password: formData.password,
+        email: formData.email || null,
+        contact_number: formData.contact_number ? parseInt(formData.contact_number) : null,
+        full_name: formData.full_name,
+        nic: formData.nic,
+        gender: formData.gender,
+        date_of_birth: formData.date_of_birth || null,
+        address: formData.address || null
+      };
 
-      setSuccessMessage("✅ Patient Registration Successful! Redirecting to login...");
-      console.log("Registration Data:", formData);
-      
-      setFormData({
-        title: "",
-        firstName: "",
-        lastName: "",
-        dateOfBirth: "",
-        gender: "",
-        email: "",
-        nic: "",
-        phoneNumber: "",
-        address: "",
-        username: "",
-        password: "",
-        confirmPassword: "",
-        agreeTerms: false
-      });
-      setTouched({});
+      // Call registration API directly without auto-login
+      const response = await axios.post(`${API_URL}/auth/register`, registrationData);
 
-      setTimeout(() => {
-        window.location.href = "/";
-      }, 2000);
+      if (response.data.success) {
+        setSuccessMessage("Registration successful! Redirecting to login page...");
+        
+        setTimeout(() => {
+          navigate("/");
+        }, 2000);
+      } else {
+        setGeneralError(response.data.message || "Registration failed. Please try again.");
+      }
 
     } catch (error) {
-      console.error("Submission error:", error);
-      setGeneralError(error.message || "An error occurred during registration. Please try again.");
+      setGeneralError(error.response?.data?.message || error.message || "Registration failed. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
   };
-
-  const passwordStrength = formData.password ? (
-    <div style={styles.passwordRequirements}>
-      <p style={styles.requirementsTitle}>Password Requirements:</p>
-      <div style={styles.requirement}>
-        {/(?=.*[a-z])/.test(formData.password) ? (
-          <FiCheck style={styles.checkmark} />
-        ) : (
-          <FiX style={styles.cross} />
-        )}
-        <span>Lowercase letter</span>
-      </div>
-      <div style={styles.requirement}>
-        {/(?=.*[A-Z])/.test(formData.password) ? (
-          <FiCheck style={styles.checkmark} />
-        ) : (
-          <FiX style={styles.cross} />
-        )}
-        <span>Uppercase letter</span>
-      </div>
-      <div style={styles.requirement}>
-        {/(?=.*\d)/.test(formData.password) ? (
-          <FiCheck style={styles.checkmark} />
-        ) : (
-          <FiX style={styles.cross} />
-        )}
-        <span>Number</span>
-      </div>
-      <div style={styles.requirement}>
-        {/(?=.*[@#$!%*?&])/.test(formData.password) ? (
-          <FiCheck style={styles.checkmark} />
-        ) : (
-          <FiX style={styles.cross} />
-        )}
-        <span>Special character (@, #, $, !, %, *, ?, &)</span>
-      </div>
-      <div style={styles.requirement}>
-        {formData.password.length >= 8 ? (
-          <FiCheck style={styles.checkmark} />
-        ) : (
-          <FiX style={styles.cross} />
-        )}
-        <span>Minimum 8 characters</span>
-      </div>
-    </div>
-  ) : null;
 
   return (
     <div style={styles.container}>
@@ -472,68 +377,45 @@ function PatientRegistration() {
           <h2 style={styles.welcomeTitle}>Patient Registration</h2>
           <p style={styles.welcomeSubtitle}>Create your account to book appointments</p>
 
-          {generalError && <div style={styles.generalError}>{generalError}</div>}
-          {successMessage && <div style={styles.successMessage}>{successMessage}</div>}
+          {generalError && (
+            <div style={styles.generalError}>
+              <FiAlertCircle style={{ marginRight: "8px" }} />
+              {generalError}
+            </div>
+          )}
+          {successMessage && (
+            <div style={styles.successMessage}>
+              <FiCheck style={{ marginRight: "8px" }} />
+              {successMessage}
+            </div>
+          )}
 
           <form onSubmit={handleSubmit}>
             {/* Personal Information Section */}
             <SectionHeader title="Personal Information" />
 
-            <div style={styles.formRow}>
-              <FormSelect
-                label="Title"
-                name="title"
-                value={formData.title}
-                onChange={handleChange}
-                onBlur={handleBlur}
-                touched={touched.title}
-                error={errors.title}
-                options={[
-                  { value: "", label: "Select Title" },
-                  { value: "Mr", label: "Mr" },
-                  { value: "Mrs", label: "Mrs" },
-                  { value: "Miss", label: "Miss" },
-                  { value: "Dr", label: "Dr" }
-                ]}
-                required
-                style={{ flex: 1, marginRight: "10px" }}
-              />
-              <FormInput
-                label="First Name"
-                name="firstName"
-                value={formData.firstName}
-                onChange={handleChange}
-                onBlur={handleBlur}
-                touched={touched.firstName}
-                error={errors.firstName}
-                placeholder="sayumi"
-                required
-                style={{ flex: 1, marginRight: "10px" }}
-              />
-              <FormInput
-                label="Last Name"
-                name="lastName"
-                value={formData.lastName}
-                onChange={handleChange}
-                onBlur={handleBlur}
-                touched={touched.lastName}
-                error={errors.lastName}
-                placeholder="manujana"
-                required
-                style={{ flex: 1 }}
-              />
-            </div>
+            <FormInput
+              label="Full Name"
+              name="full_name"
+              value={formData.full_name}
+              onChange={handleChange}
+              onBlur={handleBlur}
+              touched={touched.full_name}
+              error={errors.full_name}
+              placeholder="John Doe"
+              required
+            />
 
             <div style={styles.formRow}>
               <FormInput
-                label="Date of Birth"
-                name="dateOfBirth"
-                type="date"
-                value={formData.dateOfBirth}
+                label="NIC"
+                name="nic"
+                value={formData.nic}
                 onChange={handleChange}
                 onBlur={handleBlur}
-                touched={touched.dateOfBirth}
-                error={errors.dateOfBirth}
+                touched={touched.nic}
+                error={errors.nic}
+                placeholder="123456789V or 200012345678"
                 required
                 style={{ flex: 1, marginRight: "10px" }}
               />
@@ -547,70 +429,60 @@ function PatientRegistration() {
                 error={errors.gender}
                 options={[
                   { value: "", label: "Select Gender" },
-                  { value: "Male", label: "Male" },
-                  { value: "Female", label: "Female" },
-                  { value: "Other", label: "Other" }
+                  { value: "MALE", label: "Male" },
+                  { value: "FEMALE", label: "Female" },
+                  { value: "OTHER", label: "Other" }
                 ]}
                 required
                 style={{ flex: 1 }}
               />
             </div>
 
-            <div style={styles.formRow}>
-              <FormInput
-                label="Email"
-                name="email"
-                type="email"
-                value={formData.email}
-                onChange={handleChange}
-                onBlur={handleBlur}
-                touched={touched.email}
-                error={errors.email}
-                placeholder="sayumi@example.com"
-                required
-                style={{ flex: 1, marginRight: "10px" }}
-              />
-              <FormInput
-                label="NIC"
-                name="nic"
-                value={formData.nic}
-                onChange={handleChange}
-                onBlur={handleBlur}
-                touched={touched.nic}
-                error={errors.nic}
-                placeholder="1234567890V"
-                required
-                style={{ flex: 1 }}
-              />
-            </div>
+            <FormInput
+              label="Date of Birth"
+              name="date_of_birth"
+              type="date"
+              value={formData.date_of_birth}
+              onChange={handleChange}
+              onBlur={handleBlur}
+              touched={touched.date_of_birth}
+              error={errors.date_of_birth}
+            />
 
-            <div style={styles.formRow}>
-              <FormInput
-                label="Phone Number"
-                name="phoneNumber"
-                type="tel"
-                value={formData.phoneNumber}
-                onChange={handleChange}
-                onBlur={handleBlur}
-                touched={touched.phoneNumber}
-                error={errors.phoneNumber}
-                placeholder="0771234567"
-                required
-                style={{ flex: 1, marginRight: "10px" }}
-              />
-              <FormInput
-                label="Address"
-                name="address"
-                value={formData.address}
-                onChange={handleChange}
-                onBlur={handleBlur}
-                touched={touched.address}
-                error={errors.address}
-                placeholder="123 Main St, Colombo"
-                required
-                style={{ flex: 1 }}
-              />
-            </div>
+            <FormInput
+              label="Email (Optional)"
+              name="email"
+              type="email"
+              value={formData.email}
+              onChange={handleChange}
+              onBlur={handleBlur}
+              touched={touched.email}
+              error={errors.email}
+              placeholder="john@example.com"
+            />
+
+            <FormInput
+              label="Phone Number (Optional)"
+              name="contact_number"
+              type="tel"
+              value={formData.contact_number}
+              onChange={handleChange}
+              onBlur={handleBlur}
+              touched={touched.contact_number}
+              error={errors.contact_number}
+              placeholder="0771234567"
+            />
+
+            <FormInput
+              label="Address (Optional)"
+              name="address"
+              value={formData.address}
+              onChange={handleChange}
+              onBlur={handleBlur}
+              touched={touched.address}
+              error={errors.address}
+              placeholder="123 Main St, Colombo"
+            />
 
             {/* Account Details Section */}
             <SectionHeader  title="Account Information" />
@@ -623,37 +495,39 @@ function PatientRegistration() {
               onBlur={handleBlur}
               touched={touched.username}
               error={errors.username}
-              placeholder="Sayumi_01"
+              placeholder="john_doe"
               required
             />
 
-            <FormInput
-              label="Create Password"
-              name="password"
-              type="password"
-              value={formData.password}
-              onChange={handleChange}
-              onBlur={handleBlur}
-              touched={touched.password}
-              error={errors.password}
-              placeholder="••••••••"
-              required
-            />
+            <div style={styles.formRow}>
+              <FormInput
+                label="Password"
+                name="password"
+                type="password"
+                value={formData.password}
+                onChange={handleChange}
+                onBlur={handleBlur}
+                touched={touched.password}
+                error={errors.password}
+                placeholder="••••••••"
+                required
+                style={{ flex: 1, marginRight: "10px" }}
+              />
 
-            {passwordStrength}
-
-            <FormInput
-              label="Confirm Password"
-              name="confirmPassword"
-              type="password"
-              value={formData.confirmPassword}
-              onChange={handleChange}
-              onBlur={handleBlur}
-              touched={touched.confirmPassword}
-              error={errors.confirmPassword}
-              placeholder="••••••••"
-              required
-            />
+              <FormInput
+                label="Confirm Password"
+                name="confirmPassword"
+                type="password"
+                value={formData.confirmPassword}
+                onChange={handleChange}
+                onBlur={handleBlur}
+                touched={touched.confirmPassword}
+                error={errors.confirmPassword}
+                placeholder="••••••••"
+                required
+                style={{ flex: 1 }}
+              />
+            </div>
 
             <div style={styles.divider}></div>
 
@@ -755,13 +629,8 @@ const styles = {
   },
   
   formRow: { display: "flex", gap: "0", marginBottom: "0" },
-  generalError: { padding: "12px 15px", backgroundColor: "#fee", border: "1px solid #e74c3c", borderRadius: "8px", color: "#e74c3c", marginBottom: "20px", fontSize: "14px", fontWeight: "600" },
-  successMessage: { padding: "12px 15px", backgroundColor: "#efe", border: "1px solid #27ae60", borderRadius: "8px", color: "#27ae60", marginBottom: "20px", fontSize: "14px", fontWeight: "600" },
-  passwordRequirements: { marginTop: "15px", marginBottom: "20px", padding: "15px", backgroundColor: "#f8f9fa", borderRadius: "8px", border: "1px solid #e0e0e0" },
-  requirementsTitle: { fontSize: "13px", fontWeight: "700", color: "#333", marginBottom: "10px" },
-  requirement: { display: "flex", alignItems: "center", fontSize: "13px", color: "#555", marginBottom: "6px" },
-  checkmark: { color: "#27ae60", marginRight: "8px", fontSize: "16px", flexShrink: 0 },
-  cross: { color: "#e74c3c", marginRight: "8px", fontSize: "16px", flexShrink: 0 },
+  generalError: { padding: "12px 15px", backgroundColor: "#fee", border: "1px solid #e74c3c", borderRadius: "8px", color: "#e74c3c", marginBottom: "20px", fontSize: "14px", fontWeight: "600", display: "flex", alignItems: "center" },
+  successMessage: { padding: "12px 15px", backgroundColor: "#efe", border: "1px solid #27ae60", borderRadius: "8px", color: "#27ae60", marginBottom: "20px", fontSize: "14px", fontWeight: "600", display: "flex", alignItems: "center" },
   submitButton: { width: "100%", padding: "14px", backgroundColor: "#0066CC", color: "white", border: "none", borderRadius: "8px", fontSize: "16px", fontWeight: "600", cursor: "pointer", transition: "background-color 0.3s", marginBottom: "15px", fontFamily: "'Inter', 'Segoe UI', sans-serif" },
   submitButtonDisabled: { backgroundColor: "#a0a0a0", cursor: "not-allowed" },
   loginLink: { textAlign: "center" },

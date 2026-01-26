@@ -1,8 +1,16 @@
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { FiHome, FiUsers, FiUserCheck, FiFileText, FiLogOut, FiActivity } from "react-icons/fi";
+import { useAuth } from '../context/AuthContext';
 
-function AdminSidebar({ onLogout }) {
+function AdminSidebar() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { logout } = useAuth();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/');
+  };
 
   const menuItems = [
     { path: "/admin/dashboard", label: "Dashboard", icon: FiHome },
@@ -46,7 +54,7 @@ function AdminSidebar({ onLogout }) {
 
         {/* Logout Button at Bottom */}
         <div style={styles.logoutContainer}>
-          <button onClick={onLogout} style={styles.logoutButton}>
+          <button onClick={handleLogout} style={styles.logoutButton}>
             <FiLogOut style={styles.navIcon} />
             <span style={styles.navLabel}>Logout</span>
           </button>
@@ -161,13 +169,13 @@ const styles = {
     display: "flex",
     alignItems: "center",
     gap: "12px",
-    padding: "12px 16px",
-    borderRadius: "8px",
-    backgroundColor: "transparent",
+    padding: "14px 18px",
+    borderRadius: "12px",
+    backgroundColor: "#FEE2E2",
     border: "none",
-    color: "#4b5563",
+    color: "#DC2626",
     fontSize: "15px",
-    fontWeight: "500",
+    fontWeight: "600",
     cursor: "pointer",
     transition: "all 0.2s",
     width: "100%",

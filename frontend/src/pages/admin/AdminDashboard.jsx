@@ -7,11 +7,6 @@ import AdminHeader from "../../components/AdminHeader";
 function AdminDashboard() {
   const navigate = useNavigate();
 
-  const handleLogout = () => {
-    console.log("Admin logged out");
-    navigate("/");
-  };
-
   const handleAddDoctor = () => {
     navigate("/admin/doctors");
   };
@@ -27,7 +22,7 @@ function AdminDashboard() {
   return (
     <div style={styles.container}>
       {/* Sidebar */}
-      <AdminSidebar onLogout={handleLogout} />
+      <AdminSidebar />
 
       {/* Main Content */}
       <div style={styles.mainWrapper}>
