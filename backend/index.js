@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import sequelize from './config/database.js';
 import authRoutes from './routes/authRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
+import receptionistRoutes from './routes/receptionistRoutes.js';
 
 dotenv.config();
 dotenv.config({ path: './config/.env' });
@@ -19,6 +20,7 @@ app.use(express.urlencoded({ extended: true }));
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/receptionist', receptionistRoutes);
 
 // Test route
 app.get('/', (req, res) => {

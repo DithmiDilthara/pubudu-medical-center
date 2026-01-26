@@ -1,16 +1,25 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
+import axios from "axios";
+import toast from "react-hot-toast";
 import { FiSearch, FiUser, FiMail, FiPhone, FiMapPin, FiCreditCard, FiLock } from "react-icons/fi";
 import ReceptionistSidebar from "../../components/ReceptionistSidebar";
 import ReceptionistHeader from "../../components/ReceptionistHeader";
 
 function AddPatient() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
   const [searchType, setSearchType] = useState("nic");
   const [searchResult, setSearchResult] = useState(null);
   const [showRegistrationForm, setShowRegistrationForm] = useState(false);
-  
+
+  useEffect(() => {
+    if (location.state?.showRegistration) {
+      setShowRegistrationForm(true);
+    }
+  }, [location.state]);
+
   const [formData, setFormData] = useState({
     title: "",
     firstName: "",
@@ -194,28 +203,62 @@ function AddPatient() {
     navigate("/");
   };
 
-  const handleSearch = () => {
+  const handleSearch = async () => {
     if (!searchQuery.trim()) {
-      alert("Please enter a search value");
+      toast.error("Please enter a search value");
       return;
     }
 
-    // Simulate patient search (replace with actual API call)
-    // For demo, we'll assume patient doesn't exist
-    const patientExists = false; // This would come from your backend
+    const toastId = toast.loading("Searching for patient...");
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/receptionist/search-patient`, {
+        params: { query: searchQuery, type: searchType },
+        headers: { Authorization: `Bearer ${token}` }
+      });
 
-    if (patientExists) {
-      setSearchResult({
-        exists: true,
-        message: "Patient is already registered in the system!"
-      });
-      setShowRegistrationForm(false);
-    } else {
-      setSearchResult({
-        exists: false,
-        message: "Patient is not registered. Please proceed with registration."
-      });
-      setShowRegistrationForm(true);
+      if (response.data.success) {
+        if (response.data.exists) {
+          toast.success("Patient is already registered!", { id: toastId });
+          setSearchResult({
+            exists: true,
+            message: "Patient is already registered in the system!",
+            data: response.data.data
+          });
+          setShowRegistrationForm(false);
+        } else {
+          toast.dismiss(toastId);
+          toast((t) => (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <span style={{ fontWeight: '500' }}>Patient is not existing in the system.</span>
+              <button
+                onClick={() => {
+                  setShowRegistrationForm(true);
+                  setSearchResult(null);
+                  toast.dismiss(t.id);
+                }}
+                style={{
+                  backgroundColor: '#0066CC',
+                  color: 'white',
+                  border: 'none',
+                  padding: '6px 12px',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontWeight: '600',
+                  fontSize: '13px'
+                }}
+              >
+                Proceed with Registration
+              </button>
+            </div>
+          ), { duration: 6000, icon: 'ℹ️' });
+          setSearchResult(null);
+          setShowRegistrationForm(false);
+        }
+      }
+    } catch (error) {
+      console.error("Search error:", error);
+      toast.error("Failed to search for patient.", { id: toastId });
     }
   };
 
@@ -250,12 +293,12 @@ function AddPatient() {
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     try {
       setIsSubmitting(true);
-      
+
       // Mark all fields as touched
       const allTouched = {};
       Object.keys(formData).forEach(key => {
@@ -269,38 +312,59 @@ function AddPatient() {
 
       // Check if there are any errors
       if (Object.keys(validationErrors).length > 0) {
-        alert("Please fix all errors before submitting");
+        toast.error("Please fix all errors before submitting");
         setIsSubmitting(false);
         return;
       }
 
-      // Submit form data (replace with actual API call)
-      console.log("Registering patient:", formData);
-      alert("Patient registered successfully!");
-      
-      // Reset form
-      setFormData({
-        title: "",
-        firstName: "",
-        lastName: "",
-        dateOfBirth: "",
-        gender: "",
-        address: "",
-        phoneNumber: "",
-        email: "",
-        nic: "",
-        username: "",
-        password: "",
-        confirmPassword: ""
-      });
-      setErrors({});
-      setTouched({});
-      setSearchQuery("");
-      setSearchResult(null);
-      setShowRegistrationForm(false);
+      // Prepare data for API
+      const registrationData = {
+        username: formData.username,
+        password: formData.password,
+        email: formData.email || null,
+        contact_number: formData.phoneNumber ? parseInt(formData.phoneNumber.replace(/\D/g, "")) : null,
+        full_name: `${formData.firstName} ${formData.lastName}`,
+        nic: formData.nic,
+        gender: formData.gender.toUpperCase(),
+        date_of_birth: formData.dateOfBirth || null,
+        address: formData.address || null
+      };
+
+      const token = localStorage.getItem('token');
+      const toastId = toast.loading("Registering patient...");
+      const response = await axios.post(
+        `${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/receptionist/register-patient`,
+        registrationData,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      if (response.data.success) {
+        toast.success("Patient registered successfully!", { id: toastId });
+
+        // Reset form
+        setFormData({
+          title: "",
+          firstName: "",
+          lastName: "",
+          dateOfBirth: "",
+          gender: "",
+          address: "",
+          phoneNumber: "",
+          email: "",
+          nic: "",
+          username: "",
+          password: "",
+          confirmPassword: ""
+        });
+        setErrors({});
+        setTouched({});
+        setSearchQuery("");
+        setSearchResult(null);
+        setShowRegistrationForm(false);
+      }
     } catch (error) {
       console.error("Error submitting form:", error);
-      alert("An error occurred while registering the patient. Please try again.");
+      toast.error(error.response?.data?.message || "An error occurred while registering the patient.", { id: toastId });
     } finally {
       setIsSubmitting(false);
     }
@@ -322,80 +386,92 @@ function AddPatient() {
             <h1 style={styles.pageTitle}>Add New Patient</h1>
 
             {/* Search Section */}
-            <div style={styles.searchSection}>
-              <h2 style={styles.sectionTitle}>Search Patient</h2>
-              <p style={styles.sectionSubtitle}>
-                Check if patient is already registered
-              </p>
+            {!showRegistrationForm && (
+              <div style={styles.searchSection}>
+                <h2 style={styles.sectionTitle}>Search Patient</h2>
+                <p style={styles.sectionSubtitle}>
+                  Check if patient is already registered
+                </p>
 
-              <div style={styles.searchContainer}>
-                <div style={styles.searchTypeContainer}>
-                  <label style={styles.radioLabel}>
+                <div style={styles.searchContainer}>
+                  <div style={styles.searchTypeContainer}>
+                    <label style={styles.radioLabel}>
+                      <input
+                        type="radio"
+                        name="searchType"
+                        value="nic"
+                        checked={searchType === "nic"}
+                        onChange={(e) => setSearchType(e.target.value)}
+                        style={styles.radioInput}
+                      />
+                      NIC Number
+                    </label>
+                    <label style={styles.radioLabel}>
+                      <input
+                        type="radio"
+                        name="searchType"
+                        value="phone"
+                        checked={searchType === "phone"}
+                        onChange={(e) => setSearchType(e.target.value)}
+                        style={styles.radioInput}
+                      />
+                      Phone Number
+                    </label>
+                    <label style={styles.radioLabel}>
+                      <input
+                        type="radio"
+                        name="searchType"
+                        value="name"
+                        checked={searchType === "name"}
+                        onChange={(e) => setSearchType(e.target.value)}
+                        style={styles.radioInput}
+                      />
+                      Name
+                    </label>
+                  </div>
+
+                  <div style={styles.searchInputContainer}>
+                    <FiSearch style={styles.searchIcon} />
                     <input
-                      type="radio"
-                      name="searchType"
-                      value="nic"
-                      checked={searchType === "nic"}
-                      onChange={(e) => setSearchType(e.target.value)}
-                      style={styles.radioInput}
+                      type="text"
+                      placeholder={`Enter patient ${searchType === "nic" ? "NIC number" : searchType === "phone" ? "phone number" : "name"}`}
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      style={styles.searchInput}
                     />
-                    NIC Number
-                  </label>
-                  <label style={styles.radioLabel}>
-                    <input
-                      type="radio"
-                      name="searchType"
-                      value="phone"
-                      checked={searchType === "phone"}
-                      onChange={(e) => setSearchType(e.target.value)}
-                      style={styles.radioInput}
-                    />
-                    Phone Number
-                  </label>
-                  <label style={styles.radioLabel}>
-                    <input
-                      type="radio"
-                      name="searchType"
-                      value="name"
-                      checked={searchType === "name"}
-                      onChange={(e) => setSearchType(e.target.value)}
-                      style={styles.radioInput}
-                    />
-                    Name
-                  </label>
+                    <button onClick={handleSearch} style={styles.searchButton}>
+                      Search
+                    </button>
+                  </div>
                 </div>
 
-                <div style={styles.searchInputContainer}>
-                  <FiSearch style={styles.searchIcon} />
-                  <input
-                    type="text"
-                    placeholder={`Enter patient ${searchType === "nic" ? "NIC number" : searchType === "phone" ? "phone number" : "name"}`}
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    style={styles.searchInput}
-                  />
-                  <button onClick={handleSearch} style={styles.searchButton}>
-                    Search
-                  </button>
-                </div>
+                {/* Search Result Message */}
+                {searchResult && (
+                  <div style={searchResult.exists ? styles.existsContainer : styles.notExistsContainer}>
+                    <div style={{
+                      ...styles.resultMessage,
+                      ...(searchResult.exists ? styles.existsMessage : styles.notExistsMessage)
+                    }}>
+                      {searchResult.message}
+                    </div>
+                    {searchResult.exists && (
+                      <button
+                        onClick={() => navigate("/receptionist/appointments/new", { state: { patient: searchResult.data } })}
+                        style={styles.bookNowButton}
+                      >
+                        Process to Booking Appointment
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
-
-              {/* Search Result Message */}
-              {searchResult && (
-                <div style={{
-                  ...styles.resultMessage,
-                  ...(searchResult.exists ? styles.existsMessage : styles.notExistsMessage)
-                }}>
-                  {searchResult.message}
-                </div>
-              )}
-            </div>
+            )}
 
             {/* Registration Form */}
             {showRegistrationForm && (
               <div style={styles.registrationSection}>
                 <h2 style={styles.sectionTitle}>New Patient Registration</h2>
-                
+
                 <form onSubmit={handleSubmit} style={styles.form}>
                   {/* Title */}
                   <div style={styles.formGroup}>
@@ -730,8 +806,8 @@ function AddPatient() {
 
                   {/* Submit Button */}
                   <div style={styles.buttonContainer}>
-                    <button 
-                      type="submit" 
+                    <button
+                      type="submit"
                       style={{
                         ...styles.submitButton,
                         ...(isSubmitting ? styles.submitButtonDisabled : {})
@@ -893,10 +969,33 @@ const styles = {
   },
   resultMessage: {
     marginTop: "16px",
-    padding: "16px",
+    padding: "12px",
     borderRadius: "8px",
-    fontSize: "15px",
+    marginBottom: "20px",
+    fontSize: "14px",
     fontWeight: "600",
+    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+  },
+  existsContainer: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "12px",
+    marginBottom: "20px"
+  },
+  notExistsContainer: {
+    marginBottom: "20px"
+  },
+  bookNowButton: {
+    padding: "12px 24px",
+    backgroundColor: "#0066CC",
+    color: "white",
+    border: "none",
+    borderRadius: "8px",
+    fontWeight: "600",
+    cursor: "pointer",
+    alignSelf: "center",
+    boxShadow: "0 4px 6px rgba(0, 102, 204, 0.2)",
+    transition: "transform 0.2s",
     fontFamily: "'Inter', 'Segoe UI', sans-serif"
   },
   existsMessage: {

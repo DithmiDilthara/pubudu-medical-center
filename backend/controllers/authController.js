@@ -1,6 +1,16 @@
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
+import nodemailer from 'nodemailer';
 import { User, Role, Patient, Doctor, Receptionist, Admin, Token } from '../models/index.js';
+
+// Configure Nodemailer Transporter
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS
+  }
+});
 
 // Generate JWT Token
 const generateToken = (user) => {
@@ -403,20 +413,43 @@ export const forgotPassword = async (req, res) => {
       expires_at: new Date(Date.now() + 3600000) // 1 hour expiration
     });
 
-    // Mock Email Sending (since we don't have SMTP setup yet)
-    const resetUrl = `http://localhost:5173/reset-password/${resetToken}`;
-    console.log(`\n========================================`);
-    console.log(`[EMAIL SENDING SIMULATION]`);
-    console.log(`To: ${email}`);
-    console.log(`Subject: Password Reset Request`);
-    console.log(`Body: You requested a password reset. Please click: ${resetUrl}`);
-    console.log(`========================================\n`);
+    // Send Actual Email
+    const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
+
+    const mailOptions = {
+      from: `"Pubudu Medical Center" <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: 'Password Reset Request',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; borderRadius: 8px;">
+          <h2 style="color: #0056b3; text-align: center;">Password Reset Request</h2>
+          <p>Hello,</p>
+          <p>You requested a password reset for your account at Pubudu Medical Center. Please click the button below to reset your password:</p>
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${resetUrl}" style="background-color: #0056b3; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">Reset Password</a>
+          </div>
+          <p>This link will expire in 1 hour.</p>
+          <p>If you did not request this, please ignore this email.</p>
+          <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
+          <p style="font-size: 12px; color: #666; text-align: center;">Pubudu Medical Center © 2026</p>
+        </div>
+      `
+    };
+
+    try {
+      await transporter.sendMail(mailOptions);
+      console.log(`✓ Reset email sent to ${email}`);
+    } catch (mailError) {
+      console.error('Email sending failed:', mailError);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to send reset email. Please try again later.'
+      });
+    }
 
     res.status(200).json({
       success: true,
-      message: 'Email sent successfully. Please check your inbox.',
-      // DEV ONLY: Sending token in response for easier testing if email log is missed
-      // debug_token: resetToken 
+      message: 'Password reset link has been sent to your email.'
     });
 
   } catch (error) {

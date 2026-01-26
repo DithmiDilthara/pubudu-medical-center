@@ -9,25 +9,80 @@ const ResetPassword = () => {
     const { token } = useParams();
     const navigate = useNavigate();
 
-    const [newPassword, setNewPassword] = useState('');
-    const [confirmPassword, setConfirmPassword] = useState('');
+    const [formData, setFormData] = useState({
+        newPassword: '',
+        confirmPassword: ''
+    });
+
     const [showPassword, setShowPassword] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [message, setMessage] = useState('');
     const [error, setError] = useState('');
+    const [errors, setErrors] = useState({});
+    const [touched, setTouched] = useState({});
+
+    const validateField = (name, value) => {
+        let fieldError = '';
+        if (name === 'newPassword') {
+            if (!value) {
+                fieldError = 'Password is required';
+            } else if (value.length < 8) {
+                fieldError = 'Password must be at least 8 characters';
+            } else if (!/[A-Z]/.test(value)) {
+                fieldError = 'Password must contain at least one uppercase letter';
+            } else if (!/[0-9]/.test(value)) {
+                fieldError = 'Password must contain at least one number';
+            } else if (!/[!@#$%^&*(),.?":{}|<>]/.test(value)) {
+                fieldError = 'Password must contain at least one special character';
+            }
+        } else if (name === 'confirmPassword') {
+            if (!value) {
+                fieldError = 'Please confirm your password';
+            } else if (value !== formData.newPassword) {
+                fieldError = 'Passwords do not match';
+            }
+        }
+
+        setErrors(prev => ({ ...prev, [name]: fieldError }));
+        return fieldError === '';
+    };
+
+    const handleChange = (e) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({ ...prev, [name]: value }));
+
+        if (touched[name]) {
+            validateField(name, value);
+        }
+
+        // Real-time matching check if typing in newPassword and confirmPassword already touched
+        if (name === 'newPassword' && touched.confirmPassword) {
+            setErrors(prev => ({
+                ...prev,
+                confirmPassword: value !== formData.confirmPassword ? 'Passwords do not match' : ''
+            }));
+        }
+    };
+
+    const handleBlur = (e) => {
+        const { name, value } = e.target;
+        setTouched(prev => ({ ...prev, [name]: true }));
+        validateField(name, value);
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
         setMessage('');
 
-        if (newPassword !== confirmPassword) {
-            setError('Passwords do not match');
-            return;
-        }
+        // Validate all fields
+        const isNewValid = validateField('newPassword', formData.newPassword);
+        const isConfirmValid = validateField('confirmPassword', formData.confirmPassword);
 
-        if (newPassword.length < 6) {
-            setError('Password must be at least 6 characters');
+        setTouched({ newPassword: true, confirmPassword: true });
+
+        if (!isNewValid || !isConfirmValid) {
+            setError('Please fix the errors before submitting');
             return;
         }
 
@@ -36,7 +91,7 @@ const ResetPassword = () => {
         try {
             const response = await axios.post(`${API_URL}/auth/reset-password`, {
                 token,
-                newPassword
+                newPassword: formData.newPassword
             });
 
             if (response.data.success) {
@@ -51,6 +106,13 @@ const ResetPassword = () => {
             setIsSubmitting(false);
         }
     };
+
+    const passwordRequirements = [
+        { label: 'At least 8 characters', met: formData.newPassword.length >= 8 },
+        { label: 'One uppercase letter', met: /[A-Z]/.test(formData.newPassword) },
+        { label: 'One number', met: /[0-9]/.test(formData.newPassword) },
+        { label: 'One special character', met: /[!@#$%^&*(),.?":{}|<>]/.test(formData.newPassword) }
+    ];
 
     return (
         <div style={styles.container}>
@@ -79,10 +141,16 @@ const ResetPassword = () => {
                             <FiLock style={styles.inputIcon} />
                             <input
                                 type={showPassword ? "text" : "password"}
+                                name="newPassword"
                                 required
-                                value={newPassword}
-                                onChange={(e) => setNewPassword(e.target.value)}
-                                style={styles.input}
+                                value={formData.newPassword}
+                                onChange={handleChange}
+                                onBlur={handleBlur}
+                                style={{
+                                    ...styles.input,
+                                    ...(touched.newPassword && errors.newPassword ? styles.inputError : {}),
+                                    ...(touched.newPassword && !errors.newPassword && formData.newPassword ? styles.inputSuccess : {})
+                                }}
                                 placeholder="Enter new password"
                             />
                             <button
@@ -93,6 +161,22 @@ const ResetPassword = () => {
                                 {showPassword ? <FiEyeOff /> : <FiEye />}
                             </button>
                         </div>
+                        {touched.newPassword && errors.newPassword && (
+                            <span style={styles.fieldErrorMessage}>{errors.newPassword}</span>
+                        )}
+                    </div>
+
+                    <div style={styles.requirementsContainer}>
+                        <p style={styles.requirementsTitle}>Password must contain:</p>
+                        {passwordRequirements.map((req, index) => (
+                            <div key={index} style={{
+                                ...styles.requirement,
+                                color: req.met ? '#10B981' : '#6B7280'
+                            }}>
+                                {req.met ? <FiCheckCircle style={{ marginRight: '6px' }} /> : <FiAlertCircle style={{ marginRight: '6px' }} />}
+                                {req.label}
+                            </div>
+                        ))}
                     </div>
 
                     <div style={styles.inputGroup}>
@@ -101,13 +185,22 @@ const ResetPassword = () => {
                             <FiLock style={styles.inputIcon} />
                             <input
                                 type={showPassword ? "text" : "password"}
+                                name="confirmPassword"
                                 required
-                                value={confirmPassword}
-                                onChange={(e) => setConfirmPassword(e.target.value)}
-                                style={styles.input}
+                                value={formData.confirmPassword}
+                                onChange={handleChange}
+                                onBlur={handleBlur}
+                                style={{
+                                    ...styles.input,
+                                    ...(touched.confirmPassword && errors.confirmPassword ? styles.inputError : {}),
+                                    ...(touched.confirmPassword && !errors.confirmPassword && formData.confirmPassword ? styles.inputSuccess : {})
+                                }}
                                 placeholder="Confirm new password"
                             />
                         </div>
+                        {touched.confirmPassword && errors.confirmPassword && (
+                            <span style={styles.fieldErrorMessage}>{errors.confirmPassword}</span>
+                        )}
                     </div>
 
                     <button
@@ -190,8 +283,43 @@ const styles = {
         border: '1px solid #e0e0e0',
         fontSize: '15px',
         outline: 'none',
-        transition: 'border-color 0.2s',
+        transition: 'all 0.2s',
         boxSizing: 'border-box'
+    },
+    inputError: {
+        borderColor: '#EF4444',
+        backgroundColor: '#FEF2F2'
+    },
+    inputSuccess: {
+        borderColor: '#10B981',
+        backgroundColor: '#F0FDF4'
+    },
+    fieldErrorMessage: {
+        color: '#DC2626',
+        fontSize: '12px',
+        marginTop: '4px',
+        fontWeight: '500'
+    },
+    requirementsContainer: {
+        backgroundColor: '#F9FAFB',
+        padding: '12px',
+        borderRadius: '8px',
+        border: '1px solid #E5E7EB',
+        marginBottom: '10px'
+    },
+    requirementsTitle: {
+        fontSize: '12px',
+        fontWeight: '700',
+        color: '#4B5563',
+        marginBottom: '8px',
+        textTransform: 'uppercase'
+    },
+    requirement: {
+        display: 'flex',
+        alignItems: 'center',
+        fontSize: '13px',
+        marginBottom: '4px',
+        transition: 'color 0.2s'
     },
     eyeButton: {
         position: 'absolute',

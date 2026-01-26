@@ -1,29 +1,47 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { FiSearch, FiChevronLeft, FiChevronRight } from "react-icons/fi";
+import { useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
+import axios from "axios";
+import toast from "react-hot-toast";
+import { FiSearch, FiChevronLeft, FiChevronRight, FiAlertCircle } from "react-icons/fi";
 import ReceptionistSidebar from "../../components/ReceptionistSidebar";
 import ReceptionistHeader from "../../components/ReceptionistHeader";
 
 function NewBooking() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [currentStep, setCurrentStep] = useState(1);
-  
+
   // Form data
   const [searchQuery, setSearchQuery] = useState("");
+  const [searchType, setSearchType] = useState("nic"); // Add search type
   const [patientInfo, setPatientInfo] = useState({
     fullName: "",
     contactNumber: "",
     dateOfBirth: "",
     patientId: ""
   });
+
+  // Handle passed state from search
+  useEffect(() => {
+    if (location.state?.patient) {
+      const { full_name, user, date_of_birth, patient_id } = location.state.patient;
+      setPatientInfo({
+        fullName: full_name,
+        contactNumber: user?.contact_number || "",
+        dateOfBirth: date_of_birth,
+        patientId: `PHE-${patient_id}` // Assuming a prefix for ID
+      });
+      setCurrentStep(2); // Skip search if patient passed
+    }
+  }, [location.state]);
   const [selectedService, setSelectedService] = useState("");
   const [selectedDoctor, setSelectedDoctor] = useState("");
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedTime, setSelectedTime] = useState("");
-  
+
   // Calendar state
   const [currentMonth, setCurrentMonth] = useState(new Date(2024, 7)); // August 2024
-  
+
   // Sample data (replace with API calls)
   const services = [
     "General Consultation",
@@ -32,7 +50,7 @@ function NewBooking() {
     "Pediatrics",
     "Orthopedics"
   ];
-  
+
   const doctors = [
     "Dr. Kavindi Fernando",
     "Dr. Asanka Wijesinghe",
@@ -40,7 +58,7 @@ function NewBooking() {
     "Dr. Anjali Silva",
     "Dr. Rohan Perera"
   ];
-  
+
   const timeSlots = [
     "10:00 AM",
     "10:30 AM",
@@ -51,24 +69,71 @@ function NewBooking() {
   ];
 
   const handleLogout = () => {
-    console.log("Receptionist logged out");
+    toast.success("Logged out successfully");
     navigate("/");
   };
 
-  const handleSearchPatient = () => {
+  const handleSearchPatient = async () => {
     if (!searchQuery.trim()) {
-      alert("Please enter patient name or ID");
+      toast.error("Please enter patient search query");
       return;
     }
-    
-    // Simulate patient search (replace with actual API call)
-    // For demo, populate with sample data
-    setPatientInfo({
-      fullName: "Priyani Aththanayake",
-      contactNumber: "0771234567",
-      dateOfBirth: "1990-05-15",
-      patientId: "PHE-8067"
-    });
+
+    const toastId = toast.loading("Searching for patient...");
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/receptionist/search-patient`, {
+        params: { query: searchQuery, type: searchType },
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (response.data.success) {
+        if (response.data.exists) {
+          toast.success("Patient found!", { id: toastId });
+          const patient = response.data.data;
+          setPatientInfo({
+            fullName: patient.full_name,
+            contactNumber: patient.user?.contact_number || "",
+            dateOfBirth: patient.date_of_birth || "",
+            patientId: `PHE-${patient.patient_id}`
+          });
+        } else {
+          toast.dismiss(toastId);
+          toast((t) => (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <span style={{ fontWeight: '500' }}>Patient not registered.</span>
+              <button
+                onClick={() => {
+                  navigate("/receptionist/patients/add", { state: { showRegistration: true } });
+                  toast.dismiss(t.id);
+                }}
+                style={{
+                  backgroundColor: '#0066CC',
+                  color: 'white',
+                  border: 'none',
+                  padding: '6px 12px',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontWeight: '600',
+                  fontSize: '13px'
+                }}
+              >
+                Register New Patient
+              </button>
+            </div>
+          ), { duration: 6000, icon: 'ℹ️' });
+          setPatientInfo({
+            fullName: "",
+            contactNumber: "",
+            dateOfBirth: "",
+            patientId: ""
+          });
+        }
+      }
+    } catch (error) {
+      console.error("Search error:", error);
+      toast.error("Failed to search for patient.", { id: toastId });
+    }
   };
 
   const handleNext = () => {
@@ -93,7 +158,7 @@ function NewBooking() {
         return;
       }
     }
-    
+
     setCurrentStep(prev => Math.min(prev + 1, 5));
   };
 
@@ -105,10 +170,10 @@ function NewBooking() {
       date: selectedDate,
       time: selectedTime
     };
-    
+
     console.log("Booking confirmed (Pay Later):", bookingData);
     alert("Appointment booked successfully! Payment pending.");
-    
+
     // Navigate to appointments list
     navigate("/receptionist/appointments");
   };
@@ -137,7 +202,7 @@ function NewBooking() {
     const month = date.getMonth();
     const firstDay = new Date(year, month, 1).getDay();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
-    
+
     const days = [];
     for (let i = 0; i < firstDay; i++) {
       days.push(null);
@@ -191,11 +256,47 @@ function NewBooking() {
             {currentStep >= 1 && (
               <div style={styles.stepSection}>
                 <h2 style={styles.stepTitle}>Step 1: Patient Information</h2>
-                
+
+                <div style={styles.searchTypeContainer}>
+                  <label style={styles.radioLabel}>
+                    <input
+                      type="radio"
+                      name="searchType"
+                      value="nic"
+                      checked={searchType === "nic"}
+                      onChange={(e) => setSearchType(e.target.value)}
+                      style={styles.radioInput}
+                    />
+                    NIC
+                  </label>
+                  <label style={styles.radioLabel}>
+                    <input
+                      type="radio"
+                      name="searchType"
+                      value="phone"
+                      checked={searchType === "phone"}
+                      onChange={(e) => setSearchType(e.target.value)}
+                      style={styles.radioInput}
+                    />
+                    Phone
+                  </label>
+                  <label style={styles.radioLabel}>
+                    <input
+                      type="radio"
+                      name="searchType"
+                      value="name"
+                      checked={searchType === "name"}
+                      onChange={(e) => setSearchType(e.target.value)}
+                      style={styles.radioInput}
+                    />
+                    Name
+                  </label>
+                </div>
+
                 <div style={styles.searchContainer}>
                   <input
                     type="text"
-                    placeholder="Search for existing patient"
+                    placeholder={`Search by ${searchType}`}
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     style={styles.searchInput}
@@ -243,7 +344,7 @@ function NewBooking() {
             {currentStep >= 2 && (
               <div style={styles.stepSection}>
                 <h2 style={styles.stepTitle}>Step 2: Service & Doctor</h2>
-                
+
                 <div style={styles.formGroup}>
                   <select
                     value={selectedService}
@@ -276,7 +377,7 @@ function NewBooking() {
             {currentStep >= 3 && (
               <div style={styles.stepSection}>
                 <h2 style={styles.stepTitle}>Step 3: Availability</h2>
-                
+
                 <div style={styles.calendarContainer}>
                   <div style={styles.calendarHeader}>
                     <button onClick={handlePrevMonth} style={styles.calendarNavButton}>
@@ -289,7 +390,7 @@ function NewBooking() {
                       <FiChevronRight />
                     </button>
                   </div>
-                  
+
                   <div style={styles.calendarGrid}>
                     {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, index) => (
                       <div key={index} style={styles.calendarDayHeader}>{day}</div>
@@ -316,7 +417,7 @@ function NewBooking() {
             {currentStep >= 4 && (
               <div style={styles.stepSection}>
                 <h2 style={styles.stepTitle}>Step 4: Select Time</h2>
-                
+
                 <div style={styles.timeSlotsContainer}>
                   {timeSlots.map((time) => (
                     <button
@@ -338,7 +439,7 @@ function NewBooking() {
             {currentStep >= 5 && (
               <div style={styles.stepSection}>
                 <h2 style={styles.stepTitle}>Step 5: Confirm Booking</h2>
-                
+
                 <div style={styles.confirmationBox}>
                   <div style={styles.confirmRow}>
                     <span style={styles.confirmLabel}>Patient</span>
@@ -347,24 +448,24 @@ function NewBooking() {
                       <small style={styles.confirmSmall}>({patientInfo.patientId})</small>
                     </span>
                   </div>
-                  
+
                   <div style={styles.confirmRow}>
                     <span style={styles.confirmLabel}>Service</span>
                     <span style={styles.confirmValue}>{selectedService}</span>
                   </div>
-                  
+
                   <div style={styles.confirmRow}>
                     <span style={styles.confirmLabel}>Doctor</span>
                     <span style={styles.confirmValue}>{selectedDoctor}</span>
                   </div>
-                  
+
                   <div style={styles.confirmRow}>
                     <span style={styles.confirmLabel}>Date & Time</span>
                     <span style={styles.confirmValue}>
-                      {selectedDate?.toLocaleDateString('en-US', { 
-                        month: 'long', 
-                        day: 'numeric', 
-                        year: 'numeric' 
+                      {selectedDate?.toLocaleDateString('en-US', {
+                        month: 'long',
+                        day: 'numeric',
+                        year: 'numeric'
                       })}, {selectedTime}
                     </span>
                   </div>
@@ -449,6 +550,26 @@ const styles = {
     display: "flex",
     gap: "12px",
     marginBottom: "16px"
+  },
+  searchTypeContainer: {
+    display: "flex",
+    gap: "16px",
+    marginBottom: "12px"
+  },
+  radioLabel: {
+    display: "flex",
+    alignItems: "center",
+    gap: "6px",
+    fontSize: "14px",
+    color: "#374151",
+    cursor: "pointer",
+    fontWeight: "500"
+  },
+  radioInput: {
+    cursor: "pointer",
+    width: "16px",
+    height: "16px",
+    accentColor: "#0066CC"
   },
   searchInput: {
     flex: 1,
