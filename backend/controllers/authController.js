@@ -1,13 +1,14 @@
 import jwt from 'jsonwebtoken';
-import { User, Role, Patient, Doctor, Receptionist, Admin } from '../models/index.js';
+import crypto from 'crypto';
+import { User, Role, Patient, Doctor, Receptionist, Admin, Token } from '../models/index.js';
 
 // Generate JWT Token
 const generateToken = (user) => {
   return jwt.sign(
-    { 
-      user_id: user.user_id, 
+    {
+      user_id: user.user_id,
       username: user.username,
-      role_id: user.role_id 
+      role_id: user.role_id
     },
     process.env.JWT_SECRET,
     { expiresIn: process.env.JWT_EXPIRES_IN || '24h' }
@@ -168,7 +169,7 @@ export const login = async (req, res) => {
     }
 
     // Find user
-    const user = await User.findOne({ 
+    const user = await User.findOne({
       where: { username },
       include: [
         {
@@ -374,6 +375,120 @@ export const changePassword = async (req, res) => {
 // @desc    Logout user
 // @route   POST /api/auth/logout
 // @access  Private
+// @desc    Forgot Password
+// @route   POST /api/auth/forgot-password
+// @access  Public
+export const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ success: false, message: 'Please provide an email' });
+    }
+
+    const user = await User.findOne({ where: { email } });
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found with this email' });
+    }
+
+    // Generate token
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(resetToken).digest('hex');
+
+    // Create token record in DB
+    await Token.create({
+      user_id: user.user_id,
+      token: tokenHash,
+      expires_at: new Date(Date.now() + 3600000) // 1 hour expiration
+    });
+
+    // Mock Email Sending (since we don't have SMTP setup yet)
+    const resetUrl = `http://localhost:5173/reset-password/${resetToken}`;
+    console.log(`\n========================================`);
+    console.log(`[EMAIL SENDING SIMULATION]`);
+    console.log(`To: ${email}`);
+    console.log(`Subject: Password Reset Request`);
+    console.log(`Body: You requested a password reset. Please click: ${resetUrl}`);
+    console.log(`========================================\n`);
+
+    res.status(200).json({
+      success: true,
+      message: 'Email sent successfully. Please check your inbox.',
+      // DEV ONLY: Sending token in response for easier testing if email log is missed
+      // debug_token: resetToken 
+    });
+
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
+  }
+};
+
+// @desc    Reset Password
+// @route   POST /api/auth/reset-password
+// @access  Public
+export const resetPassword = async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+
+    if (!token || !newPassword) {
+      return res.status(400).json({ success: false, message: 'Please provide token and new password' });
+    }
+
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+
+    // Find valid token
+    const tokenRecord = await Token.findOne({ where: { token: tokenHash } });
+
+    if (!tokenRecord) {
+      return res.status(400).json({ success: false, message: 'Invalid or expired token' });
+    }
+
+    // Check expiration
+    if (new Date() > tokenRecord.expires_at) {
+      await tokenRecord.destroy(); // Cleanup expired
+      return res.status(400).json({ success: false, message: 'Token expired' });
+    }
+
+    // Determine User
+    const user = await User.findByPk(tokenRecord.user_id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    // Update Password (hashed by hook)
+    user.password_hash = newPassword;
+    await user.save();
+
+    // Delete used token (and potentially all other tokens for this user for security)
+    await Token.destroy({ where: { user_id: user.user_id } });
+
+    res.status(200).json({ success: true, message: 'Password reset successful. You can now login.' });
+
+  } catch (error) {
+    console.error('Reset password error:', error);
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
+  }
+};
+
+// @desc    Get all reset tokens (Admin Debug)
+// @route   GET /api/auth/tokens
+// @access  Private (Admin)
+export const getTokens = async (req, res) => {
+  try {
+    const tokens = await Token.findAll({
+      include: [{ model: User, as: 'user', attributes: ['username', 'email'] }],
+      order: [['created_at', 'DESC']]
+    });
+
+    res.status(200).json({ success: true, data: tokens });
+  } catch (error) {
+    console.error('Get tokens error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
 export const logout = async (req, res) => {
   try {
     // In a stateless JWT system, logout is handled client-side

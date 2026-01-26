@@ -320,7 +320,7 @@ const ManageDoctors = () => {
                     value={formData.full_name}
                     onChange={handleInputChange}
                     style={styles.input}
-                    placeholder="Dr. John Doe"
+                    placeholder="Dr. Tachini Thaweesha"
                   />
                   {formErrors.full_name && <span style={styles.errorText}>{formErrors.full_name}</span>}
                 </div>

@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { FiHome, FiUsers, FiUserCheck, FiFileText, FiLogOut, FiActivity } from "react-icons/fi";
+import { FiHome, FiUsers, FiUserCheck, FiFileText, FiLogOut, FiActivity, FiUser } from "react-icons/fi";
 import { useAuth } from '../context/AuthContext';
 
 function AdminSidebar() {
@@ -16,7 +16,8 @@ function AdminSidebar() {
     { path: "/admin/dashboard", label: "Dashboard", icon: FiHome },
     { path: "/admin/doctors", label: "Doctors", icon: FiUsers },
     { path: "/admin/receptionist", label: "Receptionist", icon: FiUserCheck },
-    { path: "/admin/reports", label: "Reports", icon: FiFileText }
+    { path: "/admin/reports", label: "Reports", icon: FiFileText },
+    { path: "/profile", label: "Profile", icon: FiUser }
   ];
 
   const isActive = (path) => location.pathname === path;

@@ -4,6 +4,16 @@ import { FiSearch, FiUser } from 'react-icons/fi';
 import PatientSidebar from "../../components/PatientSidebar";
 import PatientHeader from "../../components/PatientHeader";
 
+import docM1 from "../../assets/doctor_m1.png";
+import docM2 from "../../assets/doctor_m2.png";
+import docF1 from "../../assets/doctor_f1.png";
+import docF2 from "../../assets/doctor_f2.png";
+
+const doctorImages = [docF1, docM1, docF2, docM2];
+
+// Helper to get random image based on ID (deterministic)
+const getDoctorImage = (id) => doctorImages[id % doctorImages.length];
+
 const doctors = [
   {
     id: 1,
@@ -75,7 +85,7 @@ function FindDoctor() {
 
   const filteredDoctors = doctors.filter(doctor => {
     const matchesSearch = doctor.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         doctor.specialty.toLowerCase().includes(searchTerm.toLowerCase());
+      doctor.specialty.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesSpecialty = selectedSpecialty === "All" || doctor.specialty === selectedSpecialty;
     return matchesSearch && matchesSpecialty;
   });
@@ -149,8 +159,8 @@ function FindDoctor() {
             {filteredDoctors.length > 0 ? (
               <div style={styles.doctorsList}>
                 {filteredDoctors.map((doctor) => (
-                  <div 
-                    key={doctor.id} 
+                  <div
+                    key={doctor.id}
                     style={styles.doctorCard}
                     onMouseEnter={(e) => {
                       e.currentTarget.style.transform = 'translateY(-2px)';
@@ -165,7 +175,11 @@ function FindDoctor() {
                   >
                     <div style={styles.doctorCardLeft}>
                       <div style={styles.doctorAvatar}>
-                        {doctor.name.charAt(3)}
+                        <img
+                          src={getDoctorImage(doctor.id)}
+                          alt={doctor.name}
+                          style={styles.doctorAvatarImg}
+                        />
                       </div>
                       <div style={styles.doctorInfo}>
                         <h3 style={styles.doctorName}>{doctor.name}</h3>
@@ -342,7 +356,14 @@ const styles = {
     boxShadow: '0 4px 12px rgba(0, 102, 204, 0.25)',
     flexShrink: 0,
     fontFamily: "'Inter', sans-serif",
-    border: '3px solid #E6F2FF'
+    border: '3px solid #E6F2FF',
+    overflow: 'hidden',
+    padding: 0
+  },
+  doctorAvatarImg: {
+    width: '100%',
+    height: '100%',
+    objectFit: 'cover'
   },
   doctorInfo: {
     flex: 1

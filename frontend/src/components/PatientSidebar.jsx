@@ -8,7 +8,7 @@ function PatientSidebar({ onLogout }) {
     { path: "/patient/dashboard", label: "Dashboard", icon: FiHome },
     { path: "/patient/find-doctor", label: "Find Doctor", icon: FiUsers },
     { path: "/patient/appointments", label: "Appointments", icon: FiCalendar },
-    { path: "/patient/profile", label: "Profile", icon: FiUser }
+    { path: "/profile", label: "Profile", icon: FiUser }
   ];
 
   const isActive = (path) => location.pathname === path;

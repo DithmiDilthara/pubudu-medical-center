@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { FiHome, FiUsers, FiCalendar, FiCreditCard, FiLogOut, FiActivity } from "react-icons/fi";
+import { FiHome, FiUsers, FiCalendar, FiCreditCard, FiLogOut, FiActivity, FiUser } from "react-icons/fi";
 
 function ReceptionistSidebar({ onLogout }) {
   const location = useLocation();
@@ -8,7 +8,8 @@ function ReceptionistSidebar({ onLogout }) {
     { path: "/receptionist/dashboard", label: "Dashboard", icon: FiHome },
     { path: "/receptionist/patients", label: "Patients", icon: FiUsers },
     { path: "/receptionist/appointments", label: "Appointments", icon: FiCalendar },
-    { path: "/receptionist/payment", label: "Payments", icon: FiCreditCard }
+    { path: "/receptionist/payment", label: "Payments", icon: FiCreditCard },
+    { path: "/profile", label: "Profile", icon: FiUser }
   ];
 
   const isActive = (path) => location.pathname === path;

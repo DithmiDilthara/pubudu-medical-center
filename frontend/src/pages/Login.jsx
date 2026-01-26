@@ -1,16 +1,20 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiAlertCircle, FiCheck, FiX, FiActivity } from 'react-icons/fi';
+import { FiAlertCircle, FiCheck, FiX, FiActivity, FiEye, FiEyeOff } from 'react-icons/fi';
 import { useAuth } from '../context/AuthContext';
+
+import hospitalBg from '../assets/hospital_clear.png';
 
 const Login = () => {
   const navigate = useNavigate();
   const { login } = useAuth();
-  
+
   const [formData, setFormData] = useState({
     username: '',
     password: ''
   });
+
+  const [showPassword, setShowPassword] = useState(false);
 
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
@@ -19,7 +23,7 @@ const Login = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    
+
     setFormData({
       ...formData,
       [name]: value
@@ -101,7 +105,7 @@ const Login = () => {
 
         if (result.success) {
           const user = result.user;
-          
+
           // Navigate based on role
           const roleId = user.role_id;
           const roleRoutes = {
@@ -126,7 +130,7 @@ const Login = () => {
   };
 
   const handleForgotPassword = () => {
-    alert('Forgot Password feature - Coming soon!');
+    navigate('/forgot-password');
   };
 
   const handleSignupRedirect = () => {
@@ -136,6 +140,7 @@ const Login = () => {
   return (
     <div style={styles.container}>
       <div style={styles.leftSide}>
+        <div style={styles.leftBackground} />
         <div style={styles.formContainer}>
           <h2 style={styles.welcomeTitle}>Welcome to Pubudu Medical Center</h2>
           <p style={styles.welcomeSubtitle}>Please login to continue</p>
@@ -181,20 +186,31 @@ const Login = () => {
             <label style={styles.label}>
               Password <span style={styles.required}>*</span>
             </label>
-            <input
-              type="password"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              onBlur={handleBlur}
-              style={{
-                ...styles.input,
-                ...(touched.password && errors.password ? styles.inputError : {}),
-                ...(touched.password && !errors.password && formData.password ? styles.inputSuccess : {})
-              }}
-              placeholder="Enter your password"
-              disabled={isSubmitting}
-            />
+            <div style={styles.passwordWrapper}>
+              <input
+                type={showPassword ? 'text' : 'password'}
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                onBlur={handleBlur}
+                style={{
+                  ...styles.input,
+                  paddingRight: '45px', // Space for eye icon
+                  ...(touched.password && errors.password ? styles.inputError : {}),
+                  ...(touched.password && !errors.password && formData.password ? styles.inputSuccess : {})
+                }}
+                placeholder="Enter your password"
+                disabled={isSubmitting}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                style={styles.eyeButton}
+                disabled={isSubmitting}
+              >
+                {showPassword ? <FiEyeOff /> : <FiEye />}
+              </button>
+            </div>
             {touched.password && errors.password && (
               <span style={styles.errorMessage}>
                 <FiAlertCircle style={styles.messageIcon} /> {errors.password}
@@ -205,57 +221,13 @@ const Login = () => {
                 <FiCheck style={styles.messageIcon} /> Valid password
               </span>
             )}
-            
-            {formData.password && (
-              <div style={styles.passwordRequirements}>
-                <p style={styles.requirementsTitle}>Password must contain:</p>
-                <div style={styles.requirement}>
-                  {/(?=.*[a-z])/.test(formData.password) ? (
-                    <FiCheck style={styles.checkmark} />
-                  ) : (
-                    <FiX style={styles.cross} />
-                  )}
-                  <span>At least one lowercase letter</span>
-                </div>
-                <div style={styles.requirement}>
-                  {/(?=.*[A-Z])/.test(formData.password) ? (
-                    <FiCheck style={styles.checkmark} />
-                  ) : (
-                    <FiX style={styles.cross} />
-                  )}
-                  <span>At least one uppercase letter</span>
-                </div>
-                <div style={styles.requirement}>
-                  {/(?=.*\d)/.test(formData.password) ? (
-                    <FiCheck style={styles.checkmark} />
-                  ) : (
-                    <FiX style={styles.cross} />
-                  )}
-                  <span>At least one number</span>
-                </div>
-                <div style={styles.requirement}>
-                  {/(?=.*[@#$!%*?&])/.test(formData.password) ? (
-                    <FiCheck style={styles.checkmark} />
-                  ) : (
-                    <FiX style={styles.cross} />
-                  )}
-                  <span>At least one special character (@, #, $, !, %, *, ?, &)</span>
-                </div>
-                <div style={styles.requirement}>
-                  {formData.password.length >= 8 ? (
-                    <FiCheck style={styles.checkmark} />
-                  ) : (
-                    <FiX style={styles.cross} />
-                  )}
-                  <span>Minimum 8 characters</span>
-                </div>
-              </div>
-            )}
+
+
           </div>
 
           <div style={styles.forgotPassword}>
-            <button 
-              type="button" 
+            <button
+              type="button"
               onClick={handleForgotPassword}
               style={styles.linkButton}
               disabled={isSubmitting}
@@ -264,8 +236,8 @@ const Login = () => {
             </button>
           </div>
 
-          <button 
-            type="button" 
+          <button
+            type="button"
             onClick={handleSubmit}
             style={{
               ...styles.loginButton,
@@ -291,7 +263,7 @@ const Login = () => {
           <div style={styles.signupLink}>
             <p style={styles.signupText}>
               Don't have an account?{' '}
-              <button 
+              <button
                 type="button"
                 onClick={handleSignupRedirect}
                 style={styles.linkButton}
@@ -335,16 +307,29 @@ const styles = {
     backgroundColor: '#F9FAFB'
   },
   leftSide: {
-    flex: 1,
+    flex: 7,
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
     padding: '40px 60px',
-    backgroundColor: '#FFFFFF'
+    position: 'relative',
+    overflow: 'hidden'
+  },
+  leftBackground: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundImage: `linear-gradient(rgba(0, 102, 204, 0.4), rgba(0, 82, 163, 0.5)), url(${hospitalBg})`,
+    backgroundSize: 'cover',
+    backgroundPosition: 'center',
+    filter: 'blur(8px)',
+    zIndex: 0
   },
   rightSide: {
-    flex: 1,
-    background: 'linear-gradient(135deg, #0066CC 0%, #0052A3 100%)',
+    flex: 3,
+    background: 'linear-gradient(135deg, #4DA6FF 0%, #0066CC 100%)',
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
@@ -417,10 +402,17 @@ const styles = {
   },
   formContainer: {
     width: '100%',
-    maxWidth: '440px'
+    maxWidth: '480px',
+    backgroundColor: '#FFFFFF',
+    padding: '48px',
+    borderRadius: '24px',
+    boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+    border: '1px solid rgba(0,0,0,0.05)',
+    position: 'relative',
+    zIndex: 1
   },
   welcomeTitle: {
-    textAlign: 'left',
+    textAlign: 'center',
     marginBottom: '8px',
     fontSize: '32px',
     color: '#111827',
@@ -429,7 +421,7 @@ const styles = {
     fontFamily: "'Plus Jakarta Sans', 'Inter', sans-serif"
   },
   welcomeSubtitle: {
-    textAlign: 'left',
+    textAlign: 'center',
     marginBottom: '36px',
     fontSize: '15px',
     color: '#6B7280',
@@ -472,6 +464,25 @@ const styles = {
     fontFamily: "'Inter', sans-serif",
     color: '#111827',
     backgroundColor: '#FFFFFF'
+  },
+  passwordWrapper: {
+    position: 'relative',
+    display: 'flex',
+    alignItems: 'center'
+  },
+  eyeButton: {
+    position: 'absolute',
+    right: '12px',
+    background: 'none',
+    border: 'none',
+    cursor: 'pointer',
+    color: '#6B7280',
+    fontSize: '20px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 0,
+    zIndex: 2
   },
   inputError: {
     borderColor: '#EF4444',

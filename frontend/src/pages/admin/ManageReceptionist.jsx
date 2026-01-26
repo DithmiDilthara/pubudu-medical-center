@@ -312,7 +312,7 @@ const ManageReceptionist = () => {
                     value={formData.full_name}
                     onChange={handleInputChange}
                     style={styles.input}
-                    placeholder="John Doe"
+                    placeholder="sayumi manujana"
                   />
                   {formErrors.full_name && <span style={styles.errorText}>{formErrors.full_name}</span>}
                 </div>

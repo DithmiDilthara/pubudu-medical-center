@@ -1,10 +1,12 @@
 import { FiUser } from "react-icons/fi";
+import { useNavigate } from "react-router-dom";
 
 function DoctorHeader({ doctorName = "Dr. Kanya Ekanalyake" }) {
+  const navigate = useNavigate();
   return (
     <header style={styles.header}>
       {/* Welcome Section */}
-      <div style={styles.welcomeContainer}>
+      <div style={styles.welcomeContainer} onClick={() => navigate('/profile')}>
         <p style={styles.welcomeText}>
           Welcome, <span style={styles.doctorName}>{doctorName}!</span>
         </p>
@@ -33,7 +35,8 @@ const styles = {
   welcomeContainer: {
     display: "flex",
     alignItems: "center",
-    gap: "16px"
+    gap: "16px",
+    cursor: "pointer"
   },
   welcomeText: {
     fontSize: "15px",

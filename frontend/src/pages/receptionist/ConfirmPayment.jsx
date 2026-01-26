@@ -6,7 +6,7 @@ import ReceptionistHeader from '../../components/ReceptionistHeader';
 function ConfirmPayment() {
   const navigate = useNavigate();
   const location = useLocation();
-  
+
   // Get appointment data from navigation state or use default
   const appointmentData = location.state?.appointment || {
     patientName: 'Kamal Perera',
@@ -41,10 +41,10 @@ function ConfirmPayment() {
   return (
     <div style={styles.container}>
       <ReceptionistSidebar />
-      
+
       <div style={styles.mainContainer}>
         <ReceptionistHeader />
-        
+
         <div style={styles.content}>
           <div style={styles.paymentCard}>
             <h1 style={styles.pageTitle}>Confirm Payment</h1>
@@ -52,7 +52,7 @@ function ConfirmPayment() {
             {/* Patient Details Section */}
             <div style={styles.section}>
               <h2 style={styles.sectionTitle}>Patient Details</h2>
-              
+
               <div style={styles.detailsGrid}>
                 <div style={styles.detailItem}>
                   <label style={styles.detailLabel}>Patient Name</label>
@@ -75,16 +75,16 @@ function ConfirmPayment() {
             {/* Payment Information Section */}
             <div style={styles.section}>
               <h2 style={styles.sectionTitle}>Payment Information</h2>
-              
+
               <div style={styles.detailsGrid}>
                 <div style={styles.detailItem}>
                   <label style={styles.detailLabel}>Amount Paid</label>
-                  <div style={styles.amountValue}>Lkr. {amountPaid.toFixed(2)}</div>
+                  <div style={styles.amountValue}>LKR {amountPaid.toFixed(2)}</div>
                 </div>
 
                 <div style={styles.detailItem}>
                   <label style={styles.detailLabel}>Payment Method</label>
-                  <select 
+                  <select
                     style={styles.select}
                     value={paymentMethod}
                     onChange={(e) => setPaymentMethod(e.target.value)}
@@ -99,7 +99,7 @@ function ConfirmPayment() {
 
             {/* Confirm Button */}
             <div style={styles.buttonContainer}>
-              <button 
+              <button
                 style={styles.confirmButton}
                 onClick={handleConfirmPayment}
               >

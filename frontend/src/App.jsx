@@ -1,6 +1,9 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import Login from './pages/Login';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
+import Profile from './pages/Profile';
 import PatientRegistration from './pages/PatientRegistration';
 import PatientDashboard from './pages/patient/PatientDashboard';
 import FindDoctor from './pages/patient/FindDoctor';
@@ -28,31 +31,34 @@ function App() {
     <AuthProvider>
       <Router>
         <Routes>
-        <Route path="/" element={<Login />} />
-        <Route path="/register" element={<PatientRegistration />} />
-        <Route path="/patient/dashboard" element={<PatientDashboard />} />
-        <Route path="/patient/find-doctor" element={<FindDoctor />} />
-        <Route path="/patient/doctor-details" element={<DoctorDetails />} />
-        <Route path="/patient/confirm-booking" element={<ConfirmBooking />} />
-        <Route path="/patient/payment" element={<OnlinePayment />} />
-        <Route path="/patient/appointments" element={<Appointments />} />
-        <Route path="/doctor/dashboard" element={<DoctorDashboard />} />
-        <Route path="/doctor/appointments" element={<DoctorAppointments />} />
-        <Route path="/doctor/patient-details" element={<PatientDetailsDoctor />} />
-        <Route path="/doctor/patients" element={<DoctorPatients />} />
-        <Route path="/doctor/availability" element={<DoctorAvailability />} />
-        <Route path="/receptionist/dashboard" element={<ReceptionistDashboard />} />
-        <Route path="/receptionist/patients" element={<AddPatient />} />
-        <Route path="/receptionist/patients/add" element={<AddPatient />} />
-        <Route path="/receptionist/appointments" element={<AppointmentsManagement />} />
-        <Route path="/receptionist/appointments/new" element={<NewBooking />} />
-        <Route path="/receptionist/payment" element={<ConfirmPayment />} />
-        <Route path="/admin/dashboard" element={<AdminDashboard />} />
-        <Route path="/admin/doctors" element={<ManageDoctors />} />
-        <Route path="/admin/receptionist" element={<ManageReceptionist />} />
-        <Route path="/admin/reports" element={<Reports />} />
-      </Routes>
-    </Router>
+          <Route path="/" element={<Login />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password/:token" element={<ResetPassword />} />
+          <Route path="/profile" element={<Profile />} />
+          <Route path="/register" element={<PatientRegistration />} />
+          <Route path="/patient/dashboard" element={<PatientDashboard />} />
+          <Route path="/patient/find-doctor" element={<FindDoctor />} />
+          <Route path="/patient/doctor-details" element={<DoctorDetails />} />
+          <Route path="/patient/confirm-booking" element={<ConfirmBooking />} />
+          <Route path="/patient/payment" element={<OnlinePayment />} />
+          <Route path="/patient/appointments" element={<Appointments />} />
+          <Route path="/doctor/dashboard" element={<DoctorDashboard />} />
+          <Route path="/doctor/appointments" element={<DoctorAppointments />} />
+          <Route path="/doctor/patient-details" element={<PatientDetailsDoctor />} />
+          <Route path="/doctor/patients" element={<DoctorPatients />} />
+          <Route path="/doctor/availability" element={<DoctorAvailability />} />
+          <Route path="/receptionist/dashboard" element={<ReceptionistDashboard />} />
+          <Route path="/receptionist/patients" element={<AddPatient />} />
+          <Route path="/receptionist/patients/add" element={<AddPatient />} />
+          <Route path="/receptionist/appointments" element={<AppointmentsManagement />} />
+          <Route path="/receptionist/appointments/new" element={<NewBooking />} />
+          <Route path="/receptionist/payment" element={<ConfirmPayment />} />
+          <Route path="/admin/dashboard" element={<AdminDashboard />} />
+          <Route path="/admin/doctors" element={<ManageDoctors />} />
+          <Route path="/admin/receptionist" element={<ManageReceptionist />} />
+          <Route path="/admin/reports" element={<Reports />} />
+        </Routes>
+      </Router>
     </AuthProvider>
   );
 }

@@ -1,6 +1,6 @@
 import { useNavigate, useLocation } from "react-router-dom";
 import { useState } from "react";
-import { FiClipboard, FiCalendar, FiClock, FiDollarSign, FiInfo, FiFileText, FiArrowLeft } from 'react-icons/fi';
+import { FiClipboard, FiCalendar, FiClock, FiCreditCard, FiInfo, FiFileText, FiArrowLeft } from 'react-icons/fi';
 import PatientSidebar from "../../components/PatientSidebar";
 import PatientHeader from "../../components/PatientHeader";
 
@@ -64,10 +64,10 @@ function ConfirmBooking() {
 
     // Get existing appointments from localStorage
     const existingAppointments = JSON.parse(localStorage.getItem("appointments") || "[]");
-    
+
     // Add new appointment
     existingAppointments.push(booking);
-    
+
     // Save to localStorage
     localStorage.setItem("appointments", JSON.stringify(existingAppointments));
 
@@ -114,7 +114,7 @@ function ConfirmBooking() {
                 <FiClipboard style={{ marginRight: '8px', verticalAlign: 'middle' }} />
                 Appointment Details
               </h3>
-              
+
               <div style={styles.detailsGrid}>
                 <div style={styles.detailCard}>
                   <div style={styles.detailIcon}>
@@ -141,26 +141,26 @@ function ConfirmBooking() {
             {/* Fee Breakdown */}
             <section style={styles.feeSection}>
               <h3 style={styles.sectionTitle}>
-                <FiDollarSign style={{ marginRight: '8px', verticalAlign: 'middle' }} />
+                <FiCreditCard style={{ marginRight: '8px', verticalAlign: 'middle' }} />
                 Fee Breakdown
               </h3>
-              
+
               <div style={styles.feeBreakdown}>
                 <div style={styles.feeItem}>
                   <span style={styles.feeLabel}>Doctor Consultation Fee</span>
-                  <span style={styles.feeValue}>Rs. {doctorFee.toFixed(2)}</span>
+                  <span style={styles.feeValue}>LKR {doctorFee.toFixed(2)}</span>
                 </div>
-                
+
                 <div style={styles.feeItem}>
                   <span style={styles.feeLabel}>Medical Center Service Fee</span>
-                  <span style={styles.feeValue}>Rs. {medicalCenterFee.toFixed(2)}</span>
+                  <span style={styles.feeValue}>LKR {medicalCenterFee.toFixed(2)}</span>
                 </div>
 
                 <div style={styles.feeDivider}></div>
 
                 <div style={styles.feeTotalItem}>
                   <span style={styles.feeTotalLabel}>Total Amount to Pay</span>
-                  <span style={styles.feeTotalValue}>Rs. {totalFee.toFixed(2)}</span>
+                  <span style={styles.feeTotalValue}>LKR {totalFee.toFixed(2)}</span>
                 </div>
               </div>
 

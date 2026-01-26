@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
-import { FiCalendar, FiClock, FiDollarSign, FiPlus, FiTrash2 } from 'react-icons/fi';
+import { FiCalendar, FiClock, FiCreditCard, FiPlus, FiTrash2 } from 'react-icons/fi';
 import PatientSidebar from "../../components/PatientSidebar";
 import PatientHeader from "../../components/PatientHeader";
 
@@ -31,11 +31,11 @@ function Appointments() {
     }
   };
 
-  const upcomingAppointments = appointments.filter(apt => 
+  const upcomingAppointments = appointments.filter(apt =>
     new Date(apt.date) >= new Date().setHours(0, 0, 0, 0)
   );
 
-  const pastAppointments = appointments.filter(apt => 
+  const pastAppointments = appointments.filter(apt =>
     new Date(apt.date) < new Date().setHours(0, 0, 0, 0)
   );
 
@@ -65,7 +65,7 @@ function Appointments() {
               <FiCalendar style={{ marginRight: '8px', verticalAlign: 'middle' }} />
               Upcoming Appointments
             </h2>
-            
+
             {upcomingAppointments.length > 0 ? (
               <div style={styles.appointmentsList}>
                 {upcomingAppointments.map((apt) => (
@@ -89,11 +89,11 @@ function Appointments() {
                       <div style={styles.detailItem}>
                         <FiCalendar size={20} style={styles.detailIcon} />
                         <span style={styles.detailText}>
-                          {new Date(apt.date).toLocaleDateString('en-US', { 
-                            weekday: 'long', 
-                            year: 'numeric', 
-                            month: 'long', 
-                            day: 'numeric' 
+                          {new Date(apt.date).toLocaleDateString('en-US', {
+                            weekday: 'long',
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric'
                           })}
                         </span>
                       </div>
@@ -102,8 +102,8 @@ function Appointments() {
                         <span style={styles.detailText}>{apt.time}</span>
                       </div>
                       <div style={styles.detailItem}>
-                        <FiDollarSign size={20} style={styles.detailIcon} />
-                        <span style={styles.detailText}>Rs. {apt.fee.toFixed(2)}</span>
+                        <FiCreditCard size={20} style={styles.detailIcon} />
+                        <span style={styles.detailText}>LKR {apt.fee.toFixed(2)}</span>
                       </div>
                     </div>
 
@@ -115,7 +115,7 @@ function Appointments() {
                     )}
 
                     <div style={styles.appointmentActions}>
-                      <button 
+                      <button
                         onClick={() => handleCancelAppointment(apt.id)}
                         style={styles.cancelButton}
                       >
@@ -145,10 +145,10 @@ function Appointments() {
                 <FiCalendar style={{ marginRight: '8px', verticalAlign: 'middle' }} />
                 Past Appointments
               </h2>
-              
+
               <div style={styles.appointmentsList}>
                 {pastAppointments.map((apt) => (
-                  <div key={apt.id} style={{...styles.appointmentCard, ...styles.pastCard}}>
+                  <div key={apt.id} style={{ ...styles.appointmentCard, ...styles.pastCard }}>
                     <div style={styles.appointmentHeader}>
                       <div style={styles.appointmentLeft}>
                         <div style={styles.doctorAvatar}>
@@ -168,11 +168,11 @@ function Appointments() {
                       <div style={styles.detailItem}>
                         <FiCalendar size={20} style={styles.detailIcon} />
                         <span style={styles.detailText}>
-                          {new Date(apt.date).toLocaleDateString('en-US', { 
-                            weekday: 'long', 
-                            year: 'numeric', 
-                            month: 'long', 
-                            day: 'numeric' 
+                          {new Date(apt.date).toLocaleDateString('en-US', {
+                            weekday: 'long',
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric'
                           })}
                         </span>
                       </div>

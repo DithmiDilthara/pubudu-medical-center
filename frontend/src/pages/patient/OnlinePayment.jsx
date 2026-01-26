@@ -109,15 +109,15 @@ function OnlinePayment() {
 
       // Get existing appointments from localStorage
       const existingAppointments = JSON.parse(localStorage.getItem("appointments") || "[]");
-      
+
       // Add new appointment
       existingAppointments.push(booking);
-      
+
       // Save to localStorage
       localStorage.setItem("appointments", JSON.stringify(existingAppointments));
 
       setIsProcessing(false);
-      
+
       // Show success message and redirect
       alert("Payment successful! Your appointment has been confirmed.");
       navigate("/patient/appointments");
@@ -168,7 +168,7 @@ function OnlinePayment() {
                 {paymentMethod === "card" && (
                   <section style={styles.section}>
                     <h3 style={styles.sectionTitle}>Card Details</h3>
-                    
+
                     <div style={styles.formGroup}>
                       <label style={styles.label}>Card Number</label>
                       <div style={styles.inputWrapper}>
@@ -193,7 +193,7 @@ function OnlinePayment() {
                         type="text"
                         value={cardName}
                         onChange={(e) => setCardName(e.target.value)}
-                        placeholder="John Doe"
+                        placeholder="sayumi manujana"
                         style={{
                           ...styles.input,
                           ...(errors.cardName ? styles.inputError : {})
@@ -253,7 +253,7 @@ function OnlinePayment() {
             <div style={styles.summaryColumn}>
               <div style={styles.card}>
                 <h3 style={styles.sectionTitle}>Payment Summary</h3>
-                
+
                 <div style={styles.summarySection}>
                   <h4 style={styles.summaryLabel}>Appointment Details</h4>
                   <div style={styles.summaryItem}>
@@ -267,10 +267,10 @@ function OnlinePayment() {
                   <div style={styles.summaryItem}>
                     <span style={styles.summaryKey}>Date:</span>
                     <span style={styles.summaryValue}>
-                      {new Date(date).toLocaleDateString('en-US', { 
-                        month: 'long', 
-                        day: 'numeric', 
-                        year: 'numeric' 
+                      {new Date(date).toLocaleDateString('en-US', {
+                        month: 'long',
+                        day: 'numeric',
+                        year: 'numeric'
                       })}
                     </span>
                   </div>
@@ -286,11 +286,11 @@ function OnlinePayment() {
                   <h4 style={styles.summaryLabel}>Fee Breakdown</h4>
                   <div style={styles.summaryItem}>
                     <span style={styles.summaryKey}>Doctor Fee:</span>
-                    <span style={styles.summaryValue}>Rs. 2,500.00</span>
+                    <span style={styles.summaryValue}>LKR 2,500.00</span>
                   </div>
                   <div style={styles.summaryItem}>
                     <span style={styles.summaryKey}>Service Fee:</span>
-                    <span style={styles.summaryValue}>Rs. 500.00</span>
+                    <span style={styles.summaryValue}>LKR 500.00</span>
                   </div>
                 </div>
 
@@ -298,7 +298,7 @@ function OnlinePayment() {
 
                 <div style={styles.totalSection}>
                   <span style={styles.totalLabel}>Total Amount</span>
-                  <span style={styles.totalAmount}>Rs. {totalFee.toFixed(2)}</span>
+                  <span style={styles.totalAmount}>LKR {totalFee.toFixed(2)}</span>
                 </div>
 
                 <button
@@ -314,7 +314,7 @@ function OnlinePayment() {
                   ) : (
                     <>
                       <FiCheckCircle size={20} />
-                      Pay Rs. {totalFee.toFixed(2)}
+                      Pay LKR {totalFee.toFixed(2)}
                     </>
                   )}
                 </button>

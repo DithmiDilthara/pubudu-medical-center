@@ -5,12 +5,17 @@ import Admin from './Admin.js';
 import Patient from './Patient.js';
 import Doctor from './Doctor.js';
 import Receptionist from './Receptionist.js';
+import Token from './Token.js';
 
 // Define associations
 
 // Role - User (One-to-Many)
 Role.hasMany(User, { foreignKey: 'role_id', as: 'users' });
 User.belongsTo(Role, { foreignKey: 'role_id', as: 'role' });
+
+// User - Token (One-to-Many)
+User.hasMany(Token, { foreignKey: 'user_id', as: 'tokens' });
+Token.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 
 // User - Admin (One-to-One)
 User.hasOne(Admin, { foreignKey: 'user_id', as: 'admin' });
@@ -43,5 +48,6 @@ export {
   Admin,
   Patient,
   Doctor,
-  Receptionist
+  Receptionist,
+  Token
 };
