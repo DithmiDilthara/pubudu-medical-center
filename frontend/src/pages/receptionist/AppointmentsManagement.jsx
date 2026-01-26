@@ -6,7 +6,7 @@ import ReceptionistHeader from "../../components/ReceptionistHeader";
 
 function AppointmentsManagement() {
   const navigate = useNavigate();
-  const [activeFilter, setActiveFilter] = useState("upcoming");
+  const [activeFilter, setActiveFilter] = useState("pending");
 
   // Sample appointments data
   const [appointments, setAppointments] = useState([
@@ -74,7 +74,7 @@ function AppointmentsManagement() {
   };
 
   const handlePayment = (appointment) => {
-    navigate("/receptionist/payment", {
+    navigate("/receptionist/payment/confirm", {
       state: {
         appointment: {
           patientName: appointment.patientName,
@@ -321,13 +321,14 @@ const styles = {
     padding: "12px 24px",
     fontSize: "15px",
     fontWeight: "600",
-    color: "#374151",
-    backgroundColor: "white",
-    border: "2px solid #e5e7eb",
+    color: "white",
+    background: "linear-gradient(135deg, #0066CC 0%, #0052A3 100%)",
+    border: "none",
     borderRadius: "8px",
     cursor: "pointer",
     fontFamily: "'Inter', 'Segoe UI', sans-serif",
-    transition: "all 0.2s"
+    transition: "all 0.2s",
+    boxShadow: "0 4px 12px rgba(0, 102, 204, 0.3)"
   },
   appointmentsSection: {
     backgroundColor: "white",
@@ -444,16 +445,17 @@ const styles = {
     flexWrap: "wrap"
   },
   paidButton: {
-    padding: "8px 16px",
+    padding: "8px 20px",
     fontSize: "13px",
     fontWeight: "600",
     color: "white",
-    backgroundColor: "#dc2626",
+    background: "linear-gradient(135deg, #10B981 0%, #059669 100%)",
     border: "none",
     borderRadius: "6px",
     cursor: "pointer",
     fontFamily: "'Inter', 'Segoe UI', sans-serif",
-    transition: "all 0.2s"
+    transition: "all 0.2s",
+    boxShadow: "0 4px 10px rgba(16, 185, 129, 0.3)"
   },
   cancelButton: {
     padding: "8px 16px",

@@ -1,5 +1,7 @@
 import { useNavigate, useLocation } from "react-router-dom";
 import { useState } from "react";
+import axios from "axios";
+import toast from "react-hot-toast";
 import { FiCreditCard, FiLock, FiCheckCircle, FiAlertCircle, FiArrowLeft, FiShield } from 'react-icons/fi';
 import PatientSidebar from "../../components/PatientSidebar";
 import PatientHeader from "../../components/PatientHeader";
@@ -87,41 +89,57 @@ function OnlinePayment() {
     }
 
     setIsProcessing(true);
+    const toastId = toast.loading("Processing payment...");
 
-    // Simulate payment gateway processing
-    setTimeout(() => {
-      // Create booking after successful payment
-      const booking = {
-        id: Date.now(),
-        doctor: doctor.name,
-        specialty: doctor.specialty,
-        date: date.toISOString(),
-        time: time,
-        status: "upcoming",
-        fee: totalFee,
-        notes: notes,
-        bookedAt: new Date().toISOString(),
-        paymentStatus: "paid",
+    try {
+      const token = localStorage.getItem('token');
+      // Simulate payment gateway delay
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      const paymentPayload = {
+        amount: totalFee,
         paymentMethod: paymentMethod,
-        paymentDate: new Date().toISOString(),
-        transactionId: `TXN${Date.now()}`
+        transactionId: `TXN${Date.now()}`,
+        description: `Appointment with ${doctor.name} on ${new Date(date).toLocaleDateString()}`
       };
 
-      // Get existing appointments from localStorage
-      const existingAppointments = JSON.parse(localStorage.getItem("appointments") || "[]");
+      const response = await axios.post(
+        `${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/patient/payment`,
+        paymentPayload,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
 
-      // Add new appointment
-      existingAppointments.push(booking);
+      if (response.data.success) {
+        // Create booking in localStorage (for local persistence if backend appointment model doesn't exist yet)
+        const booking = {
+          id: Date.now(),
+          doctor: doctor.name,
+          specialty: doctor.specialty,
+          date: date.toISOString(),
+          time: time,
+          status: "upcoming",
+          fee: totalFee,
+          notes: notes,
+          bookedAt: new Date().toISOString(),
+          paymentStatus: "paid",
+          paymentMethod: paymentMethod,
+          paymentDate: new Date().toISOString(),
+          transactionId: paymentPayload.transactionId
+        };
 
-      // Save to localStorage
-      localStorage.setItem("appointments", JSON.stringify(existingAppointments));
+        const existingAppointments = JSON.parse(localStorage.getItem("appointments") || "[]");
+        existingAppointments.push(booking);
+        localStorage.setItem("appointments", JSON.stringify(existingAppointments));
 
+        toast.success("Payment successful! Your appointment has been confirmed.", { id: toastId });
+        navigate("/patient/appointments");
+      }
+    } catch (error) {
+      console.error("Payment error:", error);
+      toast.error(error.response?.data?.message || "Payment failed. Please try again.", { id: toastId });
+    } finally {
       setIsProcessing(false);
-
-      // Show success message and redirect
-      alert("Payment successful! Your appointment has been confirmed.");
-      navigate("/patient/appointments");
-    }, 2000);
+    }
   };
 
   const handleBack = () => {

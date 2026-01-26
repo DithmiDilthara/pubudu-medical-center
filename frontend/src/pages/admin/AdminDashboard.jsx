@@ -42,7 +42,7 @@ function AdminDashboard() {
                 <FiUserPlus style={styles.actionIcon} />
                 Add Doctor
               </button>
-              <button style={styles.actionButtonSecondary} onClick={handleGenerateReport}>
+              <button style={styles.actionButton} onClick={handleGenerateReport}>
                 <FiFileText style={styles.actionIcon} />
                 Generate Report
               </button>

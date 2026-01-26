@@ -6,7 +6,7 @@ import DoctorSidebar from '../../components/DoctorSidebar';
 
 function DoctorDashboard() {
   const navigate = useNavigate();
-  
+
   // Sample data for today's appointments
   const [appointments] = useState([
     {
@@ -52,7 +52,7 @@ function DoctorDashboard() {
   return (
     <div style={styles.pageContainer}>
       <DoctorSidebar onLogout={handleLogout} />
-      
+
       <div style={styles.mainContainer}>
         <DoctorHeader />
 
@@ -74,13 +74,12 @@ function DoctorDashboard() {
                 <FiClipboard style={styles.actionIcon} />
                 Update Availability
               </button>
-              <button style={styles.actionButton}>
-                <FiFileText style={styles.actionIcon} />
-                Add Prescription
-              </button>
-              <button style={styles.actionButton}>
-                <FiBarChart2 style={styles.actionIcon} />
-                View Reports
+              <button
+                style={styles.actionButton}
+                onClick={() => navigate('/doctor/appointments')}
+              >
+                <FiCalendar style={styles.actionIcon} />
+                Upcoming Appointments
               </button>
             </div>
           </section>
@@ -146,7 +145,12 @@ function DoctorDashboard() {
                     </div>
 
                     <div style={styles.appointmentActions}>
-                      <button style={styles.viewBtn}>View Details</button>
+                      <button
+                        style={styles.viewBtn}
+                        onClick={() => navigate('/doctor/patient-details', { state: { patientName: appt.patientName } })}
+                      >
+                        View Details
+                      </button>
                       <button style={styles.completeBtn}>Mark Complete</button>
                     </div>
                   </div>

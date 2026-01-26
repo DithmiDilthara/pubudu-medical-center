@@ -5,6 +5,7 @@ import sequelize from './config/database.js';
 import authRoutes from './routes/authRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import receptionistRoutes from './routes/receptionistRoutes.js';
+import patientRoutes from './routes/patientRoutes.js';
 
 dotenv.config();
 dotenv.config({ path: './config/.env' });
@@ -21,6 +22,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/receptionist', receptionistRoutes);
+app.use('/api/patient', patientRoutes);
 
 // Test route
 app.get('/', (req, res) => {

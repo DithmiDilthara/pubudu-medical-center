@@ -74,9 +74,18 @@ function ReceptionistDashboard() {
     navigate("/receptionist/appointments/pending");
   };
 
-  const handleMarkAsPaid = (patientId) => {
-    console.log(`Marking patient ${patientId} as paid`);
-    // Implementation for marking as paid
+  const handleMarkAsPaid = (patient) => {
+    navigate("/receptionist/payment/confirm", {
+      state: {
+        appointment: {
+          patientName: patient.name,
+          patientId: patient.patientId,
+          dateOfService: patient.dateOfService,
+          service: "Pending Consultation",
+          amount: parseFloat(patient.amountDue.replace("LKR ", ""))
+        }
+      }
+    });
   };
 
   const handleCancelAppointment = (appointmentId) => {
@@ -143,10 +152,10 @@ function ReceptionistDashboard() {
                       </td>
                       <td style={styles.tableCell}>
                         <button
-                          onClick={() => handleMarkAsPaid(patient.id)}
-                          style={styles.actionButton}
+                          onClick={() => handleMarkAsPaid(patient)}
+                          style={styles.payButton}
                         >
-                          Mark as Paid
+                          Pay
                         </button>
                       </td>
                     </tr>
@@ -281,12 +290,13 @@ const styles = {
   },
   secondaryButton: {
     borderRadius: "8px",
-    border: "2px solid white",
+    backgroundColor: "white",
     padding: "14px 28px",
     fontSize: "15px",
     fontWeight: "600",
-    color: "white",
-    backgroundColor: "transparent",
+    color: "#0066CC",
+    boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
+    border: "none",
     cursor: "pointer",
     transition: "all 0.3s",
     display: "flex",
@@ -296,17 +306,31 @@ const styles = {
   },
   tertiaryButton: {
     borderRadius: "8px",
-    border: "2px solid rgba(255, 255, 255, 0.5)",
+    backgroundColor: "white",
     padding: "14px 28px",
     fontSize: "15px",
     fontWeight: "600",
-    color: "rgba(255, 255, 255, 0.9)",
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    color: "#0066CC",
+    boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
+    border: "none",
     cursor: "pointer",
     transition: "all 0.3s",
     display: "flex",
     alignItems: "center",
     gap: "8px",
+    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+  },
+  payButton: {
+    fontSize: "13px",
+    fontWeight: "600",
+    color: "white",
+    background: "linear-gradient(135deg, #10B981 0%, #059669 100%)",
+    border: "none",
+    borderRadius: "6px",
+    padding: "8px 20px",
+    cursor: "pointer",
+    transition: "all 0.3s",
+    boxShadow: "0 4px 10px rgba(16, 185, 129, 0.3)",
     fontFamily: "'Inter', 'Segoe UI', sans-serif"
   },
   buttonIcon: {

@@ -53,22 +53,51 @@ const ManageReceptionist = () => {
 
   const validateForm = () => {
     const errors = {};
-    
+
+    // Username validation (only when creating new)
     if (!editingReceptionist) {
-      if (!formData.username) errors.username = 'Username is required';
-      if (!formData.password) errors.password = 'Password is required';
-      else if (formData.password.length < 6) errors.password = 'Password must be at least 6 characters';
-      if (!formData.nic) errors.nic = 'NIC is required';
+      if (!formData.username) {
+        errors.username = 'Username is required';
+      } else if (formData.username.length < 4 || formData.username.length > 15) {
+        errors.username = 'Username must be between 4 and 15 characters';
+      } else if (!/^[a-zA-Z0-9]+$/.test(formData.username)) {
+        errors.username = 'Username can only contain letters and numbers';
+      }
+
+      if (!formData.password) {
+        errors.password = 'Password is required';
+      } else if (formData.password.length < 8) {
+        errors.password = 'Password must be at least 8 characters';
+      } else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])/.test(formData.password)) {
+        errors.password = 'Password must include uppercase, lowercase, and a number';
+      }
+
+      if (!formData.nic) {
+        errors.nic = 'NIC is required';
+      } else if (!/^(?:\d{9}[vVxX]|\d{12})$/.test(formData.nic)) {
+        errors.nic = 'Invalid NIC format (e.g., 123456789V or 12 digits)';
+      }
     }
-    
-    if (!formData.full_name) errors.full_name = 'Full name is required';
-    
-    if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+
+    // Common fields
+    if (!formData.full_name) {
+      errors.full_name = 'Full name is required';
+    } else if (formData.full_name.length < 3) {
+      errors.full_name = 'Full name must be at least 3 characters';
+    } else if (!/^[a-zA-Z\s]+$/.test(formData.full_name)) {
+      errors.full_name = 'Full name can only contain letters';
+    }
+
+    if (!formData.email) {
+      errors.email = 'Email is required';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       errors.email = 'Invalid email format';
     }
-    
-    if (formData.contact_number && !/^[0-9]{10}$/.test(formData.contact_number)) {
-      errors.contact_number = 'Contact number must be 10 digits';
+
+    if (!formData.contact_number) {
+      errors.contact_number = 'Contact number is required';
+    } else if (!/^0[0-9]{9}$/.test(formData.contact_number)) {
+      errors.contact_number = 'Contact number must start with 0 and be 10 digits';
     }
 
     setFormErrors(errors);
@@ -99,7 +128,7 @@ const ManageReceptionist = () => {
       } else {
         // Create new receptionist
         const response = await api.post('/admin/receptionists', formData);
-        
+
         if (response.data.success) {
           setSuccess('Receptionist created successfully');
           fetchReceptionists();
@@ -171,7 +200,7 @@ const ManageReceptionist = () => {
       <AdminSidebar />
       <div style={styles.mainContent}>
         <AdminHeader title="Manage Receptionists" />
-        
+
         <div style={styles.content}>
           {/* Alert Messages */}
           {error && (
@@ -180,7 +209,7 @@ const ManageReceptionist = () => {
               <button onClick={() => setError('')} style={styles.closeBtn}>×</button>
             </div>
           )}
-          
+
           {success && (
             <div style={styles.successAlert}>
               {success}
@@ -250,6 +279,15 @@ const ManageReceptionist = () => {
               </table>
             </div>
           )}
+
+          <div style={styles.footer}>
+            <button
+              onClick={() => navigate("/admin/dashboard")}
+              style={styles.backButton}
+            >
+              Back
+            </button>
+          </div>
         </div>
       </div>
 
@@ -378,39 +416,39 @@ const ManageReceptionist = () => {
 };
 
 const styles = {
-  container: { display: 'flex', minHeight: '100vh', backgroundColor: '#f5f5f5' },
-  mainContent: { flex: 1, marginLeft: '250px' },
+  container: { display: 'flex', minHeight: '100vh', backgroundColor: '#f3f4f6' },
+  mainContent: { flex: 1 },
   content: { padding: '30px' },
-  
+
   errorAlert: { padding: '12px 16px', backgroundColor: '#fee', color: '#c33', borderRadius: '8px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
   successAlert: { padding: '12px 16px', backgroundColor: '#d4edda', color: '#155724', borderRadius: '8px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
   closeBtn: { background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer', color: 'inherit' },
-  
+
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' },
   title: { fontSize: '24px', fontWeight: '600', color: '#333' },
   addButton: { display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', backgroundColor: '#0066CC', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '14px', fontWeight: '600' },
   buttonIcon: { fontSize: '18px' },
-  
+
   loading: { textAlign: 'center', padding: '40px', color: '#666' },
   emptyState: { textAlign: 'center', padding: '60px 20px', color: '#999' },
   emptyIcon: { fontSize: '64px', marginBottom: '16px' },
-  
+
   tableContainer: { backgroundColor: 'white', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' },
   table: { width: '100%', borderCollapse: 'collapse' },
   th: { padding: '16px', textAlign: 'left', backgroundColor: '#f8f9fa', fontWeight: '600', color: '#333', borderBottom: '2px solid #dee2e6' },
   tr: { borderBottom: '1px solid #dee2e6' },
   td: { padding: '16px', color: '#666' },
-  
+
   actionButtons: { display: 'flex', gap: '8px' },
   editButton: { padding: '6px 12px', backgroundColor: '#0066CC', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '14px' },
   deleteButton: { padding: '6px 12px', backgroundColor: '#dc3545', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '14px' },
-  
+
   modalOverlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 },
   modal: { backgroundColor: 'white', borderRadius: '12px', width: '90%', maxWidth: '600px', maxHeight: '90vh', overflow: 'auto' },
   modalHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px', borderBottom: '1px solid #dee2e6' },
   modalTitle: { fontSize: '20px', fontWeight: '600', margin: 0 },
   modalCloseBtn: { background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer', color: '#999' },
-  
+
   form: { padding: '20px' },
   formGrid: { display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px', marginBottom: '24px' },
   formGroup: { marginBottom: '0' },
@@ -418,11 +456,27 @@ const styles = {
   required: { color: '#dc3545' },
   input: { width: '100%', padding: '10px 12px', border: '2px solid #dee2e6', borderRadius: '6px', fontSize: '14px', boxSizing: 'border-box' },
   errorText: { display: 'block', color: '#dc3545', fontSize: '12px', marginTop: '4px' },
-  
+
   modalActions: { display: 'flex', justifyContent: 'flex-end', gap: '12px', paddingTop: '16px', borderTop: '1px solid #dee2e6' },
   cancelButton: { padding: '10px 20px', backgroundColor: '#6c757d', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '14px', fontWeight: '600' },
-  submitButton: { padding: '10px 20px', backgroundColor: '#0066CC', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '14px', fontWeight: '600' }
+  submitButton: { padding: '10px 20px', backgroundColor: '#0066CC', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '14px', fontWeight: '600' },
+  footer: {
+    marginTop: '32px',
+    display: 'flex',
+    justifyContent: 'flex-end'
+  },
+  backButton: {
+    padding: '10px 24px',
+    border: 'none',
+    borderRadius: '6px',
+    background: '#0066CC',
+    color: 'white',
+    fontWeight: '600',
+    cursor: 'pointer',
+    boxShadow: '0 2px 4px rgba(0, 102, 204, 0.2)',
+    transition: 'all 0.2s',
+    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+  }
 };
 
 export default ManageReceptionist;
-

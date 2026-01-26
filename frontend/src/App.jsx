@@ -21,6 +21,7 @@ import ReceptionistDashboard from './pages/receptionist/ReceptionistDashboard';
 import AddPatient from './pages/receptionist/AddPatient';
 import NewBooking from './pages/receptionist/NewBooking';
 import AppointmentsManagement from './pages/receptionist/AppointmentsManagement';
+import PaymentManagement from './pages/receptionist/PaymentManagement';
 import ConfirmPayment from './pages/receptionist/ConfirmPayment';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import ManageDoctors from './pages/admin/ManageDoctors';
@@ -54,7 +55,8 @@ function App() {
           <Route path="/receptionist/patients/add" element={<AddPatient />} />
           <Route path="/receptionist/appointments" element={<AppointmentsManagement />} />
           <Route path="/receptionist/appointments/new" element={<NewBooking />} />
-          <Route path="/receptionist/payment" element={<ConfirmPayment />} />
+          <Route path="/receptionist/payment" element={<PaymentManagement />} />
+          <Route path="/receptionist/payment/confirm" element={<ConfirmPayment />} />
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
           <Route path="/admin/doctors" element={<ManageDoctors />} />
           <Route path="/admin/receptionist" element={<ManageReceptionist />} />

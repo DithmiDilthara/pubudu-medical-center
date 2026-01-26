@@ -17,17 +17,17 @@ const getDoctorImage = (id) => doctorImages[id % doctorImages.length];
 const doctors = [
   {
     id: 1,
-    name: "Dr. Anjali Silva",
+    name: "Dr. Anjula Silva",
     specialty: "Cardiology"
   },
   {
     id: 2,
-    name: "Dr. Rohan Perera",
+    name: "Dr. Roshani Perera",
     specialty: "Pediatrics"
   },
   {
     id: 3,
-    name: "Dr. Kavindi Fernando",
+    name: "Dr. Kavinda Fernando",
     specialty: "Dermatology"
   },
   {
@@ -37,7 +37,7 @@ const doctors = [
   },
   {
     id: 5,
-    name: "Dr. Dilini Gunawardena",
+    name: "Dr. Dilanka Gunawardena",
     specialty: "Orthopedics"
   },
   {
@@ -47,22 +47,22 @@ const doctors = [
   },
   {
     id: 7,
-    name: "Dr. Thilini Jayawardena",
+    name: "Dr. Thilina Jayawardena",
     specialty: "ENT"
   },
   {
     id: 8,
-    name: "Dr. Nimal De Silva",
+    name: "Dr. Nimali De Silva",
     specialty: "Psychiatry"
   },
   {
     id: 9,
-    name: "Dr. Samadhi Perera",
+    name: "Dr. Samantha Perera",
     specialty: "Urology"
   },
   {
     id: 10,
-    name: "Dr. Kamal Fernando",
+    name: "Dr. Kamani Fernando",
     specialty: "Gastroenterology"
   }
 ];

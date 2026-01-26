@@ -11,16 +11,43 @@ const Profile = () => {
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('details'); // details, bookings, transactions
 
-    // Mock History Data (since backend implementation for this part was not requested in this specific task scope but required for UI)
+    const [transactions, setTransactions] = useState([]);
+    const [loadingTransactions, setLoadingTransactions] = useState(false);
+
+    // Derived values with safeguards
+    const isAdmin = user?.role_id === 1;
+    const isDoctor = user?.role_id === 2;
+    const profileData = user?.profile || user || {};
+
     const mockBookings = [
         { id: 'B001', doctor: 'Dr. Sarah Wilson', date: '2024-03-15', time: '10:00 AM', status: 'Completed' },
         { id: 'B002', doctor: 'Dr. James Lee', date: '2024-04-02', time: '02:30 PM', status: 'Upcoming' },
     ];
 
-    const mockTransactions = [
-        { id: 'T001', date: '2024-03-15', amount: 'LKR 2500.00', method: 'Card', status: 'Success' },
-        { id: 'T002', date: '2024-04-01', amount: 'LKR 1500.00', method: 'Online', status: 'Pending' },
-    ];
+    useEffect(() => {
+        const fetchTransactions = async () => {
+            // Only fetch if user is loaded, is not admin/doctor (patient specific), and we are on the transactions tab
+            if (activeTab !== 'transactions' || !user || isAdmin || isDoctor) return;
+
+            try {
+                setLoadingTransactions(true);
+                const token = localStorage.getItem('token');
+                const response = await axios.get(`${API_URL}/patient/transactions`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+
+                if (response.data.success) {
+                    setTransactions(response.data.data);
+                }
+            } catch (error) {
+                console.error('Failed to fetch transactions', error);
+            } finally {
+                setLoadingTransactions(false);
+            }
+        };
+
+        fetchTransactions();
+    }, [activeTab, isAdmin, isDoctor, user]);
 
     useEffect(() => {
         const fetchProfile = async () => {
@@ -52,15 +79,11 @@ const Profile = () => {
     if (loading) return <div style={styles.container}>Loading...</div>;
     if (!user) return <div style={styles.container}>User not found</div>;
 
-    const profileData = user.profile || user; // Handle structure flexibility
-    const isAdmin = user.role_id === 1; // From backend controller logic
-
     return (
         <div style={styles.container}>
             <div style={styles.header}>
                 <div style={styles.headerContent}>
                     <h1 style={styles.title}>My Profile</h1>
-                    <button onClick={() => navigate(-1)} style={styles.backButton}>Back</button>
                 </div>
             </div>
 
@@ -86,14 +109,16 @@ const Profile = () => {
                                     style={activeTab === 'bookings' ? { ...styles.menuItem, ...styles.activeMenuItem } : styles.menuItem}
                                     onClick={() => setActiveTab('bookings')}
                                 >
-                                    <FiCalendar /> Booking History
+                                    <FiCalendar /> {isDoctor ? 'Appointment History' : 'Booking History'}
                                 </button>
-                                <button
-                                    style={activeTab === 'transactions' ? { ...styles.menuItem, ...styles.activeMenuItem } : styles.menuItem}
-                                    onClick={() => setActiveTab('transactions')}
-                                >
-                                    <FiCreditCard /> Transactions
-                                </button>
+                                {!isDoctor && (
+                                    <button
+                                        style={activeTab === 'transactions' ? { ...styles.menuItem, ...styles.activeMenuItem } : styles.menuItem}
+                                        onClick={() => setActiveTab('transactions')}
+                                    >
+                                        <FiCreditCard /> Transactions
+                                    </button>
+                                )}
                             </>
                         )}
                     </div>
@@ -140,12 +165,12 @@ const Profile = () => {
 
                     {activeTab === 'bookings' && !isAdmin && (
                         <div>
-                            <h2 style={styles.sectionTitle}>Booking History</h2>
+                            <h2 style={styles.sectionTitle}>{isDoctor ? 'Appointment History' : 'Booking History'}</h2>
                             <table style={styles.table}>
                                 <thead>
                                     <tr>
                                         <th style={styles.th}>ID</th>
-                                        <th style={styles.th}>Doctor</th>
+                                        <th style={styles.th}>{isDoctor ? 'Patient' : 'Doctor'}</th>
                                         <th style={styles.th}>Date</th>
                                         <th style={styles.th}>Status</th>
                                     </tr>
@@ -154,7 +179,7 @@ const Profile = () => {
                                     {mockBookings.map(b => (
                                         <tr key={b.id} style={styles.tr}>
                                             <td style={styles.td}>{b.id}</td>
-                                            <td style={styles.td}>{b.doctor}</td>
+                                            <td style={styles.td}>{isDoctor ? (b.patient || 'N/A') : b.doctor}</td>
                                             <td style={styles.td}>{b.date} {b.time}</td>
                                             <td style={styles.td}>
                                                 <span style={{
@@ -175,30 +200,48 @@ const Profile = () => {
                     {activeTab === 'transactions' && !isAdmin && (
                         <div>
                             <h2 style={styles.sectionTitle}>Transaction History</h2>
-                            <table style={styles.table}>
-                                <thead>
-                                    <tr>
-                                        <th style={styles.th}>ID</th>
-                                        <th style={styles.th}>Date</th>
-                                        <th style={styles.th}>Amount</th>
-                                        <th style={styles.th}>Method</th>
-                                        <th style={styles.th}>Status</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {mockTransactions.map(t => (
-                                        <tr key={t.id} style={styles.tr}>
-                                            <td style={styles.td}>{t.id}</td>
-                                            <td style={styles.td}>{t.date}</td>
-                                            <td style={styles.td} className="font-bold">{t.amount}</td>
-                                            <td style={styles.td}>{t.method}</td>
-                                            <td style={styles.td}>{t.status}</td>
+                            {loadingTransactions ? (
+                                <p>Loading transactions...</p>
+                            ) : transactions.length > 0 ? (
+                                <table style={styles.table}>
+                                    <thead>
+                                        <tr>
+                                            <th style={styles.th}>ID</th>
+                                            <th style={styles.th}>Date</th>
+                                            <th style={styles.th}>Amount</th>
+                                            <th style={styles.th}>Method</th>
+                                            <th style={styles.th}>Status</th>
                                         </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                                    </thead>
+                                    <tbody>
+                                        {transactions.map(t => (
+                                            <tr key={t.payment_id} style={styles.tr}>
+                                                <td style={styles.td}>TXN-{t.payment_id}</td>
+                                                <td style={styles.td}>{new Date(t.created_at).toLocaleDateString()}</td>
+                                                <td style={{ ...styles.td, fontWeight: 'bold' }}>LKR {parseFloat(t.amount).toFixed(2)}</td>
+                                                <td style={styles.td}>{t.payment_method}</td>
+                                                <td style={styles.td}>
+                                                    <span style={{
+                                                        ...styles.badge,
+                                                        background: t.status === 'SUCCESS' ? '#d4edda' : '#f8d7da',
+                                                        color: t.status === 'SUCCESS' ? '#155724' : '#721c24'
+                                                    }}>
+                                                        {t.status}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            ) : (
+                                <p style={styles.noTransactions}>No transactions found.</p>
+                            )}
                         </div>
                     )}
+
+                    <div style={styles.footer}>
+                        <button onClick={() => navigate(-1)} style={styles.backButton}>Back</button>
+                    </div>
 
                 </div>
             </div>
@@ -230,11 +273,25 @@ const styles = {
         color: '#1f2937'
     },
     backButton: {
-        padding: '8px 16px',
-        border: '1px solid #e5e7eb',
+        padding: '10px 24px',
+        border: 'none',
         borderRadius: '6px',
-        background: 'white',
-        cursor: 'pointer'
+        background: '#0056b3',
+        color: 'white',
+        fontWeight: '600',
+        cursor: 'pointer',
+        boxShadow: '0 2px 4px rgba(0, 86, 179, 0.2)',
+        transition: 'all 0.2s'
+    },
+    footer: {
+        marginTop: '40px',
+        display: 'flex',
+        justifyContent: 'flex-end'
+    },
+    noTransactions: {
+        textAlign: 'center',
+        padding: '20px',
+        color: '#6b7280'
     },
     content: {
         maxWidth: '1200px',

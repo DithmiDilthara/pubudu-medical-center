@@ -28,9 +28,7 @@ function Reports() {
   const reportTypes = [
     { value: "appointments", label: "Appointments Report", icon: FiCalendar },
     { value: "patients", label: "Patient Registration Report", icon: FiFileText },
-    { value: "doctors", label: "Doctor Performance Report", icon: FiFileText },
-    { value: "revenue", label: "Revenue Report", icon: FiFileText },
-    { value: "receptionist", label: "Receptionist Activity Report", icon: FiFileText }
+    { value: "revenue", label: "Revenue Report", icon: FiFileText }
   ];
 
   return (
@@ -50,7 +48,7 @@ function Reports() {
           {/* Report Generation Form */}
           <div style={styles.reportCard}>
             <h2 style={styles.cardTitle}>Report Configuration</h2>
-            
+
             <div style={styles.formContainer}>
               <div style={styles.formGroup}>
                 <label style={styles.label}>Report Type</label>
@@ -107,9 +105,7 @@ function Reports() {
                   <p style={styles.reportTypeDescription}>
                     {type.value === "appointments" && "View all appointments with details including patient info, doctor, date, and status"}
                     {type.value === "patients" && "Track new patient registrations over time with demographic information"}
-                    {type.value === "doctors" && "Analyze doctor performance including appointments, patient satisfaction"}
                     {type.value === "revenue" && "Financial overview including payments, pending amounts, and revenue trends"}
-                    {type.value === "receptionist" && "Monitor receptionist activities including appointments booked and payments processed"}
                   </p>
                 </div>
               ))}
@@ -153,20 +149,18 @@ function Reports() {
                       </button>
                     </td>
                   </tr>
-                  <tr style={styles.tr}>
-                    <td style={styles.td}>Doctor Performance Report</td>
-                    <td style={styles.td}>2024-01-01 to 2024-01-10</td>
-                    <td style={styles.td}>2024-01-10 02:30 PM</td>
-                    <td style={styles.td}>Admin User</td>
-                    <td style={styles.td}>
-                      <button style={styles.downloadButton}>
-                        <FiDownload />
-                      </button>
-                    </td>
-                  </tr>
                 </tbody>
               </table>
             </div>
+          </div>
+
+          <div style={styles.footer}>
+            <button
+              onClick={() => navigate("/admin/dashboard")}
+              style={styles.backButton}
+            >
+              Back
+            </button>
           </div>
         </main>
       </div>
@@ -353,6 +347,24 @@ const styles = {
     alignItems: "center",
     justifyContent: "center",
     transition: "all 0.2s"
+  },
+  footer: {
+    marginTop: '32px',
+    display: 'flex',
+    justifyContent: 'flex-end',
+    paddingBottom: '20px'
+  },
+  backButton: {
+    padding: '10px 24px',
+    border: 'none',
+    borderRadius: '6px',
+    background: '#0066CC',
+    color: 'white',
+    fontWeight: '600',
+    cursor: 'pointer',
+    boxShadow: '0 2px 4px rgba(0, 102, 204, 0.2)',
+    transition: 'all 0.2s',
+    fontFamily: "'Inter', 'Segoe UI', sans-serif"
   }
 };
 

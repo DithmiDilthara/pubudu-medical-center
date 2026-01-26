@@ -1,48 +1,82 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { FiCheck, FiX, FiActivity, FiAlertCircle } from "react-icons/fi";
+import { FiCheck, FiX, FiActivity, FiAlertCircle, FiEye, FiEyeOff } from "react-icons/fi";
 import axios from "axios";
 import hospitalBg from "../assets/hospital_clear.png";
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 // Reusable FormInput Component (inline)
-const FormInput = ({ label, name, type = "text", value, onChange, onBlur, placeholder, touched, error, required, disabled, style }) => {
+const FormInput = ({ label, name, type = "text", value, onChange, onBlur, placeholder, touched, error, required, disabled, style, showPassword, onTogglePassword }) => {
   const hasError = touched && error;
   const isValid = touched && !error && value;
+  const isPassword = type === "password";
 
   return (
-    <div style={{ marginBottom: "12px", ...style }}>
-      <label style={{ display: "block", marginBottom: "4px", fontSize: "13px", color: "#555", fontWeight: "600" }}>
-        {label} {required && <span style={{ color: "#e74c3c" }}>*</span>}
+    <div style={{ marginBottom: "16px", ...style }}>
+      <label style={{ display: "block", marginBottom: "8px", fontSize: "14px", color: "#374151", fontWeight: "600" }}>
+        {label} {required && <span style={{ color: "#EF4444" }}>*</span>}
       </label>
-      <input
-        type={type}
-        name={name}
-        value={value}
-        onChange={onChange}
-        onBlur={onBlur}
-        placeholder={placeholder}
-        disabled={disabled}
-        style={{
-          width: "100%",
-          padding: "10px 12px",
-          fontSize: "14px",
-          border: "1px solid #E5E7EB",
-          borderRadius: "8px",
-          boxSizing: "border-box",
-          transition: "all 0.3s ease",
-          outline: "none",
-          fontFamily: "'Inter', 'Segoe UI', sans-serif",
-          backgroundColor: disabled ? "#f5f5f5" : "#fff",
-          cursor: disabled ? "not-allowed" : "text",
-          ...(hasError && { borderColor: "#e74c3c", backgroundColor: "#fff5f5" }),
-          ...(isValid && { borderColor: "#27ae60", backgroundColor: "#f0fff4" })
-        }}
-      />
-      {hasError && <span style={{ display: "block", color: "#e74c3c", fontSize: "13px", marginTop: "6px", fontWeight: "600" }}>{error}</span>}
+      <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+        <input
+          type={isPassword ? (showPassword ? "text" : "password") : type}
+          name={name}
+          value={value}
+          onChange={onChange}
+          onBlur={onBlur}
+          placeholder={placeholder}
+          disabled={disabled}
+          style={{
+            width: "100%",
+            padding: isPassword ? "13px 45px 13px 16px" : "13px 16px",
+            fontSize: "15px",
+            border: "2px solid #E5E7EB",
+            borderRadius: "10px",
+            boxSizing: "border-box",
+            transition: "all 0.2s ease",
+            outline: "none",
+            fontFamily: "'Inter', sans-serif",
+            backgroundColor: disabled ? "#F3F4F6" : "#F9FAFB",
+            color: "#111827",
+            cursor: disabled ? "not-allowed" : "text",
+            ...(hasError && { borderColor: "#EF4444", backgroundColor: "#FEF2F2" }),
+            ...(isValid && { borderColor: "#10B981", backgroundColor: "#F0FDF4" })
+          }}
+          onFocus={(e) => {
+            if (!disabled) {
+              e.target.style.borderColor = "#0066CC";
+              e.target.style.backgroundColor = "#FFFFFF";
+              e.target.style.boxShadow = "0 0 0 4px rgba(0, 102, 204, 0.1)";
+            }
+          }}
+        />
+        {isPassword && (
+          <button
+            type="button"
+            onClick={onTogglePassword}
+            style={{
+              position: "absolute",
+              right: "12px",
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              color: "#6B7280",
+              fontSize: "20px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: 0,
+              zIndex: 2
+            }}
+          >
+            {showPassword ? <FiEyeOff /> : <FiEye />}
+            {/* Using a placeholder icon as I can't easily import FiEye here without mapping, but I'll use the ones already in imports */}
+          </button>
+        )}
+      </div>
+      {hasError && <span style={{ display: "flex", alignItems: "center", gap: "6px", color: "#DC2626", fontSize: "13px", marginTop: "8px", fontWeight: "500" }}> <FiAlertCircle /> {error}</span>}
       {isValid && (
-        <span style={{ display: "flex", alignItems: "center", gap: "4px", color: "#27ae60", fontSize: "13px", marginTop: "6px", fontWeight: "bold" }}>
+        <span style={{ display: "flex", alignItems: "center", gap: "6px", color: "#059669", fontSize: "13px", marginTop: "8px", fontWeight: "500" }}>
           <FiCheck style={{ fontSize: "14px" }} />
         </span>
       )}
@@ -68,18 +102,26 @@ const FormSelect = ({ label, name, value, onChange, onBlur, options, touched, er
         disabled={disabled}
         style={{
           width: "100%",
-          padding: "10px 12px",
-          fontSize: "14px",
-          border: "1px solid #E5E7EB",
-          borderRadius: "8px",
+          padding: "13px 16px",
+          fontSize: "15px",
+          border: "2px solid #E5E7EB",
+          borderRadius: "10px",
           boxSizing: "border-box",
-          transition: "all 0.3s ease",
+          transition: "all 0.2s ease",
           outline: "none",
-          fontFamily: "'Inter', 'Segoe UI', sans-serif",
-          backgroundColor: disabled ? "#f5f5f5" : "#fff",
+          fontFamily: "'Inter', sans-serif",
+          backgroundColor: disabled ? "#F3F4F6" : "#F9FAFB",
+          color: "#111827",
           cursor: "pointer",
-          ...(hasError && { borderColor: "#e74c3c", backgroundColor: "#fff5f5" }),
-          ...(isValid && { borderColor: "#27ae60", backgroundColor: "#f0fff4" })
+          ...(hasError && { borderColor: "#EF4444", backgroundColor: "#FEF2F2" }),
+          ...(isValid && { borderColor: "#10B981", backgroundColor: "#F0FDF4" })
+        }}
+        onFocus={(e) => {
+          if (!disabled) {
+            e.target.style.borderColor = "#0066CC";
+            e.target.style.backgroundColor = "#FFFFFF";
+            e.target.style.boxShadow = "0 0 0 4px rgba(0, 102, 204, 0.1)";
+          }
         }}
       >
         {options.map((option) => (
@@ -145,6 +187,9 @@ function PatientRegistration() {
     address: "",
     agreeTerms: false
   });
+
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
@@ -374,8 +419,8 @@ function PatientRegistration() {
   return (
     <div style={styles.container}>
       <div style={styles.leftSide}>
-        <div style={styles.leftBackgroundOverlay} />
-        <div style={styles.formWrapper}>
+        <div style={styles.leftBackground} />
+        <div style={styles.formContainer}>
           <h2 style={styles.welcomeTitle}>Patient Registration</h2>
           <p style={styles.welcomeSubtitle}>Create your account to book appointments</p>
 
@@ -515,6 +560,8 @@ function PatientRegistration() {
                 error={errors.password}
                 placeholder="••••••••"
                 required
+                showPassword={showPassword}
+                onTogglePassword={() => setShowPassword(!showPassword)}
               />
 
               <FormInput
@@ -528,6 +575,8 @@ function PatientRegistration() {
                 error={errors.confirmPassword}
                 placeholder="••••••••"
                 required
+                showPassword={showConfirmPassword}
+                onTogglePassword={() => setShowConfirmPassword(!showConfirmPassword)}
               />
             </div>
 
@@ -578,7 +627,7 @@ function PatientRegistration() {
           <div style={styles.quoteContainer}>
             <p style={styles.quote}>"Your Health, Our Priority"</p>
             <p style={styles.quoteSubtext}>
-              Quick, easy, and secure patient registration for quality healthcare services
+              Providing quality healthcare services with care and compassion
             </p>
           </div>
         </div>
@@ -588,110 +637,211 @@ function PatientRegistration() {
 }
 
 const styles = {
-  container: { minHeight: "100vh", display: "flex", fontFamily: "'Inter', 'Segoe UI', sans-serif" },
-  leftSide: {
-    flex: 6, // Adjusted slightly to give right side more weight (60/40 approx)
-    display: "flex", // ...
-    flexDirection: "column",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: "20px",
-    position: "relative",
-    height: "100vh",
-    overflow: "hidden",
-    boxSizing: "border-box"
+  container: {
+    minHeight: '100vh',
+    display: 'flex',
+    fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    backgroundColor: '#F9FAFB'
   },
-  leftBackgroundOverlay: {
-    position: 'fixed',
+  leftSide: {
+    flex: 7,
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: '40px 60px',
+    position: 'relative',
+    overflow: 'hidden'
+  },
+  leftBackground: {
+    position: 'absolute',
     top: 0,
     left: 0,
-    width: "70%",
-    height: "100%",
-    backgroundColor: "rgba(0, 86, 179, 0.85)", // Solid color match with transparency
-    backgroundImage: `linear-gradient(rgba(0, 86, 179, 0.8), rgba(0, 60, 130, 0.9)), url(${hospitalBg})`,
+    right: 0,
+    bottom: 0,
+    backgroundImage: `linear-gradient(rgba(0, 102, 204, 0.4), rgba(0, 82, 163, 0.5)), url(${hospitalBg})`,
     backgroundSize: 'cover',
     backgroundPosition: 'center',
-    filter: 'blur(4px)',
-    zIndex: 0,
-    pointerEvents: 'none'
+    filter: 'blur(8px)',
+    zIndex: 0
   },
   rightSide: {
-    flex: 4, // 40%
-    background: "#0056b3", // Matched Button Blue
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: "40px",
-    color: "white",
-    height: "100vh"
+    flex: 3,
+    background: 'linear-gradient(135deg, #4DA6FF 0%, #0066CC 100%)',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: '60px',
+    color: 'white',
+    position: 'relative',
+    overflow: 'hidden'
   },
-  rightContent: { textAlign: "center", maxWidth: "500px" },
-  logoContainer: { display: "flex", justifyContent: "center", marginBottom: "30px" },
-  logoIcon: { width: "120px", height: "120px", backgroundColor: "rgba(255, 255, 255, 0.2)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", color: "white", border: "3px solid white" },
-  logoIconSvg: { fontSize: "72px" },
-  centerName: { fontSize: "36px", fontWeight: "bold", marginBottom: "10px", color: "white" },
-  tagline: { fontSize: "18px", marginBottom: "50px", color: "rgba(255, 255, 255, 0.9)" },
-  quoteContainer: { marginTop: "60px", padding: "30px", backgroundColor: "rgba(255, 255, 255, 0.1)", borderRadius: "15px", backdropFilter: "blur(10px)" },
-  quote: { fontSize: "24px", fontStyle: "italic", marginBottom: "15px", fontWeight: "500" },
-  quoteSubtext: { fontSize: "16px", color: "rgba(255, 255, 255, 0.9)", lineHeight: "1.6" },
-  formWrapper: {
-    width: "100%",
-    maxWidth: "1100px",
-    backgroundColor: "white",
-    padding: "32px 40px",
-    borderRadius: "20px",
-    boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
-    position: "relative",
+  rightContent: {
+    textAlign: 'center',
+    maxWidth: '500px',
+    position: 'relative',
+    zIndex: 2
+  },
+  logoContainer: {
+    display: 'flex',
+    justifyContent: 'center',
+    marginBottom: '40px'
+  },
+  logoIcon: {
+    width: '100px',
+    height: '100px',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    borderRadius: '50%',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    color: 'white',
+    border: '3px solid rgba(255, 255, 255, 0.3)',
+    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+    backdropFilter: 'blur(10px)'
+  },
+  logoIconSvg: {
+    fontSize: '52px'
+  },
+  centerName: {
+    fontSize: '32px',
+    fontWeight: '700',
+    marginBottom: '12px',
+    color: 'white',
+    letterSpacing: '-0.5px',
+    fontFamily: "'Plus Jakarta Sans', 'Inter', sans-serif"
+  },
+  tagline: {
+    fontSize: '16px',
+    marginBottom: '50px',
+    color: 'rgba(255, 255, 255, 0.95)',
+    fontWeight: '500'
+  },
+  quoteContainer: {
+    marginTop: '80px',
+    padding: '32px',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: '16px',
+    backdropFilter: 'blur(10px)',
+    border: '1px solid rgba(255, 255, 255, 0.2)'
+  },
+  quote: {
+    fontSize: '22px',
+    fontStyle: 'italic',
+    marginBottom: '12px',
+    fontWeight: '600',
+    lineHeight: '1.4'
+  },
+  quoteSubtext: {
+    fontSize: '15px',
+    color: 'rgba(255, 255, 255, 0.9)',
+    lineHeight: '1.6',
+    margin: 0
+  },
+  formContainer: {
+    width: '100%',
+    maxWidth: '850px',
+    backgroundColor: '#FFFFFF',
+    padding: '40px',
+    borderRadius: '24px',
+    boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+    border: '1px solid rgba(0,0,0,0.05)',
+    position: 'relative',
     zIndex: 1,
-    maxHeight: "95vh",
-    overflowY: "auto",
-    display: "flex",
-    flexDirection: "column"
+    maxHeight: '95vh',
+    overflowY: 'auto'
   },
-  welcomeTitle: { textAlign: "center", marginBottom: "4px", fontSize: "24px", color: "#0056b3", fontWeight: "bold" },
-  welcomeSubtitle: { textAlign: "center", marginBottom: "20px", fontSize: "13px", color: "#666" },
-
-  // Section Header Styles
+  welcomeTitle: {
+    textAlign: 'center',
+    marginBottom: '8px',
+    fontSize: '32px',
+    color: '#111827',
+    fontWeight: '800',
+    letterSpacing: '-0.5px',
+    fontFamily: "'Plus Jakarta Sans', 'Inter', sans-serif"
+  },
+  welcomeSubtitle: {
+    textAlign: 'center',
+    marginBottom: '36px',
+    fontSize: '15px',
+    color: '#6B7280',
+    fontWeight: '500'
+  },
+  generalError: {
+    padding: '12px 16px',
+    backgroundColor: '#FEE2E2',
+    border: '1px solid #EF4444',
+    borderRadius: '8px',
+    color: '#DC2626',
+    marginBottom: '20px',
+    fontSize: '14px',
+    fontWeight: '600',
+    display: 'flex',
+    alignItems: 'center'
+  },
+  successMessage: {
+    padding: '12px 16px',
+    backgroundColor: '#F0FDF4',
+    border: '1px solid #10B981',
+    borderRadius: '8px',
+    color: '#059669',
+    marginBottom: '20px',
+    fontSize: '14px',
+    fontWeight: '600',
+    display: 'flex',
+    alignItems: 'center'
+  },
   sectionHeader: {
     display: "flex",
     alignItems: "center",
     marginTop: "16px",
     marginBottom: "12px",
     paddingBottom: "8px",
-    borderBottom: "2px solid #0056b3"
+    borderBottom: "2px solid #E5E7EB"
   },
   sectionIcon: {
     fontSize: "20px",
     marginRight: "8px",
-    color: "#0056b3"
+    color: "#0066CC"
   },
   sectionTitle: {
     margin: 0,
     fontSize: "16px",
     fontWeight: "700",
-    color: "#0056b3"
+    color: "#111827"
   },
-
   divider: {
     height: "1px",
-    backgroundColor: "#e0e0e0",
+    backgroundColor: "#E5E7EB",
     margin: "16px 0"
   },
-
   gridContainer: {
     display: "grid",
     gridTemplateColumns: "1fr 1fr",
     gap: "12px 16px"
   },
-
-  formRow: { display: "flex", gap: "0", marginBottom: "0" },
-  generalError: { padding: "12px 15px", backgroundColor: "#fee", border: "1px solid #e74c3c", borderRadius: "8px", color: "#e74c3c", marginBottom: "20px", fontSize: "14px", fontWeight: "600", display: "flex", alignItems: "center" },
-  successMessage: { padding: "12px 15px", backgroundColor: "#efe", border: "1px solid #27ae60", borderRadius: "8px", color: "#27ae60", marginBottom: "20px", fontSize: "14px", fontWeight: "600", display: "flex", alignItems: "center" },
-  submitButton: { width: "100%", padding: "12px", backgroundColor: "#0056b3", color: "white", border: "none", borderRadius: "8px", fontSize: "15px", fontWeight: "600", cursor: "pointer", transition: "background-color 0.3s", marginBottom: "12px", fontFamily: "'Inter', 'Segoe UI', sans-serif" },
-  submitButtonDisabled: { backgroundColor: "#a0a0a0", cursor: "not-allowed" },
-  loginLink: { textAlign: "center" },
-  loginText: { margin: "0", fontSize: "14px", color: "#666" },
-  linkButton: { background: "none", border: "none", color: "#0066CC", cursor: "pointer", fontSize: "14px", textDecoration: "underline", padding: "0", fontFamily: "'Inter', 'Segoe UI', sans-serif" }
+  submitButton: {
+    width: '100%',
+    padding: '14px',
+    background: 'linear-gradient(135deg, #0066CC 0%, #0052A3 100%)',
+    color: 'white',
+    border: 'none',
+    borderRadius: '10px',
+    fontSize: '16px',
+    fontWeight: '700',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+    marginBottom: '24px',
+    fontFamily: "'Inter', sans-serif",
+    boxShadow: '0 4px 12px rgba(0, 102, 204, 0.3)'
+  },
+  submitButtonDisabled: {
+    background: '#9CA3AF',
+    cursor: 'not-allowed',
+    boxShadow: 'none'
+  },
+  loginLink: { textAlign: 'center', paddingTop: '20px', borderTop: '1px solid #E5E7EB' },
+  loginText: { margin: "0", fontSize: "14px", color: "#6B7280", fontWeight: "500" },
+  linkButton: { background: "none", border: "none", color: "#0066CC", cursor: "pointer", fontSize: "14px", textDecoration: "none", padding: "0", fontFamily: "'Inter', sans-serif", fontWeight: "600" }
 };
 
 export default PatientRegistration;

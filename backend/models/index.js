@@ -6,6 +6,7 @@ import Patient from './Patient.js';
 import Doctor from './Doctor.js';
 import Receptionist from './Receptionist.js';
 import Token from './Token.js';
+import Payment from './Payment.js';
 
 // Define associations
 
@@ -41,6 +42,10 @@ Doctor.belongsTo(Admin, { foreignKey: 'admin_id', as: 'admin' });
 Admin.hasMany(Receptionist, { foreignKey: 'admin_id', as: 'receptionists' });
 Receptionist.belongsTo(Admin, { foreignKey: 'admin_id', as: 'admin' });
 
+// Patient - Payment (One-to-Many)
+Patient.hasMany(Payment, { foreignKey: 'patient_id', as: 'payments' });
+Payment.belongsTo(Patient, { foreignKey: 'patient_id', as: 'patient' });
+
 export {
   sequelize,
   Role,
@@ -49,5 +54,6 @@ export {
   Patient,
   Doctor,
   Receptionist,
-  Token
+  Token,
+  Payment
 };

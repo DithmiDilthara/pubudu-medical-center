@@ -494,6 +494,15 @@ function NewBooking() {
               )}
             </div>
           </div>
+
+          <div style={styles.footer}>
+            <button
+              onClick={() => navigate("/receptionist/dashboard")}
+              style={styles.backButton}
+            >
+              Back
+            </button>
+          </div>
         </main>
       </div>
     </div>
@@ -748,6 +757,24 @@ const styles = {
     fontSize: "12px",
     color: "#6b7280",
     fontWeight: "400"
+  },
+  footer: {
+    marginTop: "32px",
+    display: "flex",
+    justifyContent: "flex-end",
+    paddingBottom: "32px"
+  },
+  backButton: {
+    padding: "10px 24px",
+    border: "none",
+    borderRadius: "6px",
+    background: "#0066CC",
+    color: "white",
+    fontWeight: "600",
+    cursor: "pointer",
+    boxShadow: "0 2px 4px rgba(0, 102, 204, 0.2)",
+    transition: "all 0.2s",
+    fontFamily: "'Inter', 'Segoe UI', sans-serif"
   },
   actionButtons: {
     display: "flex",

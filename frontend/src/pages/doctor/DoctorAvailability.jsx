@@ -175,154 +175,163 @@ function DoctorAvailability() {
   return (
     <div style={styles.pageContainer}>
       <DoctorSidebar onLogout={handleLogout} />
-      
+
       <div style={styles.mainContainer}>
         <DoctorHeader />
 
         <main style={styles.mainContent}>
-        {/* Header */}
-        <div style={styles.header}>
-          <div>
-            <h1 style={styles.pageTitle}>Availability Management</h1>
-            <p style={styles.pageSubtitle}>Set your working hours and manage your schedule</p>
+          {/* Header */}
+          <div style={styles.header}>
+            <div>
+              <h1 style={styles.pageTitle}>Availability Management</h1>
+              <p style={styles.pageSubtitle}>Set your working hours and manage your schedule</p>
+            </div>
           </div>
-        </div>
 
-        <div style={styles.content}>
-          {/* Calendar Section */}
-          <section style={styles.calendarSection}>
-            <div style={styles.calendarHeader}>
-              <button onClick={handlePrevMonth} style={styles.monthButton}>&lt;</button>
-              <h2 style={styles.monthTitle}>{monthNames[selectedMonth]} {selectedYear}</h2>
-              <button onClick={handleNextMonth} style={styles.monthButton}>&gt;</button>
-            </div>
-
-            <div style={styles.legend}>
-              <div style={styles.legendItem}>
-                <div style={{...styles.legendBox, background: '#10b981'}} />
-                <span style={styles.legendText}>Available</span>
+          <div style={styles.content}>
+            {/* Calendar Section */}
+            <section style={styles.calendarSection}>
+              <div style={styles.calendarHeader}>
+                <button onClick={handlePrevMonth} style={styles.monthButton}>&lt;</button>
+                <h2 style={styles.monthTitle}>{monthNames[selectedMonth]} {selectedYear}</h2>
+                <button onClick={handleNextMonth} style={styles.monthButton}>&gt;</button>
               </div>
-              <div style={styles.legendItem}>
-                <div style={{...styles.legendBox, background: '#f59e0b'}} />
-                <span style={styles.legendText}>Half Day</span>
-              </div>
-              <div style={styles.legendItem}>
-                <div style={{...styles.legendBox, background: '#ef4444'}} />
-                <span style={styles.legendText}>Unavailable</span>
-              </div>
-            </div>
 
-            <div style={styles.calendarGrid}>
-              {daysOfWeek.map(day => (
-                <div key={day} style={styles.calendarDayHeader}>{day}</div>
-              ))}
-              {generateCalendar()}
-            </div>
-
-            {selectedDate && (
-              <div style={styles.selectedDateInfo}>
-                Selected Date: <strong>{selectedDate}</strong>
-                {availability[selectedDate] && (
-                  <span style={styles.currentStatus}>
-                    Current: {availability[selectedDate].status}
-                    {availability[selectedDate].startTime && ` (${availability[selectedDate].startTime} - ${availability[selectedDate].endTime})`}
-                  </span>
-                )}
-              </div>
-            )}
-          </section>
-
-          {/* Settings Section */}
-          <section style={styles.settingsSection}>
-            {/* Time Slots */}
-            <div style={styles.settingsCard}>
-              <h3 style={styles.settingsTitle}>Time Slots</h3>
-              <div style={styles.timeInputs}>
-                <div style={styles.inputGroup}>
-                  <label style={styles.label}>Start Time</label>
-                  <input
-                    type="time"
-                    value={startTime}
-                    onChange={(e) => setStartTime(e.target.value)}
-                    style={styles.timeInput}
-                  />
+              <div style={styles.legend}>
+                <div style={styles.legendItem}>
+                  <div style={{ ...styles.legendBox, background: '#10b981' }} />
+                  <span style={styles.legendText}>Available</span>
                 </div>
-                <div style={styles.inputGroup}>
-                  <label style={styles.label}>End Time</label>
-                  <input
-                    type="time"
-                    value={endTime}
-                    onChange={(e) => setEndTime(e.target.value)}
-                    style={styles.timeInput}
-                  />
+                <div style={styles.legendItem}>
+                  <div style={{ ...styles.legendBox, background: '#f59e0b' }} />
+                  <span style={styles.legendText}>Half Day</span>
+                </div>
+                <div style={styles.legendItem}>
+                  <div style={{ ...styles.legendBox, background: '#ef4444' }} />
+                  <span style={styles.legendText}>Unavailable</span>
                 </div>
               </div>
-            </div>
 
-            {/* Availability Actions */}
-            <div style={styles.settingsCard}>
-              <h3 style={styles.settingsTitle}>Set Availability</h3>
-              <div style={styles.actionButtons}>
-                <button
-                  onClick={() => handleSetAvailability('available')}
-                  style={{...styles.actionButton, background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)'}}
-                >
-                  Mark as Available
-                </button>
-                <button
-                  onClick={() => handleSetAvailability('half-day')}
-                  style={{...styles.actionButton, background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)'}}
-                >
-                  Mark as Half Day
-                </button>
-                <button
-                  onClick={() => handleSetAvailability('unavailable')}
-                  style={{...styles.actionButton, background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)'}}
-                >
-                  Mark as Unavailable
-                </button>
-              </div>
-            </div>
-
-            {/* Block Out Time */}
-            <div style={styles.settingsCard}>
-              <h3 style={styles.settingsTitle}>Block Out Time / Add Reason</h3>
-              <div style={styles.inputGroup}>
-                <label style={styles.label}>Reason (Optional)</label>
-                <input
-                  type="text"
-                  value={blockReason}
-                  onChange={(e) => setBlockReason(e.target.value)}
-                  placeholder="e.g., Conference, Personal appointment"
-                  style={styles.textInput}
-                />
-              </div>
-            </div>
-
-            {/* Recurring Availability */}
-            <div style={styles.settingsCard}>
-              <h3 style={styles.settingsTitle}>Set Recurring Availability</h3>
-              <p style={styles.recurringSubtitle}>Select days of the week for recurring availability</p>
-              <div style={styles.dayButtons}>
-                {daysOfWeek.map((day, index) => (
-                  <button
-                    key={day}
-                    onClick={() => handleToggleRecurringDay(index)}
-                    style={{
-                      ...styles.dayButton,
-                      ...(recurringDays.includes(index) ? styles.dayButtonActive : {})
-                    }}
-                  >
-                    {day}
-                  </button>
+              <div style={styles.calendarGrid}>
+                {daysOfWeek.map(day => (
+                  <div key={day} style={styles.calendarDayHeader}>{day}</div>
                 ))}
+                {generateCalendar()}
               </div>
-              <button onClick={handleApplyRecurring} style={styles.applyRecurringButton}>
-                Apply for Next 3 Months
-              </button>
-            </div>
-          </section>
-        </div>
+
+              {selectedDate && (
+                <div style={styles.selectedDateInfo}>
+                  Selected Date: <strong>{selectedDate}</strong>
+                  {availability[selectedDate] && (
+                    <span style={styles.currentStatus}>
+                      Current: {availability[selectedDate].status}
+                      {availability[selectedDate].startTime && ` (${availability[selectedDate].startTime} - ${availability[selectedDate].endTime})`}
+                    </span>
+                  )}
+                </div>
+              )}
+            </section>
+
+            {/* Settings Section */}
+            <section style={styles.settingsSection}>
+              {/* Time Slots */}
+              <div style={styles.settingsCard}>
+                <h3 style={styles.settingsTitle}>Time Slots</h3>
+                <div style={styles.timeInputs}>
+                  <div style={styles.inputGroup}>
+                    <label style={styles.label}>Start Time</label>
+                    <input
+                      type="time"
+                      value={startTime}
+                      onChange={(e) => setStartTime(e.target.value)}
+                      style={styles.timeInput}
+                    />
+                  </div>
+                  <div style={styles.inputGroup}>
+                    <label style={styles.label}>End Time</label>
+                    <input
+                      type="time"
+                      value={endTime}
+                      onChange={(e) => setEndTime(e.target.value)}
+                      style={styles.timeInput}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Availability Actions */}
+              <div style={styles.settingsCard}>
+                <h3 style={styles.settingsTitle}>Set Availability</h3>
+                <div style={styles.actionButtons}>
+                  <button
+                    onClick={() => handleSetAvailability('available')}
+                    style={{ ...styles.actionButton, background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)' }}
+                  >
+                    Mark as Available
+                  </button>
+                  <button
+                    onClick={() => handleSetAvailability('half-day')}
+                    style={{ ...styles.actionButton, background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)' }}
+                  >
+                    Mark as Half Day
+                  </button>
+                  <button
+                    onClick={() => handleSetAvailability('unavailable')}
+                    style={{ ...styles.actionButton, background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)' }}
+                  >
+                    Mark as Unavailable
+                  </button>
+                </div>
+              </div>
+
+              {/* Block Out Time */}
+              <div style={styles.settingsCard}>
+                <h3 style={styles.settingsTitle}>Block Out Time / Add Reason</h3>
+                <div style={styles.inputGroup}>
+                  <label style={styles.label}>Reason (Optional)</label>
+                  <input
+                    type="text"
+                    value={blockReason}
+                    onChange={(e) => setBlockReason(e.target.value)}
+                    placeholder="e.g., Conference, Personal appointment"
+                    style={styles.textInput}
+                  />
+                </div>
+              </div>
+
+              {/* Recurring Availability */}
+              <div style={styles.settingsCard}>
+                <h3 style={styles.settingsTitle}>Set Recurring Availability</h3>
+                <p style={styles.recurringSubtitle}>Select days of the week for recurring availability</p>
+                <div style={styles.dayButtons}>
+                  {daysOfWeek.map((day, index) => (
+                    <button
+                      key={day}
+                      onClick={() => handleToggleRecurringDay(index)}
+                      style={{
+                        ...styles.dayButton,
+                        ...(recurringDays.includes(index) ? styles.dayButtonActive : {})
+                      }}
+                    >
+                      {day}
+                    </button>
+                  ))}
+                </div>
+                <button onClick={handleApplyRecurring} style={styles.applyRecurringButton}>
+                  Apply for Next 3 Months
+                </button>
+              </div>
+            </section>
+          </div>
+
+          <div style={styles.footer}>
+            <button
+              onClick={() => navigate("/doctor/dashboard")}
+              style={styles.backButton}
+            >
+              Back
+            </button>
+          </div>
         </main>
       </div>
     </div>
@@ -601,6 +610,24 @@ const styles = {
     cursor: 'pointer',
     boxShadow: '0 4px 12px rgba(0, 102, 204, 0.4)',
     transition: 'all 0.3s',
+    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+  },
+  footer: {
+    marginTop: '32px',
+    display: 'flex',
+    justifyContent: 'flex-end',
+    paddingBottom: '20px'
+  },
+  backButton: {
+    padding: '10px 24px',
+    border: 'none',
+    borderRadius: '6px',
+    background: '#0066CC',
+    color: 'white',
+    fontWeight: '600',
+    cursor: 'pointer',
+    boxShadow: '0 2px 4px rgba(0, 102, 204, 0.2)',
+    transition: 'all 0.2s',
     fontFamily: "'Inter', 'Segoe UI', sans-serif"
   }
 };
