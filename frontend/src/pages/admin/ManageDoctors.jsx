@@ -12,6 +12,7 @@ const ManageDoctors = () => {
   const [editingDoctor, setEditingDoctor] = useState(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [focusedField, setFocusedField] = useState(null);
 
   const [formData, setFormData] = useState({
     username: '',
@@ -55,26 +56,32 @@ const ManageDoctors = () => {
   const validateForm = () => {
     const errors = {};
 
-    // Username validation (only when creating new)
+    // Username and Password validation (only when creating new)
     if (!editingDoctor) {
       if (!formData.username) {
         errors.username = 'Username is required';
       } else if (formData.username.length < 4 || formData.username.length > 15) {
         errors.username = 'Username must be between 4 and 15 characters';
-      } else if (!/^[a-zA-Z0-9]+$/.test(formData.username)) {
-        errors.username = 'Username can only contain letters and numbers';
+      } else if (!/^[A-Z]/.test(formData.username)) {
+        errors.username = 'Username must start with a capital letter';
+      } else if (!formData.username.includes('_')) {
+        errors.username = 'Username must include an underscore (_)';
+      } else if (!/^[a-zA-Z0-9_]+$/.test(formData.username)) {
+        errors.username = 'Username can only contain letters, numbers, and underscores';
       }
 
       if (!formData.password) {
         errors.password = 'Password is required';
       } else if (formData.password.length < 8) {
         errors.password = 'Password must be at least 8 characters';
-      } else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])/.test(formData.password)) {
-        errors.password = 'Password must include uppercase, lowercase, and a number';
+      } else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%^&*(),.?":{}|<>])/.test(formData.password)) {
+        errors.password = 'Password must include uppercase, lowercase, a number, and a special character';
       }
 
       if (!formData.license_no) {
         errors.license_no = 'License number is required';
+      } else if (formData.license_no.length > 8) {
+        errors.license_no = 'License number cannot exceed 8 characters';
       } else if (!/^[a-zA-Z0-9]+$/.test(formData.license_no)) {
         errors.license_no = 'License number must be alphanumeric';
       }
@@ -86,7 +93,7 @@ const ManageDoctors = () => {
     } else if (formData.full_name.length < 3) {
       errors.full_name = 'Full name must be at least 3 characters';
     } else if (!/^[a-zA-Z\s.]+$/.test(formData.full_name)) {
-      errors.full_name = 'Full name can only contain letters and periods';
+      errors.full_name = 'Full name can only contain letters, spaces and periods';
     }
 
     if (!formData.specialization) {
@@ -114,7 +121,10 @@ const ManageDoctors = () => {
     setError('');
     setSuccess('');
 
-    if (!validateForm()) return;
+    if (!validateForm()) {
+      setError('Please fix all errors before submitting');
+      return;
+    }
 
     try {
       if (editingDoctor) {
@@ -319,6 +329,14 @@ const ManageDoctors = () => {
               <div style={styles.formGrid}>
                 {!editingDoctor && (
                   <>
+                    <style>
+                      {`
+                        @keyframes slideDown {
+                          from { opacity: 0; transform: translateY(-10px); }
+                          to { opacity: 1; transform: translateY(0); }
+                        }
+                      `}
+                    </style>
                     <div style={styles.formGroup}>
                       <label style={styles.label}>
                         Username <span style={styles.required}>*</span>
@@ -328,9 +346,24 @@ const ManageDoctors = () => {
                         name="username"
                         value={formData.username}
                         onChange={handleInputChange}
-                        style={styles.input}
+                        onFocus={() => setFocusedField('username')}
+                        onBlur={() => setFocusedField(null)}
+                        style={{
+                          ...styles.input,
+                          ...(formErrors.username ? styles.inputError : {})
+                        }}
                         placeholder="Enter username"
                       />
+                      {focusedField === 'username' && (
+                        <div style={styles.hintsBox}>
+                          <p style={styles.hintsTitle}>Requirements:</p>
+                          <ul style={styles.hintsList}>
+                            <li>4-15 characters long</li>
+                            <li>Must start with a capital letter</li>
+                            <li>Must include an underscore (_)</li>
+                          </ul>
+                        </div>
+                      )}
                       {formErrors.username && <span style={styles.errorText}>{formErrors.username}</span>}
                     </div>
 
@@ -343,9 +376,25 @@ const ManageDoctors = () => {
                         name="password"
                         value={formData.password}
                         onChange={handleInputChange}
-                        style={styles.input}
+                        onFocus={() => setFocusedField('password')}
+                        onBlur={() => setFocusedField(null)}
+                        style={{
+                          ...styles.input,
+                          ...(formErrors.password ? styles.inputError : {})
+                        }}
                         placeholder="Enter password"
                       />
+                      {focusedField === 'password' && (
+                        <div style={styles.hintsBox}>
+                          <p style={styles.hintsTitle}>Requirements:</p>
+                          <ul style={styles.hintsList}>
+                            <li>Minimum 8 characters</li>
+                            <li>Include uppercase & lowercase</li>
+                            <li>Include at least one number</li>
+                            <li>Include at least one special character</li>
+                          </ul>
+                        </div>
+                      )}
                       {formErrors.password && <span style={styles.errorText}>{formErrors.password}</span>}
                     </div>
                   </>
@@ -360,7 +409,10 @@ const ManageDoctors = () => {
                     name="full_name"
                     value={formData.full_name}
                     onChange={handleInputChange}
-                    style={styles.input}
+                    style={{
+                      ...styles.input,
+                      ...(formErrors.full_name ? styles.inputError : {})
+                    }}
                     placeholder="Dr. Tachini Thaweesha"
                   />
                   {formErrors.full_name && <span style={styles.errorText}>{formErrors.full_name}</span>}
@@ -375,7 +427,10 @@ const ManageDoctors = () => {
                     name="specialization"
                     value={formData.specialization}
                     onChange={handleInputChange}
-                    style={styles.input}
+                    style={{
+                      ...styles.input,
+                      ...(formErrors.specialization ? styles.inputError : {})
+                    }}
                     placeholder="Cardiology"
                   />
                   {formErrors.specialization && <span style={styles.errorText}>{formErrors.specialization}</span>}
@@ -391,34 +446,47 @@ const ManageDoctors = () => {
                       name="license_no"
                       value={formData.license_no}
                       onChange={handleInputChange}
-                      style={styles.input}
-                      placeholder="ABC12345"
+                      style={{
+                        ...styles.input,
+                        ...(formErrors.license_no ? styles.inputError : {})
+                      }}
+                      placeholder="80526"
                     />
                     {formErrors.license_no && <span style={styles.errorText}>{formErrors.license_no}</span>}
                   </div>
                 )}
 
                 <div style={styles.formGroup}>
-                  <label style={styles.label}>Email</label>
+                  <label style={styles.label}>
+                    Email <span style={styles.required}>*</span>
+                  </label>
                   <input
                     type="email"
                     name="email"
                     value={formData.email}
                     onChange={handleInputChange}
-                    style={styles.input}
+                    style={{
+                      ...styles.input,
+                      ...(formErrors.email ? styles.inputError : {})
+                    }}
                     placeholder="doctor@example.com"
                   />
                   {formErrors.email && <span style={styles.errorText}>{formErrors.email}</span>}
                 </div>
 
                 <div style={styles.formGroup}>
-                  <label style={styles.label}>Contact Number</label>
+                  <label style={styles.label}>
+                    Contact Number <span style={styles.required}>*</span>
+                  </label>
                   <input
                     type="text"
                     name="contact_number"
                     value={formData.contact_number}
                     onChange={handleInputChange}
-                    style={styles.input}
+                    style={{
+                      ...styles.input,
+                      ...(formErrors.contact_number ? styles.inputError : {})
+                    }}
                     placeholder="0771234567"
                   />
                   {formErrors.contact_number && <span style={styles.errorText}>{formErrors.contact_number}</span>}
@@ -477,15 +545,39 @@ const styles = {
 
   form: { padding: '20px' },
   formGrid: { display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px', marginBottom: '24px' },
-  formGroup: { marginBottom: '0' },
+  formGroup: { marginBottom: '16px' },
   label: { display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '600', color: '#333' },
   required: { color: '#dc3545' },
-  input: { width: '100%', padding: '10px 12px', border: '2px solid #dee2e6', borderRadius: '6px', fontSize: '14px', boxSizing: 'border-box' },
+  input: { width: '100%', padding: '10px 12px', border: '2px solid #dee2e6', borderRadius: '6px', fontSize: '14px', boxSizing: 'border-box', transition: 'border-color 0.2s' },
+  inputError: { borderColor: '#dc3545' },
   errorText: { display: 'block', color: '#dc3545', fontSize: '12px', marginTop: '4px' },
 
   modalActions: { display: 'flex', justifyContent: 'flex-end', gap: '12px', paddingTop: '16px', borderTop: '1px solid #dee2e6' },
   cancelButton: { padding: '10px 20px', backgroundColor: '#6c757d', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '14px', fontWeight: '600' },
   submitButton: { padding: '10px 20px', backgroundColor: '#0066CC', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '14px', fontWeight: '600' },
+  hintsBox: {
+    marginTop: '8px',
+    padding: '12px',
+    backgroundColor: '#FFFFFF',
+    borderRadius: '8px',
+    border: '1px solid #E5E7EB',
+    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+    animation: 'slideDown 0.2s ease-out'
+  },
+  hintsTitle: {
+    fontSize: '12px',
+    color: '#4B5563',
+    fontWeight: '600',
+    marginBottom: '6px',
+    margin: 0
+  },
+  hintsList: {
+    margin: 0,
+    paddingLeft: '18px',
+    fontSize: '12px',
+    color: '#6B7280',
+    listStyleType: 'disc'
+  },
   footer: {
     marginTop: '32px',
     display: 'flex',
