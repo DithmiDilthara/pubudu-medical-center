@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiPlus, FiEdit2, FiTrash2, FiX, FiUser, FiAlertCircle } from 'react-icons/fi';
+import { FiPlus, FiEdit2, FiTrash2, FiX, FiUser, FiAlertCircle, FiCheck, FiXCircle } from 'react-icons/fi';
 import AdminHeader from '../../components/AdminHeader';
 import AdminSidebar from '../../components/AdminSidebar';
 import { useAuth } from '../../context/AuthContext';
@@ -80,7 +80,7 @@ const ManageDoctors = () => {
         break;
       case 'license_no':
         if (!value) error = 'License is required';
-        else if (value.length > 8) error = 'Max 8 characters';
+        else if (value.length !== 8) error = 'Must be exactly 8 characters';
         else if (!/^[a-zA-Z0-9]+$/.test(value)) error = 'Alphanumeric only';
         break;
       case 'email':
@@ -97,6 +97,19 @@ const ManageDoctors = () => {
     setFormErrors(prev => ({ ...prev, [name]: error }));
     return !error;
   };
+
+  const checkUsernameReq = (val) => ({
+    length: val.length >= 4 && val.length <= 15,
+    prefix: val.startsWith('Doc_'),
+    capital: /^[A-Z]/.test(val.slice(4))
+  });
+
+  const checkPasswordReq = (val) => ({
+    length: val.length >= 8,
+    mixed: /(?=.*[a-z])(?=.*[A-Z])/.test(val),
+    number: /(?=.*[0-9])/.test(val),
+    special: /(?=.*[!@#$%^&*(),.?":{}|<>])/.test(val)
+  });
 
   const validateForm = () => {
     const errors = {};
@@ -125,8 +138,8 @@ const ManageDoctors = () => {
 
       if (!formData.license_no) {
         errors.license_no = 'License number is required';
-      } else if (formData.license_no.length > 8) {
-        errors.license_no = 'License number cannot exceed 8 characters';
+      } else if (formData.license_no.length !== 8) {
+        errors.license_no = 'License number must be exactly 8 characters';
       } else if (!/^[a-zA-Z0-9]+$/.test(formData.license_no)) {
         errors.license_no = 'License number must be alphanumeric';
       }
@@ -406,9 +419,15 @@ const ManageDoctors = () => {
                         <div style={styles.hintsBox}>
                           <p style={styles.hintsTitle}>Requirements:</p>
                           <ul style={styles.hintsList}>
-                            <li>4-15 characters long</li>
-                            <li>Must start with <strong>Doc_</strong></li>
-                            <li>Next letter must be <strong>Capital</strong></li>
+                            <li style={checkUsernameReq(formData.username).length ? styles.hintMet : styles.hintUnmet}>
+                              {checkUsernameReq(formData.username).length ? <FiCheck /> : <FiXCircle />} 4-15 characters long
+                            </li>
+                            <li style={checkUsernameReq(formData.username).prefix ? styles.hintMet : styles.hintUnmet}>
+                              {checkUsernameReq(formData.username).prefix ? <FiCheck /> : <FiXCircle />} Must start with <strong>Doc_</strong>
+                            </li>
+                            <li style={checkUsernameReq(formData.username).capital ? styles.hintMet : styles.hintUnmet}>
+                              {checkUsernameReq(formData.username).capital ? <FiCheck /> : <FiXCircle />} Next letter must be <strong>Capital</strong>
+                            </li>
                           </ul>
                         </div>
                       )}
@@ -444,10 +463,18 @@ const ManageDoctors = () => {
                         <div style={styles.hintsBox}>
                           <p style={styles.hintsTitle}>Requirements:</p>
                           <ul style={styles.hintsList}>
-                            <li>Minimum 8 characters</li>
-                            <li>Include uppercase & lowercase</li>
-                            <li>Include at least one number</li>
-                            <li>Include at least one special character</li>
+                            <li style={checkPasswordReq(formData.password).length ? styles.hintMet : styles.hintUnmet}>
+                              {checkPasswordReq(formData.password).length ? <FiCheck /> : <FiXCircle />} Minimum 8 characters
+                            </li>
+                            <li style={checkPasswordReq(formData.password).mixed ? styles.hintMet : styles.hintUnmet}>
+                              {checkPasswordReq(formData.password).mixed ? <FiCheck /> : <FiXCircle />} Include uppercase & lowercase
+                            </li>
+                            <li style={checkPasswordReq(formData.password).number ? styles.hintMet : styles.hintUnmet}>
+                              {checkPasswordReq(formData.password).number ? <FiCheck /> : <FiXCircle />} Include at least one number
+                            </li>
+                            <li style={checkPasswordReq(formData.password).special ? styles.hintMet : styles.hintUnmet}>
+                              {checkPasswordReq(formData.password).special ? <FiCheck /> : <FiXCircle />} Include at least one special character
+                            </li>
                           </ul>
                         </div>
                       )}
@@ -524,7 +551,7 @@ const ManageDoctors = () => {
                         ...styles.input,
                         ...(formErrors.license_no ? styles.inputError : {})
                       }}
-                      placeholder="80526"
+                      placeholder="SLMC1234"
                     />
                     {formErrors.license_no && (
                       <span style={styles.errorText}>
@@ -667,8 +694,13 @@ const styles = {
     paddingLeft: '18px',
     fontSize: '12px',
     color: '#6B7280',
-    listStyleType: 'disc'
+    listStyleType: 'none',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '4px'
   },
+  hintMet: { color: '#059669', display: 'flex', alignItems: 'center', gap: '6px' },
+  hintUnmet: { color: '#DC2626', display: 'flex', alignItems: 'center', gap: '6px' },
   footer: {
     marginTop: '32px',
     display: 'flex',

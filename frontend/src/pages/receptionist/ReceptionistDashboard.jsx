@@ -71,7 +71,10 @@ function ReceptionistDashboard() {
   };
 
   const handlePendingBookings = () => {
-    navigate("/receptionist/appointments/pending");
+    const section = document.getElementById('pending-appointments-section');
+    if (section) {
+      section.scrollIntoView({ behavior: 'smooth' });
+    }
   };
 
   const handleMarkAsPaid = (patient) => {
@@ -125,7 +128,7 @@ function ReceptionistDashboard() {
           </section>
 
           {/* Pending Appointments Table */}
-          <section style={styles.tableSection}>
+          <section id="pending-appointments-section" style={styles.tableSection}>
             <h2 style={styles.tableTitle}>Pending Appointments</h2>
             <div style={styles.tableContainer}>
               <table style={styles.table}>
@@ -205,7 +208,12 @@ function ReceptionistDashboard() {
               </table>
             </div>
             <div style={styles.viewAllContainer}>
-              <button style={styles.viewAllButton}>View All</button>
+              <button
+                onClick={() => navigate("/receptionist/appointments")}
+                style={styles.viewAllButton}
+              >
+                View All
+              </button>
             </div>
           </section>
         </main>
