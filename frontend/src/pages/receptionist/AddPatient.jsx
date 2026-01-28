@@ -21,9 +21,7 @@ function AddPatient() {
   }, [location.state]);
 
   const [formData, setFormData] = useState({
-    title: "",
-    firstName: "",
-    lastName: "",
+    fullName: "",
     dateOfBirth: "",
     gender: "",
     address: "",
@@ -38,31 +36,18 @@ function AddPatient() {
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [focusedField, setFocusedField] = useState(null);
 
   // Validation rules
   const validationRules = {
-    title: {
+    fullName: {
       required: true,
-      message: "Title is required"
-    },
-    firstName: {
-      required: true,
-      minLength: 2,
-      pattern: /^[a-zA-Z\s]+$/,
+      minLength: 3,
+      pattern: /^[a-zA-Z\s.]+$/,
       messages: {
-        required: "First name is required",
-        minLength: "First name must be at least 2 characters",
-        pattern: "First name can only contain letters"
-      }
-    },
-    lastName: {
-      required: true,
-      minLength: 2,
-      pattern: /^[a-zA-Z\s]+$/,
-      messages: {
-        required: "Last name is required",
-        minLength: "Last name must be at least 2 characters",
-        pattern: "Last name can only contain letters"
+        required: "Full name is required",
+        minLength: "Full name must be at least 3 characters",
+        pattern: "Full name can only contain letters, spaces and periods"
       }
     },
     dateOfBirth: {
@@ -114,39 +99,35 @@ function AddPatient() {
     },
     nic: {
       required: true,
-      minLength: 10,
-      messages: {
-        required: "NIC is required",
-        minLength: "NIC must be at least 10 characters"
+      custom: (value) => {
+        if (!value) return "NIC is required";
+        if (value.length > 12) return "NIC cannot exceed 12 characters";
+        if (!/^(?:\d{9}[vVxX]|\d{12})$/.test(value)) {
+          return "Invalid NIC format (9 digits + V/X or 12 digits)";
+        }
+        return null;
       }
     },
     username: {
       required: true,
-      minLength: 3,
-      pattern: /^[a-zA-Z0-9_]+$/,
-      messages: {
-        required: "Username is required",
-        minLength: "Username must be at least 3 characters",
-        pattern: "Username can only contain letters, numbers, and underscores"
+      custom: (value) => {
+        if (!value) return "Username is required";
+        if (value.length < 4 || value.length > 15) return "Username must be 4-15 characters";
+        if (!/^[A-Z]/.test(value)) return "Username must start with a capital letter";
+        if (!value.includes("_")) return "Username must include an underscore (_)";
+        if (!/^[a-zA-Z0-9_]+$/.test(value)) return "Only letters, numbers, and underscores allowed";
+        return null;
       }
     },
     password: {
       required: true,
-      minLength: 8,
       custom: (value) => {
-        try {
-          if (!value) return null;
-          if (!/(?=.*[a-z])/.test(value)) return "Must contain lowercase letters";
-          if (!/(?=.*[A-Z])/.test(value)) return "Must contain uppercase letters";
-          if (!/(?=.*\d)/.test(value)) return "Must contain numbers";
-          return null;
-        } catch (error) {
-          return "Password validation error";
+        if (!value) return "Password is required";
+        if (value.length < 8) return "Password must be at least 8 characters";
+        if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%^&*(),.?":{}|<>])/.test(value)) {
+          return "Must include uppercase, lowercase, a number, and a special character";
         }
-      },
-      messages: {
-        required: "Password is required",
-        minLength: "Password must be at least 8 characters"
+        return null;
       }
     },
     confirmPassword: {
@@ -323,7 +304,7 @@ function AddPatient() {
         password: formData.password,
         email: formData.email || null,
         contact_number: formData.phoneNumber ? parseInt(formData.phoneNumber.replace(/\D/g, "")) : null,
-        full_name: `${formData.firstName} ${formData.lastName}`,
+        full_name: formData.fullName,
         nic: formData.nic,
         gender: formData.gender.toUpperCase(),
         date_of_birth: formData.dateOfBirth || null,
@@ -343,9 +324,7 @@ function AddPatient() {
 
         // Reset form
         setFormData({
-          title: "",
-          firstName: "",
-          lastName: "",
+          fullName: "",
           dateOfBirth: "",
           gender: "",
           address: "",
@@ -473,87 +452,38 @@ function AddPatient() {
                 <h2 style={styles.sectionTitle}>New Patient Registration</h2>
 
                 <form onSubmit={handleSubmit} style={styles.form}>
-                  {/* Title */}
-                  <div style={styles.formGroup}>
-                    <label style={styles.label}>
-                      Title <span style={styles.required}>*</span>
-                    </label>
-                    <select
-                      name="title"
-                      value={formData.title}
-                      onChange={handleInputChange}
-                      onBlur={handleBlur}
-                      style={{
-                        ...styles.select,
-                        ...(touched.title && errors.title ? styles.inputError : {}),
-                        ...(touched.title && !errors.title && formData.title ? styles.inputValid : {})
-                      }}
-                      required
-                    >
-                      <option value="">Mr. / Mrs. / Ms. / Rev</option>
-                      <option value="Mr">Mr.</option>
-                      <option value="Mrs">Mrs.</option>
-                      <option value="Ms">Ms.</option>
-                      <option value="Rev">Rev.</option>
-                    </select>
-                    {touched.title && errors.title && (
-                      <span style={styles.errorText}>{errors.title}</span>
-                    )}
-                    {touched.title && !errors.title && formData.title && (
-                      <span style={styles.validText}>✓</span>
-                    )}
-                  </div>
+                  <style>
+                    {`
+                      @keyframes slideDown {
+                        from { opacity: 0; transform: translateY(-10px); }
+                        to { opacity: 1; transform: translateY(0); }
+                      }
+                    `}
+                  </style>
 
-                  {/* First Name */}
+                  {/* Full Name */}
                   <div style={styles.formGroup}>
                     <label style={styles.label}>
-                      First Name <span style={styles.required}>*</span>
+                      Full Name <span style={styles.required}>*</span>
                     </label>
                     <input
                       type="text"
-                      name="firstName"
-                      placeholder="Enter first name"
-                      value={formData.firstName}
+                      name="fullName"
+                      placeholder="Enter full name"
+                      value={formData.fullName}
                       onChange={handleInputChange}
                       onBlur={handleBlur}
                       style={{
                         ...styles.input,
-                        ...(touched.firstName && errors.firstName ? styles.inputError : {}),
-                        ...(touched.firstName && !errors.firstName && formData.firstName ? styles.inputValid : {})
+                        ...(touched.fullName && errors.fullName ? styles.inputError : {}),
+                        ...(touched.fullName && !errors.fullName && formData.fullName ? styles.inputValid : {})
                       }}
                       required
                     />
-                    {touched.firstName && errors.firstName && (
-                      <span style={styles.errorText}>{errors.firstName}</span>
+                    {touched.fullName && errors.fullName && (
+                      <span style={styles.errorText}>{errors.fullName}</span>
                     )}
-                    {touched.firstName && !errors.firstName && formData.firstName && (
-                      <span style={styles.validText}>✓</span>
-                    )}
-                  </div>
-
-                  {/* Last Name */}
-                  <div style={styles.formGroup}>
-                    <label style={styles.label}>
-                      Last Name <span style={styles.required}>*</span>
-                    </label>
-                    <input
-                      type="text"
-                      name="lastName"
-                      placeholder="Enter last name"
-                      value={formData.lastName}
-                      onChange={handleInputChange}
-                      onBlur={handleBlur}
-                      style={{
-                        ...styles.input,
-                        ...(touched.lastName && errors.lastName ? styles.inputError : {}),
-                        ...(touched.lastName && !errors.lastName && formData.lastName ? styles.inputValid : {})
-                      }}
-                      required
-                    />
-                    {touched.lastName && errors.lastName && (
-                      <span style={styles.errorText}>{errors.lastName}</span>
-                    )}
-                    {touched.lastName && !errors.lastName && formData.lastName && (
+                    {touched.fullName && !errors.fullName && formData.fullName && (
                       <span style={styles.validText}>✓</span>
                     )}
                   </div>
@@ -731,10 +661,14 @@ function AddPatient() {
                     <input
                       type="text"
                       name="username"
-                      placeholder="username"
+                      placeholder="Sayumi_manujana"
                       value={formData.username}
                       onChange={handleInputChange}
-                      onBlur={handleBlur}
+                      onFocus={() => setFocusedField("username")}
+                      onBlur={(e) => {
+                        handleBlur(e);
+                        setFocusedField(null);
+                      }}
                       style={{
                         ...styles.input,
                         ...(touched.username && errors.username ? styles.inputError : {}),
@@ -742,6 +676,16 @@ function AddPatient() {
                       }}
                       required
                     />
+                    {focusedField === "username" && (
+                      <div style={styles.hintsBox}>
+                        <p style={styles.hintsTitle}>Requirements:</p>
+                        <ul style={styles.hintsList}>
+                          <li>4-15 characters long</li>
+                          <li>Must start with a capital letter</li>
+                          <li>Must include an underscore (_)</li>
+                        </ul>
+                      </div>
+                    )}
                     {touched.username && errors.username && (
                       <span style={styles.errorText}>{errors.username}</span>
                     )}
@@ -761,7 +705,11 @@ function AddPatient() {
                       placeholder="Enter New Password"
                       value={formData.password}
                       onChange={handleInputChange}
-                      onBlur={handleBlur}
+                      onFocus={() => setFocusedField("password")}
+                      onBlur={(e) => {
+                        handleBlur(e);
+                        setFocusedField(null);
+                      }}
                       style={{
                         ...styles.input,
                         ...(touched.password && errors.password ? styles.inputError : {}),
@@ -769,6 +717,17 @@ function AddPatient() {
                       }}
                       required
                     />
+                    {focusedField === "password" && (
+                      <div style={styles.hintsBox}>
+                        <p style={styles.hintsTitle}>Requirements:</p>
+                        <ul style={styles.hintsList}>
+                          <li>Minimum 8 characters</li>
+                          <li>Include uppercase & lowercase</li>
+                          <li>Include at least one number</li>
+                          <li>Include at least one special character</li>
+                        </ul>
+                      </div>
+                    )}
                     {touched.password && errors.password && (
                       <span style={styles.errorText}>{errors.password}</span>
                     )}
@@ -823,9 +782,7 @@ function AddPatient() {
                         setSearchResult(null);
                         setSearchQuery("");
                         setFormData({
-                          title: "",
-                          firstName: "",
-                          lastName: "",
+                          fullName: "",
                           dateOfBirth: "",
                           gender: "",
                           address: "",
@@ -1134,6 +1091,30 @@ const styles = {
     cursor: "pointer",
     transition: "all 0.3s",
     fontFamily: "'Inter', 'Segoe UI', sans-serif"
+  },
+  hintsBox: {
+    marginTop: "8px",
+    padding: "12px",
+    backgroundColor: "#FFFFFF",
+    borderRadius: "8px",
+    border: "1px solid #E5E7EB",
+    boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
+    zIndex: 10,
+    animation: "slideDown 0.2s ease-out"
+  },
+  hintsTitle: {
+    fontSize: "12px",
+    color: "#4B5563",
+    fontWeight: "600",
+    marginBottom: "6px",
+    margin: 0
+  },
+  hintsList: {
+    margin: 0,
+    paddingLeft: "18px",
+    fontSize: "12px",
+    color: "#6B7280",
+    listStyleType: "disc"
   }
 };
 
