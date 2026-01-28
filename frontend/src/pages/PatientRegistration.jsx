@@ -377,6 +377,13 @@ function PatientRegistration() {
       const newErrors = {};
       const requiredFields = ["username", "password", "confirmPassword", "full_name", "nic", "gender", "email", "contact_number", "date_of_birth", "address", "agreeTerms"];
 
+      requiredFields.forEach(field => {
+        const error = validateField(field, formData[field]);
+        if (error) {
+          newErrors[field] = error;
+        }
+      });
+
       setErrors(newErrors);
 
       const allTouched = requiredFields.reduce((acc, field) => {
@@ -402,6 +409,12 @@ function PatientRegistration() {
     try {
       if (!validateForm()) {
         setGeneralError("Please fix all errors before submitting");
+        return;
+      }
+
+      if (!formData.agreeTerms) {
+        setErrors(prev => ({ ...prev, agreeTerms: "You must agree to the terms and conditions" }));
+        setGeneralError("Please agree to the terms and conditions");
         return;
       }
 
