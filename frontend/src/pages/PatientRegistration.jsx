@@ -8,6 +8,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 // Reusable FormInput Component (inline)
 const FormInput = ({ label, name, type = "text", value, onChange, onBlur, placeholder, touched, error, required, disabled, style, showPassword, onTogglePassword, hints }) => {
+  const [isFocused, setIsFocused] = useState(false);
   const hasError = touched && error;
   const isValid = touched && !error && value;
   const isPassword = type === "password";
@@ -23,7 +24,18 @@ const FormInput = ({ label, name, type = "text", value, onChange, onBlur, placeh
           name={name}
           value={value}
           onChange={onChange}
-          onBlur={onBlur}
+          onBlur={(e) => {
+            setIsFocused(false);
+            if (onBlur) onBlur(e);
+          }}
+          onFocus={(e) => {
+            setIsFocused(true);
+            if (!disabled) {
+              e.target.style.borderColor = "#0066CC";
+              e.target.style.backgroundColor = "#FFFFFF";
+              e.target.style.boxShadow = "0 0 0 4px rgba(0, 102, 204, 0.1)";
+            }
+          }}
           placeholder={placeholder}
           disabled={disabled}
           style={{
@@ -40,14 +52,8 @@ const FormInput = ({ label, name, type = "text", value, onChange, onBlur, placeh
             color: "#111827",
             cursor: disabled ? "not-allowed" : "text",
             ...(hasError && { borderColor: "#EF4444", backgroundColor: "#FEF2F2" }),
-            ...(isValid && { borderColor: "#10B981", backgroundColor: "#F0FDF4" })
-          }}
-          onFocus={(e) => {
-            if (!disabled) {
-              e.target.style.borderColor = "#0066CC";
-              e.target.style.backgroundColor = "#FFFFFF";
-              e.target.style.boxShadow = "0 0 0 4px rgba(0, 102, 204, 0.1)";
-            }
+            ...(isValid && { borderColor: "#10B981", backgroundColor: "#F0FDF4" }),
+            ...(isFocused && !hasError && { borderColor: "#0066CC", backgroundColor: "#FFFFFF", boxShadow: "0 0 0 4px rgba(0, 102, 204, 0.1)" })
           }}
         />
         {isPassword && (
@@ -73,12 +79,21 @@ const FormInput = ({ label, name, type = "text", value, onChange, onBlur, placeh
           </button>
         )}
       </div>
-      {hints && (
-        <div style={{ marginTop: "8px", padding: "8px 12px", backgroundColor: "#F3F4F6", borderRadius: "8px" }}>
-          <p style={{ fontSize: "12px", color: "#6B7280", fontWeight: "600", marginBottom: "4px" }}>Requirements:</p>
-          <ul style={{ margin: 0, paddingLeft: "16px", fontSize: "11px", color: "#6B7280", listStyleType: "disc" }}>
+      {hints && isFocused && (
+        <div style={{
+          marginTop: "8px",
+          padding: "12px",
+          backgroundColor: "#FFFFFF",
+          borderRadius: "10px",
+          border: "1px solid #E5E7EB",
+          boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
+          zIndex: 10,
+          animation: "slideDown 0.2s ease-out"
+        }}>
+          <p style={{ fontSize: "12px", color: "#4B5563", fontWeight: "600", marginBottom: "6px" }}>Requirements:</p>
+          <ul style={{ margin: 0, paddingLeft: "18px", fontSize: "12px", color: "#6B7280", listStyleType: "disc" }}>
             {hints.map((hint, index) => (
-              <li key={index} style={{ marginBottom: "2px" }}>{hint}</li>
+              <li key={index} style={{ marginBottom: "3px" }}>{hint}</li>
             ))}
           </ul>
         </div>
@@ -428,8 +443,18 @@ function PatientRegistration() {
       <div style={styles.leftSide}>
         <div style={styles.leftBackground} />
         <div style={styles.formContainer}>
-          <h2 style={styles.welcomeTitle}>Patient Registration</h2>
-          <p style={styles.welcomeSubtitle}>Create your account to book appointments</p>
+          {/* Form Title */}
+          <h1 style={styles.welcomeTitle}>Create Account</h1>
+          <p style={styles.welcomeSubtitle}>Join Pubudu Medical Center patient portal</p>
+
+          <style>
+            {`
+                @keyframes slideDown {
+                  from { opacity: 0; transform: translateY(-10px); }
+                  to { opacity: 1; transform: translateY(0); }
+                }
+              `}
+          </style>
 
           {generalError && (
             <div style={styles.generalError}>
@@ -654,7 +679,7 @@ function PatientRegistration() {
           </div>
         </div>
       </div>
-    </div>
+    </div >
   );
 }
 
