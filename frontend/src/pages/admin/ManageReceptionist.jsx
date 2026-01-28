@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { FiPlus, FiEdit2, FiTrash2, FiX, FiUser } from 'react-icons/fi';
+import { FiPlus, FiEdit2, FiTrash2, FiX, FiUser, FiAlertCircle } from 'react-icons/fi';
 import AdminHeader from '../../components/AdminHeader';
 import AdminSidebar from '../../components/AdminSidebar';
 import { useAuth } from '../../context/AuthContext';
@@ -52,6 +52,45 @@ const ManageReceptionist = () => {
     }
   };
 
+  const validateField = (name, value) => {
+    let error = '';
+    switch (name) {
+      case 'username':
+        if (!value) error = 'Username is required';
+        else if (value.length < 4 || value.length > 15) error = 'Username 4-15 characters';
+        else if (!value.startsWith('Rep_')) error = 'Must start with Rep_';
+        else if (!/^[A-Z]/.test(value.slice(4))) error = 'Letter after Rep_ must be Capital';
+        else if (!/^Rep_[A-Z][a-zA-Z0-9_]*$/.test(value)) error = 'Invalid characters';
+        break;
+      case 'password':
+        if (!value) error = 'Password is required';
+        else if (value.length < 8) error = 'At least 8 characters';
+        else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%^&*(),.?":{}|<>])/.test(value)) error = 'Include mixed case, number & special char';
+        break;
+      case 'full_name':
+        if (!value) error = 'Full name is required';
+        else if (value.length < 3) error = 'At least 3 characters';
+        else if (!/^[a-zA-Z\s]+$/.test(value)) error = 'Letters only';
+        break;
+      case 'nic':
+        if (!value) error = 'NIC is required';
+        else if (!/^(?:\d{9}[vVxX]|\d{12})$/.test(value)) error = 'Invalid NIC format';
+        break;
+      case 'email':
+        if (!value) error = 'Email is required';
+        else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) error = 'Invalid email format';
+        break;
+      case 'contact_number':
+        if (!value) error = 'Contact number is required';
+        else if (!/^0[0-9]{9}$/.test(value)) error = '10 digits starting with 0';
+        break;
+      default:
+        break;
+    }
+    setFormErrors(prev => ({ ...prev, [name]: error }));
+    return !error;
+  };
+
   const validateForm = () => {
     const errors = {};
 
@@ -61,11 +100,11 @@ const ManageReceptionist = () => {
         errors.username = 'Username is required';
       } else if (formData.username.length < 4 || formData.username.length > 15) {
         errors.username = 'Username must be between 4 and 15 characters';
-      } else if (!/^[A-Z]/.test(formData.username)) {
-        errors.username = 'Username must start with a capital letter';
-      } else if (!formData.username.includes('_')) {
-        errors.username = 'Username must include an underscore (_)';
-      } else if (!/^[a-zA-Z0-9_]+$/.test(formData.username)) {
+      } else if (!formData.username.startsWith('Rep_')) {
+        errors.username = 'Username must start with Rep_';
+      } else if (!/^[A-Z]/.test(formData.username.slice(4))) {
+        errors.username = 'The character after Rep_ must be a capital letter';
+      } else if (!/^Rep_[A-Z][a-zA-Z0-9_]*$/.test(formData.username)) {
         errors.username = 'Username can only contain letters, numbers, and underscores';
       }
 
@@ -334,7 +373,10 @@ const ManageReceptionist = () => {
                         value={formData.username}
                         onChange={handleInputChange}
                         onFocus={() => setFocusedField('username')}
-                        onBlur={() => setFocusedField(null)}
+                        onBlur={() => {
+                          setFocusedField(null);
+                          validateField('username', formData.username);
+                        }}
                         style={{
                           ...styles.input,
                           ...(formErrors.username ? styles.inputError : {})
@@ -346,12 +388,17 @@ const ManageReceptionist = () => {
                           <p style={styles.hintsTitle}>Requirements:</p>
                           <ul style={styles.hintsList}>
                             <li>4-15 characters long</li>
-                            <li>Must start with a capital letter</li>
-                            <li>Must include an underscore (_)</li>
+                            <li>Must start with <strong>Rep_</strong></li>
+                            <li>Next letter must be <strong>Capital</strong></li>
                           </ul>
                         </div>
                       )}
-                      {formErrors.username && <span style={styles.errorText}>{formErrors.username}</span>}
+                      {formErrors.username && (
+                        <span style={styles.errorText}>
+                          <FiAlertCircle style={{ marginRight: '4px' }} />
+                          {formErrors.username}
+                        </span>
+                      )}
                     </div>
 
                     <div style={styles.formGroup}>
@@ -364,7 +411,10 @@ const ManageReceptionist = () => {
                         value={formData.password}
                         onChange={handleInputChange}
                         onFocus={() => setFocusedField('password')}
-                        onBlur={() => setFocusedField(null)}
+                        onBlur={() => {
+                          setFocusedField(null);
+                          validateField('password', formData.password);
+                        }}
                         style={{
                           ...styles.input,
                           ...(formErrors.password ? styles.inputError : {})
@@ -382,7 +432,12 @@ const ManageReceptionist = () => {
                           </ul>
                         </div>
                       )}
-                      {formErrors.password && <span style={styles.errorText}>{formErrors.password}</span>}
+                      {formErrors.password && (
+                        <span style={styles.errorText}>
+                          <FiAlertCircle style={{ marginRight: '4px' }} />
+                          {formErrors.password}
+                        </span>
+                      )}
                     </div>
                   </>
                 )}
@@ -396,13 +451,19 @@ const ManageReceptionist = () => {
                     name="full_name"
                     value={formData.full_name}
                     onChange={handleInputChange}
+                    onBlur={() => validateField('full_name', formData.full_name)}
                     style={{
                       ...styles.input,
                       ...(formErrors.full_name ? styles.inputError : {})
                     }}
                     placeholder="sayumi manujana"
                   />
-                  {formErrors.full_name && <span style={styles.errorText}>{formErrors.full_name}</span>}
+                  {formErrors.full_name && (
+                    <span style={styles.errorText}>
+                      <FiAlertCircle style={{ marginRight: '4px' }} />
+                      {formErrors.full_name}
+                    </span>
+                  )}
                 </div>
 
                 {!editingReceptionist && (
@@ -415,13 +476,19 @@ const ManageReceptionist = () => {
                       name="nic"
                       value={formData.nic}
                       onChange={handleInputChange}
+                      onBlur={() => validateField('nic', formData.nic)}
                       style={{
                         ...styles.input,
                         ...(formErrors.nic ? styles.inputError : {})
                       }}
                       placeholder="123456789V"
                     />
-                    {formErrors.nic && <span style={styles.errorText}>{formErrors.nic}</span>}
+                    {formErrors.nic && (
+                      <span style={styles.errorText}>
+                        <FiAlertCircle style={{ marginRight: '4px' }} />
+                        {formErrors.nic}
+                      </span>
+                    )}
                   </div>
                 )}
 
@@ -434,13 +501,19 @@ const ManageReceptionist = () => {
                     name="email"
                     value={formData.email}
                     onChange={handleInputChange}
+                    onBlur={() => validateField('email', formData.email)}
                     style={{
                       ...styles.input,
                       ...(formErrors.email ? styles.inputError : {})
                     }}
                     placeholder="receptionist@example.com"
                   />
-                  {formErrors.email && <span style={styles.errorText}>{formErrors.email}</span>}
+                  {formErrors.email && (
+                    <span style={styles.errorText}>
+                      <FiAlertCircle style={{ marginRight: '4px' }} />
+                      {formErrors.email}
+                    </span>
+                  )}
                 </div>
 
                 <div style={styles.formGroup}>
@@ -452,13 +525,19 @@ const ManageReceptionist = () => {
                     name="contact_number"
                     value={formData.contact_number}
                     onChange={handleInputChange}
+                    onBlur={() => validateField('contact_number', formData.contact_number)}
                     style={{
                       ...styles.input,
                       ...(formErrors.contact_number ? styles.inputError : {})
                     }}
                     placeholder="0771234567"
                   />
-                  {formErrors.contact_number && <span style={styles.errorText}>{formErrors.contact_number}</span>}
+                  {formErrors.contact_number && (
+                    <span style={styles.errorText}>
+                      <FiAlertCircle style={{ marginRight: '4px' }} />
+                      {formErrors.contact_number}
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -517,9 +596,9 @@ const styles = {
   formGroup: { marginBottom: '16px' },
   label: { display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '600', color: '#333' },
   required: { color: '#dc3545' },
-  input: { width: '100%', padding: '10px 12px', border: '2px solid #dee2e6', borderRadius: '6px', fontSize: '14px', boxSizing: 'border-box', transition: 'border-color 0.2s' },
-  inputError: { borderColor: '#dc3545' },
-  errorText: { display: 'block', color: '#dc3545', fontSize: '12px', marginTop: '4px' },
+  input: { width: '100%', padding: '10px 12px', border: '2px solid #dee2e6', borderRadius: '6px', fontSize: '14px', boxSizing: 'border-box', transition: 'all 0.2s' },
+  inputError: { borderColor: '#dc3545', backgroundColor: '#fff5f5' },
+  errorText: { display: 'flex', alignItems: 'center', color: '#dc3545', fontSize: '12px', marginTop: '4px' },
 
   modalActions: { display: 'flex', justifyContent: 'flex-end', gap: '12px', paddingTop: '16px', borderTop: '1px solid #dee2e6' },
   cancelButton: { padding: '10px 20px', backgroundColor: '#6c757d', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '14px', fontWeight: '600' },
