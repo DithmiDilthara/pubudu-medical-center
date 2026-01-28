@@ -7,7 +7,7 @@ import hospitalBg from "../assets/hospital_clear.png";
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 // Reusable FormInput Component (inline)
-const FormInput = ({ label, name, type = "text", value, onChange, onBlur, placeholder, touched, error, required, disabled, style, showPassword, onTogglePassword }) => {
+const FormInput = ({ label, name, type = "text", value, onChange, onBlur, placeholder, touched, error, required, disabled, style, showPassword, onTogglePassword, hints }) => {
   const hasError = touched && error;
   const isValid = touched && !error && value;
   const isPassword = type === "password";
@@ -70,10 +70,19 @@ const FormInput = ({ label, name, type = "text", value, onChange, onBlur, placeh
             }}
           >
             {showPassword ? <FiEyeOff /> : <FiEye />}
-            {/* Using a placeholder icon as I can't easily import FiEye here without mapping, but I'll use the ones already in imports */}
           </button>
         )}
       </div>
+      {hints && (
+        <div style={{ marginTop: "8px", padding: "8px 12px", backgroundColor: "#F3F4F6", borderRadius: "8px" }}>
+          <p style={{ fontSize: "12px", color: "#6B7280", fontWeight: "600", marginBottom: "4px" }}>Requirements:</p>
+          <ul style={{ margin: 0, paddingLeft: "16px", fontSize: "11px", color: "#6B7280", listStyleType: "disc" }}>
+            {hints.map((hint, index) => (
+              <li key={index} style={{ marginBottom: "2px" }}>{hint}</li>
+            ))}
+          </ul>
+        </div>
+      )}
       {hasError && <span style={{ display: "flex", alignItems: "center", gap: "6px", color: "#DC2626", fontSize: "13px", marginTop: "8px", fontWeight: "500" }}> <FiAlertCircle /> {error}</span>}
       {isValid && (
         <span style={{ display: "flex", alignItems: "center", gap: "6px", color: "#059669", fontSize: "13px", marginTop: "8px", fontWeight: "500" }}>
@@ -205,8 +214,12 @@ function PatientRegistration() {
       case "username":
         if (!value.trim()) {
           error = "Username is required";
-        } else if (value.length < 3) {
-          error = "Username must be at least 3 characters";
+        } else if (value.length < 4 || value.length > 15) {
+          error = "Username must be between 4 and 15 characters";
+        } else if (!/^[A-Z]/.test(value)) {
+          error = "Username must start with a capital letter";
+        } else if (!value.includes("_")) {
+          error = "Username must include an underscore (_)";
         } else if (!/^[a-zA-Z0-9_]+$/.test(value)) {
           error = "Username can only contain letters, numbers, and underscores";
         }
@@ -217,6 +230,8 @@ function PatientRegistration() {
           error = "Password is required";
         } else if (value.length < 8) {
           error = "Password must be at least 8 characters";
+        } else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%^&*(),.?":{}|<>])/.test(value)) {
+          error = "Password must include uppercase, lowercase, a number, and a special character";
         }
         break;
 
@@ -229,30 +244,36 @@ function PatientRegistration() {
         break;
 
       case "email":
-        if (value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+        if (!value) {
+          error = "Email is required";
+        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
           error = "Please enter a valid email";
         }
         break;
 
       case "contact_number":
-        if (value && !/^[0-9]{10}$/.test(value)) {
-          error = "Contact number must be 10 digits";
+        if (!value) {
+          error = "Phone number is required";
+        } else if (!/^0[0-9]{9}$/.test(value)) {
+          error = "Contact number must start with 0 and be 10 digits";
         }
         break;
 
       case "full_name":
         if (!value.trim()) {
           error = "Full name is required";
-        } else if (value.length < 2) {
-          error = "Full name must be at least 2 characters";
+        } else if (value.length < 3) {
+          error = "Full name must be at least 3 characters";
+        } else if (!/^[a-zA-Z\s.]+$/.test(value)) {
+          error = "Full name can only contain letters and periods";
         }
         break;
 
       case "nic":
         if (!value.trim()) {
           error = "NIC is required";
-        } else if (!/^[0-9]{9}[vVxX]$/.test(value) && !/^[0-9]{12}$/.test(value)) {
-          error = "Invalid NIC format";
+        } else if (!/^(?:\d{9}[vVxX]|\d{12})$/.test(value)) {
+          error = "Invalid NIC format (e.g., 123456789V or 12 digits)";
         }
         break;
 
@@ -263,18 +284,21 @@ function PatientRegistration() {
         break;
 
       case "date_of_birth":
-        if (value) {
+        if (!value) {
+          error = "Date of birth is required";
+        } else {
           const birthDate = new Date(value);
           const today = new Date();
-          const age = today.getFullYear() - birthDate.getFullYear();
-          if (age < 18) {
-            error = "Must be at least 18 years old";
+          if (birthDate > today) {
+            error = "Birth date cannot be in the future";
           }
         }
         break;
 
       case "address":
-        if (value && value.length < 5) {
+        if (!value.trim()) {
+          error = "Address is required";
+        } else if (value.length < 5) {
           error = "Address must be at least 5 characters";
         }
         break;
@@ -336,24 +360,7 @@ function PatientRegistration() {
   const validateForm = () => {
     try {
       const newErrors = {};
-      const requiredFields = ["username", "password", "confirmPassword", "full_name", "nic", "gender", "agreeTerms"];
-
-      requiredFields.forEach(fieldName => {
-        const error = validateField(fieldName, formData[fieldName]);
-        if (error) {
-          newErrors[fieldName] = error;
-        }
-      });
-
-      // Validate optional fields if filled
-      ["email", "contact_number", "date_of_birth", "address"].forEach(field => {
-        if (formData[field]) {
-          const error = validateField(field, formData[field]);
-          if (error) {
-            newErrors[field] = error;
-          }
-        }
-      });
+      const requiredFields = ["username", "password", "confirmPassword", "full_name", "nic", "gender", "email", "contact_number", "date_of_birth", "address", "agreeTerms"];
 
       setErrors(newErrors);
 
@@ -493,10 +500,11 @@ function PatientRegistration() {
                 onBlur={handleBlur}
                 touched={touched.date_of_birth}
                 error={errors.date_of_birth}
+                required
               />
 
               <FormInput
-                label="Email (Optional)"
+                label="Email"
                 name="email"
                 type="email"
                 value={formData.email}
@@ -505,10 +513,11 @@ function PatientRegistration() {
                 touched={touched.email}
                 error={errors.email}
                 placeholder="sayumi@example.com"
+                required
               />
 
               <FormInput
-                label="Phone Number (Optional)"
+                label="Phone Number"
                 name="contact_number"
                 type="tel"
                 value={formData.contact_number}
@@ -517,10 +526,11 @@ function PatientRegistration() {
                 touched={touched.contact_number}
                 error={errors.contact_number}
                 placeholder="0771234567"
+                required
               />
 
               <FormInput
-                label="Address (Optional)"
+                label="Address"
                 name="address"
                 value={formData.address}
                 onChange={handleChange}
@@ -528,6 +538,7 @@ function PatientRegistration() {
                 touched={touched.address}
                 error={errors.address}
                 placeholder="123 Main St, Colombo"
+                required
               />
             </div>
 
@@ -544,9 +555,14 @@ function PatientRegistration() {
                 onBlur={handleBlur}
                 touched={touched.username}
                 error={errors.username}
-                placeholder="sayumi_manujana"
+                placeholder="Sayumi_manujana"
                 required
                 style={{ gridColumn: "1 / -1" }}
+                hints={[
+                  "4-15 characters long",
+                  "Must start with a capital letter",
+                  "Must include an underscore (_)"
+                ]}
               />
 
               <FormInput
@@ -562,6 +578,12 @@ function PatientRegistration() {
                 required
                 showPassword={showPassword}
                 onTogglePassword={() => setShowPassword(!showPassword)}
+                hints={[
+                  "Minimum 8 characters",
+                  "Include uppercase & lowercase",
+                  "Include at least one number",
+                  "Include at least one special character"
+                ]}
               />
 
               <FormInput
