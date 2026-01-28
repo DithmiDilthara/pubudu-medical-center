@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { FiPlus, FiEdit2, FiTrash2, FiX, FiUser, FiAlertCircle } from 'react-icons/fi';
 import AdminHeader from '../../components/AdminHeader';
 import AdminSidebar from '../../components/AdminSidebar';
@@ -6,6 +7,7 @@ import { useAuth } from '../../context/AuthContext';
 
 const ManageDoctors = () => {
   const { api } = useAuth();
+  const navigate = useNavigate();
   const [doctors, setDoctors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
