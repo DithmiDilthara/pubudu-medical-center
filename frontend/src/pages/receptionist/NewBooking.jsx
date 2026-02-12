@@ -39,34 +39,81 @@ function NewBooking() {
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedTime, setSelectedTime] = useState("");
 
+  const [doctors, setDoctors] = useState([]);
+  const [services, setServices] = useState([]);
+  const [doctorAvailability, setDoctorAvailability] = useState([]);
+  const [bookedSlots, setBookedSlots] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+
   // Calendar state
-  const [currentMonth, setCurrentMonth] = useState(new Date(2024, 7)); // August 2024
+  const [currentMonth, setCurrentMonth] = useState(new Date());
 
-  // Sample data (replace with API calls)
-  const services = [
-    "General Consultation",
-    "Cardiology",
-    "Dermatology",
-    "Pediatrics",
-    "Orthopedics"
-  ];
+  // Fetch doctors and specializations
+  useEffect(() => {
+    const fetchDoctors = async () => {
+      try {
+        const response = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/doctors`);
+        if (response.data.success) {
+          setDoctors(response.data.data);
+          // Extract unique specializations
+          const specs = [...new Set(response.data.data.map(d => d.specialization))];
+          setServices(specs);
+        }
+      } catch (error) {
+        console.error("Error fetching doctors:", error);
+        toast.error("Failed to load doctors list");
+      }
+    };
+    fetchDoctors();
+  }, []);
 
-  const doctors = [
-    "Dr. Kavindi Fernando",
-    "Dr. Asanka Wijesinghe",
-    "Dr. Nimal De Silva",
-    "Dr. Anjali Silva",
-    "Dr. Rohan Perera"
-  ];
+  // Fetch availability when doctor is selected
+  useEffect(() => {
+    if (selectedDoctor) {
+      const fetchAvailability = async () => {
+        try {
+          const response = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/doctors/${selectedDoctor}/availability`);
+          if (response.data.success) {
+            setDoctorAvailability(response.data.data);
+          }
+        } catch (error) {
+          console.error("Error fetching availability:", error);
+        }
+      };
+      fetchAvailability();
+    }
+  }, [selectedDoctor]);
 
-  const timeSlots = [
-    "10:00 AM",
-    "10:30 AM",
-    "11:00 AM",
-    "11:30 AM",
-    "12:00 PM",
-    "12:30 PM"
-  ];
+  // Fetch booked slots when date and doctor are selected
+  useEffect(() => {
+    if (selectedDoctor && selectedDate) {
+      const fetchBookedSlots = async () => {
+        try {
+          // FIX: formattedDate should be local YYYY-MM-DD
+          const year = selectedDate.getFullYear();
+          const month = selectedDate.getMonth();
+          const day = selectedDate.getDate();
+          const formattedDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+          const token = localStorage.getItem('token');
+          const response = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/appointments`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          if (response.data.success) {
+            // Filter appointments for this doctor and date
+            const relevant = response.data.data.filter(apt =>
+              apt.doctor_id === parseInt(selectedDoctor) &&
+              apt.appointment_date === formattedDate &&
+              ['PENDING', 'CONFIRMED'].includes(apt.status)
+            );
+            setBookedSlots(relevant.map(apt => apt.time_slot));
+          }
+        } catch (error) {
+          console.error("Error fetching booked slots:", error);
+        }
+      };
+      fetchBookedSlots();
+    }
+  }, [selectedDoctor, selectedDate]);
 
   const handleLogout = () => {
     toast.success("Logged out successfully");
@@ -95,7 +142,8 @@ function NewBooking() {
             fullName: patient.full_name,
             contactNumber: patient.user?.contact_number || "",
             dateOfBirth: patient.date_of_birth || "",
-            patientId: `PHE-${patient.patient_id}`
+            patientId: patient.patient_id, // Use actual numeric ID
+            nic: patient.nic
           });
         } else {
           toast.dismiss(toastId);
@@ -139,22 +187,22 @@ function NewBooking() {
   const handleNext = () => {
     if (currentStep === 1) {
       if (!patientInfo.fullName) {
-        alert("Please search and select a patient");
+        toast.error("Please search and select a patient");
         return;
       }
     } else if (currentStep === 2) {
       if (!selectedService || !selectedDoctor) {
-        alert("Please select service and doctor");
+        toast.error("Please select service and doctor");
         return;
       }
     } else if (currentStep === 3) {
       if (!selectedDate) {
-        alert("Please select a date");
+        toast.error("Please select a date");
         return;
       }
     } else if (currentStep === 4) {
       if (!selectedTime) {
-        alert("Please select a time");
+        toast.error("Please select a time");
         return;
       }
     }
@@ -162,34 +210,81 @@ function NewBooking() {
     setCurrentStep(prev => Math.min(prev + 1, 5));
   };
 
-  const handleConfirmBooking = () => {
-    const bookingData = {
-      patient: patientInfo,
-      service: selectedService,
-      doctor: selectedDoctor,
-      date: selectedDate,
-      time: selectedTime
-    };
+  const handleConfirmBooking = async () => {
+    setIsLoading(true);
+    const toastId = toast.loading("Booking appointment...");
+    try {
+      const token = localStorage.getItem('token');
+      // FIX: formattedDate should be local YYYY-MM-DD
+      const year = selectedDate.getFullYear();
+      const month = selectedDate.getMonth();
+      const day = selectedDate.getDate();
+      const formattedDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 
-    console.log("Booking confirmed (Pay Later):", bookingData);
-    alert("Appointment booked successfully! Payment pending.");
+      const response = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/appointments`, {
+        doctor_id: parseInt(selectedDoctor),
+        patient_id: patientInfo.patientId,
+        appointment_date: formattedDate,
+        time_slot: selectedTime
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
 
-    // Navigate to appointments list
-    navigate("/receptionist/appointments");
+      if (response.data.success) {
+        toast.success("Appointment booked successfully!", { id: toastId });
+        navigate("/receptionist/appointments");
+      }
+    } catch (error) {
+      console.error("Booking error:", error);
+      toast.error(error.response?.data?.message || "Failed to book appointment", { id: toastId });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handlePayNow = () => {
-    const appointmentData = {
-      patientName: patientInfo.fullName,
-      patientId: patientInfo.patientId,
-      dateOfService: selectedDate?.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
-      service: selectedService,
-      amount: 1500.00
-    };
+  const handlePayNow = async () => {
+    // Similar to confirm but maybe handle differently?
+    // For now, let's just confirm and set context for payment
+    setIsLoading(true);
+    const toastId = toast.loading("Preparing payment...");
+    try {
+      const token = localStorage.getItem('token');
+      // FIX: formattedDate should be local YYYY-MM-DD
+      const year = selectedDate.getFullYear();
+      const month = selectedDate.getMonth();
+      const day = selectedDate.getDate();
+      const formattedDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 
-    navigate("/receptionist/payment", {
-      state: { appointment: appointmentData }
-    });
+      const response = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/appointments`, {
+        doctor_id: parseInt(selectedDoctor),
+        patient_id: patientInfo.patientId,
+        appointment_date: formattedDate,
+        time_slot: selectedTime
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (response.data.success) {
+        toast.dismiss(toastId);
+        const appointmentData = {
+          patientName: patientInfo.fullName,
+          patientId: `PHE-${patientInfo.patientId}`,
+          dateOfService: formattedDate,
+          service: selectedService,
+          amount: 1500.00,
+          appointment_id: response.data.data.appointment_id
+        };
+
+        navigate("/receptionist/payment", {
+          state: { appointment: appointmentData }
+        });
+      }
+    } catch (error) {
+      console.error("Booking/Payment error:", error);
+      toast.error(error.response?.data?.message || "Failed to initiate payment", { id: toastId });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleCancel = () => {
@@ -226,6 +321,71 @@ function NewBooking() {
       const selected = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
       setSelectedDate(selected);
     }
+  };
+
+  // Helper functions for availability (copied/adapted from DoctorDetails)
+  const isDateAvailable = (day) => {
+    if (!day) return false;
+    const year = currentMonth.getFullYear();
+    const month = currentMonth.getMonth();
+    const date = new Date(year, month, day);
+    const formattedDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`; // Local date
+    const days = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
+    const dayName = days[date.getDay()];
+
+    // Check specific date overrides first
+    const specific = doctorAvailability.find(a => a.specific_date === formattedDate);
+    if (specific) {
+      return specific.session_name === 'Available' || specific.session_name === 'Half Day' || specific.session_name === 'Regular Session';
+    }
+
+    // Fallback to recurring
+    return doctorAvailability.some(a => {
+      if (!a.day_of_week || a.day_of_week.toUpperCase() !== dayName || a.specific_date) return false;
+      if (a.end_date) {
+        return formattedDate <= a.end_date;
+      }
+      return true;
+    });
+  };
+
+  const getTimeSlotsForDay = (day) => {
+    if (!day) return [];
+    const year = currentMonth.getFullYear();
+    const month = currentMonth.getMonth();
+    const date = new Date(year, month, day);
+    const formattedDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`; // Local date
+    const days = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
+    const dayName = days[date.getDay()];
+
+    // Specific date overrides take precedence
+    let dayAvails = doctorAvailability.filter(a =>
+      a.specific_date === formattedDate &&
+      (a.session_name === 'Available' || a.session_name === 'Half Day' || a.session_name === 'Regular Session')
+    );
+
+    // If no specific override, use recurring
+    if (dayAvails.length === 0) {
+      dayAvails = doctorAvailability.filter(a => {
+        if (!a.day_of_week || a.day_of_week.toUpperCase() !== dayName || a.specific_date) return false;
+        if (a.end_date) {
+          return formattedDate <= a.end_date;
+        }
+        return true;
+      });
+    }
+
+    const slots = [];
+    dayAvails.forEach(avail => {
+      let current = new Date(`2024-01-01 ${avail.start_time}`);
+      const end = new Date(`2024-01-01 ${avail.end_time}`);
+      while (current < end) {
+        slots.push(current.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }));
+        current.setMinutes(current.getMinutes() + 30);
+      }
+    });
+
+    return slots;
   };
 
   const isSelectedDate = (day) => {
@@ -348,10 +508,13 @@ function NewBooking() {
                 <div style={styles.formGroup}>
                   <select
                     value={selectedService}
-                    onChange={(e) => setSelectedService(e.target.value)}
+                    onChange={(e) => {
+                      setSelectedService(e.target.value);
+                      setSelectedDoctor(""); // Reset doctor on service change
+                    }}
                     style={styles.select}
                   >
-                    <option value="">Select Service</option>
+                    <option value="">Select Service / Specialty</option>
                     {services.map((service) => (
                       <option key={service} value={service}>{service}</option>
                     ))}
@@ -363,11 +526,16 @@ function NewBooking() {
                     value={selectedDoctor}
                     onChange={(e) => setSelectedDoctor(e.target.value)}
                     style={styles.select}
+                    disabled={!selectedService}
                   >
                     <option value="">Select Doctor</option>
-                    {doctors.map((doctor) => (
-                      <option key={doctor} value={doctor}>{doctor}</option>
-                    ))}
+                    {doctors
+                      .filter(doc => doc.specialization === selectedService)
+                      .map((doctor) => (
+                        <option key={doctor.doctor_id} value={doctor.doctor_id}>
+                          {doctor.full_name}
+                        </option>
+                      ))}
                   </select>
                 </div>
               </div>
@@ -395,19 +563,28 @@ function NewBooking() {
                     {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, index) => (
                       <div key={index} style={styles.calendarDayHeader}>{day}</div>
                     ))}
-                    {getDaysInMonth(currentMonth).map((day, index) => (
-                      <div
-                        key={index}
-                        onClick={() => handleDateSelect(day)}
-                        style={{
-                          ...styles.calendarDay,
-                          ...(day ? styles.calendarDayActive : styles.calendarDayEmpty),
-                          ...(isSelectedDate(day) ? styles.calendarDaySelected : {})
-                        }}
-                      >
-                        {day || ''}
-                      </div>
-                    ))}
+                    {getDaysInMonth(currentMonth).map((day, index) => {
+                      const currentDayDate = day ? new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day) : null;
+                      const hasAvailability = isDateAvailable(day);
+                      const isPast = currentDayDate && currentDayDate < new Date().setHours(0, 0, 0, 0);
+
+                      return (
+                        <div
+                          key={index}
+                          onClick={() => day && !isPast && hasAvailability && handleDateSelect(day)}
+                          style={{
+                            ...styles.calendarDay,
+                            ...(day ? styles.calendarDayActive : styles.calendarDayEmpty),
+                            ...(isSelectedDate(day) ? styles.calendarDaySelected : {}),
+                            ...(isPast || (day && !hasAvailability) ? { opacity: 0.3, cursor: 'not-allowed', backgroundColor: '#f9fafb' } : {}),
+                            ...(day && hasAvailability && !isPast ? { borderColor: '#0066CC', color: '#0066CC', fontWeight: 'bold' } : {})
+                          }}
+                        >
+                          {day || ''}
+                          {day && hasAvailability && !isPast && <div style={{ fontSize: '8px', marginTop: '2px' }}>Active</div>}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               </div>
@@ -419,18 +596,69 @@ function NewBooking() {
                 <h2 style={styles.stepTitle}>Step 4: Select Time</h2>
 
                 <div style={styles.timeSlotsContainer}>
-                  {timeSlots.map((time) => (
-                    <button
-                      key={time}
-                      onClick={() => setSelectedTime(time)}
-                      style={{
-                        ...styles.timeSlot,
-                        ...(selectedTime === time ? styles.timeSlotSelected : {})
-                      }}
-                    >
-                      {time}
-                    </button>
-                  ))}
+                  {/* Added time range display */}
+                  <div style={{ marginBottom: '16px', fontSize: '14px', color: '#4b5563' }}>
+                    {(() => {
+                      if (!selectedDate) return null;
+                      const year = selectedDate.getFullYear();
+                      const month = selectedDate.getMonth();
+                      const day = selectedDate.getDate();
+                      const formattedDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                      const days = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
+                      const dayName = days[selectedDate.getDay()];
+
+                      // Find matching availability
+                      let avail = doctorAvailability.find(a =>
+                        a.specific_date === formattedDate &&
+                        (a.session_name === 'Available' || a.session_name === 'Half Day' || a.session_name === 'Regular Session')
+                      );
+
+                      if (!avail) {
+                        avail = doctorAvailability.find(a =>
+                          (!a.day_of_week || a.day_of_week.toUpperCase() === dayName) &&
+                          !a.specific_date &&
+                          (!a.end_date || formattedDate <= a.end_date)
+                        );
+                      }
+
+                      if (avail) {
+                        const formatTime = (t) => {
+                          const [h, m] = t.split(':');
+                          const date = new Date();
+                          date.setHours(h, m);
+                          return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+                        };
+                        return <span>Available: <strong>{formatTime(avail.start_time)} - {formatTime(avail.end_time)}</strong></span>;
+                      }
+                      return null;
+                    })()}
+                  </div>
+
+                  {(() => {
+                    const day = selectedDate ? selectedDate.getDate() : null;
+                    const slots = getTimeSlotsForDay(day);
+
+                    if (slots.length === 0) return <p style={{ gridColumn: 'span 3', textAlign: 'center', color: '#6b7280' }}>No slots available for this day</p>;
+
+                    return slots.map((time) => {
+                      const isBooked = bookedSlots.includes(time);
+                      return (
+                        <button
+                          key={time}
+                          type="button"
+                          disabled={isBooked}
+                          onClick={() => setSelectedTime(time)}
+                          style={{
+                            ...styles.timeSlot,
+                            ...(selectedTime === time ? styles.timeSlotSelected : {}),
+                            ...(isBooked ? { opacity: 0.4, cursor: 'not-allowed', backgroundColor: '#f3f4f6' } : {})
+                          }}
+                        >
+                          {time} {isBooked && '(Full)'}
+                        </button>
+                      );
+                    });
+                  })()}
                 </div>
               </div>
             )}
@@ -445,7 +673,7 @@ function NewBooking() {
                     <span style={styles.confirmLabel}>Patient</span>
                     <span style={styles.confirmValue}>
                       {patientInfo.fullName}<br />
-                      <small style={styles.confirmSmall}>({patientInfo.patientId})</small>
+                      <small style={styles.confirmSmall}>(PHE-{patientInfo.patientId})</small>
                     </span>
                   </div>
 
@@ -456,7 +684,9 @@ function NewBooking() {
 
                   <div style={styles.confirmRow}>
                     <span style={styles.confirmLabel}>Doctor</span>
-                    <span style={styles.confirmValue}>{selectedDoctor}</span>
+                    <span style={styles.confirmValue}>
+                      {doctors.find(d => d.doctor_id === parseInt(selectedDoctor))?.full_name}
+                    </span>
                   </div>
 
                   <div style={styles.confirmRow}>

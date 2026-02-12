@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiCheck, FiMinus, FiX } from 'react-icons/fi';
+import axios from 'axios';
+import { FiCheck } from 'react-icons/fi';
 import DoctorHeader from '../../components/DoctorHeader';
 import DoctorSidebar from '../../components/DoctorSidebar';
 
@@ -11,20 +12,59 @@ function DoctorAvailability() {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [startTime, setStartTime] = useState('18:00');
   const [endTime, setEndTime] = useState('20:00');
-  const [blockReason, setBlockReason] = useState('');
   const [recurringDays, setRecurringDays] = useState([]);
+  const [doctorName, setDoctorName] = useState('Doctor');
 
-  // Sample availability data - In real app, this would come from database
-  const [availability, setAvailability] = useState({
-    '2024-01-15': { status: 'available', startTime: '18:00', endTime: '20:00' },
-    '2024-01-17': { status: 'available', startTime: '18:00', endTime: '20:00' },
-    '2024-01-22': { status: 'available', startTime: '18:00', endTime: '20:00' },
-    '2024-01-24': { status: 'available', startTime: '18:00', endTime: '20:00' },
-    '2024-01-29': { status: 'available', startTime: '18:00', endTime: '20:00' },
-    '2024-01-31': { status: 'available', startTime: '18:00', endTime: '20:00' },
-    '2024-01-10': { status: 'half-day', startTime: '18:00', endTime: '19:00', reason: 'Personal appointment' },
-    '2024-01-18': { status: 'unavailable', reason: 'Medical Conference' }
-  });
+  const [availability, setAvailability] = useState({});
+  const [isLoading, setIsLoading] = useState(false);
+
+  const fetchAvailability = async () => {
+    try {
+      const token = localStorage.getItem('token');
+
+      const profileRes = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/auth/profile`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (profileRes.data.success) {
+        setDoctorName(profileRes.data.data.profile.full_name);
+        const doctorId = profileRes.data.data.profile.doctor_id;
+        const availabilityRes = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/doctors/${doctorId}/availability`);
+
+        if (availabilityRes.data.success) {
+          const availData = availabilityRes.data.data;
+
+          // Map recurring days
+          const recurringArr = [...new Set(availData
+            .filter(a => a.day_of_week && !a.specific_date)
+            .map(a => {
+              const days = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
+              return days.indexOf(a.day_of_week);
+            }))];
+          setRecurringDays(recurringArr);
+
+          // Map specific dates
+          const specificAvail = {};
+          availData.filter(a => a.specific_date).forEach(a => {
+            specificAvail[a.specific_date] = {
+              status: a.session_name === 'Available' ? 'available' : a.session_name === 'Half Day' ? 'half-day' : 'unavailable',
+              startTime: a.start_time,
+              endTime: a.end_time,
+              reason: a.session_name
+            };
+          });
+          setAvailability(specificAvail);
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching availability:", error);
+    }
+  };
+
+  // Fetch availability on mount
+  useEffect(() => {
+    fetchAvailability();
+  }, []);
 
   const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
     'July', 'August', 'September', 'October', 'November', 'December'];
@@ -43,6 +83,8 @@ function DoctorAvailability() {
     const daysInMonth = getDaysInMonth(selectedMonth, selectedYear);
     const firstDay = getFirstDayOfMonth(selectedMonth, selectedYear);
     const days = [];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
     // Add empty cells for days before the first day of the month
     for (let i = 0; i < firstDay; i++) {
@@ -52,27 +94,30 @@ function DoctorAvailability() {
     // Add cells for each day of the month
     for (let day = 1; day <= daysInMonth; day++) {
       const dateKey = `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-      const dayAvailability = availability[dateKey];
+      const dateObj = new Date(selectedYear, selectedMonth, day);
+      const dayOfWeekIndex = dateObj.getDay() === 0 ? 6 : dateObj.getDay() - 1;
+
+      const isRecurring = recurringDays.includes(dayOfWeekIndex);
+      const dayAvailability = availability[dateKey] || (isRecurring ? { status: 'available', startTime: 'Recurring' } : null);
       const isSelected = selectedDate === dateKey;
+      const isPast = dateObj < today;
 
       days.push(
         <div
           key={day}
-          onClick={() => setSelectedDate(dateKey)}
+          onClick={() => !isPast && setSelectedDate(dateKey)}
           style={{
             ...styles.calendarDay,
-            ...(isSelected ? styles.calendarDaySelected : {}),
-            ...(dayAvailability?.status === 'available' ? styles.calendarDayAvailable : {}),
-            ...(dayAvailability?.status === 'half-day' ? styles.calendarDayHalfDay : {}),
-            ...(dayAvailability?.status === 'unavailable' ? styles.calendarDayUnavailable : {})
+            ...(isPast ? styles.calendarDayPast : {}),
+            ...(!isPast && isSelected ? styles.calendarDaySelected : {}),
+            ...(!isPast && dayAvailability?.status === 'available' ? styles.calendarDayAvailable : {}),
+            ...(!isPast && dayAvailability?.status === 'unavailable' ? styles.calendarDayUnavailable : {})
           }}
         >
-          <span style={styles.calendarDayNumber}>{day}</span>
-          {dayAvailability && (
+          <span style={{ ...styles.calendarDayNumber, ...(isPast ? styles.textPast : {}) }}>{day}</span>
+          {!isPast && dayAvailability && dayAvailability.status === 'available' && (
             <span style={styles.calendarDayStatus}>
-              {dayAvailability.status === 'available' && <FiCheck />}
-              {dayAvailability.status === 'half-day' && <FiMinus />}
-              {dayAvailability.status === 'unavailable' && <FiX />}
+              <FiCheck />
             </span>
           )}
         </div>
@@ -100,35 +145,77 @@ function DoctorAvailability() {
     }
   };
 
-  const handleSetAvailability = (status) => {
+  const handleSetAvailability = async (status) => {
     if (!selectedDate) {
       alert('Please select a date first');
       return;
     }
 
-    const newAvailability = { ...availability };
-    if (status === 'available') {
-      newAvailability[selectedDate] = {
-        status: 'available',
-        startTime,
-        endTime
-      };
-    } else if (status === 'half-day') {
-      newAvailability[selectedDate] = {
-        status: 'half-day',
-        startTime,
-        endTime,
-        reason: blockReason || 'Partially available'
-      };
-    } else if (status === 'unavailable') {
-      newAvailability[selectedDate] = {
-        status: 'unavailable',
-        reason: blockReason || 'Not available'
-      };
+    if (!startTime || !endTime) {
+      alert('Please ensure start and end times are set');
+      return;
     }
 
-    setAvailability(newAvailability);
-    alert(`Availability set for ${selectedDate}`);
+    setIsLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+
+      // Prevent past dates
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const selectedDateObj = new Date(selectedDate);
+      if (selectedDateObj < today) {
+        alert('Cannot manage availability for past dates');
+        setIsLoading(false);
+        return;
+      }
+
+      const availabilityPayload = [{
+        specific_date: selectedDate,
+        day_of_week: null, // Specific date takes priority
+        start_time: startTime,
+        end_time: endTime,
+        session_name: status === 'available' ? 'Available' : 'Unavailable'
+      }];
+
+      // If status is unavailable, maybe we just want to remove availability for that day
+      // But the backend destroy logic I wrote will handle it if the payload is empty for that date?
+      // No, my backend logic replaces specific dates with whatever is in the payload.
+
+      const response = await axios.post(
+        `${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/clinical/availability`,
+        { availability: availabilityPayload },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      if (response.data.success) {
+        // Local update
+        const newAvailability = { ...availability };
+        if (status === 'DELETED') {
+          delete newAvailability[selectedDate];
+        } else {
+          newAvailability[selectedDate] = {
+            status,
+            startTime,
+            endTime
+          };
+        }
+        setAvailability(newAvailability);
+
+        // Success/Cancellation messages - REPLACED with non-blocking feedback (or just visual change)
+        // User requested no alerts and immediate green color.
+        // We rely on the local state update above to show the green color immediately.
+
+        // Refresh data in background to ensure sync, but UI should already be updated locally
+        await fetchAvailability();
+      }
+    } catch (error) {
+      console.error("Save single day availability error:", error);
+      const outputMsg = error.response?.data?.message || error.response?.data?.error || error.message;
+      alert(`Failed to save availability: ${outputMsg}`);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleToggleRecurringDay = (dayIndex) => {
@@ -139,32 +226,68 @@ function DoctorAvailability() {
     }
   };
 
-  const handleApplyRecurring = () => {
+  const handleApplyRecurring = async () => {
     if (recurringDays.length === 0) {
       alert('Please select at least one day');
       return;
     }
 
-    const newAvailability = { ...availability };
-    const today = new Date();
-    const endDate = new Date(today.getFullYear(), today.getMonth() + 3, 0); // Next 3 months
+    setIsLoading(true);
+    const days = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
+    const availabilityPayload = recurringDays.map(index => ({
+      day_of_week: days[index],
+      start_time: startTime,
+      end_time: endTime,
+      session_name: "Regular Session"
+    }));
 
-    for (let date = new Date(today); date <= endDate; date.setDate(date.getDate() + 1)) {
-      const dayOfWeek = date.getDay();
-      const adjustedDay = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Adjust so Monday is 0
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.post(
+        `${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/clinical/availability`,
+        { availability: availabilityPayload },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
 
-      if (recurringDays.includes(adjustedDay)) {
-        const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-        newAvailability[dateKey] = {
-          status: 'available',
-          startTime,
-          endTime
-        };
+      if (response.data.success) {
+        alert('Recurring availability saved to database!');
+        fetchAvailability();
       }
+    } catch (error) {
+      console.error("Save availability error:", error);
+      const outputMsg = error.response?.data?.message || error.response?.data?.error || error.message;
+      alert(`Failed to save availability: ${outputMsg}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleCancelAllRecurring = async () => {
+    if (!window.confirm('Are you sure you want to cancel all recurring availability?')) {
+      return;
     }
 
-    setAvailability(newAvailability);
-    alert(`Recurring availability set for the next 3 months on ${recurringDays.map(i => daysOfWeek[i]).join(', ')}`);
+    setIsLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.post(
+        `${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/clinical/availability`,
+        { availability: [], clear_all_recurring: true }, // Explicit flag
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      if (response.data.success) {
+        alert('Recurring availability cancelled successfully');
+        setRecurringDays([]);
+        fetchAvailability();
+      }
+    } catch (error) {
+      console.error("Cancel recurring error:", error);
+      const outputMsg = error.response?.data?.message || error.response?.data?.error || error.message;
+      alert(`Failed to cancel recurring availability: ${outputMsg}`);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleLogout = () => {
@@ -177,7 +300,7 @@ function DoctorAvailability() {
       <DoctorSidebar onLogout={handleLogout} />
 
       <div style={styles.mainContainer}>
-        <DoctorHeader />
+        <DoctorHeader doctorName={doctorName} />
 
         <main style={styles.mainContent}>
           {/* Header */}
@@ -203,12 +326,8 @@ function DoctorAvailability() {
                   <span style={styles.legendText}>Available</span>
                 </div>
                 <div style={styles.legendItem}>
-                  <div style={{ ...styles.legendBox, background: '#f59e0b' }} />
-                  <span style={styles.legendText}>Half Day</span>
-                </div>
-                <div style={styles.legendItem}>
-                  <div style={{ ...styles.legendBox, background: '#ef4444' }} />
-                  <span style={styles.legendText}>Unavailable</span>
+                  <div style={{ ...styles.legendBox, background: '#f9fafb', border: '2px solid #e5e7eb' }} />
+                  <span style={styles.legendText}>Unavailable / Not Set</span>
                 </div>
               </div>
 
@@ -270,32 +389,11 @@ function DoctorAvailability() {
                     Mark as Available
                   </button>
                   <button
-                    onClick={() => handleSetAvailability('half-day')}
-                    style={{ ...styles.actionButton, background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)' }}
-                  >
-                    Mark as Half Day
-                  </button>
-                  <button
                     onClick={() => handleSetAvailability('unavailable')}
-                    style={{ ...styles.actionButton, background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)' }}
+                    style={{ ...styles.actionButton, background: 'linear-gradient(135deg, #6b7280 0%, #4b5563 100%)' }}
                   >
-                    Mark as Unavailable
+                    Cancel Session for this Date
                   </button>
-                </div>
-              </div>
-
-              {/* Block Out Time */}
-              <div style={styles.settingsCard}>
-                <h3 style={styles.settingsTitle}>Block Out Time / Add Reason</h3>
-                <div style={styles.inputGroup}>
-                  <label style={styles.label}>Reason (Optional)</label>
-                  <input
-                    type="text"
-                    value={blockReason}
-                    onChange={(e) => setBlockReason(e.target.value)}
-                    placeholder="e.g., Conference, Personal appointment"
-                    style={styles.textInput}
-                  />
                 </div>
               </div>
 
@@ -317,9 +415,17 @@ function DoctorAvailability() {
                     </button>
                   ))}
                 </div>
-                <button onClick={handleApplyRecurring} style={styles.applyRecurringButton}>
-                  Apply for Next 3 Months
-                </button>
+                <div style={styles.recurringActions}>
+                  <button onClick={handleApplyRecurring} style={styles.applyRecurringButton}>
+                    Apply for Next 3 Months
+                  </button>
+                  <button
+                    onClick={handleCancelAllRecurring}
+                    style={{ ...styles.applyRecurringButton, background: '#ef4444', marginTop: '12px', boxShadow: '0 4px 12px rgba(239, 68, 68, 0.3)' }}
+                  >
+                    Cancel All Recurring Availability
+                  </button>
+                </div>
               </div>
             </section>
           </div>
@@ -446,23 +552,35 @@ const styles = {
   },
   calendarDay: {
     aspectRatio: '1',
-    padding: '8px',
+    padding: '4px',
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    border: '2px solid #e5e7eb',
-    borderRadius: '8px',
+    borderStyle: 'solid',
+    borderWidth: '1px',
+    borderColor: '#e5e7eb',
+    borderRadius: '6px',
     cursor: 'pointer',
     transition: 'all 0.2s',
     position: 'relative',
-    background: 'white'
+    background: 'white',
+    height: '60px' // Check if this fixes "big" issue
+  },
+  calendarDayPast: {
+    background: '#f3f4f6',
+    cursor: 'not-allowed',
+    borderColor: '#e5e7eb',
+    opacity: 0.7
+  },
+  textPast: {
+    color: '#9ca3af'
   },
   calendarDayEmpty: {
     aspectRatio: '1'
   },
   calendarDayNumber: {
-    fontSize: '16px',
+    fontSize: '14px',
     fontWeight: '600',
     color: '#1f2937'
   },
@@ -474,13 +592,9 @@ const styles = {
     background: 'rgba(16, 185, 129, 0.1)',
     borderColor: '#10b981'
   },
-  calendarDayHalfDay: {
-    background: 'rgba(245, 158, 11, 0.1)',
-    borderColor: '#f59e0b'
-  },
   calendarDayUnavailable: {
-    background: 'rgba(239, 68, 68, 0.1)',
-    borderColor: '#ef4444'
+    background: '#f9fafb',
+    borderColor: '#e5e7eb'
   },
   calendarDaySelected: {
     borderColor: '#0066CC',
@@ -588,7 +702,9 @@ const styles = {
     fontWeight: '600',
     color: '#374151',
     background: 'white',
-    border: '2px solid #e5e7eb',
+    borderStyle: 'solid',
+    borderWidth: '2px',
+    borderColor: '#e5e7eb',
     borderRadius: '8px',
     cursor: 'pointer',
     transition: 'all 0.3s'

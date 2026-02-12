@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import axios from "axios";
 import { FiSearch, FiUser } from 'react-icons/fi';
 import PatientSidebar from "../../components/PatientSidebar";
 import PatientHeader from "../../components/PatientHeader";
@@ -14,66 +15,31 @@ const doctorImages = [docF1, docM1, docF2, docM2];
 // Helper to get random image based on ID (deterministic)
 const getDoctorImage = (id) => doctorImages[id % doctorImages.length];
 
-const doctors = [
-  {
-    id: 1,
-    name: "Dr. Anjula Silva",
-    specialty: "Cardiology"
-  },
-  {
-    id: 2,
-    name: "Dr. Roshani Perera",
-    specialty: "Pediatrics"
-  },
-  {
-    id: 3,
-    name: "Dr. Kavinda Fernando",
-    specialty: "Dermatology"
-  },
-  {
-    id: 4,
-    name: "Dr. Chamara Rajapaksa",
-    specialty: "Neurology"
-  },
-  {
-    id: 5,
-    name: "Dr. Dilanka Gunawardena",
-    specialty: "Orthopedics"
-  },
-  {
-    id: 6,
-    name: "Dr. Asanka Wijesinghe",
-    specialty: "Ophthalmology"
-  },
-  {
-    id: 7,
-    name: "Dr. Thilina Jayawardena",
-    specialty: "ENT"
-  },
-  {
-    id: 8,
-    name: "Dr. Nimali De Silva",
-    specialty: "Psychiatry"
-  },
-  {
-    id: 9,
-    name: "Dr. Samantha Perera",
-    specialty: "Urology"
-  },
-  {
-    id: 10,
-    name: "Dr. Kamani Fernando",
-    specialty: "Gastroenterology"
-  }
-];
-
 function FindDoctor() {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedSpecialty, setSelectedSpecialty] = useState("All");
+  const [doctors, setDoctors] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchDoctors = async () => {
+      try {
+        const response = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/doctors`);
+        if (response.data.success) {
+          setDoctors(response.data.data);
+        }
+      } catch (error) {
+        console.error("Error fetching doctors:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchDoctors();
+  }, []);
 
   const handleLogout = () => {
-    console.log("User logged out");
+    localStorage.clear();
     navigate("/");
   };
 
@@ -81,12 +47,12 @@ function FindDoctor() {
     navigate("/patient/doctor-details", { state: { doctor } });
   };
 
-  const specialties = ["All", ...new Set(doctors.map(d => d.specialty))];
+  const specialties = ["All", ...new Set(doctors.map(d => d.specialization))];
 
   const filteredDoctors = doctors.filter(doctor => {
-    const matchesSearch = doctor.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      doctor.specialty.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesSpecialty = selectedSpecialty === "All" || doctor.specialty === selectedSpecialty;
+    const matchesSearch = doctor.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      doctor.specialization.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSpecialty = selectedSpecialty === "All" || doctor.specialization === selectedSpecialty;
     return matchesSearch && matchesSpecialty;
   });
 
@@ -176,14 +142,14 @@ function FindDoctor() {
                     <div style={styles.doctorCardLeft}>
                       <div style={styles.doctorAvatar}>
                         <img
-                          src={getDoctorImage(doctor.id)}
-                          alt={doctor.name}
+                          src={getDoctorImage(doctor.doctor_id)}
+                          alt={doctor.full_name}
                           style={styles.doctorAvatarImg}
                         />
                       </div>
                       <div style={styles.doctorInfo}>
-                        <h3 style={styles.doctorName}>{doctor.name}</h3>
-                        <p style={styles.doctorSpecialty}>{doctor.specialty}</p>
+                        <h3 style={styles.doctorName}>{doctor.full_name}</h3>
+                        <p style={styles.doctorSpecialty}>{doctor.specialization}</p>
                       </div>
                     </div>
                     <div style={styles.doctorCardRight}>

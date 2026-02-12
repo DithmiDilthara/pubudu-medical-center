@@ -1,11 +1,35 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import { FiCalendar, FiUsers, FiClock, FiClipboard, FiFileText, FiBarChart2, FiPhone } from 'react-icons/fi';
 import DoctorHeader from '../../components/DoctorHeader';
 import DoctorSidebar from '../../components/DoctorSidebar';
 
 function DoctorDashboard() {
   const navigate = useNavigate();
+  const [doctorName, setDoctorName] = useState('Doctor');
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Fetch profile on mount
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/auth/profile`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+
+        if (response.data.success) {
+          setDoctorName(response.data.data.profile.full_name);
+        }
+      } catch (error) {
+        console.error("Error fetching dashboard profile:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchProfile();
+  }, []);
 
   // Sample data for today's appointments
   const [appointments] = useState([
@@ -54,13 +78,13 @@ function DoctorDashboard() {
       <DoctorSidebar onLogout={handleLogout} />
 
       <div style={styles.mainContainer}>
-        <DoctorHeader />
+        <DoctorHeader doctorName={doctorName} />
 
         {/* Main Content */}
         <main style={styles.mainContent}>
           <div style={styles.pageHeader}>
             <h1 style={styles.pageTitle}>Dashboard</h1>
-            <p style={styles.pageSubtitle}>Welcome back, Dr. Kanya Ekanalyake</p>
+            <p style={styles.pageSubtitle}>Welcome back, {doctorName}</p>
           </div>
 
           {/* Quick Actions Section */}

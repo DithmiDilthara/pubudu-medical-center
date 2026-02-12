@@ -3,19 +3,31 @@ import { useState, useEffect } from "react";
 import { FiCalendar, FiClock, FiCreditCard, FiPlus, FiTrash2 } from 'react-icons/fi';
 import PatientSidebar from "../../components/PatientSidebar";
 import PatientHeader from "../../components/PatientHeader";
+import axios from 'axios'; // Added axios import
 
 function Appointments() {
   const navigate = useNavigate();
   const [appointments, setAppointments] = useState([]);
 
   useEffect(() => {
-    // Load appointments from localStorage
-    const savedAppointments = JSON.parse(localStorage.getItem("appointments") || "[]");
-    setAppointments(savedAppointments);
+    const fetchAppointments = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/appointments`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (response.data.success) {
+          setAppointments(response.data.data);
+        }
+      } catch (error) {
+        console.error("Error fetching appointments:", error);
+      }
+    };
+    fetchAppointments();
   }, []);
 
   const handleLogout = () => {
-    console.log("User logged out");
+    localStorage.clear();
     navigate("/");
   };
 
@@ -23,20 +35,27 @@ function Appointments() {
     navigate("/patient/find-doctor");
   };
 
-  const handleCancelAppointment = (id) => {
+  const handleCancelAppointment = async (id) => {
     if (window.confirm("Are you sure you want to cancel this appointment?")) {
-      const updatedAppointments = appointments.filter(apt => apt.id !== id);
-      setAppointments(updatedAppointments);
-      localStorage.setItem("appointments", JSON.stringify(updatedAppointments));
+      try {
+        const token = localStorage.getItem('token');
+        await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/appointments/${id}/status`,
+          { status: 'CANCELLED' },
+          { headers: { Authorization: `Bearer ${token}` } });
+
+        setAppointments(prev => prev.map(a => a.appointment_id === id ? { ...a, status: 'CANCELLED' } : a));
+      } catch (error) {
+        alert("Failed to cancel appointment");
+      }
     }
   };
 
   const upcomingAppointments = appointments.filter(apt =>
-    new Date(apt.date) >= new Date().setHours(0, 0, 0, 0)
+    ['PENDING', 'CONFIRMED'].includes(apt.status)
   );
 
   const pastAppointments = appointments.filter(apt =>
-    new Date(apt.date) < new Date().setHours(0, 0, 0, 0)
+    ['COMPLETED', 'CANCELLED'].includes(apt.status)
   );
 
   return (
@@ -69,19 +88,19 @@ function Appointments() {
             {upcomingAppointments.length > 0 ? (
               <div style={styles.appointmentsList}>
                 {upcomingAppointments.map((apt) => (
-                  <div key={apt.id} style={styles.appointmentCard}>
+                  <div key={apt.appointment_id} style={styles.appointmentCard}>
                     <div style={styles.appointmentHeader}>
                       <div style={styles.appointmentLeft}>
                         <div style={styles.doctorAvatar}>
-                          {apt.doctor.charAt(3)}
+                          {apt.doctor?.full_name?.charAt(0) || "D"}
                         </div>
                         <div>
-                          <h3 style={styles.doctorName}>{apt.doctor}</h3>
-                          <p style={styles.specialty}>{apt.specialty}</p>
+                          <h3 style={styles.doctorName}>{apt.doctor?.full_name}</h3>
+                          <p style={styles.specialty}>{apt.doctor?.specialization}</p>
                         </div>
                       </div>
                       <div style={styles.appointmentRight}>
-                        <span style={styles.statusBadge}>Upcoming</span>
+                        <span style={styles.statusBadge}>{apt.status}</span>
                       </div>
                     </div>
 
@@ -89,7 +108,7 @@ function Appointments() {
                       <div style={styles.detailItem}>
                         <FiCalendar size={20} style={styles.detailIcon} />
                         <span style={styles.detailText}>
-                          {new Date(apt.date).toLocaleDateString('en-US', {
+                          {new Date(apt.appointment_date).toLocaleDateString('en-US', {
                             weekday: 'long',
                             year: 'numeric',
                             month: 'long',
@@ -99,11 +118,11 @@ function Appointments() {
                       </div>
                       <div style={styles.detailItem}>
                         <FiClock size={20} style={styles.detailIcon} />
-                        <span style={styles.detailText}>{apt.time}</span>
+                        <span style={styles.detailText}>{apt.time_slot}</span>
                       </div>
                       <div style={styles.detailItem}>
                         <FiCreditCard size={20} style={styles.detailIcon} />
-                        <span style={styles.detailText}>LKR {apt.fee.toFixed(2)}</span>
+                        <span style={styles.detailText}>LKR {(apt.doctor?.session_fee || 3000).toLocaleString()}</span>
                       </div>
                     </div>
 
@@ -115,13 +134,15 @@ function Appointments() {
                     )}
 
                     <div style={styles.appointmentActions}>
-                      <button
-                        onClick={() => handleCancelAppointment(apt.id)}
-                        style={styles.cancelButton}
-                      >
-                        <FiTrash2 style={{ marginRight: '6px' }} />
-                        Cancel Appointment
-                      </button>
+                      {apt.status === 'PENDING' && (
+                        <button
+                          onClick={() => handleCancelAppointment(apt.appointment_id)}
+                          style={styles.cancelButton}
+                        >
+                          <FiTrash2 style={{ marginRight: '6px' }} />
+                          Cancel Appointment
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -148,19 +169,19 @@ function Appointments() {
 
               <div style={styles.appointmentsList}>
                 {pastAppointments.map((apt) => (
-                  <div key={apt.id} style={{ ...styles.appointmentCard, ...styles.pastCard }}>
+                  <div key={apt.appointment_id} style={{ ...styles.appointmentCard, ...styles.pastCard }}>
                     <div style={styles.appointmentHeader}>
                       <div style={styles.appointmentLeft}>
                         <div style={styles.doctorAvatar}>
-                          {apt.doctor.charAt(3)}
+                          {apt.doctor?.full_name?.charAt(0) || "D"}
                         </div>
                         <div>
-                          <h3 style={styles.doctorName}>{apt.doctor}</h3>
-                          <p style={styles.specialty}>{apt.specialty}</p>
+                          <h3 style={styles.doctorName}>{apt.doctor?.full_name}</h3>
+                          <p style={styles.specialty}>{apt.doctor?.specialization}</p>
                         </div>
                       </div>
                       <div style={styles.appointmentRight}>
-                        <span style={styles.pastBadge}>Completed</span>
+                        <span style={styles.pastBadge}>{apt.status}</span>
                       </div>
                     </div>
 
@@ -168,7 +189,7 @@ function Appointments() {
                       <div style={styles.detailItem}>
                         <FiCalendar size={20} style={styles.detailIcon} />
                         <span style={styles.detailText}>
-                          {new Date(apt.date).toLocaleDateString('en-US', {
+                          {new Date(apt.appointment_date).toLocaleDateString('en-US', {
                             weekday: 'long',
                             year: 'numeric',
                             month: 'long',
@@ -178,7 +199,7 @@ function Appointments() {
                       </div>
                       <div style={styles.detailItem}>
                         <FiClock size={20} style={styles.detailIcon} />
-                        <span style={styles.detailText}>{apt.time}</span>
+                        <span style={styles.detailText}>{apt.time_slot}</span>
                       </div>
                     </div>
                   </div>

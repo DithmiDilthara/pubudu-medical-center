@@ -1,67 +1,97 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import DoctorHeader from '../../components/DoctorHeader';
 import DoctorSidebar from '../../components/DoctorSidebar';
 
 function DoctorAppointments() {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
+  const [appointments, setAppointments] = useState([]);
+  const [selectedAppointment, setSelectedAppointment] = useState(null);
+  const [prescriptionForm, setPrescriptionForm] = useState({
+    diagnosis: '',
+    notes: '',
+    medications: ''
+  });
+  const [showPrescriptionModal, setShowPrescriptionModal] = useState(false);
+  const [doctorName, setDoctorName] = useState('Doctor');
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Sample appointments data
-  const todayAppointments = [
-    {
-      id: 1,
-      time: '9:00 AM',
-      patientName: 'Milan Abeywardena',
-      patientId: 'PHE-3456',
-      type: 'General Checkup',
-      status: 'Scheduled'
-    },
-    {
-      id: 2,
-      time: '10:30 AM',
-      patientName: 'Romesh Wickrama',
-      patientId: 'PHE-9321',
-      type: 'Follow-up',
-      status: 'Scheduled'
-    },
-    {
-      id: 3,
-      time: '11:45 AM',
-      patientName: 'Shalini Rathnayake',
-      patientId: 'PHE-5532',
-      type: 'Consultation',
-      status: 'Scheduled'
-    }
-  ];
+  // Fetch profile on mount
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/auth/profile`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
 
-  const tomorrowAppointments = [
-    {
-      id: 4,
-      time: '10:00 AM',
-      patientName: 'Sajith Gunasekara',
-      patientId: 'PHE-7465',
-      type: 'General Checkup',
-      status: 'Scheduled'
-    },
-    {
-      id: 5,
-      time: '11:30 AM',
-      patientName: 'Tharuka Abeywardena',
-      patientId: 'PHE-1987',
-      type: 'Consultation',
-      status: 'Scheduled'
-    }
-  ];
+        if (response.data.success) {
+          setDoctorName(response.data.data.profile.full_name);
+        }
+      } catch (error) {
+        console.error("Error fetching appointments profile:", error);
+      }
+    };
+    fetchProfile();
+  }, []);
 
-  const handleViewDetails = (patientId) => {
-    navigate('/doctor/patient-details', { state: { patientId } });
+  // Fetch appointments
+  useEffect(() => {
+    const fetchAppointments = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/appointments`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (response.data.success) {
+          setAppointments(response.data.data);
+        }
+      } catch (error) {
+        console.error("Error fetching appointments:", error);
+      }
+    };
+    fetchAppointments();
+  }, []);
+
+  const handleOpenPrescription = (apt) => {
+    setSelectedAppointment(apt);
+    setShowPrescriptionModal(true);
   };
 
-  const filterAppointments = (appointments) => {
-    return appointments.filter(apt => 
-      apt.patientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      apt.patientId.toLowerCase().includes(searchTerm.toLowerCase())
+  const handleAddPrescription = async () => {
+    setIsLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/clinical/prescription`, {
+        appointment_id: selectedAppointment.appointment_id,
+        ...prescriptionForm
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (response.data.success) {
+        alert('Prescription added and appointment completed');
+        setShowPrescriptionModal(false);
+        // Refresh appointments
+        const refreshResponse = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/appointments`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setAppointments(refreshResponse.data.data);
+      }
+    } catch (error) {
+      console.error("Add prescription error:", error);
+      alert('Failed to add prescription');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const filterAppointments = (apts) => {
+    return apts.filter(apt =>
+      apt.patient?.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      apt.patient?.nic?.toLowerCase().includes(searchTerm.toLowerCase())
     );
   };
 
@@ -70,12 +100,20 @@ function DoctorAppointments() {
     navigate('/');
   };
 
+  const todayDate = new Date().toISOString().split('T')[0];
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const tomorrowDate = tomorrow.toISOString().split('T')[0];
+
+  const todayAppointments = appointments.filter(apt => apt.appointment_date === todayDate);
+  const tomorrowAppointments = appointments.filter(apt => apt.appointment_date === tomorrowDate);
+
   return (
     <div style={styles.pageContainer}>
       <DoctorSidebar onLogout={handleLogout} />
-      
+
       <div style={styles.mainContainer}>
-        <DoctorHeader />
+        <DoctorHeader doctorName={doctorName} />
 
         <main style={styles.mainContent}>
           {/* Header */}
@@ -100,42 +138,55 @@ function DoctorAppointments() {
           {/* Today's Appointments */}
           <section style={styles.section}>
             <h2 style={styles.sectionTitle}>Today's Appointments</h2>
-            
+
             <div style={styles.tableContainer}>
               <table style={styles.table}>
                 <thead>
                   <tr style={styles.tableHeader}>
                     <th style={styles.th}>Time</th>
                     <th style={styles.th}>Patient</th>
-                    <th style={styles.th}>Type</th>
                     <th style={styles.th}>Status</th>
                     <th style={styles.th}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filterAppointments(todayAppointments).map((apt) => (
-                    <tr key={apt.id} style={styles.tableRow}>
-                      <td style={styles.td}>{apt.time}</td>
-                      <td style={styles.td}>
-                        <div style={styles.patientCell}>
-                          <div style={styles.patientName}>{apt.patientName}</div>
-                          <div style={styles.patientId}>{apt.patientId}</div>
-                        </div>
-                      </td>
-                      <td style={styles.td}>{apt.type}</td>
-                      <td style={styles.td}>
-                        <span style={styles.statusBadge}>{apt.status}</span>
-                      </td>
-                      <td style={styles.td}>
-                        <button
-                          onClick={() => handleViewDetails(apt.patientId)}
-                          style={styles.viewButton}
-                        >
-                          View Details
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                  {filterAppointments(todayAppointments)
+                    .map((apt) => (
+                      <tr key={apt.appointment_id} style={styles.tableRow}>
+                        <td style={styles.td}>{apt.time_slot}</td>
+                        <td style={styles.td}>
+                          <div style={styles.patientCell}>
+                            <div style={styles.patientName}>{apt.patient?.full_name}</div>
+                            <div style={styles.patientId}>PHE-{apt.patient_id}</div>
+                          </div>
+                        </td>
+                        <td style={styles.td}>
+                          <span style={{
+                            ...styles.statusBadge,
+                            background: apt.status === 'COMPLETED' ? '#dcfce7' : '#fef9c3',
+                            color: apt.status === 'COMPLETED' ? '#166534' : '#854d0e'
+                          }}>{apt.status}</span>
+                        </td>
+                        <td style={styles.td}>
+                          <div style={{ display: 'flex', gap: '8px' }}>
+                            <button
+                              onClick={() => navigate('/doctor/patient-details', { state: { patient: apt.patient } })}
+                              style={styles.viewButton}
+                            >
+                              History
+                            </button>
+                            {apt.status !== 'COMPLETED' && apt.status !== 'CANCELLED' && (
+                              <button
+                                onClick={() => handleOpenPrescription(apt)}
+                                style={{ ...styles.viewButton, background: '#0066CC', color: 'white', border: 'none' }}
+                              >
+                                Prescribe
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
                 </tbody>
               </table>
             </div>
@@ -144,39 +195,39 @@ function DoctorAppointments() {
           {/* Tomorrow's Appointments */}
           <section style={styles.section}>
             <h2 style={styles.sectionTitle}>Tomorrow's Appointments</h2>
-            
+
             <div style={styles.tableContainer}>
               <table style={styles.table}>
                 <thead>
                   <tr style={styles.tableHeader}>
                     <th style={styles.th}>Time</th>
                     <th style={styles.th}>Patient</th>
-                    <th style={styles.th}>Type</th>
                     <th style={styles.th}>Status</th>
                     <th style={styles.th}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filterAppointments(tomorrowAppointments).map((apt) => (
-                    <tr key={apt.id} style={styles.tableRow}>
-                      <td style={styles.td}>{apt.time}</td>
+                    <tr key={apt.appointment_id} style={styles.tableRow}>
+                      <td style={styles.td}>{apt.time_slot}</td>
                       <td style={styles.td}>
                         <div style={styles.patientCell}>
-                          <div style={styles.patientName}>{apt.patientName}</div>
-                          <div style={styles.patientId}>{apt.patientId}</div>
+                          <div style={styles.patientName}>{apt.patient?.full_name}</div>
+                          <div style={styles.patientId}>PHE-{apt.patient_id}</div>
                         </div>
                       </td>
-                      <td style={styles.td}>{apt.type}</td>
                       <td style={styles.td}>
-                        <span style={styles.statusBadge}>{apt.status}</span>
+                        <span style={{
+                          ...styles.statusBadge,
+                          background: apt.status === 'COMPLETED' ? '#dcfce7' : '#fef9c3',
+                          color: apt.status === 'COMPLETED' ? '#166534' : '#854d0e'
+                        }}>{apt.status}</span>
                       </td>
                       <td style={styles.td}>
-                        <button
-                          onClick={() => handleViewDetails(apt.patientId)}
-                          style={styles.viewButton}
-                        >
-                          View Details
-                        </button>
+                        <div style={styles.actionButtons}>
+                          {/* Tomorrow's appointments usually only allow viewing history, no prescription yet */}
+                          <div style={{ color: '#6b7280', fontSize: '13px' }}>Scheduled</div>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -184,6 +235,54 @@ function DoctorAppointments() {
               </table>
             </div>
           </section>
+
+          {/* Prescription Modal */}
+          {showPrescriptionModal && (
+            <div style={{
+              position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+              backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
+            }}>
+              <div style={{ background: 'white', padding: '32px', borderRadius: '12px', width: '500px', maxWidth: '90%' }}>
+                <h2 style={{ marginBottom: '24px' }}>Add Prescription</h2>
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>Diagnosis</label>
+                  <input
+                    type="text"
+                    value={prescriptionForm.diagnosis}
+                    onChange={(e) => setPrescriptionForm({ ...prescriptionForm, diagnosis: e.target.value })}
+                    style={styles.searchInput}
+                  />
+                </div>
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>Consultation Notes</label>
+                  <textarea
+                    value={prescriptionForm.notes}
+                    onChange={(e) => setPrescriptionForm({ ...prescriptionForm, notes: e.target.value })}
+                    style={{ ...styles.searchInput, height: '100px', resize: 'none' }}
+                  />
+                </div>
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>Medications</label>
+                  <textarea
+                    value={prescriptionForm.medications}
+                    onChange={(e) => setPrescriptionForm({ ...prescriptionForm, medications: e.target.value })}
+                    style={{ ...styles.searchInput, height: '80px', resize: 'none' }}
+                    placeholder="Amoxicillin 500mg - 3 times a day"
+                  />
+                </div>
+                <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+                  <button onClick={() => setShowPrescriptionModal(false)} style={styles.viewButton}>Cancel</button>
+                  <button
+                    onClick={handleAddPrescription}
+                    disabled={isLoading}
+                    style={{ ...styles.viewButton, background: '#0066CC', color: 'white', border: 'none' }}
+                  >
+                    {isLoading ? 'Saving...' : 'Save Prescription'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </main>
       </div>
     </div>

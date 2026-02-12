@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import axios from "axios";
 import { FiUserPlus, FiCalendar, FiClock } from "react-icons/fi";
 import ReceptionistSidebar from "../../components/ReceptionistSidebar";
 import ReceptionistHeader from "../../components/ReceptionistHeader";
@@ -56,6 +57,29 @@ const upcomingAppointments = [
 
 function ReceptionistDashboard() {
   const navigate = useNavigate();
+  const [receptionistName, setReceptionistName] = useState('Receptionist');
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Fetch profile on mount
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/auth/profile`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+
+        if (response.data.success) {
+          setReceptionistName(response.data.data.profile.full_name);
+        }
+      } catch (error) {
+        console.error("Error fetching receptionist profile:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchProfile();
+  }, []);
 
   const handleLogout = () => {
     console.log("Receptionist logged out");
@@ -104,7 +128,7 @@ function ReceptionistDashboard() {
       {/* Main Content */}
       <div style={styles.mainWrapper}>
         {/* Header */}
-        <ReceptionistHeader receptionistName="Sarah Johnson" />
+        <ReceptionistHeader receptionistName={receptionistName} />
 
         {/* Dashboard Content */}
         <main style={styles.mainContent}>

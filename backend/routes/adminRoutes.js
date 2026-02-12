@@ -7,7 +7,9 @@ import {
   createReceptionist,
   getReceptionists,
   updateReceptionist,
-  deleteReceptionist
+  deleteReceptionist,
+  getSystemStats,
+  getFinancialReports
 } from '../controllers/adminController.js';
 import { protect } from '../middleware/authMiddleware.js';
 import { isAdmin } from '../middleware/roleMiddleware.js';
@@ -29,5 +31,9 @@ router.post('/receptionists', createReceptionist);
 router.get('/receptionists', getReceptionists);
 router.put('/receptionists/:id', updateReceptionist);
 router.delete('/receptionists/:id', deleteReceptionist);
+
+// System statistics and reports
+router.get('/stats', getSystemStats);
+router.get('/reports/financial', getFinancialReports);
 
 export default router;

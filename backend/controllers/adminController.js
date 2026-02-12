@@ -1,4 +1,68 @@
-import { User, Doctor, Receptionist, Admin } from '../models/index.js';
+import { User, Doctor, Receptionist, Admin, Appointment, Payment, Patient, sequelize } from '../models/index.js';
+import { Op } from 'sequelize';
+
+/**
+ * @desc    Get system-wide statistics (counts)
+ * @route   GET /api/admin/stats
+ * @access  Private/Admin
+ */
+export const getSystemStats = async (req, res) => {
+  try {
+    const doctorCount = await Doctor.count();
+    const patientCount = await Patient.count();
+    const receptionistCount = await Receptionist.count();
+    const appointmentCount = await Appointment.count();
+
+    res.status(200).json({
+      success: true,
+      data: {
+        doctors: doctorCount,
+        patients: patientCount,
+        receptionists: receptionistCount,
+        appointments: appointmentCount
+      }
+    });
+  } catch (error) {
+    console.error('Get stats error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+/**
+ * @desc    Get financial reports (revenue stats)
+ * @route   GET /api/admin/reports/financial
+ * @access  Private/Admin
+ */
+export const getFinancialReports = async (req, res) => {
+  try {
+    // Total Revenue
+    const totalRevenue = await Payment.sum('amount', { where: { status: 'SUCCESS' } }) || 0;
+
+    // Revenue by month (grouped)
+    const monthlyRevenue = await Payment.findAll({
+      attributes: [
+        [sequelize.fn('date_format', sequelize.col('created_at'), '%Y-%m'), 'month'],
+        [sequelize.fn('sum', sequelize.col('amount')), 'total']
+      ],
+      where: { status: 'SUCCESS' },
+      group: ['month'],
+      order: [['month', 'DESC']],
+      limit: 6
+    });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        totalRevenue,
+        monthlyRevenue
+      }
+    });
+
+  } catch (error) {
+    console.error('Financial report error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
 
 // @desc    Create a new doctor (Admin only)
 // @route   POST /api/admin/doctors
@@ -192,7 +256,10 @@ export const deleteDoctor = async (req, res) => {
       });
     }
 
-    // Delete user (cascade will delete doctor record)
+    // Delete doctor record first to avoid FK constraint issues
+    await Doctor.destroy({ where: { doctor_id: id } });
+
+    // Then delete the user
     await User.destroy({ where: { user_id: doctor.user_id } });
 
     res.status(200).json({
@@ -398,7 +465,10 @@ export const deleteReceptionist = async (req, res) => {
       });
     }
 
-    // Delete user (cascade will delete receptionist record)
+    // Delete receptionist record first
+    await Receptionist.destroy({ where: { receptionist_id: id } });
+
+    // Then delete the user
     await User.destroy({ where: { user_id: receptionist.user_id } });
 
     res.status(200).json({

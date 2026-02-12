@@ -1,5 +1,6 @@
 import { useNavigate, useLocation } from "react-router-dom";
 import { useState } from "react";
+import axios from "axios";
 import { FiClipboard, FiCalendar, FiClock, FiCreditCard, FiInfo, FiFileText, FiArrowLeft } from 'react-icons/fi';
 import PatientSidebar from "../../components/PatientSidebar";
 import PatientHeader from "../../components/PatientHeader";
@@ -10,9 +11,10 @@ function ConfirmBooking() {
   const appointmentData = location.state?.appointmentData;
 
   const [notes, setNotes] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleLogout = () => {
-    console.log("User logged out");
+    localStorage.clear();
     navigate("/");
   };
 
@@ -22,6 +24,7 @@ function ConfirmBooking() {
   }
 
   const { doctor, date, time } = appointmentData;
+  const doctorId = doctor.doctor_id || doctor.id;
 
   // Fee calculation
   const doctorFee = 2500.00;
@@ -48,31 +51,29 @@ function ConfirmBooking() {
     });
   };
 
-  const handleConfirmBooking = () => {
-    const booking = {
-      id: Date.now(),
-      doctor: doctor.name,
-      specialty: doctor.specialty,
-      date: date.toISOString(),
-      time: time,
-      status: "upcoming",
-      fee: totalFee,
-      notes: notes,
-      bookedAt: new Date().toISOString(),
-      paymentStatus: "pending"
-    };
+  const handleConfirmBooking = async () => {
+    setIsLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/appointments`, {
+        doctor_id: doctorId,
+        appointment_date: date.toISOString().split('T')[0],
+        time_slot: time,
+        notes: notes
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
 
-    // Get existing appointments from localStorage
-    const existingAppointments = JSON.parse(localStorage.getItem("appointments") || "[]");
-
-    // Add new appointment
-    existingAppointments.push(booking);
-
-    // Save to localStorage
-    localStorage.setItem("appointments", JSON.stringify(existingAppointments));
-
-    alert("Appointment confirmed successfully! You can pay at the medical center.");
-    navigate("/patient/appointments");
+      if (response.data.success) {
+        alert("Appointment confirmed successfully! You can pay at the medical center.");
+        navigate("/patient/appointments");
+      }
+    } catch (error) {
+      console.error("Booking failed:", error);
+      alert(error.response?.data?.message || "Failed to confirm booking");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleBack = () => {
@@ -99,11 +100,11 @@ function ConfirmBooking() {
             <section style={styles.doctorSection}>
               <div style={styles.doctorHeader}>
                 <div style={styles.doctorAvatar}>
-                  {doctor.name.charAt(3)}
+                  {(doctor?.full_name || 'Doctor').charAt(0)}
                 </div>
                 <div>
-                  <h2 style={styles.doctorName}>{doctor.name}</h2>
-                  <p style={styles.doctorSpecialty}>{doctor.specialty}</p>
+                  <h2 style={styles.doctorName}>{doctor?.full_name || 'Doctor Name'}</h2>
+                  <p style={styles.doctorSpecialty}>{doctor?.specialization || 'General Practitioner'}</p>
                 </div>
               </div>
             </section>

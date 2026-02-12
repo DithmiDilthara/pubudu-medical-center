@@ -6,6 +6,9 @@ import authRoutes from './routes/authRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import receptionistRoutes from './routes/receptionistRoutes.js';
 import patientRoutes from './routes/patientRoutes.js';
+import appointmentRoutes from './routes/appointmentRoutes.js';
+import clinicalRoutes from './routes/clinicalRoutes.js';
+import doctorRoutes from './routes/doctorRoutes.js';
 
 dotenv.config();
 dotenv.config({ path: './config/.env' });
@@ -23,6 +26,9 @@ app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/receptionist', receptionistRoutes);
 app.use('/api/patient', patientRoutes);
+app.use('/api/appointments', appointmentRoutes);
+app.use('/api/clinical', clinicalRoutes);
+app.use('/api/doctors', doctorRoutes);
 
 // Test route
 app.get('/', (req, res) => {
@@ -43,7 +49,7 @@ const startServer = async () => {
         console.log('✓ Database connection established successfully.');
 
         // Sync models (use { force: false } in production)
-        await sequelize.sync({ alter: false });
+        await sequelize.sync({ alter: true });
         console.log('✓ Database models synchronized.');
 
         // Start server

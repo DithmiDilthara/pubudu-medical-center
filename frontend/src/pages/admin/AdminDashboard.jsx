@@ -1,11 +1,49 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import axios from "axios";
 import { FiUserPlus, FiFileText, FiUserCheck } from "react-icons/fi";
 import AdminSidebar from "../../components/AdminSidebar";
 import AdminHeader from "../../components/AdminHeader";
 
 function AdminDashboard() {
   const navigate = useNavigate();
+  const [stats, setStats] = useState({
+    doctors: 0,
+    patients: 0,
+    appointments: 0,
+    receptionists: 0
+  });
+  const [isLoading, setIsLoading] = useState(true);
+  const [adminName, setAdminName] = useState('Admin');
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const token = localStorage.getItem('token');
+
+        // Fetch Stats
+        const statsRes = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/admin/stats`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (statsRes.data.success) {
+          setStats(statsRes.data.data);
+        }
+
+        // Fetch Profile
+        const profileRes = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/auth/profile`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (profileRes.data.success) {
+          setAdminName(profileRes.data.data.username || 'Admin');
+        }
+      } catch (error) {
+        console.error("Error fetching admin data:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
 
   const handleAddDoctor = () => {
     navigate("/admin/doctors");
@@ -27,7 +65,7 @@ function AdminDashboard() {
       {/* Main Content */}
       <div style={styles.mainWrapper}>
         {/* Header */}
-        <AdminHeader adminName="Admin User" />
+        <AdminHeader adminName={adminName} />
 
         {/* Dashboard Content */}
         <main style={styles.mainContent}>
@@ -59,15 +97,15 @@ function AdminDashboard() {
             <div style={styles.statsGrid}>
               <div style={styles.statCard}>
                 <p style={styles.statLabel}>Total Doctors</p>
-                <p style={styles.statValue}>25</p>
+                <p style={styles.statValue}>{isLoading ? '...' : stats.doctors}</p>
               </div>
               <div style={styles.statCard}>
                 <p style={styles.statLabel}>Total Patients</p>
-                <p style={styles.statValue}>150</p>
+                <p style={styles.statValue}>{isLoading ? '...' : stats.patients}</p>
               </div>
               <div style={styles.statCard}>
                 <p style={styles.statLabel}>Total Appointments</p>
-                <p style={styles.statValue}>300</p>
+                <p style={styles.statValue}>{isLoading ? '...' : stats.appointments}</p>
               </div>
             </div>
           </section>

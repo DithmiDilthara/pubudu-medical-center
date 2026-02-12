@@ -1,28 +1,49 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import axios from "axios";
 import { FiDownload, FiCalendar, FiFileText } from "react-icons/fi";
 import AdminSidebar from "../../components/AdminSidebar";
 import AdminHeader from "../../components/AdminHeader";
 
 function Reports() {
   const navigate = useNavigate();
-  const [selectedReportType, setSelectedReportType] = useState("appointments");
+  const [reportData, setReportData] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [selectedReportType, setSelectedReportType] = useState("revenue");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
 
   const handleLogout = () => {
-    console.log("Admin logged out");
+    localStorage.clear();
     navigate("/");
   };
 
-  const handleGenerateReport = () => {
+  const handleGenerateReport = async () => {
     if (!startDate || !endDate) {
       alert("Please select both start and end dates");
       return;
     }
-    console.log(`Generating ${selectedReportType} report from ${startDate} to ${endDate}`);
-    // Implementation for report generation
-    alert(`Report generated successfully for ${selectedReportType} from ${startDate} to ${endDate}`);
+
+    setIsLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      let url = `${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/admin/reports/financial`;
+
+      const response = await axios.get(url, {
+        params: { startDate, endDate },
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (response.data.success) {
+        setReportData(response.data.data);
+        alert(`Report generated successfully!`);
+      }
+    } catch (error) {
+      console.error("Report error:", error);
+      alert("Failed to generate report");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const reportTypes = [
@@ -93,6 +114,30 @@ function Reports() {
               </button>
             </div>
           </div>
+
+          {/* Report Statistics / Summary */}
+          {reportData && (
+            <div style={{ ...styles.reportCard, display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
+              <div style={styles.statBox}>
+                <h4 style={{ margin: '0 0 8px 0', color: '#6b7280' }}>Total Revenue</h4>
+                <p style={{ fontSize: '24px', fontWeight: 'bold', margin: 0, color: '#10b981' }}>
+                  Rs. {reportData.totalRevenue?.toLocaleString()}
+                </p>
+              </div>
+              <div style={styles.statBox}>
+                <h4 style={{ margin: '0 0 8px 0', color: '#6b7280' }}>Total Paid</h4>
+                <p style={{ fontSize: '24px', fontWeight: 'bold', margin: 0, color: '#0066CC' }}>
+                  Rs. {reportData.totalPaid?.toLocaleString()}
+                </p>
+              </div>
+              <div style={styles.statBox}>
+                <h4 style={{ margin: '0 0 8px 0', color: '#6b7280' }}>Total Pending</h4>
+                <p style={{ fontSize: '24px', fontWeight: 'bold', margin: 0, color: '#ef4444' }}>
+                  Rs. {reportData.totalPending?.toLocaleString()}
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* Available Reports */}
           <div style={styles.reportsListSection}>

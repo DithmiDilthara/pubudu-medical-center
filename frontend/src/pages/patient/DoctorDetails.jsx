@@ -1,6 +1,7 @@
 import { useNavigate, useLocation } from "react-router-dom";
-import { useState } from "react";
-import { FiCalendar, FiClock, FiArrowLeft, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
+import { useState, useEffect } from "react";
+import axios from "axios";
+import { FiCalendar, FiClock, FiArrowLeft, FiChevronLeft, FiChevronRight, FiInfo } from 'react-icons/fi';
 import PatientSidebar from "../../components/PatientSidebar";
 import PatientHeader from "../../components/PatientHeader";
 
@@ -26,9 +27,44 @@ function DoctorDetails() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedTime, setSelectedTime] = useState(null);
+  const [availabilities, setAvailabilities] = useState([]);
+  const [bookedSlots, setBookedSlots] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Fetch availability on mount or when doctor changes
+  useEffect(() => {
+    if (doctor) {
+      const fetchData = async () => {
+        try {
+          const doctorId = doctor.doctor_id || doctor.id;
+          const authRes = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/doctors/${doctorId}/availability`);
+          if (authRes.data.success) {
+            setAvailabilities(authRes.data.data);
+          }
+
+          // Also fetch all appointments for this doctor to find booked slots
+          const token = localStorage.getItem('token');
+          if (token) {
+            const aptRes = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/appointments?doctor_id=${doctorId}`, {
+              headers: { Authorization: `Bearer ${token}` }
+            });
+            if (aptRes.data.success) {
+              const relevant = aptRes.data.data.filter(a => a.doctor_id === parseInt(doctorId));
+              setBookedSlots(relevant);
+            }
+          }
+        } catch (error) {
+          console.error("Error fetching doctor data:", error);
+        } finally {
+          setIsLoading(false);
+        }
+      };
+      fetchData();
+    }
+  }, [doctor]);
 
   const handleLogout = () => {
-    console.log("User logged out");
+    localStorage.clear();
     navigate("/");
   };
 
@@ -36,8 +72,6 @@ function DoctorDetails() {
     navigate("/patient/find-doctor");
     return null;
   }
-
-  const availability = doctorAvailability[doctor.id];
 
   // Calendar logic
   const year = currentMonth.getFullYear();
@@ -52,14 +86,72 @@ function DoctorDetails() {
   const monthNames = ["January", "February", "March", "April", "May", "June",
     "July", "August", "September", "October", "November", "December"];
 
-  const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const dayNamesFull = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"];
 
   // Check if a date is available
   const isDateAvailable = (day) => {
     if (!day) return false;
     const date = new Date(year, month, day);
-    const dayName = dayNames[date.getDay()];
-    return availability.days.some(availDay => availDay.startsWith(dayName));
+    // FIX: formattedDate should be local YYYY-MM-DD
+    const formattedDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    const dayName = dayNamesFull[date.getDay()].toUpperCase();
+
+    // Check specific date overrides first
+    const specific = availabilities.find(a => a.specific_date === formattedDate);
+    if (specific) {
+      return specific.session_name === 'Available' || specific.session_name === 'Half Day' || specific.session_name === 'Regular Session';
+    }
+
+    // Fallback to recurring
+    return availabilities.some(a => {
+      if (!a.day_of_week || a.day_of_week.toUpperCase() !== dayName || a.specific_date) return false;
+      // If end_date exists, check if current date is before or equal to it
+      if (a.end_date) {
+        return formattedDate <= a.end_date;
+      }
+      return true;
+    });
+  };
+
+  const getTimeSlotsForDay = (day) => {
+    if (!day) return [];
+    const date = new Date(year, month, day);
+    // FIX: formattedDate should be local YYYY-MM-DD
+    const formattedDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    const dayName = dayNamesFull[date.getDay()].toUpperCase();
+
+    // Specific date overrides take precedence
+    let dayAvails = availabilities.filter(a =>
+      a.specific_date === formattedDate &&
+      (a.session_name === 'Available' || a.session_name === 'Half Day' || a.session_name === 'Regular Session')
+    );
+
+    // If no specific override, use recurring
+    if (dayAvails.length === 0) {
+      dayAvails = availabilities.filter(a => {
+        if (!a.day_of_week || a.day_of_week.toUpperCase() !== dayName || a.specific_date) return false;
+        if (a.end_date) {
+          return formattedDate <= a.end_date;
+        }
+        return true;
+      });
+    }
+
+    const slots = [];
+    dayAvails.forEach(avail => {
+      let current = new Date(`2024-01-01 ${avail.start_time}`);
+      const end = new Date(`2024-01-01 ${avail.end_time}`);
+      while (current < end) {
+        slots.push(current.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }));
+        current.setMinutes(current.getMinutes() + 30);
+      }
+    });
+
+    // Mark booked slots
+    const dayBooked = bookedSlots.filter(b => b.appointment_date === formattedDate && ['PENDING', 'CONFIRMED'].includes(b.status));
+    const bookedTimes = dayBooked.map(b => b.time_slot);
+
+    return slots.map(s => ({ time: s, isBooked: bookedTimes.includes(s) }));
   };
 
   const handlePrevMonth = () => {
@@ -115,11 +207,11 @@ function DoctorDetails() {
           {/* Doctor Header */}
           <div style={styles.doctorHeader}>
             <div style={styles.doctorAvatar}>
-              {doctor.name.charAt(3)}
+              {(doctor?.full_name || 'Doctor').charAt(0)}
             </div>
             <div>
-              <h1 style={styles.doctorName}>{doctor.name}</h1>
-              <p style={styles.doctorSpecialty}>{doctor.specialty}</p>
+              <h1 style={styles.doctorName}>{doctor?.full_name || 'Doctor Name'}</h1>
+              <p style={styles.doctorSpecialty}>{doctor?.specialization || 'General Practitioner'}</p>
             </div>
           </div>
 
@@ -131,7 +223,7 @@ function DoctorDetails() {
                 <FiCalendar style={{ marginRight: '8px', verticalAlign: 'middle' }} />
                 Select Date
               </h2>
-              
+
               {/* Calendar */}
               <div style={styles.calendarContainer}>
                 <div style={styles.calendarHeader}>
@@ -152,7 +244,7 @@ function DoctorDetails() {
                     const isAvailable = day && isDateAvailable(day);
                     const isSelected = selectedDate === day;
                     const isPast = day && new Date(year, month, day) < new Date().setHours(0, 0, 0, 0);
-                    
+
                     return (
                       <div
                         key={i}
@@ -171,17 +263,26 @@ function DoctorDetails() {
                   })}
                 </div>
 
+                {availabilities.length === 0 && (
+                  <div style={{ ...styles.paymentNote, background: '#fff7ed', border: '1px solid #ffedd5', marginTop: '16px' }}>
+                    <span style={styles.noteIcon}>
+                      <FiInfo size={20} color="#9a3412" />
+                    </span>
+                    <p style={{ ...styles.noteText, color: '#9a3412' }}>This doctor has not set their availability yet. Please check back later.</p>
+                  </div>
+                )}
+
                 <div style={styles.calendarLegend}>
                   <div style={styles.legendItem}>
-                    <div style={{...styles.legendBox, background: 'linear-gradient(135deg, #0066CC 0%, #0052A3 100%)'}}></div>
+                    <div style={{ ...styles.legendBox, background: 'linear-gradient(135deg, #0066CC 0%, #0052A3 100%)' }}></div>
                     <span>Selected</span>
                   </div>
                   <div style={styles.legendItem}>
-                    <div style={{...styles.legendBox, background: '#e0f2fe', border: '2px solid #0ea5e9'}}></div>
+                    <div style={{ ...styles.legendBox, background: '#e0f2fe', border: '2px solid #0ea5e9' }}></div>
                     <span>Available</span>
                   </div>
                   <div style={styles.legendItem}>
-                    <div style={{...styles.legendBox, background: '#f9fafb', border: '1px solid #e5e7eb'}}></div>
+                    <div style={{ ...styles.legendBox, background: '#f9fafb', border: '1px solid #e5e7eb' }}></div>
                     <span>Unavailable</span>
                   </div>
                 </div>
@@ -198,33 +299,68 @@ function DoctorDetails() {
                 <>
                   <p style={styles.selectedDateInfo}>
                     {monthNames[month]} {selectedDate}, {year}
+                    {(() => {
+                      const date = new Date(year, month, selectedDate);
+                      // FIX: Use local date formatting
+                      const formattedDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(selectedDate).padStart(2, '0')}`;
+                      const dayName = dayNamesFull[date.getDay()].toUpperCase();
+
+                      // Find the matching availability
+                      let avail = availabilities.find(a =>
+                        a.specific_date === formattedDate &&
+                        (a.session_name === 'Available' || a.session_name === 'Half Day' || a.session_name === 'Regular Session')
+                      );
+
+                      if (!avail) {
+                        avail = availabilities.find(a =>
+                          (!a.day_of_week || a.day_of_week.toUpperCase() === dayName) &&
+                          !a.specific_date &&
+                          (!a.end_date || formattedDate <= a.end_date)
+                        );
+                      }
+
+                      if (avail) {
+                        const formatTime = (t) => {
+                          const [h, m] = t.split(':');
+                          const date = new Date();
+                          date.setHours(h, m);
+                          return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+                        };
+                        return <span style={{ display: 'block', fontSize: '14px', marginTop: '4px', opacity: 0.9 }}>
+                          Available: {formatTime(avail.start_time)} - {formatTime(avail.end_time)}
+                        </span>;
+                      }
+                      return null;
+                    })()}
                   </p>
                   <div style={styles.timeSlots}>
-                    {availability.times.map((time, i) => (
+                    {getTimeSlotsForDay(selectedDate).map((slot, i) => (
                       <button
                         key={i}
-                        onClick={() => setSelectedTime(time)}
+                        disabled={slot.isBooked}
+                        onClick={() => setSelectedTime(slot.time)}
                         style={{
                           ...styles.timeSlot,
-                          ...(selectedTime === time ? styles.timeSlotSelected : {})
+                          ...(selectedTime === slot.time ? styles.timeSlotSelected : {}),
+                          ...(slot.isBooked ? { opacity: 0.4, cursor: 'not-allowed', background: '#f3f4f6' } : {})
                         }}
                       >
                         <FiClock style={{ marginRight: '8px' }} />
-                        <span>{time}</span>
+                        <span>{slot.time} {slot.isBooked && '(Full)'}</span>
                       </button>
                     ))}
                   </div>
-                  
+
                   {selectedTime && (
                     <div style={styles.summaryCard}>
                       <h3 style={styles.summaryTitle}>Appointment Summary</h3>
                       <div style={styles.summaryItem}>
                         <span style={styles.summaryLabel}>Doctor:</span>
-                        <span style={styles.summaryValue}>{doctor.name}</span>
+                        <span style={styles.summaryValue}>{doctor.full_name}</span>
                       </div>
                       <div style={styles.summaryItem}>
                         <span style={styles.summaryLabel}>Specialty:</span>
-                        <span style={styles.summaryValue}>{doctor.specialty}</span>
+                        <span style={styles.summaryValue}>{doctor.specialization}</span>
                       </div>
                       <div style={styles.summaryItem}>
                         <span style={styles.summaryLabel}>Date:</span>
