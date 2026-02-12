@@ -1,28 +1,11 @@
 import { Link, useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import axios from "axios";
 import { FiCalendar, FiSearch, FiClipboard, FiCheckSquare, FiClock } from 'react-icons/fi';
 import PatientSidebar from "../../components/PatientSidebar";
 import PatientHeader from "../../components/PatientHeader";
 
-const upcomingAppointments = [
-  {
-    id: 1,
-    title: "Specialist Consultation",
-    doctor: "Dr. Anjali Silva",
-    specialty: "Cardiology",
-    date: "2026-02-14",
-    time: "10:30 AM"
-  },
-  {
-    id: 2,
-    title: "General Check-up",
-    doctor: "Dr. Rohan Perera",
-    specialty: "General Practice",
-    date: "2026-02-20",
-    time: "3:00 PM"
-  }
-];
-
-function MiniCalendar({ highlightedDates }) {
+function MiniCalendar({ highlightedDates, onDateClick }) {
   const today = new Date();
   const year = today.getFullYear();
   const month = today.getMonth();
@@ -33,9 +16,18 @@ function MiniCalendar({ highlightedDates }) {
   for (let i = 0; i < firstDay; i++) cells.push(null);
   for (let d = 1; d <= daysInMonth; d++) cells.push(d);
 
+  // Only highlight dates in the current month
   const highlightSet = new Set(
-    highlightedDates.map((d) => new Date(d).getDate())
+    highlightedDates
+      .filter((d) => {
+        const date = new Date(d + 'T00:00:00'); // Parse as local
+        return date.getMonth() === month && date.getFullYear() === year;
+      })
+      .map((d) => new Date(d + 'T00:00:00').getDate())
   );
+
+  // Today's date for highlighting
+  const todayDate = today.getDate();
 
   return (
     <div style={styles.calendarContainer}>
@@ -44,7 +36,7 @@ function MiniCalendar({ highlightedDates }) {
           {today.toLocaleString("default", { month: "long" })} {year}
         </p>
         <span style={styles.calendarBadge}>
-          Upcoming dates bold
+          {highlightSet.size > 0 ? `${highlightSet.size} appointment${highlightSet.size > 1 ? 's' : ''}` : 'No upcoming'}
         </span>
       </div>
       <div style={styles.calendarGrid}>
@@ -56,11 +48,14 @@ function MiniCalendar({ highlightedDates }) {
         {cells.map((day, i) => (
           <div
             key={i}
+            onClick={() => day && highlightSet.has(day) && onDateClick && onDateClick(day)}
             style={{
               ...styles.dayCell,
               ...(day && highlightSet.has(day) ? styles.highlightedDay : {}),
               ...(day && !highlightSet.has(day) ? styles.normalDay : {}),
-              ...(!day ? styles.emptyDay : {})
+              ...(day === todayDate ? styles.todayDay : {}),
+              ...(!day ? styles.emptyDay : {}),
+              ...(day && highlightSet.has(day) ? { cursor: 'pointer' } : {})
             }}
           >
             {day ?? ""}
@@ -73,9 +68,38 @@ function MiniCalendar({ highlightedDates }) {
 
 function PatientDashboard() {
   const navigate = useNavigate();
+  const [upcomingAppointments, setUpcomingAppointments] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // Get patient name from localStorage
+  const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+  const patientName = storedUser.full_name?.split(' ')[0] || storedUser.username || 'Patient';
+
+  useEffect(() => {
+    const fetchAppointments = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/appointments`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (response.data.success) {
+          // Filter for upcoming appointments (PENDING or CONFIRMED) and sort by date
+          const upcoming = response.data.data
+            .filter(apt => ['PENDING', 'CONFIRMED'].includes(apt.status))
+            .sort((a, b) => new Date(a.appointment_date) - new Date(b.appointment_date));
+          setUpcomingAppointments(upcoming);
+        }
+      } catch (error) {
+        console.error("Error fetching appointments:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchAppointments();
+  }, []);
 
   const handleLogout = () => {
-    console.log('User logged out');
+    localStorage.clear();
     navigate('/');
   };
 
@@ -84,7 +108,7 @@ function PatientDashboard() {
       <PatientSidebar onLogout={handleLogout} />
 
       <div style={styles.mainWrapper}>
-        <PatientHeader patientName="Dithmi" />
+        <PatientHeader patientName={patientName} />
 
         <main style={styles.mainContent}>
           {/* Quick actions */}
@@ -135,28 +159,43 @@ function PatientDashboard() {
               </div>
 
               <div style={styles.appointmentsList}>
-                {upcomingAppointments.length > 0 ? (
-                  upcomingAppointments.map((appt) => (
+                {loading ? (
+                  <p style={styles.noAppointmentsText}>Loading appointments...</p>
+                ) : upcomingAppointments.length > 0 ? (
+                  upcomingAppointments.slice(0, 3).map((appt) => (
                     <div
-                      key={appt.id}
+                      key={appt.appointment_id}
                       style={styles.appointmentCard}
                     >
                       <div style={styles.appointmentCardHeader}>
                         <div>
-                          <p style={styles.appointmentTitle}>{appt.title}</p>
+                          <p style={styles.appointmentTitle}>{appt.status}</p>
                           <p style={styles.appointmentDoctor}>
-                            {appt.doctor} · {appt.specialty}
+                            {appt.doctor?.full_name || `Doctor #${appt.doctor_id}`}
+                            {appt.doctor?.specialization && ` · ${appt.doctor.specialization}`}
                           </p>
                         </div>
-                        <button style={styles.payButton}>
-                          Pay Now
-                        </button>
+                        <span style={{
+                          ...styles.payButton,
+                          backgroundColor: appt.status === 'CONFIRMED' ? '#059669' : '#0066CC',
+                          background: appt.status === 'CONFIRMED'
+                            ? 'linear-gradient(135deg, #059669 0%, #047857 100%)'
+                            : 'linear-gradient(135deg, #0066CC 0%, #0052A3 100%)',
+                          fontSize: '12px',
+                          padding: '6px 12px'
+                        }}>
+                          {appt.status}
+                        </span>
                       </div>
                       <p style={styles.appointmentDateTime}>
                         <FiCalendar style={{ marginRight: '6px', verticalAlign: 'middle' }} />
-                        {new Date(appt.date).toLocaleDateString()}
+                        {new Date(appt.appointment_date + 'T00:00:00').toLocaleDateString('en-US', {
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric'
+                        })}
                         <FiClock style={{ margin: '0 6px 0 12px', verticalAlign: 'middle' }} />
-                        {appt.time}
+                        {appt.time_slot}
                       </p>
                     </div>
                   ))
@@ -169,7 +208,8 @@ function PatientDashboard() {
             {/* Calendar */}
             <section style={styles.calendarSection}>
               <MiniCalendar
-                highlightedDates={upcomingAppointments.map((a) => a.date)}
+                highlightedDates={upcomingAppointments.map((a) => a.appointment_date)}
+                onDateClick={() => navigate('/patient/appointments')}
               />
             </section>
           </div>
@@ -444,6 +484,10 @@ const styles = {
   },
   emptyDay: {
     color: '#ddd'
+  },
+  todayDay: {
+    border: '2px solid #0066CC',
+    fontWeight: '700'
   }
 };
 
