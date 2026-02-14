@@ -162,7 +162,7 @@ const styles = {
     color: '#1a1a1a',
     marginBottom: '24px',
     margin: 0,
-    marginBottom: '24px'
+
   },
 
   detailsGrid: {

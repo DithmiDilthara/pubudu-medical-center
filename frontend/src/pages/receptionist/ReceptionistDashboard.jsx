@@ -5,84 +5,61 @@ import { FiUserPlus, FiCalendar, FiClock } from "react-icons/fi";
 import ReceptionistSidebar from "../../components/ReceptionistSidebar";
 import ReceptionistHeader from "../../components/ReceptionistHeader";
 
-// Sample data for pending appointments
-const pendingAppointments = [
-  {
-    id: 1,
-    name: "Kamal Perera",
-    patientId: "PHE-2037",
-    dateOfService: "2024-07-20",
-    amountDue: "LKR 1500"
-  },
-  {
-    id: 2,
-    name: "Wanisha Ekanayake",
-    patientId: "PHE-9148",
-    dateOfService: "2024-07-15",
-    amountDue: "LKR 2390"
-  },
-  {
-    id: 3,
-    name: "Jude Bevan",
-    patientId: "PHE-6720",
-    dateOfService: "2024-07-10",
-    amountDue: "LKR 1200"
-  }
-];
-
-// Sample data for upcoming appointments
-const upcomingAppointments = [
-  {
-    id: 1,
-    patientName: "Sunil Karunarathne",
-    patientId: "PHE-3851",
-    dateTime: "2024-08-05 10:00 AM",
-    doctor: "Dr. Kavindi Fernando"
-  },
-  {
-    id: 2,
-    patientName: "Maheni de Silva",
-    patientId: "PHE-7492",
-    dateTime: "2024-08-05 11:30 AM",
-    doctor: "Dr. Asanka Wijesinghe"
-  },
-  {
-    id: 3,
-    patientName: "Nalin Hewage",
-    patientId: "PHE-5068",
-    dateTime: "2024-08-06 09:00 AM",
-    doctor: "Dr. Nimal De Silva"
-  }
-];
-
 function ReceptionistDashboard() {
   const navigate = useNavigate();
   const [receptionistName, setReceptionistName] = useState('Receptionist');
+  const [appointments, setAppointments] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Fetch profile on mount
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+
+  // Fetch profile and appointments on mount
   useEffect(() => {
+    const token = localStorage.getItem('token');
+
     const fetchProfile = async () => {
       try {
-        const token = localStorage.getItem('token');
-        const response = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/auth/profile`, {
+        const response = await axios.get(`${API_URL}/auth/profile`, {
           headers: { Authorization: `Bearer ${token}` }
         });
-
         if (response.data.success) {
           setReceptionistName(response.data.data.profile.full_name);
         }
       } catch (error) {
         console.error("Error fetching receptionist profile:", error);
+      }
+    };
+
+    const fetchAppointments = async () => {
+      try {
+        const response = await axios.get(`${API_URL}/appointments`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (response.data.success) {
+          setAppointments(response.data.data);
+        }
+      } catch (error) {
+        console.error("Error fetching appointments:", error);
       } finally {
         setIsLoading(false);
       }
     };
+
     fetchProfile();
+    fetchAppointments();
   }, []);
 
+  // Today's date for filtering
+  const today = new Date();
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
+  // Upcoming = all non-cancelled, non-completed appointments where date >= today
+  const upcomingAppointments = appointments.filter(
+    apt => apt.status !== 'CANCELLED' && apt.status !== 'COMPLETED' && apt.appointment_date >= todayStr
+  ).sort((a, b) => a.appointment_date.localeCompare(b.appointment_date));
+
   const handleLogout = () => {
-    console.log("Receptionist logged out");
+    localStorage.clear();
     navigate("/");
   };
 
@@ -94,30 +71,42 @@ function ReceptionistDashboard() {
     navigate("/receptionist/appointments/new");
   };
 
-  const handlePendingBookings = () => {
-    const section = document.getElementById('pending-appointments-section');
-    if (section) {
-      section.scrollIntoView({ behavior: 'smooth' });
-    }
-  };
-
-  const handleMarkAsPaid = (patient) => {
+  const handleMarkAsPaid = (appointment) => {
     navigate("/receptionist/payment/confirm", {
       state: {
         appointment: {
-          patientName: patient.name,
-          patientId: patient.patientId,
-          dateOfService: patient.dateOfService,
-          service: "Pending Consultation",
-          amount: parseFloat(patient.amountDue.replace("LKR ", ""))
+          patientName: appointment.patient?.full_name || 'Unknown',
+          patientId: appointment.patient_id,
+          dateOfService: appointment.appointment_date,
+          service: appointment.doctor?.specialization || "Consultation",
+          amount: 1500.00,
+          appointment_id: appointment.appointment_id
         }
       }
     });
   };
 
-  const handleCancelAppointment = (appointmentId) => {
-    console.log(`Cancelling appointment ${appointmentId}`);
-    // Implementation for cancelling appointment
+  const handleCancelAppointment = async (appointmentId) => {
+    if (window.confirm("Are you sure you want to cancel this appointment?")) {
+      try {
+        const token = localStorage.getItem('token');
+        await axios.put(`${API_URL}/appointments/${appointmentId}/status`,
+          { status: 'CANCELLED' },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        setAppointments(prev =>
+          prev.map(a => a.appointment_id === appointmentId ? { ...a, status: 'CANCELLED' } : a)
+        );
+      } catch (error) {
+        console.error("Error cancelling appointment:", error);
+        alert("Failed to cancel appointment");
+      }
+    }
+  };
+
+  const formatDate = (dateStr) => {
+    const date = new Date(dateStr + 'T00:00:00');
+    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
   };
 
   return (
@@ -144,57 +133,12 @@ function ReceptionistDashboard() {
                 <FiCalendar style={styles.buttonIcon} />
                 Make New Booking
               </button>
-              <button onClick={handlePendingBookings} style={styles.tertiaryButton}>
-                <FiClock style={styles.buttonIcon} />
-                Pending Bookings
-              </button>
-            </div>
-          </section>
-
-          {/* Pending Appointments Table */}
-          <section id="pending-appointments-section" style={styles.tableSection}>
-            <h2 style={styles.tableTitle}>Pending Appointments</h2>
-            <div style={styles.tableContainer}>
-              <table style={styles.table}>
-                <thead>
-                  <tr style={styles.tableHeaderRow}>
-                    <th style={styles.tableHeader}>Patient Name</th>
-                    <th style={styles.tableHeader}>Date of Service</th>
-                    <th style={styles.tableHeader}>Amount Due</th>
-                    <th style={styles.tableHeader}>Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {pendingAppointments.map((patient) => (
-                    <tr key={patient.id} style={styles.tableRow}>
-                      <td style={styles.tableCell}>
-                        <div>
-                          <p style={styles.patientName}>{patient.name}</p>
-                          <p style={styles.patientId}>({patient.patientId})</p>
-                        </div>
-                      </td>
-                      <td style={styles.tableCell}>{patient.dateOfService}</td>
-                      <td style={styles.tableCell}>
-                        <span style={styles.amountBadge}>{patient.amountDue}</span>
-                      </td>
-                      <td style={styles.tableCell}>
-                        <button
-                          onClick={() => handleMarkAsPaid(patient)}
-                          style={styles.payButton}
-                        >
-                          Pay
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
             </div>
           </section>
 
           {/* Upcoming Appointments Table */}
           <section style={styles.tableSection}>
-            <h2 style={styles.tableTitle}>Upcoming Appointments</h2>
+            <h2 style={styles.tableTitle}>Upcoming Appointments ({upcomingAppointments.length})</h2>
             <div style={styles.tableContainer}>
               <table style={styles.table}>
                 <thead>
@@ -202,32 +146,56 @@ function ReceptionistDashboard() {
                     <th style={styles.tableHeader}>Patient Name</th>
                     <th style={styles.tableHeader}>Date & Time</th>
                     <th style={styles.tableHeader}>Doctor</th>
+                    <th style={styles.tableHeader}>Payment</th>
                     <th style={styles.tableHeader}>Action</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {upcomingAppointments.map((appointment) => (
-                    <tr key={appointment.id} style={styles.tableRow}>
-                      <td style={styles.tableCell}>
-                        <div>
-                          <p style={styles.patientName}>{appointment.patientName}</p>
-                          <p style={styles.patientId}>({appointment.patientId})</p>
-                        </div>
-                      </td>
-                      <td style={styles.tableCell}>{appointment.dateTime}</td>
-                      <td style={styles.tableCell}>
-                        <span style={styles.doctorBadge}>{appointment.doctor}</span>
-                      </td>
-                      <td style={styles.tableCell}>
-                        <button
-                          onClick={() => handleCancelAppointment(appointment.id)}
-                          style={styles.cancelButton}
-                        >
-                          Cancel
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                  {isLoading ? (
+                    <tr><td colSpan="5" style={{ padding: '20px', textAlign: 'center', color: '#999' }}>Loading...</td></tr>
+                  ) : upcomingAppointments.length > 0 ? (
+                    upcomingAppointments.map((apt) => (
+                      <tr key={apt.appointment_id} style={styles.tableRow}>
+                        <td style={styles.tableCell}>
+                          <div>
+                            <p style={styles.patientName}>{apt.patient?.full_name || 'Unknown'}</p>
+                            <p style={styles.patientId}>(PHE-{apt.patient_id})</p>
+                          </div>
+                        </td>
+                        <td style={styles.tableCell}>{formatDate(apt.appointment_date)} {apt.time_slot}</td>
+                        <td style={styles.tableCell}>
+                          <span style={styles.doctorBadge}>{apt.doctor?.full_name || `Doctor #${apt.doctor_id}`}</span>
+                        </td>
+                        <td style={styles.tableCell}>
+                          {apt.payment_status === 'PAID' ? (
+                            <span style={{ color: '#059669', fontWeight: '600', fontSize: '13px' }}>✓ Paid</span>
+                          ) : (
+                            <span style={{ color: '#dc2626', fontWeight: '600', fontSize: '13px' }}>Unpaid</span>
+                          )}
+                        </td>
+                        <td style={styles.tableCell}>
+                          <div style={{ display: 'flex', gap: '8px' }}>
+                            {apt.payment_status === 'UNPAID' && (
+                              <button
+                                onClick={() => handleMarkAsPaid(apt)}
+                                style={styles.payButton}
+                              >
+                                Pay
+                              </button>
+                            )}
+                            <button
+                              onClick={() => handleCancelAppointment(apt.appointment_id)}
+                              style={styles.cancelButton}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr><td colSpan="5" style={{ padding: '20px', textAlign: 'center', color: '#999' }}>No upcoming appointments</td></tr>
+                  )}
                 </tbody>
               </table>
             </div>
