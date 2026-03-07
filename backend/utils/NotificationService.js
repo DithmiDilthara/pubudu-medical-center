@@ -72,6 +72,34 @@ class NotificationService {
             console.error('Error sending prescription notification:', error);
         }
     }
+
+    static async sendCancellationNotice(patientEmail, appointmentDetails) {
+        const { doctorName, date, time, patientName, reason } = appointmentDetails;
+
+        const mailOptions = {
+            from: `"Pubudu Medical Center" <${process.env.EMAIL_USER}>`,
+            to: patientEmail,
+            subject: 'Appointment Cancelled - Pubudu Medical Center',
+            html: `
+        <div style="font-family: sans-serif; padding: 20px; color: #333;">
+          <h2 style="color: #ef4444;">Appointment Cancelled</h2>
+          <p>Dear ${patientName},</p>
+          <p>We regret to inform you that your appointment with <strong>${doctorName}</strong> on <strong>${date}</strong> at <strong>${time}</strong> has been cancelled.</p>
+          <p>${reason ? `Reason: ${reason}` : 'The doctor is unavailable on this date.'}</p>
+          <p>We apologize for the inconvenience. Please log in to your patient portal to reschedule.</p>
+          <p>Regards,<br/>Team Pubudu Medical Center</p>
+        </div>
+      `
+        };
+
+        try {
+            if (!process.env.EMAIL_USER) return;
+            await transporter.sendMail(mailOptions);
+            console.log(`Cancellation email sent to ${patientEmail}`);
+        } catch (error) {
+            console.error('Error sending cancellation email:', error);
+        }
+    }
 }
 
 export default NotificationService;

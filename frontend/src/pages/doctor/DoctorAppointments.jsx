@@ -100,13 +100,16 @@ function DoctorAppointments() {
     navigate('/');
   };
 
-  const todayDate = new Date().toISOString().split('T')[0];
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const tomorrowDate = tomorrow.toISOString().split('T')[0];
+  const getLocalDateString = (date) => {
+    // Adjust logic to get YYYY-MM-DD in local time instead of UTC to fix off-by-one errors
+    const offset = date.getTimezoneOffset() * 60000;
+    const localISOTime = (new Date(date.getTime() - offset)).toISOString().slice(0, -1);
+    return localISOTime.split('T')[0];
+  };
 
+  const todayDate = getLocalDateString(new Date());
   const todayAppointments = appointments.filter(apt => apt.appointment_date === todayDate);
-  const tomorrowAppointments = appointments.filter(apt => apt.appointment_date === tomorrowDate);
+  const upcomingAppointments = appointments.filter(apt => apt.appointment_date > todayDate && apt.status !== 'CANCELLED');
 
   return (
     <div style={styles.pageContainer}>
@@ -192,9 +195,9 @@ function DoctorAppointments() {
             </div>
           </section>
 
-          {/* Tomorrow's Appointments */}
+          {/* Upcoming Appointments */}
           <section style={styles.section}>
-            <h2 style={styles.sectionTitle}>Tomorrow's Appointments</h2>
+            <h2 style={styles.sectionTitle}>Upcoming Appointments</h2>
 
             <div style={styles.tableContainer}>
               <table style={styles.table}>
@@ -207,7 +210,7 @@ function DoctorAppointments() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filterAppointments(tomorrowAppointments).map((apt) => (
+                  {filterAppointments(upcomingAppointments).map((apt) => (
                     <tr key={apt.appointment_id} style={styles.tableRow}>
                       <td style={styles.td}>{apt.time_slot}</td>
                       <td style={styles.td}>
@@ -225,7 +228,7 @@ function DoctorAppointments() {
                       </td>
                       <td style={styles.td}>
                         <div style={styles.actionButtons}>
-                          {/* Tomorrow's appointments usually only allow viewing history, no prescription yet */}
+                          {/* Upcoming appointments usually only allow viewing history, no prescription yet */}
                           <div style={{ color: '#6b7280', fontSize: '13px' }}>Scheduled</div>
                         </div>
                       </td>

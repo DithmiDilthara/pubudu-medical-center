@@ -55,9 +55,11 @@ function ConfirmBooking() {
     setIsLoading(true);
     try {
       const token = localStorage.getItem('token');
+      const localDate = new Date(date.getTime() - (date.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+
       const response = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/appointments`, {
         doctor_id: doctorId,
-        appointment_date: date.toISOString().split('T')[0],
+        appointment_date: localDate,
         time_slot: time,
         notes: notes
       }, {

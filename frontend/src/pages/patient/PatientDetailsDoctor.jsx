@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import axios from 'axios';
 import { FiArrowLeft, FiUser, FiPhone, FiMail, FiMapPin, FiFileText, FiStar } from 'react-icons/fi';
 import DoctorHeader from '../../components/DoctorHeader';
 import DoctorSidebar from '../../components/DoctorSidebar';
@@ -7,7 +8,8 @@ import DoctorSidebar from '../../components/DoctorSidebar';
 function PatientDetailsDoctor() {
   const navigate = useNavigate();
   const location = useLocation();
-  const patientId = location.state?.patientId || 'PHE-3456';
+  const rawId = location.state?.patientId || '1'; // Defaulting for testing, better to redirect if none
+  const patientId = rawId.toString().replace('PHE-', '');
 
   const [consultationNote, setConsultationNote] = useState('');
   const [diagnosis, setDiagnosis] = useState('');
@@ -16,6 +18,55 @@ function PatientDetailsDoctor() {
   const [dosage, setDosage] = useState('');
   const [frequency, setFrequency] = useState('');
   const [duration, setDuration] = useState('');
+
+  const [patientData, setPatientData] = useState(null);
+  const [consultationHistory, setConsultationHistory] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    const fetchPatientData = async () => {
+      setIsLoading(true);
+      try {
+        const token = localStorage.getItem('token');
+
+        // Fetch patient demographics
+        const profileRes = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/doctors/patient/${patientId}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+
+        if (profileRes.data.success) {
+          setPatientData(profileRes.data.data);
+        }
+
+        // Fetch medical history (Prescriptions)
+        const historyRes = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/clinical/history/${patientId}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+
+        if (historyRes.data.success) {
+          const formattedHistory = historyRes.data.data.map(item => ({
+            id: item.prescription_id,
+            doctor: item.appointment?.doctor?.full_name || 'Unknown Doctor',
+            date: item.created_at ? new Date(item.created_at).toISOString().split('T')[0] : 'Unknown Date',
+            rating: 5, // Static rating as it's not in DB schema
+            notes: `Diagnosis: ${item.diagnosis}\nNotes: ${item.notes}\nMedications: ${item.medications}`,
+            appointment_id: item.appointment_id
+          }));
+          setConsultationHistory(formattedHistory);
+        }
+
+      } catch (error) {
+        console.error("Error fetching patient details:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    if (patientId) {
+      fetchPatientData();
+    }
+  }, [patientId]);
 
   const handleLogout = () => {
     localStorage.clear();
@@ -26,42 +77,73 @@ function PatientDetailsDoctor() {
     navigate(-1);
   };
 
-  // Sample patient data
-  const patientData = {
-    name: 'Milan Abeywardena',
-    id: patientId,
-    dob: '1985-08-15',
-    phone: '+94 777 345 654',
-    email: 'milan.gk2025@gmail.com',
-    address: 'No. 24, Galle Road, Colombo 03',
-    pastDiagnoses: 'Hypertension, Type 2 Diabetes',
-    medications: 'Metformin, Lisinopril',
-    labResults: 'Recent blood work normal',
-    allergies: 'Penicillin, Aspirin'
-  };
-
-  const consultationHistory = [
-    {
-      id: 1,
-      doctor: 'Dr. Manoj Herath',
-      date: '2024-07-26',
-      rating: 5,
-      notes: 'Patient presented with symptoms of fatigue and increased thirst. Blood pressure was elevated at 140/90. Blood work confirmed Type 2 Diabetes. Started on Metformin 500mg twice daily. Advised on diet and exercise. Follow-up in 3 months.'
+  const handleSaveConsultation = async () => {
+    if (!consultationNote || !diagnosis) {
+      alert("Please enter diagnosis and notes at minimum.");
+      return;
     }
-  ];
 
-  const handleSaveConsultation = () => {
-    console.log('Saving consultation...', {
-      consultationNote,
-      diagnosis,
-      followUpDate,
-      medication,
-      dosage,
-      frequency,
-      duration
-    });
-    alert('Consultation notes saved successfully!');
+    setIsSaving(true);
+    try {
+      const token = localStorage.getItem('token');
+
+      // We need an appointment_id to attach the prescription to.
+      // Easiest is to prompt or assume they are in an active appointment.
+      // But since we are on the patient profile directly (Req 13 via clicking from patients list)
+      // the endpoint realistically expects `appointment_id`. 
+      // If we don't have one passed from state, we ideally shouldn't allow prescribing here without appointment context.
+      // However, to satisfy Req 13 generically if they are viewing the profile:
+      const activeAppointmentId = location.state?.appointment_id || prompt("Enter Active Appointment ID to attach this prescription to:");
+
+      if (!activeAppointmentId) {
+        alert('Missing appointment context for prescription.');
+        setIsSaving(false);
+        return;
+      }
+
+      const payload = {
+        appointment_id: parseInt(activeAppointmentId),
+        diagnosis,
+        notes: consultationNote,
+        medications: `${medication} ${dosage} ${frequency} for ${duration}`.trim()
+      };
+
+      const response = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/clinical/prescription`, payload, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (response.data.success) {
+        alert('Consultation notes saved successfully!');
+        // Refresh history
+        const newHistoryItem = {
+          id: response.data.data.prescription_id,
+          doctor: 'You', // Current doctor
+          date: new Date().toISOString().split('T')[0],
+          rating: 5,
+          notes: `Diagnosis: ${diagnosis}\nNotes: ${consultationNote}\nMedications: ${payload.medications}`,
+          appointment_id: parseInt(activeAppointmentId)
+        };
+        setConsultationHistory([newHistoryItem, ...consultationHistory]);
+
+        // Clear form
+        setConsultationNote('');
+        setDiagnosis('');
+        setMedication('');
+        setDosage('');
+        setFrequency('');
+        setDuration('');
+      }
+
+    } catch (error) {
+      console.error("Error saving consultation:", error);
+      alert(error.response?.data?.message || 'Failed to save notes');
+    } finally {
+      setIsSaving(false);
+    }
   };
+
+  if (isLoading) return <div>Loading patient details...</div>;
+  if (!patientData) return <div>Patient not found.</div>;
 
   return (
     <div style={styles.container}>
@@ -111,7 +193,7 @@ function PatientDetailsDoctor() {
                       <FiPhone size={16} style={{ marginRight: '6px' }} />
                       Phone
                     </span>
-                    <span style={styles.infoValue}>{patientData.phone}</span>
+                    <span style={styles.infoValue}>{patientData.contact}</span>
                   </div>
                   <div style={styles.infoItem}>
                     <span style={styles.infoLabel}>
@@ -134,7 +216,7 @@ function PatientDetailsDoctor() {
               <section style={styles.card}>
                 <h3 style={styles.cardTitle}>
                   <FiFileText style={{ marginRight: '8px', verticalAlign: 'middle' }} />
-                  Medical History
+                  Medical History Summary
                 </h3>
                 <div style={styles.infoGrid}>
                   <div style={styles.infoItem}>
@@ -161,21 +243,25 @@ function PatientDetailsDoctor() {
             <div style={styles.rightColumn}>
               {/* Previous Consultation Notes */}
               <section style={styles.card}>
-                <h3 style={styles.cardTitle}>Consultation Notes</h3>
-                {consultationHistory.map((consult) => (
-                  <div key={consult.id} style={styles.consultationItem}>
-                    <div style={styles.consultHeader}>
-                      <span style={styles.doctorName}>{consult.doctor}</span>
-                      <span style={styles.consultDate}>{consult.date}</span>
+                <h3 style={styles.cardTitle}>Consultation History</h3>
+                {consultationHistory.length === 0 ? (
+                  <p style={styles.consultNotes}>No previous consultation history found.</p>
+                ) : (
+                  consultationHistory.map((consult) => (
+                    <div key={consult.id} style={styles.consultationItem}>
+                      <div style={styles.consultHeader}>
+                        <span style={styles.doctorName}>{consult.doctor}</span>
+                        <span style={styles.consultDate}>{consult.date}</span>
+                      </div>
+                      <div style={styles.rating}>
+                        {Array(consult.rating).fill(0).map((_, i) => (
+                          <FiStar key={i} size={14} fill="#f59e0b" color="#f59e0b" style={{ marginRight: '2px' }} />
+                        ))}
+                      </div>
+                      <p style={styles.consultNotes}>{consult.notes}</p>
                     </div>
-                    <div style={styles.rating}>
-                      {Array(consult.rating).fill(0).map((_, i) => (
-                        <FiStar key={i} size={14} fill="#f59e0b" color="#f59e0b" style={{ marginRight: '2px' }} />
-                      ))}
-                    </div>
-                    <p style={styles.consultNotes}>{consult.notes}</p>
-                  </div>
-                ))}
+                  ))
+                )}
               </section>
 
               {/* Add New Consultation Notes */}

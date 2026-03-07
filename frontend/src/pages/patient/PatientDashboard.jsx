@@ -4,6 +4,7 @@ import axios from "axios";
 import { FiCalendar, FiSearch, FiClipboard, FiCheckSquare, FiClock } from 'react-icons/fi';
 import PatientSidebar from "../../components/PatientSidebar";
 import PatientHeader from "../../components/PatientHeader";
+import CancellationModal from "../../components/CancellationModal";
 
 function MiniCalendar({ highlightedDates, onDateClick }) {
   const today = new Date();
@@ -70,6 +71,7 @@ function PatientDashboard() {
   const navigate = useNavigate();
   const [upcomingAppointments, setUpcomingAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [cancellationMessages, setCancellationMessages] = useState([]);
 
   // Get patient name from localStorage
   const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
@@ -83,9 +85,35 @@ function PatientDashboard() {
           headers: { Authorization: `Bearer ${token}` }
         });
         if (response.data.success) {
-          // Filter for upcoming appointments (PENDING or CONFIRMED) and sort by date
-          const upcoming = response.data.data
-            .filter(apt => ['PENDING', 'CONFIRMED'].includes(apt.status))
+          const allApts = response.data.data;
+
+          // Check for recent cancellations to notify the patient
+          const cancelledApts = allApts.filter(apt => apt.status === 'CANCELLED');
+          if (cancelledApts.length > 0) {
+            const notifiedCancellations = JSON.parse(sessionStorage.getItem('notifiedCancellations') || '[]');
+            const newCancellations = cancelledApts.filter(apt => !notifiedCancellations.includes(apt.appointment_id));
+
+            if (newCancellations.length > 0) {
+              const messages = newCancellations.map(apt =>
+                `Your appointment on ${apt.appointment_date} with ${apt.doctor?.full_name || 'the doctor'} has been CANCELLED.`
+              ).join('\n\n');
+
+              // Show visual modal instead of browser alert
+              setCancellationMessages(messages.split('\n\n'));
+
+              // Mark as notified for this session
+              const updatedNotified = [...notifiedCancellations, ...newCancellations.map(a => a.appointment_id)];
+              sessionStorage.setItem('notifiedCancellations', JSON.stringify(updatedNotified));
+            }
+          }
+
+          // Today's date for filtering
+          const today = new Date();
+          const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
+          // Filter for upcoming appointments (PENDING or CONFIRMED AND >= today) and sort by date
+          const upcoming = allApts
+            .filter(apt => ['PENDING', 'CONFIRMED'].includes(apt.status) && apt.appointment_date >= todayStr)
             .sort((a, b) => new Date(a.appointment_date) - new Date(b.appointment_date));
           setUpcomingAppointments(upcoming);
         }
@@ -109,6 +137,12 @@ function PatientDashboard() {
 
       <div style={styles.mainWrapper}>
         <PatientHeader patientName={patientName} />
+
+        {/* Cancellation Notice Modal */}
+        <CancellationModal
+          messages={cancellationMessages}
+          onClose={() => setCancellationMessages([])}
+        />
 
         <main style={styles.mainContent}>
           {/* Quick actions */}

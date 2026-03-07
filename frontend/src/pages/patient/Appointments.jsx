@@ -50,12 +50,15 @@ function Appointments() {
     }
   };
 
+  const today = new Date();
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
   const upcomingAppointments = appointments.filter(apt =>
-    ['PENDING', 'CONFIRMED'].includes(apt.status)
+    ['PENDING', 'CONFIRMED'].includes(apt.status) && apt.appointment_date >= todayStr
   );
 
   const pastAppointments = appointments.filter(apt =>
-    ['COMPLETED', 'CANCELLED'].includes(apt.status)
+    ['COMPLETED', 'CANCELLED'].includes(apt.status) || apt.appointment_date < todayStr
   );
 
   return (

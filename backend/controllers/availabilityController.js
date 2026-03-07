@@ -1,4 +1,5 @@
-import { Availability, Doctor, User } from '../models/index.js';
+import { Availability, Doctor, User, Appointment, Patient } from '../models/index.js';
+import { Op } from 'sequelize';
 
 /**
  * @desc    Set/Update doctor availability
@@ -28,35 +29,63 @@ export const setAvailability = async (req, res) => {
             });
         }
 
-        // For specific: Create or Update (Destroying specific dates in the payload first)
-        const specificDates = [...new Set(specific.map(s => s.specific_date))];
-        if (specificDates.length > 0) {
-            await Availability.destroy({
-                where: {
-                    doctor_id: doctor.doctor_id,
-                    specific_date: specificDates
-                }
-            });
+        // Create specific availability records
+        if (specific.length > 0) {
+            await Availability.bulkCreate(
+                specific.map(slot => ({
+                    ...slot,
+                    doctor_id: doctor.doctor_id
+                }))
+            );
+
+            // Handle cancellations for specific 'Unavailable' dates
+            const unavailableDates = specific.filter(s => s.session_name === 'Unavailable').map(s => s.specific_date);
+            if (unavailableDates.length > 0) {
+                await cancelAffectedAppointments(doctor.doctor_id, { specific_date: unavailableDates });
+            }
         }
 
-        const threeMonthsOut = new Date();
-        threeMonthsOut.setMonth(threeMonthsOut.getMonth() + 3);
+        // Handle recurring availability and its cancellation cascade
+        if (recurring.length > 0 || clear_all_recurring) {
+            // Get existing recurring days before they are wiped
+            const oldRecurringAvails = await Availability.findAll({
+                where: { doctor_id: doctor.doctor_id, specific_date: null }
+            });
+            const oldDays = oldRecurringAvails.map(a => a.day_of_week);
 
-        const newAvailability = await Availability.bulkCreate(
-            availability
-                .filter(slot => slot.session_name !== 'DELETED') // Don't recreate deleted ones
-                .map(slot => ({
-                    ...slot,
-                    doctor_id: doctor.doctor_id,
-                    // If it's recurring (day_of_week set and no specific_date), set end_date
-                    end_date: (slot.day_of_week && !slot.specific_date) ? threeMonthsOut : null
-                }))
-        );
+            // Wipe existing recurring
+            await Availability.destroy({
+                where: { doctor_id: doctor.doctor_id, specific_date: null }
+            });
+
+            if (recurring.length > 0) {
+                const threeMonthsOut = new Date();
+                threeMonthsOut.setMonth(threeMonthsOut.getMonth() + 3);
+
+                await Availability.bulkCreate(
+                    recurring.map(slot => ({
+                        ...slot,
+                        doctor_id: doctor.doctor_id,
+                        end_date: threeMonthsOut
+                    }))
+                );
+
+                // IDENTIFY REMOVED DAYS for the cascade
+                const newDays = recurring.map(s => s.day_of_week);
+                const removedDays = oldDays.filter(d => !newDays.includes(d));
+
+                if (removedDays.length > 0) {
+                    await cancelAffectedAppointments(doctor.doctor_id, { day_of_week: removedDays });
+                }
+            } else if (clear_all_recurring && oldDays.length > 0) {
+                // If everything cleared, cancel all appointments on those days
+                await cancelAffectedAppointments(doctor.doctor_id, { day_of_week: oldDays });
+            }
+        }
 
         res.status(201).json({
             success: true,
-            message: 'Availability updated successfully',
-            data: newAvailability
+            message: 'Availability updated successfully'
         });
 
     } catch (error) {
@@ -78,6 +107,23 @@ export const setAvailability = async (req, res) => {
 export const getDoctorAvailability = async (req, res) => {
     try {
         const { doctor_id } = req.params;
+
+        // Auto-cleanup past specific dates
+        const today = new Date();
+        const todayStr =
+            today.getFullYear() +
+            '-' +
+            String(today.getMonth() + 1).padStart(2, '0') +
+            '-' +
+            String(today.getDate()).padStart(2, '0');
+
+        await Availability.destroy({
+            where: {
+                doctor_id,
+                specific_date: { [Op.lt]: todayStr }
+            }
+        });
+
         const availability = await Availability.findAll({
             where: { doctor_id },
             order: [['day_of_week', 'ASC'], ['start_time', 'ASC']]
@@ -89,3 +135,50 @@ export const getDoctorAvailability = async (req, res) => {
         res.status(500).json({ success: false, message: 'Server error' });
     }
 };
+
+// Helper function to cancel appointments and notify patients
+async function cancelAffectedAppointments(doctorId, filter) {
+    const today = new Date().toISOString().split('T')[0];
+
+    const affected = await Appointment.findAll({
+        where: {
+            doctor_id: doctorId,
+            appointment_date: { [Op.gte]: today },
+            status: ['PENDING', 'CONFIRMED']
+        },
+        include: [
+            { model: Patient, as: 'patient', include: [{ model: User, as: 'user' }] },
+            { model: Doctor, as: 'doctor' }
+        ]
+    });
+
+    const toCancel = affected.filter(appt => {
+        if (filter.specific_date) {
+            return filter.specific_date.includes(appt.appointment_date);
+        }
+        if (filter.day_of_week) {
+            const dateObj = new Date(appt.appointment_date);
+            const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'long' }).toUpperCase();
+            return filter.day_of_week.includes(dayName);
+        }
+        return false;
+    });
+
+    if (toCancel.length > 0) {
+        const { default: NotificationService } = await import('../utils/NotificationService.js');
+        for (const appt of toCancel) {
+            appt.status = 'CANCELLED';
+            await appt.save();
+
+            if (appt.patient?.user?.email) {
+                NotificationService.sendCancellationNotice(appt.patient.user.email, {
+                    doctorName: appt.doctor.full_name,
+                    patientName: appt.patient.full_name,
+                    date: appt.appointment_date,
+                    time: appt.time_slot,
+                    reason: 'Doctor schedule changed'
+                });
+            }
+        }
+    }
+}

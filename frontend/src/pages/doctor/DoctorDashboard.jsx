@@ -31,40 +31,73 @@ function DoctorDashboard() {
     fetchProfile();
   }, []);
 
-  // Sample data for today's appointments
-  const [appointments] = useState([
-    {
-      id: 1,
-      time: '9:00 AM',
-      patientName: 'Pradeep Senanayake',
-      phone: '0771234567',
-      type: 'General Checkup',
-      status: 'Scheduled'
-    },
-    {
-      id: 2,
-      time: '10:30 AM',
-      patientName: 'Oshadi Karunarathna',
-      phone: '0772345678',
-      type: 'Follow-up',
-      status: 'Scheduled'
-    },
-    {
-      id: 3,
-      time: '11:45 AM',
-      patientName: 'Shalini Rathnayake',
-      phone: '0773456789',
-      type: 'Consultation',
-      status: 'Scheduled'
-    }
-  ]);
+  const [appointments, setAppointments] = useState([]);
+  const [stats, setStats] = useState({
+    todayAppointments: 0,
+    totalPatients: 0,
+    upcomingAppointments: 0
+  });
 
-  // Dashboard statistics
-  const stats = {
-    todayAppointments: 12,
-    totalPatients: 156,
-    upcomingAppointments: 28
+  const getLocalDateString = (date) => {
+    const offset = date.getTimezoneOffset() * 60000;
+    const localISOTime = (new Date(date.getTime() - offset)).toISOString().slice(0, -1);
+    return localISOTime.split('T')[0];
   };
+
+  // Fetch appointments and stats
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        const token = localStorage.getItem('token');
+
+        // Fetch specific doctor appointments
+        const apptRes = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/appointments`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+
+        // Fetch unique patients assigned to doctor
+        const patientRes = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/doctors/my-patients`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+
+        if (apptRes.data.success && patientRes.data.success) {
+          const allAppointments = apptRes.data.data;
+          const patientsList = patientRes.data.data;
+
+          const todayDate = getLocalDateString(new Date());
+
+          // Calculate stats
+          const todayAppts = allAppointments.filter(apt => apt.appointment_date === todayDate);
+
+          // Count upcoming as any appointment strictly starting from today or future
+          // Alternatively, just count today + future
+          const upcomingAppts = allAppointments.filter(apt => apt.appointment_date >= todayDate && apt.status !== 'CANCELLED' && apt.status !== 'COMPLETED');
+
+          setStats({
+            todayAppointments: todayAppts.length,
+            totalPatients: patientsList.length,
+            upcomingAppointments: upcomingAppts.length
+          });
+
+          // Format today's appointments for rendering
+          const formattedToday = todayAppts.map(apt => ({
+            id: apt.appointment_id,
+            time: apt.time_slot, // Assuming time_slot is stored like "09:00" or similar
+            patientName: apt.patient?.full_name || 'Unknown Patient',
+            phone: apt.patient?.user?.contact_number || apt.patient?.nic || 'N/A', // Assuming contact might not be directly in nic, fallback to nic
+            type: apt.status === 'COMPLETED' ? 'Follow-up' : 'Consultation',
+            status: apt.status
+          }));
+
+          setAppointments(formattedToday);
+        }
+      } catch (error) {
+        console.error("Error fetching dashboard data:", error);
+      }
+    };
+
+    fetchDashboardData();
+  }, []);
 
   const [showAvailabilityModal, setShowAvailabilityModal] = useState(false);
 

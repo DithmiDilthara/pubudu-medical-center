@@ -4,12 +4,14 @@ import axios from "axios";
 import { FiUserPlus, FiCalendar, FiClock } from "react-icons/fi";
 import ReceptionistSidebar from "../../components/ReceptionistSidebar";
 import ReceptionistHeader from "../../components/ReceptionistHeader";
+import CancellationModal from "../../components/CancellationModal";
 
 function ReceptionistDashboard() {
   const navigate = useNavigate();
   const [receptionistName, setReceptionistName] = useState('Receptionist');
   const [appointments, setAppointments] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [cancellationMessages, setCancellationMessages] = useState([]);
 
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
@@ -36,7 +38,27 @@ function ReceptionistDashboard() {
           headers: { Authorization: `Bearer ${token}` }
         });
         if (response.data.success) {
-          setAppointments(response.data.data);
+          const allApts = response.data.data;
+          setAppointments(allApts);
+
+          // Check for recent cancellations to notify receptionist
+          const cancelledApts = allApts.filter(apt => apt.status === 'CANCELLED');
+          if (cancelledApts.length > 0) {
+            const notifiedCancellations = JSON.parse(sessionStorage.getItem('receptionistNotifiedCancellations') || '[]');
+            const newCancellations = cancelledApts.filter(apt => !notifiedCancellations.includes(apt.appointment_id));
+
+            if (newCancellations.length > 0) {
+              const messages = newCancellations.map(apt =>
+                `The ${apt.appointment_date} session with ${apt.doctor?.full_name || 'the doctor'} has been cancelled.`
+              );
+
+              setCancellationMessages(messages);
+
+              // Mark as notified for this session
+              const updatedNotified = [...notifiedCancellations, ...newCancellations.map(a => a.appointment_id)];
+              sessionStorage.setItem('receptionistNotifiedCancellations', JSON.stringify(updatedNotified));
+            }
+          }
         }
       } catch (error) {
         console.error("Error fetching appointments:", error);
@@ -118,6 +140,12 @@ function ReceptionistDashboard() {
       <div style={styles.mainWrapper}>
         {/* Header */}
         <ReceptionistHeader receptionistName={receptionistName} />
+
+        {/* Cancellation Notice Modal */}
+        <CancellationModal
+          messages={cancellationMessages}
+          onClose={() => setCancellationMessages([])}
+        />
 
         {/* Dashboard Content */}
         <main style={styles.mainContent}>

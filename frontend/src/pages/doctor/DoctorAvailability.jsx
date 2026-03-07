@@ -45,7 +45,10 @@ function DoctorAvailability() {
 
           // Map specific dates
           const specificAvail = {};
-          availData.filter(a => a.specific_date).forEach(a => {
+          const today = new Date();
+          const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
+          availData.filter(a => a.specific_date && a.specific_date >= todayStr).forEach(a => {
             specificAvail[a.specific_date] = {
               status: a.session_name === 'Available' ? 'available' : a.session_name === 'Half Day' ? 'half-day' : 'unavailable',
               startTime: a.start_time,

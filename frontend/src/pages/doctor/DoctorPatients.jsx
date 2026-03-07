@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import DoctorHeader from '../../components/DoctorHeader';
 import DoctorSidebar from '../../components/DoctorSidebar';
 
@@ -8,50 +9,30 @@ function DoctorPatients() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('All');
   const [selectedPatient, setSelectedPatient] = useState(null);
+  const [patients, setPatients] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Sample patients data
-  const patients = [
-    {
-      id: 1,
-      name: 'Malinda Jayasekara',
-      patientId: 'PHE-1234',
-      primaryReason: 'General Checkup',
-      contact: '+94 777 345 878',
-      lastVisit: '2023-11-15'
-    },
-    {
-      id: 2,
-      name: 'Ravi Abeykoon',
-      patientId: 'PHE-1534',
-      primaryReason: 'Follow-up',
-      contact: '+94 787 543 565',
-      lastVisit: '2023-11-20'
-    },
-    {
-      id: 3,
-      name: 'Sanjeewa Hettiarachchi',
-      patientId: 'PHE-1354',
-      primaryReason: 'Consultation',
-      contact: '+94 708 456 123',
-      lastVisit: '2023-11-22'
-    },
-    {
-      id: 4,
-      name: 'Piumi Fonseka',
-      patientId: 'PHE-3344',
-      primaryReason: 'Vaccination',
-      contact: '+94 764 543 777',
-      lastVisit: '2023-11-25'
-    },
-    {
-      id: 5,
-      name: 'Thisara Abeysinghe',
-      patientId: 'PHE-2099',
-      primaryReason: 'Physical Therapy',
-      contact: '+94 757 323 509',
-      lastVisit: '2023-11-28'
-    }
-  ];
+  // Fetch unique patients from backend
+  useEffect(() => {
+    const fetchPatients = async () => {
+      setIsLoading(true);
+      try {
+        const token = localStorage.getItem('token');
+        const response = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/doctors/my-patients`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+
+        if (response.data.success) {
+          setPatients(response.data.data);
+        }
+      } catch (error) {
+        console.error("Error fetching patients:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchPatients();
+  }, []);
 
   const handleViewDetails = (patientId) => {
     navigate('/doctor/patient-details', { state: { patientId } });
@@ -61,7 +42,7 @@ function DoctorPatients() {
     setSelectedPatient(patient);
   };
 
-  const filteredPatients = patients.filter(patient => 
+  const filteredPatients = patients.filter(patient =>
     patient.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     patient.patientId.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -74,136 +55,136 @@ function DoctorPatients() {
   return (
     <div style={styles.pageContainer}>
       <DoctorSidebar onLogout={handleLogout} />
-      
+
       <div style={styles.mainContainer}>
         <DoctorHeader />
 
         <main style={styles.mainContent}>
-        {/* Header */}
-        <div style={styles.header}>
-          <div>
-            <h1 style={styles.pageTitle}>Patients</h1>
-            <p style={styles.pageSubtitle}>Manage your patient records</p>
+          {/* Header */}
+          <div style={styles.header}>
+            <div>
+              <h1 style={styles.pageTitle}>Patients</h1>
+              <p style={styles.pageSubtitle}>Manage your patient records</p>
+            </div>
           </div>
-        </div>
 
-        {/* Search and Filters */}
-        <div style={styles.searchSection}>
-          <input
-            type="text"
-            placeholder="Search patients by name or ID..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            style={styles.searchInput}
-          />
-          <div style={styles.filterButtons}>
-            <button
-              onClick={() => setFilterStatus('All')}
-              style={{
-                ...styles.filterButton,
-                ...(filterStatus === 'All' ? styles.filterButtonActive : {})
-              }}
-            >
-              Filter by Status
-            </button>
-            <button
-              style={styles.filterButton}
-            >
-              Filter by Date
-            </button>
+          {/* Search and Filters */}
+          <div style={styles.searchSection}>
+            <input
+              type="text"
+              placeholder="Search patients by name or ID..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              style={styles.searchInput}
+            />
+            <div style={styles.filterButtons}>
+              <button
+                onClick={() => setFilterStatus('All')}
+                style={{
+                  ...styles.filterButton,
+                  ...(filterStatus === 'All' ? styles.filterButtonActive : {})
+                }}
+              >
+                Filter by Status
+              </button>
+              <button
+                style={styles.filterButton}
+              >
+                Filter by Date
+              </button>
+            </div>
           </div>
-        </div>
 
-        {/* Patients Table */}
-        <section style={styles.tableSection}>
-          <div style={styles.tableContainer}>
-            <table style={styles.table}>
-              <thead>
-                <tr style={styles.tableHeader}>
-                  <th style={styles.th}>Patient Name</th>
-                  <th style={styles.th}>Primary Reason</th>
-                  <th style={styles.th}>Contact</th>
-                  <th style={styles.th}>Last Visit</th>
-                  <th style={styles.th}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredPatients.map((patient) => (
-                  <tr
-                    key={patient.id}
-                    onClick={() => handlePatientSelect(patient)}
-                    style={{
-                      ...styles.tableRow,
-                      ...(selectedPatient?.id === patient.id ? styles.tableRowSelected : {})
-                    }}
-                  >
-                    <td style={styles.td}>
-                      <div style={styles.patientCell}>
-                        <div style={styles.patientName}>{patient.name}</div>
-                        <div style={styles.patientId}>{patient.patientId}</div>
-                      </div>
-                    </td>
-                    <td style={styles.td}>{patient.primaryReason}</td>
-                    <td style={styles.td}>{patient.contact}</td>
-                    <td style={styles.td}>{patient.lastVisit}</td>
-                    <td style={styles.td}>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleViewDetails(patient.patientId);
-                        }}
-                        style={styles.viewButton}
-                      >
-                        View Details
-                      </button>
-                    </td>
+          {/* Patients Table */}
+          <section style={styles.tableSection}>
+            <div style={styles.tableContainer}>
+              <table style={styles.table}>
+                <thead>
+                  <tr style={styles.tableHeader}>
+                    <th style={styles.th}>Patient Name</th>
+                    <th style={styles.th}>Primary Reason</th>
+                    <th style={styles.th}>Contact</th>
+                    <th style={styles.th}>Last Visit</th>
+                    <th style={styles.th}>Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-        {/* Selected Patient Summary */}
-        {selectedPatient && (
-          <section style={styles.selectedSection}>
-            <h2 style={styles.selectedTitle}>Selected Patient: {selectedPatient.name}</h2>
-            <div style={styles.selectedContent}>
-              <div style={styles.selectedGrid}>
-                <div style={styles.selectedItem}>
-                  <span style={styles.selectedLabel}>Patient Name</span>
-                  <span style={styles.selectedValue}>{selectedPatient.name}</span>
-                </div>
-                <div style={styles.selectedItem}>
-                  <span style={styles.selectedLabel}>Primary Reason</span>
-                  <span style={styles.selectedValue}>{selectedPatient.primaryReason}</span>
-                </div>
-                <div style={styles.selectedItem}>
-                  <span style={styles.selectedLabel}>Contact</span>
-                  <span style={styles.selectedValue}>{selectedPatient.contact}</span>
-                </div>
-                <div style={styles.selectedItem}>
-                  <span style={styles.selectedLabel}>Medical History Summary</span>
-                  <span style={styles.selectedValue}>No significant medical history. Regular checkups recommended.</span>
-                </div>
-              </div>
-              <div style={styles.actionButtons}>
-                <button onClick={() => handleViewDetails(selectedPatient.patientId)} style={styles.actionButton}>
-                  View Full Medical Record
-                </button>
-                <button style={styles.actionButtonSecondary}>
-                  Add New Consultation Note
-                </button>
-                <button style={styles.actionButtonSecondary}>
-                  Prescribe Medication
-                </button>
-                <button style={styles.actionButtonSecondary}>
-                  Schedule Follow-up
-                </button>
-              </div>
+                </thead>
+                <tbody>
+                  {filteredPatients.map((patient) => (
+                    <tr
+                      key={patient.id}
+                      onClick={() => handlePatientSelect(patient)}
+                      style={{
+                        ...styles.tableRow,
+                        ...(selectedPatient?.id === patient.id ? styles.tableRowSelected : {})
+                      }}
+                    >
+                      <td style={styles.td}>
+                        <div style={styles.patientCell}>
+                          <div style={styles.patientName}>{patient.name}</div>
+                          <div style={styles.patientId}>{patient.patientId}</div>
+                        </div>
+                      </td>
+                      <td style={styles.td}>{patient.primaryReason}</td>
+                      <td style={styles.td}>{patient.contact}</td>
+                      <td style={styles.td}>{patient.lastVisit}</td>
+                      <td style={styles.td}>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleViewDetails(patient.patientId);
+                          }}
+                          style={styles.viewButton}
+                        >
+                          View Details
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </section>
-        )}
+
+          {/* Selected Patient Summary */}
+          {selectedPatient && (
+            <section style={styles.selectedSection}>
+              <h2 style={styles.selectedTitle}>Selected Patient: {selectedPatient.name}</h2>
+              <div style={styles.selectedContent}>
+                <div style={styles.selectedGrid}>
+                  <div style={styles.selectedItem}>
+                    <span style={styles.selectedLabel}>Patient Name</span>
+                    <span style={styles.selectedValue}>{selectedPatient.name}</span>
+                  </div>
+                  <div style={styles.selectedItem}>
+                    <span style={styles.selectedLabel}>Primary Reason</span>
+                    <span style={styles.selectedValue}>{selectedPatient.primaryReason}</span>
+                  </div>
+                  <div style={styles.selectedItem}>
+                    <span style={styles.selectedLabel}>Contact</span>
+                    <span style={styles.selectedValue}>{selectedPatient.contact}</span>
+                  </div>
+                  <div style={styles.selectedItem}>
+                    <span style={styles.selectedLabel}>Medical History Summary</span>
+                    <span style={styles.selectedValue}>No significant medical history. Regular checkups recommended.</span>
+                  </div>
+                </div>
+                <div style={styles.actionButtons}>
+                  <button onClick={() => handleViewDetails(selectedPatient.patientId)} style={styles.actionButton}>
+                    View Full Medical Record
+                  </button>
+                  <button style={styles.actionButtonSecondary}>
+                    Add New Consultation Note
+                  </button>
+                  <button style={styles.actionButtonSecondary}>
+                    Prescribe Medication
+                  </button>
+                  <button style={styles.actionButtonSecondary}>
+                    Schedule Follow-up
+                  </button>
+                </div>
+              </div>
+            </section>
+          )}
         </main>
       </div>
     </div>

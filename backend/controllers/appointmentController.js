@@ -1,5 +1,6 @@
 import { Appointment, Patient, Doctor, User } from '../models/index.js';
 import NotificationService from '../utils/NotificationService.js';
+import { Op } from 'sequelize';
 
 /**
  * @desc    Create a new appointment
@@ -117,6 +118,19 @@ export const getAppointments = async (req, res) => {
     try {
         const { role_id, user_id } = req.user;
         const { doctor_id } = req.query;
+
+        // Auto-complete past appointments
+        const todayStr = new Date().toISOString().split('T')[0];
+        await Appointment.update(
+            { status: 'COMPLETED' },
+            {
+                where: {
+                    appointment_date: { [Op.lt]: todayStr },
+                    status: ['PENDING', 'CONFIRMED']
+                }
+            }
+        );
+
         let where = {};
 
         if (role_id === 4) { // Patient
