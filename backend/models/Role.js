@@ -10,7 +10,7 @@ const Role = sequelize.define('role', {
   role_name: {
     type: DataTypes.STRING(15),
     allowNull: false,
-    unique: true
+    unique: 'role_name_unique'
   }
 }, {
   tableName: 'role',

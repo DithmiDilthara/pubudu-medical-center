@@ -9,6 +9,7 @@ import patientRoutes from './routes/patientRoutes.js';
 import appointmentRoutes from './routes/appointmentRoutes.js';
 import clinicalRoutes from './routes/clinicalRoutes.js';
 import doctorRoutes from './routes/doctorRoutes.js';
+import paymentRoutes from './routes/paymentRoutes.js';
 
 dotenv.config();
 dotenv.config({ path: './config/.env' });
@@ -29,6 +30,7 @@ app.use('/api/patient', patientRoutes);
 app.use('/api/appointments', appointmentRoutes);
 app.use('/api/clinical', clinicalRoutes);
 app.use('/api/doctors', doctorRoutes);
+app.use('/api/payments', paymentRoutes);
 
 // Test route
 app.get('/', (req, res) => {
@@ -63,4 +65,4 @@ const startServer = async () => {
     }
 };
 
-startServer();     
+startServer();      

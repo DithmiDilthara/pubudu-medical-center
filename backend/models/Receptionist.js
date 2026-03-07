@@ -10,7 +10,7 @@ const Receptionist = sequelize.define('receptionist', {
   user_id: {
     type: DataTypes.INTEGER,
     allowNull: false,
-    unique: true
+    unique: 'receptionist_user_unique'
   },
   admin_id: {
     type: DataTypes.INTEGER,
@@ -23,7 +23,7 @@ const Receptionist = sequelize.define('receptionist', {
   nic: {
     type: DataTypes.STRING(15),
     allowNull: false,
-    unique: true
+    unique: 'receptionist_nic_unique'
   }
 }, {
   tableName: 'receptionist',

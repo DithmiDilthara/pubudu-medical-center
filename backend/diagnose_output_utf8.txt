@@ -1,0 +1,38 @@
+﻿[dotenv@17.2.3] injecting env (0) from .env -- tip: ≡ƒöÉ encrypt with Dotenvx: https://dotenvx.com
+[dotenv@17.2.3] injecting env (17) from config\.env -- tip: ≡ƒöä add secrets lifecycle management: https://dotenvx.com/ops
+Testing Appointment.update()...
+Executing (default): UPDATE `appointment` SET `status`=?,`updated_at`=? WHERE `appointment_date` < '2026-03-07' AND `status` IN ('PENDING', 'CONFIRMED')
+Successfully updated past appointments.
+Testing Patient.findByPk with User include...
+Executing (default): SELECT `appointment_id`, `patient_id`, `doctor_id`, `appointment_date`, `time_slot`, `status`, `payment_status`, `notes`, `created_at`, `updated_at` FROM `appointment` AS `appointment` LIMIT 1;
+node : Error fetching 
+appointments:
+At line:1 char:1
++ node diagnose_appoint
+ments.js > 
+diagnose_output.txt 
+2>&1
++ ~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~
+    + CategoryInfo     
+         : NotSpecifi  
+  ed: (Error fetchin   
+ g appointments::St    
+ring) [], RemoteEx    
+ception
+    + FullyQualifiedEr 
+   rorId : NativeComm  
+  andError
+ 
+ReferenceError: User 
+is not defined
+    at diagnose (file:/
+//C:/Users/user/Desktop
+/pubudu-medical-center/
+backend/diagnose_appoin
+tments.js:24:36)
+    at process.processT
+icksAndRejections (node
+:internal/process/task_
+queues:105:5)

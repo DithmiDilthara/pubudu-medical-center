@@ -3,7 +3,8 @@ import { useState, useEffect } from "react";
 import { FiCalendar, FiClock, FiCreditCard, FiPlus, FiTrash2 } from 'react-icons/fi';
 import PatientSidebar from "../../components/PatientSidebar";
 import PatientHeader from "../../components/PatientHeader";
-import axios from 'axios'; // Added axios import
+import axios from 'axios';
+import toast from 'react-hot-toast';
 
 function Appointments() {
   const navigate = useNavigate();
@@ -24,6 +25,16 @@ function Appointments() {
       }
     };
     fetchAppointments();
+
+    // Check for payment status in URL
+    const queryParams = new URLSearchParams(window.location.search);
+    if (queryParams.get('payment') === 'success') {
+      toast.success("Payment successful! Your appointment is being confirmed.");
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (queryParams.get('payment') === 'cancel') {
+      toast.error("Payment was cancelled.");
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
   }, []);
 
   const handleLogout = () => {
@@ -37,6 +48,7 @@ function Appointments() {
 
   const handleCancelAppointment = async (id) => {
     if (window.confirm("Are you sure you want to cancel this appointment?")) {
+      const toastId = toast.loading("Cancelling appointment...");
       try {
         const token = localStorage.getItem('token');
         await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/appointments/${id}/status`,
@@ -44,10 +56,35 @@ function Appointments() {
           { headers: { Authorization: `Bearer ${token}` } });
 
         setAppointments(prev => prev.map(a => a.appointment_id === id ? { ...a, status: 'CANCELLED' } : a));
+        toast.success("Appointment cancelled successfully", { id: toastId });
       } catch (error) {
-        alert("Failed to cancel appointment");
+        toast.error("Failed to cancel appointment", { id: toastId });
       }
     }
+  };
+
+  const handlePayNow = (appointmentId) => {
+    const apt = appointments.find(a => a.appointment_id === appointmentId);
+    if (!apt) return;
+
+    const doctorFee = Number(apt.doctor?.session_fee || 2500);
+    const totalFee = doctorFee + 500; // Adding 500 medical center fee
+
+    navigate("/patient/payment", {
+      state: {
+        paymentData: {
+          appointmentId: apt.appointment_id,
+          doctor: {
+            name: apt.doctor?.full_name || 'Doctor',
+            specialty: apt.doctor?.specialization || 'General'
+          },
+          date: apt.appointment_date,
+          time: apt.time_slot,
+          totalFee: totalFee,
+          notes: apt.notes
+        }
+      }
+    });
   };
 
   const today = new Date();
@@ -138,13 +175,24 @@ function Appointments() {
 
                     <div style={styles.appointmentActions}>
                       {apt.status === 'PENDING' && (
-                        <button
-                          onClick={() => handleCancelAppointment(apt.appointment_id)}
-                          style={styles.cancelButton}
-                        >
-                          <FiTrash2 style={{ marginRight: '6px' }} />
-                          Cancel Appointment
-                        </button>
+                        <>
+                          {apt.payment_status === 'UNPAID' && (
+                            <button
+                              onClick={() => handlePayNow(apt.appointment_id)}
+                              style={styles.payNowButton}
+                            >
+                              <FiCreditCard style={{ marginRight: '6px' }} />
+                              Pay Now
+                            </button>
+                          )}
+                          <button
+                            onClick={() => handleCancelAppointment(apt.appointment_id)}
+                            style={styles.cancelButton}
+                          >
+                            <FiTrash2 style={{ marginRight: '6px' }} />
+                            Cancel Appointment
+                          </button>
+                        </>
                       )}
                     </div>
                   </div>
@@ -422,6 +470,21 @@ const styles = {
     border: '2px solid #dc2626',
     borderRadius: '8px',
     cursor: 'pointer',
+    transition: 'all 0.3s',
+    display: 'flex',
+    alignItems: 'center',
+    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+  },
+  payNowButton: {
+    padding: '10px 20px',
+    fontSize: '14px',
+    fontWeight: '700',
+    color: 'white',
+    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+    border: 'none',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)',
     transition: 'all 0.3s',
     display: 'flex',
     alignItems: 'center',

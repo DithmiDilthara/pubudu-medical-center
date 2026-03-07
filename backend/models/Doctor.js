@@ -10,7 +10,7 @@ const Doctor = sequelize.define('doctor', {
   user_id: {
     type: DataTypes.INTEGER,
     allowNull: false,
-    unique: true
+    unique: 'doctor_user_unique'
   },
   admin_id: {
     type: DataTypes.INTEGER,
@@ -27,7 +27,12 @@ const Doctor = sequelize.define('doctor', {
   license_no: {
     type: DataTypes.STRING(50),
     allowNull: false,
-    unique: true
+    unique: 'doctor_license_unique'
+  },
+  session_fee: {
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: false,
+    defaultValue: 3000.00
   }
 }, {
   tableName: 'doctor',

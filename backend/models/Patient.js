@@ -10,7 +10,7 @@ const Patient = sequelize.define('patient', {
   user_id: {
     type: DataTypes.INTEGER,
     allowNull: false,
-    unique: true
+    unique: 'patient_user_unique'
   },
   full_name: {
     type: DataTypes.STRING(100),
@@ -19,7 +19,7 @@ const Patient = sequelize.define('patient', {
   nic: {
     type: DataTypes.STRING(15),
     allowNull: false,
-    unique: true
+    unique: 'patient_nic_unique'
   },
   gender: {
     type: DataTypes.ENUM('MALE', 'FEMALE', 'OTHER'),

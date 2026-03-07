@@ -24,6 +24,10 @@ const Payment = sequelize.define('payment', {
         allowNull: false,
         defaultValue: 'SUCCESS'
     },
+    appointment_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true
+    },
     transaction_id: {
         type: DataTypes.STRING(100),
         allowNull: false,

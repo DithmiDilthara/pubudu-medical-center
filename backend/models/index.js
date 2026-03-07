@@ -65,6 +65,10 @@ Appointment.belongsTo(Doctor, { foreignKey: 'doctor_id', as: 'doctor' });
 Appointment.hasOne(Prescription, { foreignKey: 'appointment_id', as: 'prescription' });
 Prescription.belongsTo(Appointment, { foreignKey: 'appointment_id', as: 'appointment' });
 
+// Appointment - Payment (One-to-One)
+Appointment.hasOne(Payment, { foreignKey: 'appointment_id', as: 'payment' });
+Payment.belongsTo(Appointment, { foreignKey: 'appointment_id', as: 'appointment' });
+
 export {
   sequelize,
   Role,

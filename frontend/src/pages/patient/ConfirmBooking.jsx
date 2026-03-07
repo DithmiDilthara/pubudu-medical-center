@@ -1,6 +1,7 @@
 import { useNavigate, useLocation } from "react-router-dom";
 import { useState } from "react";
 import axios from "axios";
+import toast from "react-hot-toast";
 import { FiClipboard, FiCalendar, FiClock, FiCreditCard, FiInfo, FiFileText, FiArrowLeft } from 'react-icons/fi';
 import PatientSidebar from "../../components/PatientSidebar";
 import PatientHeader from "../../components/PatientHeader";
@@ -36,23 +37,9 @@ function ConfirmBooking() {
 
   const formattedDate = `${monthNames[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
 
-  const handlePayNow = () => {
-    // Navigate to payment page with appointment data
-    navigate("/patient/payment", {
-      state: {
-        paymentData: {
-          doctor,
-          date,
-          time,
-          totalFee,
-          notes
-        }
-      }
-    });
-  };
-
-  const handleConfirmBooking = async () => {
+  const handlePayNow = async () => {
     setIsLoading(true);
+    const toastId = toast.loading("Creating appointment...");
     try {
       const token = localStorage.getItem('token');
       const localDate = new Date(date.getTime() - (date.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
@@ -67,12 +54,54 @@ function ConfirmBooking() {
       });
 
       if (response.data.success) {
-        alert("Appointment confirmed successfully! You can pay at the medical center.");
+        toast.dismiss(toastId);
+        const appointmentId = response.data.data.appointment_id;
+
+        // Navigate to payment page with appointment data
+        navigate("/patient/payment", {
+          state: {
+            paymentData: {
+              appointmentId,
+              doctor,
+              date,
+              time,
+              totalFee,
+              notes
+            }
+          }
+        });
+      }
+    } catch (error) {
+      console.error("Booking failed:", error);
+      toast.error(error.response?.data?.message || "Failed to create appointment before payment.", { id: toastId });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleConfirmBooking = async () => {
+    setIsLoading(true);
+    const toastId = toast.loading("Confirming booking...");
+    try {
+      const token = localStorage.getItem('token');
+      const localDate = new Date(date.getTime() - (date.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+
+      const response = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/appointments`, {
+        doctor_id: doctorId,
+        appointment_date: localDate,
+        time_slot: time,
+        notes: notes
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (response.data.success) {
+        toast.success("Appointment confirmed successfully! You can pay at the medical center.", { id: toastId });
         navigate("/patient/appointments");
       }
     } catch (error) {
       console.error("Booking failed:", error);
-      alert(error.response?.data?.message || "Failed to confirm booking");
+      toast.error(error.response?.data?.message || "Failed to confirm booking", { id: toastId });
     } finally {
       setIsLoading(false);
     }
@@ -176,8 +205,12 @@ function ConfirmBooking() {
 
               {/* Payment Options */}
               <div style={styles.paymentButtons}>
-                <button onClick={handlePayNow} style={styles.payNowButton}>Pay Now</button>
-                <button onClick={handleConfirmBooking} style={styles.payLaterButton}>Pay Later</button>
+                <button disabled={isLoading} onClick={handlePayNow} style={{ ...styles.payNowButton, opacity: isLoading ? 0.7 : 1 }}>
+                  {isLoading ? "Processing..." : "Pay Now"}
+                </button>
+                <button disabled={isLoading} onClick={handleConfirmBooking} style={{ ...styles.payLaterButton, opacity: isLoading ? 0.7 : 1 }}>
+                  {isLoading ? "Processing..." : "Pay Later"}
+                </button>
               </div>
             </section>
 
@@ -198,12 +231,12 @@ function ConfirmBooking() {
 
             {/* Action Buttons */}
             <div style={styles.actionButtons}>
-              <button onClick={handleBack} style={styles.backButton}>
+              <button disabled={isLoading} onClick={handleBack} style={{ ...styles.backButton, opacity: isLoading ? 0.7 : 1 }}>
                 <FiArrowLeft style={{ marginRight: '8px' }} />
                 Back
               </button>
-              <button onClick={handleConfirmBooking} style={styles.confirmButton}>
-                Confirm Booking
+              <button disabled={isLoading} onClick={handleConfirmBooking} style={{ ...styles.confirmButton, opacity: isLoading ? 0.7 : 1 }}>
+                {isLoading ? "Confirming..." : "Confirm Booking"}
               </button>
             </div>
           </div>

@@ -126,7 +126,7 @@ function FindDoctor() {
               <div style={styles.doctorsList}>
                 {filteredDoctors.map((doctor) => (
                   <div
-                    key={doctor.id}
+                    key={doctor.doctor_id}
                     style={styles.doctorCard}
                     onMouseEnter={(e) => {
                       e.currentTarget.style.transform = 'translateY(-2px)';
