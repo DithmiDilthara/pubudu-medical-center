@@ -9,16 +9,11 @@ import ReceptionistHeader from "../../components/ReceptionistHeader";
 function AddPatient() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchType, setSearchType] = useState("nic");
-  const [searchResult, setSearchResult] = useState(null);
-  const [showRegistrationForm, setShowRegistrationForm] = useState(false);
+  const [showRegistrationForm, setShowRegistrationForm] = useState(true);
 
   useEffect(() => {
-    if (location.state?.showRegistration) {
-      setShowRegistrationForm(true);
-    }
-  }, [location.state]);
+    // Component now always shows registration form directly
+  }, []);
 
   const [formData, setFormData] = useState({
     fullName: "",
@@ -184,64 +179,6 @@ function AddPatient() {
     navigate("/");
   };
 
-  const handleSearch = async () => {
-    if (!searchQuery.trim()) {
-      toast.error("Please enter a search value");
-      return;
-    }
-
-    const toastId = toast.loading("Searching for patient...");
-    try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/receptionist/search-patient`, {
-        params: { query: searchQuery, type: searchType },
-        headers: { Authorization: `Bearer ${token}` }
-      });
-
-      if (response.data.success) {
-        if (response.data.exists) {
-          toast.success("Patient is already registered!", { id: toastId });
-          setSearchResult({
-            exists: true,
-            message: "Patient is already registered in the system!",
-            data: response.data.data
-          });
-          setShowRegistrationForm(false);
-        } else {
-          toast.dismiss(toastId);
-          toast((t) => (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <span style={{ fontWeight: '500' }}>Patient is not existing in the system.</span>
-              <button
-                onClick={() => {
-                  setShowRegistrationForm(true);
-                  setSearchResult(null);
-                  toast.dismiss(t.id);
-                }}
-                style={{
-                  backgroundColor: '#0066CC',
-                  color: 'white',
-                  border: 'none',
-                  padding: '6px 12px',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  fontWeight: '600',
-                  fontSize: '13px'
-                }}
-              >
-                Proceed with Registration
-              </button>
-            </div>
-          ), { duration: 6000, icon: 'ℹ️' });
-          setSearchResult(null);
-          setShowRegistrationForm(false);
-        }
-      }
-    } catch (error) {
-      console.error("Search error:", error);
-      toast.error("Failed to search for patient.", { id: toastId });
-    }
-  };
 
   const handleInputChange = (e) => {
     try {
@@ -337,9 +274,7 @@ function AddPatient() {
         });
         setErrors({});
         setTouched({});
-        setSearchQuery("");
-        setSearchResult(null);
-        setShowRegistrationForm(false);
+        navigate("/receptionist/patients"); // redirect or just stay on same page
       }
     } catch (error) {
       console.error("Error submitting form:", error);
@@ -364,87 +299,7 @@ function AddPatient() {
           <div style={styles.contentCard}>
             <h1 style={styles.pageTitle}>Add New Patient</h1>
 
-            {/* Search Section */}
-            {!showRegistrationForm && (
-              <div style={styles.searchSection}>
-                <h2 style={styles.sectionTitle}>Search Patient</h2>
-                <p style={styles.sectionSubtitle}>
-                  Check if patient is already registered
-                </p>
 
-                <div style={styles.searchContainer}>
-                  <div style={styles.searchTypeContainer}>
-                    <label style={styles.radioLabel}>
-                      <input
-                        type="radio"
-                        name="searchType"
-                        value="nic"
-                        checked={searchType === "nic"}
-                        onChange={(e) => setSearchType(e.target.value)}
-                        style={styles.radioInput}
-                      />
-                      NIC Number
-                    </label>
-                    <label style={styles.radioLabel}>
-                      <input
-                        type="radio"
-                        name="searchType"
-                        value="phone"
-                        checked={searchType === "phone"}
-                        onChange={(e) => setSearchType(e.target.value)}
-                        style={styles.radioInput}
-                      />
-                      Phone Number
-                    </label>
-                    <label style={styles.radioLabel}>
-                      <input
-                        type="radio"
-                        name="searchType"
-                        value="name"
-                        checked={searchType === "name"}
-                        onChange={(e) => setSearchType(e.target.value)}
-                        style={styles.radioInput}
-                      />
-                      Name
-                    </label>
-                  </div>
-
-                  <div style={styles.searchInputContainer}>
-                    <FiSearch style={styles.searchIcon} />
-                    <input
-                      type="text"
-                      placeholder={`Enter patient ${searchType === "nic" ? "NIC number" : searchType === "phone" ? "phone number" : "name"}`}
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      style={styles.searchInput}
-                    />
-                    <button onClick={handleSearch} style={styles.searchButton}>
-                      Search
-                    </button>
-                  </div>
-                </div>
-
-                {/* Search Result Message */}
-                {searchResult && (
-                  <div style={searchResult.exists ? styles.existsContainer : styles.notExistsContainer}>
-                    <div style={{
-                      ...styles.resultMessage,
-                      ...(searchResult.exists ? styles.existsMessage : styles.notExistsMessage)
-                    }}>
-                      {searchResult.message}
-                    </div>
-                    {searchResult.exists && (
-                      <button
-                        onClick={() => navigate("/receptionist/appointments/new", { state: { patient: searchResult.data } })}
-                        style={styles.bookNowButton}
-                      >
-                        Process to Booking Appointment
-                      </button>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
 
             {/* Registration Form */}
             {showRegistrationForm && (
@@ -572,58 +427,59 @@ function AddPatient() {
                     )}
                   </div>
 
-                  {/* Phone Number */}
-                  <div style={styles.formGroup}>
-                    <label style={styles.label}>
-                      Phone Number <span style={styles.required}>*</span>
-                    </label>
-                    <input
-                      type="tel"
-                      name="phoneNumber"
-                      placeholder="Enter phone number"
-                      value={formData.phoneNumber}
-                      onChange={handleInputChange}
-                      onBlur={handleBlur}
-                      style={{
-                        ...styles.input,
-                        ...(touched.phoneNumber && errors.phoneNumber ? styles.inputError : {}),
-                        ...(touched.phoneNumber && !errors.phoneNumber && formData.phoneNumber ? styles.inputValid : {})
-                      }}
-                      required
-                    />
-                    {touched.phoneNumber && errors.phoneNumber && (
-                      <span style={styles.errorText}>{errors.phoneNumber}</span>
-                    )}
-                    {touched.phoneNumber && !errors.phoneNumber && formData.phoneNumber && (
-                      <span style={styles.validText}>✓</span>
-                    )}
-                  </div>
+                  {/* Phone & Email */}
+                  <div style={styles.formRow}>
+                    <div style={styles.formGroupHalf}>
+                      <label style={styles.label}>
+                        Phone Number <span style={styles.required}>*</span>
+                      </label>
+                      <input
+                        type="tel"
+                        name="phoneNumber"
+                        placeholder="Enter phone number"
+                        value={formData.phoneNumber}
+                        onChange={handleInputChange}
+                        onBlur={handleBlur}
+                        style={{
+                          ...styles.input,
+                          ...(touched.phoneNumber && errors.phoneNumber ? styles.inputError : {}),
+                          ...(touched.phoneNumber && !errors.phoneNumber && formData.phoneNumber ? styles.inputValid : {})
+                        }}
+                        required
+                      />
+                      {touched.phoneNumber && errors.phoneNumber && (
+                        <span style={styles.errorText}>{errors.phoneNumber}</span>
+                      )}
+                      {touched.phoneNumber && !errors.phoneNumber && formData.phoneNumber && (
+                        <span style={styles.validText}>✓</span>
+                      )}
+                    </div>
 
-                  {/* Email Address */}
-                  <div style={styles.formGroup}>
-                    <label style={styles.label}>
-                      Email Address <span style={styles.required}>*</span>
-                    </label>
-                    <input
-                      type="email"
-                      name="email"
-                      placeholder="Enter email address"
-                      value={formData.email}
-                      onChange={handleInputChange}
-                      onBlur={handleBlur}
-                      style={{
-                        ...styles.input,
-                        ...(touched.email && errors.email ? styles.inputError : {}),
-                        ...(touched.email && !errors.email && formData.email ? styles.inputValid : {})
-                      }}
-                      required
-                    />
-                    {touched.email && errors.email && (
-                      <span style={styles.errorText}>{errors.email}</span>
-                    )}
-                    {touched.email && !errors.email && formData.email && (
-                      <span style={styles.validText}>✓</span>
-                    )}
+                    <div style={styles.formGroupHalf}>
+                      <label style={styles.label}>
+                        Email Address <span style={styles.required}>*</span>
+                      </label>
+                      <input
+                        type="email"
+                        name="email"
+                        placeholder="Enter email address"
+                        value={formData.email}
+                        onChange={handleInputChange}
+                        onBlur={handleBlur}
+                        style={{
+                          ...styles.input,
+                          ...(touched.email && errors.email ? styles.inputError : {}),
+                          ...(touched.email && !errors.email && formData.email ? styles.inputValid : {})
+                        }}
+                        required
+                      />
+                      {touched.email && errors.email && (
+                        <span style={styles.errorText}>{errors.email}</span>
+                      )}
+                      {touched.email && !errors.email && formData.email && (
+                        <span style={styles.validText}>✓</span>
+                      )}
+                    </div>
                   </div>
 
                   {/* National NIC Number */}
@@ -694,73 +550,74 @@ function AddPatient() {
                     )}
                   </div>
 
-                  {/* Password */}
-                  <div style={styles.formGroup}>
-                    <label style={styles.label}>
-                      Password <span style={styles.required}>*</span>
-                    </label>
-                    <input
-                      type="password"
-                      name="password"
-                      placeholder="Enter New Password"
-                      value={formData.password}
-                      onChange={handleInputChange}
-                      onFocus={() => setFocusedField("password")}
-                      onBlur={(e) => {
-                        handleBlur(e);
-                        setFocusedField(null);
-                      }}
-                      style={{
-                        ...styles.input,
-                        ...(touched.password && errors.password ? styles.inputError : {}),
-                        ...(touched.password && !errors.password && formData.password ? styles.inputValid : {})
-                      }}
-                      required
-                    />
-                    {focusedField === "password" && (
-                      <div style={styles.hintsBox}>
-                        <p style={styles.hintsTitle}>Requirements:</p>
-                        <ul style={styles.hintsList}>
-                          <li>Minimum 8 characters</li>
-                          <li>Include uppercase & lowercase</li>
-                          <li>Include at least one number</li>
-                          <li>Include at least one special character</li>
-                        </ul>
-                      </div>
-                    )}
-                    {touched.password && errors.password && (
-                      <span style={styles.errorText}>{errors.password}</span>
-                    )}
-                    {touched.password && !errors.password && formData.password && (
-                      <span style={styles.validText}>✓</span>
-                    )}
-                  </div>
+                  {/* Passwords */}
+                  <div style={styles.formRow}>
+                    <div style={styles.formGroupHalf}>
+                      <label style={styles.label}>
+                        Password <span style={styles.required}>*</span>
+                      </label>
+                      <input
+                        type="password"
+                        name="password"
+                        placeholder="Enter New Password"
+                        value={formData.password}
+                        onChange={handleInputChange}
+                        onFocus={() => setFocusedField("password")}
+                        onBlur={(e) => {
+                          handleBlur(e);
+                          setFocusedField(null);
+                        }}
+                        style={{
+                          ...styles.input,
+                          ...(touched.password && errors.password ? styles.inputError : {}),
+                          ...(touched.password && !errors.password && formData.password ? styles.inputValid : {})
+                        }}
+                        required
+                      />
+                      {focusedField === "password" && (
+                        <div style={styles.hintsBox}>
+                          <p style={styles.hintsTitle}>Requirements:</p>
+                          <ul style={styles.hintsList}>
+                            <li>Minimum 8 characters</li>
+                            <li>Include uppercase & lowercase</li>
+                            <li>Include at least one number</li>
+                            <li>Include at least one special character</li>
+                          </ul>
+                        </div>
+                      )}
+                      {touched.password && errors.password && (
+                        <span style={styles.errorText}>{errors.password}</span>
+                      )}
+                      {touched.password && !errors.password && formData.password && (
+                        <span style={styles.validText}>✓</span>
+                      )}
+                    </div>
 
-                  {/* Confirm Password */}
-                  <div style={styles.formGroup}>
-                    <label style={styles.label}>
-                      Confirm Password <span style={styles.required}>*</span>
-                    </label>
-                    <input
-                      type="password"
-                      name="confirmPassword"
-                      placeholder="Confirm new password"
-                      value={formData.confirmPassword}
-                      onChange={handleInputChange}
-                      onBlur={handleBlur}
-                      style={{
-                        ...styles.input,
-                        ...(touched.confirmPassword && errors.confirmPassword ? styles.inputError : {}),
-                        ...(touched.confirmPassword && !errors.confirmPassword && formData.confirmPassword ? styles.inputValid : {})
-                      }}
-                      required
-                    />
-                    {touched.confirmPassword && errors.confirmPassword && (
-                      <span style={styles.errorText}>{errors.confirmPassword}</span>
-                    )}
-                    {touched.confirmPassword && !errors.confirmPassword && formData.confirmPassword && (
-                      <span style={styles.validText}>✓</span>
-                    )}
+                    <div style={styles.formGroupHalf}>
+                      <label style={styles.label}>
+                        Confirm Password <span style={styles.required}>*</span>
+                      </label>
+                      <input
+                        type="password"
+                        name="confirmPassword"
+                        placeholder="Confirm new password"
+                        value={formData.confirmPassword}
+                        onChange={handleInputChange}
+                        onBlur={handleBlur}
+                        style={{
+                          ...styles.input,
+                          ...(touched.confirmPassword && errors.confirmPassword ? styles.inputError : {}),
+                          ...(touched.confirmPassword && !errors.confirmPassword && formData.confirmPassword ? styles.inputValid : {})
+                        }}
+                        required
+                      />
+                      {touched.confirmPassword && errors.confirmPassword && (
+                        <span style={styles.errorText}>{errors.confirmPassword}</span>
+                      )}
+                      {touched.confirmPassword && !errors.confirmPassword && formData.confirmPassword && (
+                        <span style={styles.validText}>✓</span>
+                      )}
+                    </div>
                   </div>
 
                   {/* Submit Button */}
@@ -777,25 +634,7 @@ function AddPatient() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => {
-                        setShowRegistrationForm(false);
-                        setSearchResult(null);
-                        setSearchQuery("");
-                        setFormData({
-                          fullName: "",
-                          dateOfBirth: "",
-                          gender: "",
-                          address: "",
-                          phoneNumber: "",
-                          email: "",
-                          nic: "",
-                          username: "",
-                          password: "",
-                          confirmPassword: ""
-                        });
-                        setErrors({});
-                        setTouched({});
-                      }}
+                      onClick={() => navigate("/receptionist/dashboard")}
                       style={styles.cancelButton}
                       disabled={isSubmitting}
                     >
@@ -822,7 +661,8 @@ const styles = {
   mainWrapper: {
     flex: 1,
     display: "flex",
-    flexDirection: "column"
+    flexDirection: "column",
+    background: "linear-gradient(135deg, #f0f8ff 0%, #e6f2ff 100%)"
   },
   mainContent: {
     flex: 1,
@@ -833,9 +673,10 @@ const styles = {
     maxWidth: "900px",
     margin: "0 auto",
     backgroundColor: "white",
-    borderRadius: "12px",
-    padding: "32px",
-    boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)"
+    borderRadius: "16px",
+    padding: "40px",
+    boxShadow: "0 12px 30px rgba(0, 102, 204, 0.15)",
+    border: "2px solid #0066CC"
   },
   pageTitle: {
     fontSize: "28px",
@@ -996,12 +837,13 @@ const styles = {
     width: "100%",
     padding: "12px 16px",
     fontSize: "15px",
-    border: "2px solid #e5e7eb",
+    border: "2px solid #e0f2fe",
     borderRadius: "8px",
     outline: "none",
     fontFamily: "'Inter', 'Segoe UI', sans-serif",
     transition: "all 0.2s",
-    boxSizing: "border-box"
+    boxSizing: "border-box",
+    backgroundColor: "#f8fafc"
   },
   inputError: {
     borderColor: "#e74c3c",
@@ -1015,12 +857,12 @@ const styles = {
     width: "100%",
     padding: "12px 16px",
     fontSize: "15px",
-    border: "2px solid #e5e7eb",
+    border: "2px solid #e0f2fe",
     borderRadius: "8px",
     outline: "none",
     fontFamily: "'Inter', 'Segoe UI', sans-serif",
     transition: "all 0.2s",
-    backgroundColor: "white",
+    backgroundColor: "#f8fafc",
     cursor: "pointer",
     boxSizing: "border-box"
   },
@@ -1028,13 +870,14 @@ const styles = {
     width: "100%",
     padding: "12px 16px",
     fontSize: "15px",
-    border: "2px solid #e5e7eb",
+    border: "2px solid #e0f2fe",
     borderRadius: "8px",
     outline: "none",
     fontFamily: "'Inter', 'Segoe UI', sans-serif",
     transition: "all 0.2s",
     resize: "vertical",
-    boxSizing: "border-box"
+    boxSizing: "border-box",
+    backgroundColor: "#f8fafc"
   },
   required: {
     color: "#e74c3c",

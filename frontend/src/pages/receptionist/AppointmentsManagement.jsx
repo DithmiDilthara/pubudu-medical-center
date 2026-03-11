@@ -54,14 +54,6 @@ function AppointmentsManagement() {
     navigate("/");
   };
 
-  const handleAdmitNewPatient = () => {
-    navigate("/receptionist/patients");
-  };
-
-  const handleMakeNewBooking = () => {
-    navigate("/receptionist/appointments/new");
-  };
-
   const handleCancelAppointment = async (appointmentId) => {
     const confirmed = window.confirm("Are you sure you want to cancel this appointment?");
     if (confirmed) {
@@ -146,19 +138,6 @@ function AppointmentsManagement() {
                 <p style={styles.pageSubtitle}>
                   Manage patient appointments, reminders, and scheduling.
                 </p>
-              </div>
-            </div>
-
-            {/* Appointment Actions */}
-            <div style={styles.actionsSection}>
-              <h2 style={styles.sectionTitle}>Appointment Actions</h2>
-              <div style={styles.actionButtons}>
-                <button onClick={handleAdmitNewPatient} style={styles.primaryButton}>
-                  Admit New Patient
-                </button>
-                <button onClick={handleMakeNewBooking} style={styles.secondaryButton}>
-                  Make New Booking
-                </button>
               </div>
             </div>
 
@@ -295,7 +274,8 @@ const styles = {
   mainWrapper: {
     flex: 1,
     display: "flex",
-    flexDirection: "column"
+    flexDirection: "column",
+    background: "linear-gradient(135deg, #f0f8ff 0%, #e6f2ff 100%)"
   },
   mainContent: {
     flex: 1,
@@ -323,56 +303,12 @@ const styles = {
     margin: 0,
     fontFamily: "'Inter', 'Segoe UI', sans-serif"
   },
-  actionsSection: {
-    backgroundColor: "white",
-    borderRadius: "12px",
-    padding: "24px",
-    marginBottom: "24px",
-    boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)"
-  },
-  sectionTitle: {
-    fontSize: "18px",
-    fontWeight: "600",
-    color: "#1f2937",
-    margin: 0,
-    marginBottom: "16px",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
-  },
-  actionButtons: {
-    display: "flex",
-    gap: "12px"
-  },
-  primaryButton: {
-    padding: "12px 24px",
-    fontSize: "15px",
-    fontWeight: "600",
-    color: "white",
-    background: "linear-gradient(135deg, #0066CC 0%, #0052A3 100%)",
-    border: "none",
-    borderRadius: "8px",
-    cursor: "pointer",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif",
-    transition: "all 0.2s",
-    boxShadow: "0 4px 12px rgba(0, 102, 204, 0.3)"
-  },
-  secondaryButton: {
-    padding: "12px 24px",
-    fontSize: "15px",
-    fontWeight: "600",
-    color: "white",
-    background: "linear-gradient(135deg, #0066CC 0%, #0052A3 100%)",
-    border: "none",
-    borderRadius: "8px",
-    cursor: "pointer",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif",
-    transition: "all 0.2s",
-    boxShadow: "0 4px 12px rgba(0, 102, 204, 0.3)"
-  },
   appointmentsSection: {
     backgroundColor: "white",
-    borderRadius: "12px",
-    padding: "24px",
-    boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)"
+    borderRadius: "16px",
+    padding: "40px",
+    boxShadow: "0 12px 30px rgba(0, 102, 204, 0.15)",
+    border: "2px solid #0066CC"
   },
   filterTabs: {
     display: "flex",
@@ -380,59 +316,61 @@ const styles = {
     marginBottom: "24px"
   },
   filterTab: {
-    padding: "10px 20px",
-    fontSize: "14px",
-    fontWeight: "500",
+    padding: "12px 24px",
+    fontSize: "15px",
+    fontWeight: "600",
     color: "#6b7280",
-    backgroundColor: "white",
-    border: "1px solid #e5e7eb",
-    borderRadius: "6px",
+    backgroundColor: "#f3f4f6",
+    border: "none",
+    borderRadius: "8px",
     cursor: "pointer",
     fontFamily: "'Inter', 'Segoe UI', sans-serif",
-    transition: "all 0.2s",
+    transition: "all 0.3s ease",
     display: "flex",
     alignItems: "center",
-    gap: "6px"
+    gap: "8px"
   },
   filterTabActive: {
-    backgroundColor: "#f3f4f6",
-    color: "#1f2937",
-    fontWeight: "600",
-    border: "1px solid #d1d5db"
+    background: "linear-gradient(135deg, #0066CC 0%, #0052A3 100%)",
+    color: "white",
+    boxShadow: "0 4px 12px rgba(0, 102, 204, 0.3)"
   },
   filterIcon: {
-    fontSize: "14px"
+    fontSize: "16px"
   },
   tableContainer: {
     overflowX: "auto",
-    border: "1px solid #e5e7eb",
-    borderRadius: "8px"
+    border: "2px solid #e0f2fe",
+    borderRadius: "12px",
+    backgroundColor: "white"
   },
   table: {
     width: "100%",
     borderCollapse: "collapse"
   },
   tableHeaderRow: {
-    backgroundColor: "#f9fafb",
-    borderBottom: "1px solid #e5e7eb"
+    backgroundColor: "#f0f8ff",
+    borderBottom: "2px solid #e0f2fe"
   },
   tableHeader: {
     textAlign: "left",
-    padding: "12px 16px",
-    fontSize: "13px",
-    fontWeight: "600",
-    color: "#6b7280",
+    padding: "16px 20px",
+    fontSize: "14px",
+    fontWeight: "700",
+    color: "#0066CC",
     fontFamily: "'Inter', 'Segoe UI', sans-serif",
-    textTransform: "uppercase",
     letterSpacing: "0.5px"
   },
   tableRow: {
     borderBottom: "1px solid #f3f4f6",
-    transition: "background-color 0.2s"
+    transition: "background-color 0.2s",
+    "&:hover": {
+      backgroundColor: "#f8fafc"
+    }
   },
   tableCell: {
-    padding: "16px",
-    fontSize: "14px",
+    padding: "16px 20px",
+    fontSize: "15px",
     color: "#374151",
     fontFamily: "'Inter', 'Segoe UI', sans-serif"
   },

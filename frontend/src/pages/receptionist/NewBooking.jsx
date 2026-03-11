@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import axios from "axios";
 import toast from "react-hot-toast";
-import { FiSearch, FiChevronLeft, FiChevronRight, FiAlertCircle } from "react-icons/fi";
+import { FiSearch, FiChevronLeft, FiChevronRight, FiAlertCircle, FiArrowRight, FiArrowLeft } from "react-icons/fi";
 import ReceptionistSidebar from "../../components/ReceptionistSidebar";
 import ReceptionistHeader from "../../components/ReceptionistHeader";
 
@@ -10,6 +10,7 @@ function NewBooking() {
   const navigate = useNavigate();
   const location = useLocation();
   const [currentStep, setCurrentStep] = useState(1);
+  const steps = ["Patient", "Service", "Availability", "Time", "Confirm"];
 
   // Form data
   const [searchQuery, setSearchQuery] = useState("");
@@ -208,6 +209,10 @@ function NewBooking() {
     }
 
     setCurrentStep(prev => Math.min(prev + 1, 5));
+  };
+
+  const handlePrevious = () => {
+    setCurrentStep(prev => Math.max(prev - 1, 1));
   };
 
   const handleConfirmBooking = async () => {
@@ -412,8 +417,49 @@ function NewBooking() {
           <div style={styles.contentCard}>
             <h1 style={styles.pageTitle}>New Booking</h1>
 
+            {/* Stepper Wizard */}
+            <div style={styles.stepperContainer}>
+              {steps.map((stepName, index) => {
+                const stepNum = index + 1;
+                const isActive = currentStep === stepNum;
+                const isCompleted = currentStep > stepNum;
+
+                return (
+                  <div key={stepNum} style={styles.stepWrapper}>
+                    <div style={styles.stepIndicator}>
+                      <div
+                        style={{
+                          ...styles.stepCircle,
+                          ...(isActive ? styles.stepCircleActive : {}),
+                          ...(isCompleted ? styles.stepCircleCompleted : {})
+                        }}
+                      >
+                        {isCompleted ? "✓" : stepNum}
+                      </div>
+                      <div
+                        style={{
+                          ...styles.stepLabel,
+                          ...(isActive || isCompleted ? styles.stepLabelActive : {})
+                        }}
+                      >
+                        {stepName}
+                      </div>
+                    </div>
+                    {index < steps.length - 1 && (
+                      <div
+                        style={{
+                          ...styles.stepLine,
+                          ...(isCompleted ? styles.stepLineCompleted : {})
+                        }}
+                      />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
             {/* Step 1: Patient Information */}
-            {currentStep >= 1 && (
+            {currentStep === 1 && (
               <div style={styles.stepSection}>
                 <h2 style={styles.stepTitle}>Step 1: Patient Information</h2>
 
@@ -461,7 +507,10 @@ function NewBooking() {
                     onChange={(e) => setSearchQuery(e.target.value)}
                     style={styles.searchInput}
                   />
-                  <button onClick={handleSearchPatient} style={styles.searchButton}>
+                  <button onClick={handleSearchPatient} style={{
+                    ...styles.searchButton,
+                    ...(patientInfo.fullName ? styles.searchButtonActive : {})
+                  }}>
                     <FiSearch />
                   </button>
                 </div>
@@ -501,7 +550,7 @@ function NewBooking() {
             )}
 
             {/* Step 2: Service & Doctor */}
-            {currentStep >= 2 && (
+            {currentStep === 2 && (
               <div style={styles.stepSection}>
                 <h2 style={styles.stepTitle}>Step 2: Service & Doctor</h2>
 
@@ -542,56 +591,75 @@ function NewBooking() {
             )}
 
             {/* Step 3: Availability */}
-            {currentStep >= 3 && (
+            {currentStep === 3 && (
               <div style={styles.stepSection}>
                 <h2 style={styles.stepTitle}>Step 3: Availability</h2>
 
-                <div style={styles.calendarContainer}>
+                  <div style={styles.calendarContainer}>
                   <div style={styles.calendarHeader}>
-                    <button onClick={handlePrevMonth} style={styles.calendarNavButton}>
-                      <FiChevronLeft />
+                    <button 
+                      onClick={handlePrevMonth} 
+                      style={styles.calendarNavButton}
+                    >
+                      <FiChevronLeft size={24} color="white" />
                     </button>
                     <span style={styles.calendarMonth}>
-                      {currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' })}
+                      {currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' }).toUpperCase()}
                     </span>
-                    <button onClick={handleNextMonth} style={styles.calendarNavButton}>
-                      <FiChevronRight />
+                    <button 
+                      onClick={handleNextMonth} 
+                      style={styles.calendarNavButton}
+                    >
+                      <FiChevronRight size={24} color="white" />
                     </button>
                   </div>
 
-                  <div style={styles.calendarGrid}>
-                    {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, index) => (
-                      <div key={index} style={styles.calendarDayHeader}>{day}</div>
-                    ))}
-                    {getDaysInMonth(currentMonth).map((day, index) => {
+                  <div style={styles.calendarGridContainer}>
+                    <div style={styles.calendarDayHeaderRow}>
+                      {['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'].map((day, index) => (
+                        <div 
+                          key={`header-${index}`} 
+                          style={{
+                            ...styles.calendarDayHeader,
+                            ...(index === 0 ? { color: '#0066CC' } : {})
+                          }}
+                        >
+                          {day}
+                        </div>
+                      ))}
+                    </div>
+                    
+                    <div style={styles.calendarGrid}>
+                      {getDaysInMonth(currentMonth).map((day, index) => {
                       const currentDayDate = day ? new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day) : null;
                       const hasAvailability = isDateAvailable(day);
                       const isPast = currentDayDate && currentDayDate < new Date().setHours(0, 0, 0, 0);
 
                       return (
                         <div
-                          key={index}
+                          key={`day-${index}`}
                           onClick={() => day && !isPast && hasAvailability && handleDateSelect(day)}
                           style={{
                             ...styles.calendarDay,
                             ...(day ? styles.calendarDayActive : styles.calendarDayEmpty),
                             ...(isSelectedDate(day) ? styles.calendarDaySelected : {}),
-                            ...(isPast || (day && !hasAvailability) ? { opacity: 0.3, cursor: 'not-allowed', backgroundColor: '#f9fafb' } : {}),
-                            ...(day && hasAvailability && !isPast ? { borderColor: '#0066CC', color: '#0066CC', fontWeight: 'bold' } : {})
+                            ...(isPast || (day && !hasAvailability) ? styles.calendarDayDisabled : {}),
+                            ...(day && hasAvailability && !isPast ? styles.calendarDayAvailable : {})
                           }}
                         >
-                          {day || ''}
-                          {day && hasAvailability && !isPast && <div style={{ fontSize: '8px', marginTop: '2px' }}>Active</div>}
+                          <span style={styles.calendarDayNumber}>{day || ''}</span>
+                          {day && hasAvailability && !isPast && <div style={styles.calendarActiveIndicator}>Active</div>}
                         </div>
                       );
                     })}
+                    </div>
                   </div>
                 </div>
               </div>
             )}
 
             {/* Step 4: Select Time */}
-            {currentStep >= 4 && (
+            {currentStep === 4 && (
               <div style={styles.stepSection}>
                 <h2 style={styles.stepTitle}>Step 4: Select Time</h2>
 
@@ -664,7 +732,7 @@ function NewBooking() {
             )}
 
             {/* Step 5: Confirm Booking */}
-            {currentStep >= 5 && (
+            {currentStep === 5 && (
               <div style={styles.stepSection}>
                 <h2 style={styles.stepTitle}>Step 5: Confirm Booking</h2>
 
@@ -705,12 +773,32 @@ function NewBooking() {
 
             {/* Action Buttons */}
             <div style={styles.actionButtons}>
-              <button onClick={handleCancel} style={styles.cancelButton}>
-                Cancel
-              </button>
+              {currentStep > 1 ? (
+                <button onClick={handlePrevious} style={styles.previousButton}>
+                  <FiArrowLeft size={24} />
+                </button>
+              ) : (
+                <button 
+                  onClick={() => navigate("/receptionist/dashboard")} 
+                  style={styles.previousButton}
+                >
+                  <FiArrowLeft size={24} />
+                </button>
+              )}
+
               {currentStep < 5 ? (
-                <button onClick={handleNext} style={styles.nextButton}>
-                  Next
+                <button 
+                  onClick={handleNext} 
+                  style={{
+                    ...styles.nextButton,
+                    ...((currentStep === 1 && patientInfo.fullName) || 
+                       (currentStep === 2 && selectedService && selectedDoctor) ||
+                       (currentStep === 3 && selectedDate) ||
+                       (currentStep === 4 && selectedTime) 
+                       ? styles.nextButtonActive : {})
+                  }}
+                >
+                  <FiArrowRight size={24} />
                 </button>
               ) : (
                 <div style={styles.paymentButtonsContainer}>
@@ -723,15 +811,6 @@ function NewBooking() {
                 </div>
               )}
             </div>
-          </div>
-
-          <div style={styles.footer}>
-            <button
-              onClick={() => navigate("/receptionist/dashboard")}
-              style={styles.backButton}
-            >
-              Back
-            </button>
           </div>
         </main>
       </div>
@@ -749,7 +828,8 @@ const styles = {
   mainWrapper: {
     flex: 1,
     display: "flex",
-    flexDirection: "column"
+    flexDirection: "column",
+    background: "linear-gradient(135deg, #f0f8ff 0%, #e6f2ff 100%)"
   },
   mainContent: {
     flex: 1,
@@ -757,12 +837,13 @@ const styles = {
     overflow: "auto"
   },
   contentCard: {
-    maxWidth: "700px",
+    maxWidth: "800px",
     margin: "0 auto",
     backgroundColor: "white",
-    borderRadius: "12px",
-    padding: "32px",
-    boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)"
+    borderRadius: "16px",
+    padding: "40px",
+    boxShadow: "0 12px 30px rgba(0, 102, 204, 0.15)",
+    border: "2px solid #0066CC"
   },
   pageTitle: {
     fontSize: "28px",
@@ -784,6 +865,79 @@ const styles = {
     margin: 0,
     marginBottom: "16px",
     fontFamily: "'Inter', 'Segoe UI', sans-serif"
+  },
+  stepperContainer: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: "40px",
+    padding: "20px",
+    backgroundColor: "white",
+    borderRadius: "20px",
+    boxShadow: "0 4px 6px rgba(0, 0, 0, 0.05)",
+    border: "1px solid #f3f4f6"
+  },
+  stepWrapper: {
+    display: "flex",
+    alignItems: "center",
+    flex: 1
+  },
+  stepIndicator: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: "8px",
+    position: "relative",
+    zIndex: 1
+  },
+  stepCircle: {
+    width: "36px",
+    height: "36px",
+    borderRadius: "50%",
+    backgroundColor: "white",
+    border: "2px solid #e5e7eb",
+    color: "#9ca3af",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "14px",
+    fontWeight: "600",
+    transition: "all 0.3s ease",
+    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+  },
+  stepCircleActive: {
+    borderColor: "#0066CC",
+    color: "white",
+    backgroundColor: "#0066CC",
+    boxShadow: "0 0 0 4px rgba(0, 102, 204, 0.2)"
+  },
+  stepCircleCompleted: {
+    borderColor: "#0066CC",
+    backgroundColor: "#0066CC",
+    color: "white"
+  },
+  stepLabel: {
+    fontSize: "13px",
+    fontWeight: "600",
+    color: "#9ca3af",
+    fontFamily: "'Inter', 'Segoe UI', sans-serif",
+    position: "absolute",
+    top: "44px",
+    whiteSpace: "nowrap"
+  },
+  stepLabelActive: {
+    color: "#374151"
+  },
+  stepLine: {
+    flex: 1,
+    height: "3px",
+    backgroundColor: "#e5e7eb",
+    margin: "0 10px",
+    marginTop: "-20px",
+    transition: "background-color 0.3s ease"
+  },
+  stepLineCompleted: {
+    backgroundColor: "#0066CC"
   },
   searchContainer: {
     display: "flex",
@@ -814,22 +968,30 @@ const styles = {
     flex: 1,
     padding: "12px 16px",
     fontSize: "15px",
-    border: "1px solid #d1d5db",
-    borderRadius: "6px",
+    border: "2px solid #e0f2fe",
+    borderRadius: "8px",
     outline: "none",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    fontFamily: "'Inter', 'Segoe UI', sans-serif",
+    transition: "all 0.2s",
+    backgroundColor: "#f8fafc"
   },
   searchButton: {
     padding: "12px 20px",
     fontSize: "18px",
     color: "#6b7280",
-    backgroundColor: "white",
+    backgroundColor: "#f3f4f6",
     border: "1px solid #d1d5db",
-    borderRadius: "6px",
+    borderRadius: "8px",
     cursor: "pointer",
     display: "flex",
     alignItems: "center",
-    justifyContent: "center"
+    justifyContent: "center",
+    transition: "all 0.3s ease"
+  },
+  searchButtonActive: {
+    backgroundColor: "#0066CC",
+    color: "white",
+    borderColor: "#0066CC"
   },
   patientInfoBox: {
     marginTop: "16px"
@@ -863,76 +1025,120 @@ const styles = {
     width: "100%",
     padding: "12px 16px",
     fontSize: "15px",
-    border: "1px solid #d1d5db",
-    borderRadius: "6px",
+    border: "2px solid #e0f2fe",
+    borderRadius: "8px",
     outline: "none",
     fontFamily: "'Inter', 'Segoe UI', sans-serif",
-    backgroundColor: "white",
+    transition: "all 0.2s",
+    backgroundColor: "#f8fafc",
     cursor: "pointer",
     boxSizing: "border-box"
   },
   calendarContainer: {
     border: "1px solid #e5e7eb",
-    borderRadius: "8px",
-    padding: "16px"
+    borderRadius: "12px",
+    backgroundColor: "white",
+    overflow: "hidden",
+    boxShadow: "0 10px 25px rgba(0, 0, 0, 0.1)",
+    maxWidth: "400px",
+    margin: "0 auto"
   },
   calendarHeader: {
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: "16px"
+    backgroundColor: "#0066CC",
+    padding: "16px 20px"
   },
   calendarNavButton: {
-    padding: "8px",
-    fontSize: "18px",
-    color: "#6b7280",
+    padding: "4px",
     backgroundColor: "transparent",
     border: "none",
     cursor: "pointer",
     display: "flex",
-    alignItems: "center"
+    alignItems: "center",
+    justifyContent: "center",
+    transition: "transform 0.2s",
+    "&:hover": {
+      transform: "scale(1.1)"
+    }
   },
   calendarMonth: {
-    fontSize: "16px",
-    fontWeight: "600",
-    color: "#1f2937",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    fontSize: "20px",
+    fontWeight: "700",
+    color: "white",
+    fontFamily: "'Inter', 'Segoe UI', sans-serif",
+    letterSpacing: "0.5px"
+  },
+  calendarGridContainer: {
+    padding: "16px 20px"
+  },
+  calendarDayHeaderRow: {
+    display: "grid",
+    gridTemplateColumns: "repeat(7, 1fr)",
+    borderBottom: "1px solid #e5e7eb",
+    paddingBottom: "12px",
+    marginBottom: "12px"
   },
   calendarGrid: {
     display: "grid",
     gridTemplateColumns: "repeat(7, 1fr)",
-    gap: "4px"
+    rowGap: "8px",
+    columnGap: "4px"
   },
   calendarDayHeader: {
     textAlign: "center",
-    fontSize: "13px",
-    fontWeight: "600",
-    color: "#6b7280",
-    padding: "8px 0",
+    fontSize: "11px",
+    fontWeight: "700",
+    color: "#333333",
     fontFamily: "'Inter', 'Segoe UI', sans-serif"
   },
   calendarDay: {
-    textAlign: "center",
-    padding: "12px 0",
-    fontSize: "14px",
-    borderRadius: "6px",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    aspectRatio: "1",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: "4px",
+    fontSize: "15px",
+    fontWeight: "600",
+    fontFamily: "'Inter', 'Segoe UI', sans-serif",
+    transition: "all 0.2s",
+    padding: "4px",
+    cursor: "pointer"
   },
   calendarDayActive: {
-    cursor: "pointer",
-    color: "#374151",
-    border: "1px solid #e5e7eb"
+    color: "#000000",
+    "&:hover": {
+      backgroundColor: "#f3f4f6"
+    }
   },
   calendarDayEmpty: {
-    color: "transparent",
-    cursor: "default",
-    border: "none"
+    visibility: "hidden"
   },
   calendarDaySelected: {
-    backgroundColor: "#0066CC",
-    color: "white",
-    fontWeight: "600",
-    border: "1px solid #0066CC"
+    backgroundColor: "#0066CC !important",
+    color: "white !important",
+    boxShadow: "0 2px 8px rgba(0, 102, 204, 0.4)"
+  },
+  calendarDayDisabled: {
+    cursor: "not-allowed",
+    color: "#000000",
+    "&:hover": {
+      backgroundColor: "transparent"
+    }
+  },
+  calendarDayAvailable: {
+    color: "#0066CC",
+    backgroundColor: "#f0f8ff"
+  },
+  calendarDayNumber: {
+    marginBottom: "2px"
+  },
+  calendarActiveIndicator: {
+    fontSize: "10px",
+    fontWeight: "700",
+    color: "inherit"
   },
   timeSlotsContainer: {
     display: "grid",
@@ -1008,8 +1214,10 @@ const styles = {
   },
   actionButtons: {
     display: "flex",
-    gap: "16px",
-    marginTop: "32px"
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: "32px",
+    width: "100%"
   },
   cancelButton: {
     flex: 1,
@@ -1023,18 +1231,36 @@ const styles = {
     cursor: "pointer",
     fontFamily: "'Inter', 'Segoe UI', sans-serif"
   },
-  nextButton: {
-    flex: 1,
-    padding: "14px 32px",
-    fontSize: "15px",
-    fontWeight: "600",
-    color: "white",
-    background: "linear-gradient(135deg, #0066CC 0%, #0052A3 100%)",
+  previousButton: {
+    padding: "12px 24px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    color: "#0066CC",
+    backgroundColor: "#f0f8ff",
     border: "none",
     borderRadius: "8px",
     cursor: "pointer",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif",
-    boxShadow: "0 4px 12px rgba(0, 102, 204, 0.3)"
+    transition: "all 0.2s"
+  },
+  nextButton: {
+    padding: "12px 48px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    color: "#9ca3af",
+    backgroundColor: "#f3f4f6",
+    border: "none",
+    borderRadius: "8px",
+    cursor: "not-allowed",
+    transition: "all 0.3s ease"
+  },
+  nextButtonActive: {
+    color: "white",
+    backgroundColor: "#0066CC",
+    cursor: "pointer",
+    boxShadow: "0 4px 12px rgba(0, 102, 204, 0.3)",
+    transform: "translateY(-2px)"
   },
   confirmButton: {
     flex: 1,

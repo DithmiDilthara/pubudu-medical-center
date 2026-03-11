@@ -143,9 +143,11 @@ function Reports() {
           <div style={styles.reportsListSection}>
             <h2 style={styles.sectionTitle}>Available Report Types</h2>
             <div style={styles.reportsGrid}>
-              {reportTypes.map((type) => (
+              {reportTypes.map((type) => {
+                const IconComponent = type.icon;
+                return (
                 <div key={type.value} style={styles.reportTypeCard}>
-                  <type.icon style={styles.reportIcon} />
+                  <IconComponent style={styles.reportIcon} />
                   <h3 style={styles.reportTypeTitle}>{type.label}</h3>
                   <p style={styles.reportTypeDescription}>
                     {type.value === "appointments" && "View all appointments with details including patient info, doctor, date, and status"}
@@ -153,7 +155,7 @@ function Reports() {
                     {type.value === "revenue" && "Financial overview including payments, pending amounts, and revenue trends"}
                   </p>
                 </div>
-              ))}
+              )})}
             </div>
           </div>
 

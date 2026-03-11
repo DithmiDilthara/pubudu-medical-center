@@ -9,7 +9,10 @@ export const getAllDoctors = async (req, res) => {
     try {
         const doctors = await Doctor.findAll({
             attributes: ['doctor_id', 'full_name', 'specialization', 'license_no', 'doctor_fee', 'center_fee'],
-            include: [{ model: User, as: 'user', attributes: ['email', 'contact_number'] }]
+            include: [
+                { model: User, as: 'user', attributes: ['email', 'contact_number'] },
+                { model: Availability, as: 'availability' }
+            ]
         });
 
         res.status(200).json({ success: true, data: doctors });

@@ -9,7 +9,9 @@ import CancellationModal from "../../components/CancellationModal";
 function ReceptionistDashboard() {
   const navigate = useNavigate();
   const [receptionistName, setReceptionistName] = useState('Receptionist');
-  const [appointments, setAppointments] = useState([]);
+  const [doctors, setDoctors] = useState([]);
+  const [searchName, setSearchName] = useState('');
+  const [searchSpec, setSearchSpec] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [cancellationMessages, setCancellationMessages] = useState([]);
 
@@ -32,15 +34,20 @@ function ReceptionistDashboard() {
       }
     };
 
-    const fetchAppointments = async () => {
+    const fetchDoctorsAndCancellations = async () => {
       try {
-        const response = await axios.get(`${API_URL}/appointments`, {
+        // Fetch Doctors
+        const docRes = await axios.get(`${API_URL}/doctors`);
+        if (docRes.data.success) {
+          setDoctors(docRes.data.data);
+        }
+
+        // Fetch Appointments just for cancellations notification check
+        const aptRes = await axios.get(`${API_URL}/appointments`, {
           headers: { Authorization: `Bearer ${token}` }
         });
-        if (response.data.success) {
-          const allApts = response.data.data;
-          setAppointments(allApts);
-
+        if (aptRes.data.success) {
+          const allApts = aptRes.data.data;
           // Check for recent cancellations to notify receptionist
           const cancelledApts = allApts.filter(apt => apt.status === 'CANCELLED');
           if (cancelledApts.length > 0) {
@@ -61,24 +68,26 @@ function ReceptionistDashboard() {
           }
         }
       } catch (error) {
-        console.error("Error fetching appointments:", error);
+        console.error("Error fetching data:", error);
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchProfile();
-    fetchAppointments();
+    fetchDoctorsAndCancellations();
   }, []);
 
-  // Today's date for filtering
-  const today = new Date();
-  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
-  // Upcoming = all non-cancelled, non-completed appointments where date >= today
-  const upcomingAppointments = appointments.filter(
-    apt => apt.status !== 'CANCELLED' && apt.status !== 'COMPLETED' && apt.appointment_date >= todayStr
-  ).sort((a, b) => a.appointment_date.localeCompare(b.appointment_date));
+
+  // Filtered doctors
+  const filteredDoctors = doctors.filter(doc => {
+    const matchesName = doc.full_name.toLowerCase().includes(searchName.toLowerCase());
+    const matchesSpec = searchSpec ? doc.specialization === searchSpec : true;
+    return matchesName && matchesSpec;
+  });
+
+  const uniqueSpecializations = [...new Set(doctors.map(d => d.specialization))];
 
   const handleLogout = () => {
     localStorage.clear();
@@ -149,91 +158,161 @@ function ReceptionistDashboard() {
 
         {/* Dashboard Content */}
         <main style={styles.mainContent}>
-          {/* Quick Actions */}
-          <section style={styles.quickActionsSection}>
-            <h3 style={styles.sectionLabel}>Quick Actions</h3>
-            <div style={styles.quickActionsButtons}>
-              <button onClick={handleAddPatient} style={styles.primaryButton}>
-                <FiUserPlus style={styles.buttonIcon} />
-                Admit New Patient
-              </button>
-              <button onClick={handleMakeBooking} style={styles.secondaryButton}>
-                <FiCalendar style={styles.buttonIcon} />
-                Make New Booking
-              </button>
+          <style>
+            {`
+              .hover-blue-card {
+                transition: all 0.3s ease !important;
+              }
+              .hover-blue-card:hover {
+                background-color: #0066CC !important;
+                transform: translateY(-4px) !important;
+                box-shadow: 0 10px 20px rgba(0, 102, 204, 0.2) !important;
+              }
+              .hover-blue-card:hover * {
+                color: white !important;
+                border-color: rgba(255, 255, 255, 0.5) !important;
+              }
+              .hover-table-row {
+                transition: all 0.2s ease !important;
+              }
+              .hover-table-row:hover {
+                background-color: #f8fafc !important;
+                box-shadow: inset 4px 0 0 0 #0066CC !important;
+              }
+            `}
+          </style>
+
+          {/* Quick Access */}
+          <section style={styles.quickAccessSection}>
+            <h3 style={styles.quickAccessLabel}>Quick Access</h3>
+            <div style={styles.quickAccessGrid}>
+
+              <div className="hover-blue-card" style={styles.quickAccessCard} onClick={handleAddPatient}>
+                <div style={styles.cardHeader}>
+                  <div style={styles.infoIconWrapper}>i</div>
+                </div>
+                <div style={styles.cardBody}>
+                  <FiUserPlus style={styles.cardCenterIcon} />
+                  <p style={styles.cardText}>Admit New Patient</p>
+                </div>
+              </div>
+
+              <div className="hover-blue-card" style={styles.quickAccessCard} onClick={handleMakeBooking}>
+                <div style={styles.cardHeader}>
+                  <div style={styles.infoIconWrapper}>i</div>
+                </div>
+                <div style={styles.cardBody}>
+                  <FiCalendar style={styles.cardCenterIcon} />
+                  <p style={styles.cardText}>Make New Booking</p>
+                </div>
+              </div>
+
+              <div className="hover-blue-card" style={styles.quickAccessCard} onClick={() => navigate("/receptionist/appointments")}>
+                <div style={styles.cardHeader}>
+                  <div style={styles.infoIconWrapper}>i</div>
+                </div>
+                <div style={styles.cardBody}>
+                  <FiClock style={styles.cardCenterIcon} />
+                  <p style={styles.cardText}>Upcoming Appointments</p>
+                </div>
+              </div>
+
             </div>
           </section>
 
-          {/* Upcoming Appointments Table */}
+          {/* Search Bar Section */}
+          <section style={styles.searchSection}>
+            <div style={styles.searchContainer}>
+              <div style={styles.inputGroup}>
+                <label style={styles.inputLabel}>Doctor name</label>
+                <input
+                  type="text"
+                  placeholder="Search Doctor Name"
+                  style={styles.searchInput}
+                  value={searchName}
+                  onChange={(e) => setSearchName(e.target.value)}
+                />
+              </div>
+
+              <div style={styles.inputGroup}>
+                <label style={styles.inputLabel}>Specialization</label>
+                <select
+                  style={styles.searchInput}
+                  value={searchSpec}
+                  onChange={(e) => setSearchSpec(e.target.value)}
+                >
+                  <option value="">Select Specialization</option>
+                  {uniqueSpecializations.map((spec, idx) => (
+                    <option key={idx} value={spec}>{spec}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div style={styles.searchBtnContainer}>
+                <button style={styles.searchActionBtn}>Search</button>
+              </div>
+            </div>
+          </section>
+
+          {/* Doctors List Table */}
           <section style={styles.tableSection}>
-            <h2 style={styles.tableTitle}>Upcoming Appointments ({upcomingAppointments.length})</h2>
+            <h2 style={styles.tableTitle}>Our Doctors & Availabilities</h2>
             <div style={styles.tableContainer}>
               <table style={styles.table}>
                 <thead>
                   <tr style={styles.tableHeaderRow}>
-                    <th style={styles.tableHeader}>Patient Name</th>
-                    <th style={styles.tableHeader}>Date & Time</th>
-                    <th style={styles.tableHeader}>Doctor</th>
-                    <th style={styles.tableHeader}>Payment</th>
+                    <th style={styles.tableHeader}>Doctor Name</th>
+                    <th style={styles.tableHeader}>Specialization</th>
+                    <th style={styles.tableHeader}>Available Times</th>
+                    <th style={styles.tableHeader}>Total Fee</th>
                     <th style={styles.tableHeader}>Action</th>
                   </tr>
                 </thead>
                 <tbody>
                   {isLoading ? (
                     <tr><td colSpan="5" style={{ padding: '20px', textAlign: 'center', color: '#999' }}>Loading...</td></tr>
-                  ) : upcomingAppointments.length > 0 ? (
-                    upcomingAppointments.map((apt) => (
-                      <tr key={apt.appointment_id} style={styles.tableRow}>
+                  ) : filteredDoctors.length > 0 ? (
+                    filteredDoctors.map((doc) => (
+                      <tr key={doc.doctor_id} className="hover-table-row" style={styles.tableRow}>
                         <td style={styles.tableCell}>
                           <div>
-                            <p style={styles.patientName}>{apt.patient?.full_name || 'Unknown'}</p>
-                            <p style={styles.patientId}>(PHE-{apt.patient_id})</p>
+                            <p style={styles.patientName}>{doc.full_name}</p>
                           </div>
                         </td>
-                        <td style={styles.tableCell}>{formatDate(apt.appointment_date)} {apt.time_slot}</td>
                         <td style={styles.tableCell}>
-                          <span style={styles.doctorBadge}>{apt.doctor?.full_name || `Doctor #${apt.doctor_id}`}</span>
+                          <span style={styles.doctorBadge}>{doc.specialization}</span>
                         </td>
                         <td style={styles.tableCell}>
-                          {apt.payment_status === 'PAID' ? (
-                            <span style={{ color: '#059669', fontWeight: '600', fontSize: '13px' }}>✓ Paid</span>
+                          {doc.availability && doc.availability.length > 0 ? (
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                              {doc.availability.map((av, idx) => (
+                                <div key={idx} style={{ fontSize: '12px', color: '#475569', backgroundColor: '#f1f5f9', padding: '4px 8px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+                                  <strong style={{color: '#0f172a'}}>{av.day_of_week}:</strong> {av.start_time.substring(0, 5)} - {av.end_time.substring(0, 5)}
+                                </div>
+                              ))}
+                            </div>
                           ) : (
-                            <span style={{ color: '#dc2626', fontWeight: '600', fontSize: '13px' }}>Unpaid</span>
+                            <span style={{ color: '#999', fontSize: '13px', fontStyle: 'italic' }}>Not scheduled</span>
                           )}
                         </td>
                         <td style={styles.tableCell}>
-                          <div style={{ display: 'flex', gap: '8px' }}>
-                            {apt.payment_status === 'UNPAID' && (
-                              <button
-                                onClick={() => handleMarkAsPaid(apt)}
-                                style={styles.payButton}
-                              >
-                                Pay
-                              </button>
-                            )}
-                            <button
-                              onClick={() => handleCancelAppointment(apt.appointment_id)}
-                              style={styles.cancelButton}
-                            >
-                              Cancel
-                            </button>
-                          </div>
+                          <span style={styles.amountBadge}>LKR {Number(doc.doctor_fee) + Number(doc.center_fee)}</span>
+                        </td>
+                        <td style={styles.tableCell}>
+                          <button
+                            onClick={() => navigate("/receptionist/appointments/new")}
+                            style={styles.actionButton}
+                          >
+                            Book Appointment
+                          </button>
                         </td>
                       </tr>
                     ))
                   ) : (
-                    <tr><td colSpan="5" style={{ padding: '20px', textAlign: 'center', color: '#999' }}>No upcoming appointments</td></tr>
+                    <tr><td colSpan="5" style={{ padding: '20px', textAlign: 'center', color: '#999' }}>No doctors found</td></tr>
                   )}
                 </tbody>
               </table>
-            </div>
-            <div style={styles.viewAllContainer}>
-              <button
-                onClick={() => navigate("/receptionist/appointments")}
-                style={styles.viewAllButton}
-              >
-                View All
-              </button>
             </div>
           </section>
         </main>
@@ -252,7 +331,7 @@ const styles = {
     flex: 1,
     display: "flex",
     flexDirection: "column",
-    background: "linear-gradient(135deg, #f5f5f5 0%, #f9fafb 100%)"
+    background: "linear-gradient(135deg, #f0f8ff 0%, #e6f2ff 100%)"
   },
   mainContent: {
     flex: 1,
@@ -279,98 +358,154 @@ const styles = {
     marginTop: "8px",
     fontFamily: "'Inter', 'Segoe UI', sans-serif"
   },
-  quickActionsSection: {
+  searchSection: {
     marginBottom: "32px",
-    borderRadius: "12px",
-    background: "linear-gradient(135deg, #0066CC 0%, #0052A3 100%)",
-    padding: "24px",
-    boxShadow: "0 10px 30px rgba(0, 102, 204, 0.2)",
-    border: "1px solid rgba(255, 255, 255, 0.1)"
   },
-  sectionLabel: {
-    fontSize: "20px",
-    fontWeight: "700",
-    color: "white",
-    marginBottom: "16px",
-    marginTop: 0,
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
-  },
-  quickActionsButtons: {
+  searchContainer: {
+    background: "linear-gradient(135deg, #0066CC 0%, #004080 100%)",
+    borderRadius: "16px",
+    padding: "24px 32px",
     display: "flex",
-    flexWrap: "wrap",
-    gap: "16px"
+    gap: "24px",
+    alignItems: "flex-end",
+    boxShadow: "0 10px 25px rgba(0, 102, 204, 0.25)",
   },
-  primaryButton: {
-    borderRadius: "8px",
-    backgroundColor: "white",
-    padding: "14px 28px",
-    fontSize: "15px",
-    fontWeight: "600",
-    color: "#0066CC",
-    boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
-    border: "none",
-    cursor: "pointer",
-    transition: "all 0.3s",
+  inputGroup: {
     display: "flex",
-    alignItems: "center",
-    gap: "8px",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    flexDirection: "column",
+    flex: 1,
+    gap: "8px"
   },
-  secondaryButton: {
-    borderRadius: "8px",
-    backgroundColor: "white",
-    padding: "14px 28px",
-    fontSize: "15px",
-    fontWeight: "600",
-    color: "#0066CC",
-    boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
-    border: "none",
-    cursor: "pointer",
-    transition: "all 0.3s",
-    display: "flex",
-    alignItems: "center",
-    gap: "8px",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
-  },
-  tertiaryButton: {
-    borderRadius: "8px",
-    backgroundColor: "white",
-    padding: "14px 28px",
-    fontSize: "15px",
-    fontWeight: "600",
-    color: "#0066CC",
-    boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
-    border: "none",
-    cursor: "pointer",
-    transition: "all 0.3s",
-    display: "flex",
-    alignItems: "center",
-    gap: "8px",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
-  },
-  payButton: {
+  inputLabel: {
+    color: "rgba(255, 255, 255, 0.9)",
     fontSize: "13px",
     fontWeight: "600",
-    color: "white",
-    background: "linear-gradient(135deg, #10B981 0%, #059669 100%)",
-    border: "none",
-    borderRadius: "6px",
-    padding: "8px 20px",
-    cursor: "pointer",
-    transition: "all 0.3s",
-    boxShadow: "0 4px 10px rgba(16, 185, 129, 0.3)",
     fontFamily: "'Inter', 'Segoe UI', sans-serif"
   },
-  buttonIcon: {
-    fontSize: "18px"
+  searchInput: {
+    padding: "14px 16px",
+    borderRadius: "8px",
+    border: "none",
+    fontSize: "14px",
+    fontFamily: "'Inter', 'Segoe UI', sans-serif",
+    width: "100%",
+    outline: "none",
+    boxSizing: "border-box"
+  },
+  searchBtnContainer: {
+    marginBottom: "2px"
+  },
+  searchActionBtn: {
+    background: "#10b981", // green background
+    color: "white",
+    border: "none",
+    borderRadius: "8px",
+    padding: "14px 32px",
+    fontSize: "15px",
+    fontWeight: "600",
+    cursor: "pointer",
+    transition: "all 0.3s",
+    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+  },
+  dividerContainer: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: "24px",
+    gap: "16px"
+  },
+  dividerLine: {
+    height: "1px",
+    flex: 1,
+    background: "#d1d5db"
+  },
+  dividerText: {
+    color: "#4b5563",
+    fontSize: "14px",
+    fontFamily: "'Inter', 'Segoe UI', sans-serif",
+    cursor: "pointer"
+  },
+  quickAccessSection: {
+    marginBottom: "24px" // Reduced from 40px to remove excess whitespace
+  },
+  quickAccessLabel: {
+    fontSize: "20px",
+    fontWeight: "600",
+    color: "#374151",
+    marginBottom: "20px",
+    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+  },
+  quickAccessGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", // Changed auto-fill to auto-fit and reduced min-width for better fitting of 3 cards
+    gap: "24px"
+  },
+  quickAccessCard: {
+    background: "white",
+    borderRadius: "16px",
+    padding: "16px",
+    boxShadow: "0 8px 20px rgba(0, 102, 204, 0.12)",
+    cursor: "pointer",
+    transition: "transform 0.2s, boxShadow 0.2s",
+    border: "2px solid #0066CC",
+    display: "flex",
+    flexDirection: "column",
+    minHeight: "120px" // Reduced from 160px to make cards less tall
+  },
+  cardHeader: {
+    display: "flex",
+    justifyContent: "flex-end",
+    alignItems: "center"
+  },
+  newBadge: {
+    background: "#10b981",
+    color: "white",
+    padding: "4px 8px",
+    borderRadius: "4px",
+    fontSize: "11px",
+    fontWeight: "bold",
+    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+  },
+  infoIconWrapper: {
+    width: "20px",
+    height: "20px",
+    borderRadius: "50%",
+    border: "1px solid #3b82f6",
+    color: "#3b82f6",
+    backgroundColor: "#eff6ff",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "12px",
+    fontFamily: "serif",
+    fontStyle: "italic"
+  },
+  cardBody: {
+    flex: 1,
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "12px" // Reduced gap between icon and text
+  },
+  cardCenterIcon: {
+    fontSize: "36px", // Reduced from 48px to make icons fit the smaller cards
+    color: "#3b82f6" // fallback color if not using images
+  },
+  cardText: {
+    fontSize: "15px",
+    fontWeight: "500",
+    color: "#4b5563",
+    margin: 0,
+    fontFamily: "'Inter', 'Segoe UI', sans-serif"
   },
   tableSection: {
     marginBottom: "32px",
     borderRadius: "12px",
     backgroundColor: "white",
     padding: "24px",
-    boxShadow: "0 10px 25px rgba(0, 0, 0, 0.08)",
-    border: "1px solid rgba(0, 102, 204, 0.1)"
+    boxShadow: "0 12px 30px rgba(0, 102, 204, 0.15)",
+    border: "2px solid #0066CC"
   },
   tableTitle: {
     fontSize: "20px",
@@ -390,14 +525,15 @@ const styles = {
     borderCollapse: "collapse"
   },
   tableHeaderRow: {
-    borderBottom: "2px solid #f0f0f0"
+    backgroundColor: "#f0f7ff",
+    borderBottom: "2px solid #cce4ff"
   },
   tableHeader: {
     textAlign: "left",
     padding: "16px",
     fontSize: "13px",
     fontWeight: "700",
-    color: "#0066CC",
+    color: "#0052A3",
     textTransform: "uppercase",
     letterSpacing: "0.5px",
     fontFamily: "'Inter', 'Segoe UI', sans-serif"
@@ -414,8 +550,8 @@ const styles = {
   },
   patientName: {
     fontSize: "15px",
-    fontWeight: "600",
-    color: "#333",
+    fontWeight: "700",
+    color: "#1e293b",
     margin: 0,
     fontFamily: "'Inter', 'Segoe UI', sans-serif"
   },
@@ -427,16 +563,26 @@ const styles = {
     fontFamily: "'Inter', 'Segoe UI', sans-serif"
   },
   amountBadge: {
-    fontSize: "15px",
+    fontSize: "14px",
     fontWeight: "700",
-    color: "#0052A3",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    color: "#059669",
+    backgroundColor: "#ecfdf5",
+    padding: "6px 12px",
+    borderRadius: "8px",
+    border: "1px solid #a7f3d0",
+    fontFamily: "'Inter', 'Segoe UI', sans-serif",
+    display: "inline-block"
   },
   doctorBadge: {
-    fontSize: "14px",
+    fontSize: "13px",
     fontWeight: "600",
-    color: "#0066CC",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    color: "#0369a1",
+    backgroundColor: "#e0f2fe",
+    padding: "6px 12px",
+    borderRadius: "20px",
+    border: "1px solid #bae6fd",
+    fontFamily: "'Inter', 'Segoe UI', sans-serif",
+    display: "inline-block"
   },
   actionButton: {
     fontSize: "13px",

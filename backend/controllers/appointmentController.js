@@ -151,6 +151,11 @@ export const getAppointments = async (req, res) => {
             if (doctor_id) where.doctor_id = doctor_id;
         }
 
+        // Add payment status filter if provided (Receptionist/Admin)
+        if (req.query.payment_status && (role_id === 3 || role_id === 1)) {
+            where.payment_status = req.query.payment_status;
+        }
+
         const include = [
             { model: Doctor, as: 'doctor', attributes: ['full_name', 'specialization', 'doctor_fee', 'center_fee'] }
         ];

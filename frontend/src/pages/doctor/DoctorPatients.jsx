@@ -10,6 +10,7 @@ function DoctorPatients() {
   const [filterStatus, setFilterStatus] = useState('All');
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [patients, setPatients] = useState([]);
+  const [filterDate, setFilterDate] = useState('');
   const [isLoading, setIsLoading] = useState(true);
 
   // Fetch unique patients from backend
@@ -42,10 +43,12 @@ function DoctorPatients() {
     setSelectedPatient(patient);
   };
 
-  const filteredPatients = patients.filter(patient =>
-    patient.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    patient.patientId.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredPatients = patients.filter(patient => {
+    const matchesSearch = patient.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         patient.patientId.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesDate = !filterDate || patient.lastVisit === filterDate;
+    return matchesSearch && matchesDate;
+  });
 
   const handleLogout = () => {
     localStorage.clear();
@@ -78,20 +81,18 @@ function DoctorPatients() {
               style={styles.searchInput}
             />
             <div style={styles.filterButtons}>
-              <button
-                onClick={() => setFilterStatus('All')}
-                style={{
-                  ...styles.filterButton,
-                  ...(filterStatus === 'All' ? styles.filterButtonActive : {})
-                }}
-              >
-                Filter by Status
-              </button>
-              <button
-                style={styles.filterButton}
-              >
-                Filter by Date
-              </button>
+              <div style={styles.dateFilterContainer}>
+                <span style={styles.dateFilterLabel}>Filter by Date:</span>
+                <input
+                  type="date"
+                  value={filterDate}
+                  onChange={(e) => setFilterDate(e.target.value)}
+                  style={styles.dateInput}
+                />
+                {filterDate && (
+                  <button onClick={() => setFilterDate('')} style={styles.clearDateBtn}>✕</button>
+                )}
+              </div>
             </div>
           </div>
 
@@ -201,7 +202,8 @@ const styles = {
   mainContainer: {
     flex: 1,
     display: "flex",
-    flexDirection: "column"
+    flexDirection: "column",
+    background: "linear-gradient(135deg, #f0f8ff 0%, #e6f2ff 100%)"
   },
   mainContent: {
     flex: 1,
@@ -263,14 +265,44 @@ const styles = {
     color: 'white',
     border: '2px solid #0066CC'
   },
+  dateFilterContainer: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    backgroundColor: 'white',
+    padding: '8px 16px',
+    borderRadius: '10px',
+    border: '2px solid #e5e7eb'
+  },
+  dateFilterLabel: {
+    fontSize: '13px',
+    fontWeight: '700',
+    color: '#4b5563',
+    textTransform: 'uppercase'
+  },
+  dateInput: {
+    border: 'none',
+    outline: 'none',
+    fontSize: '14px',
+    color: '#374151',
+    cursor: 'pointer'
+  },
+  clearDateBtn: {
+    background: 'none',
+    border: 'none',
+    color: '#ef4444',
+    cursor: 'pointer',
+    fontWeight: 'bold',
+    fontSize: '16px'
+  },
   tableSection: {
     marginBottom: '32px'
   },
   tableContainer: {
     background: 'white',
-    borderRadius: '12px',
-    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
-    border: '1px solid #e5e7eb',
+    borderRadius: '16px',
+    boxShadow: '0 12px 30px rgba(0, 102, 204, 0.15)',
+    border: '2px solid #0066CC',
     overflow: 'hidden'
   },
   table: {
@@ -278,17 +310,17 @@ const styles = {
     borderCollapse: 'collapse'
   },
   tableHeader: {
-    background: 'rgba(0, 102, 204, 0.08)',
-    borderBottom: '2px solid rgba(0, 102, 204, 0.2)'
+    background: '#f9fafb',
+    borderBottom: '2px solid #e5e7eb'
   },
   th: {
-    padding: '16px',
+    padding: '20px',
     textAlign: 'left',
-    fontSize: '14px',
-    fontWeight: '700',
-    color: '#374151',
+    fontSize: '13px',
+    fontWeight: '800',
+    color: '#4b5563',
     textTransform: 'uppercase',
-    letterSpacing: '0.5px'
+    letterSpacing: '1px'
   },
   tableRow: {
     borderBottom: '1px solid #f3f4f6',
@@ -296,56 +328,60 @@ const styles = {
     cursor: 'pointer'
   },
   tableRowSelected: {
-    background: 'rgba(0, 102, 204, 0.08)'
+    background: '#e6f2ff'
   },
   td: {
-    padding: '16px',
+    padding: '20px',
     fontSize: '15px',
-    color: '#1f2937'
+    color: '#111827'
   },
   patientCell: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '4px'
+    gap: '2px'
   },
   patientName: {
-    fontWeight: '600',
-    color: '#1f2937'
+    fontWeight: '700',
+    color: '#111827',
+    fontSize: '16px'
   },
   patientId: {
-    fontSize: '13px',
-    color: '#6b7280'
+    fontSize: '12px',
+    fontWeight: '600',
+    color: '#0066CC'
   },
   viewButton: {
-    padding: '8px 16px',
+    padding: '10px 20px',
     fontSize: '14px',
-    fontWeight: '600',
-    color: '#0066CC',
-    background: 'white',
-    border: '2px solid #0066CC',
-    borderRadius: '8px',
+    fontWeight: '700',
+    color: 'white',
+    background: 'linear-gradient(135deg, #0066CC 0%, #0052A3 100%)',
+    border: 'none',
+    borderRadius: '10px',
     cursor: 'pointer',
-    transition: 'all 0.3s',
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    transition: 'all 0.2s',
+    boxShadow: '0 4px 10px rgba(0, 102, 204, 0.2)'
   },
   selectedSection: {
     background: 'white',
-    borderRadius: '12px',
-    padding: '24px',
-    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
-    border: '1px solid #e5e7eb'
+    borderRadius: '16px',
+    padding: '32px',
+    boxShadow: '0 12px 30px rgba(0, 102, 204, 0.15)',
+    border: '2px solid #0066CC',
+    marginTop: '32px'
   },
   selectedTitle: {
-    fontSize: '22px',
-    fontWeight: 'bold',
-    color: '#1f2937',
-    marginBottom: '20px',
-    marginTop: 0
+    fontSize: '24px',
+    fontWeight: '800',
+    color: '#111827',
+    marginBottom: '24px',
+    marginTop: 0,
+    letterSpacing: '-0.5px'
   },
   selectedContent: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '24px'
+    gap: '32px'
   },
   selectedGrid: {
     display: 'grid',

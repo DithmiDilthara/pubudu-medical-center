@@ -1,44 +1,58 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { FiCreditCard, FiAlertCircle } from "react-icons/fi";
+import axios from "axios";
+import { FiCreditCard, FiAlertCircle, FiUser, FiCalendar, FiDollarSign } from "react-icons/fi";
 import ReceptionistSidebar from "../../components/ReceptionistSidebar";
 import ReceptionistHeader from "../../components/ReceptionistHeader";
 
 function PaymentManagement() {
     const navigate = useNavigate();
 
-    // Sample pending appointments data
-    const [pendingPayments, setPendingPayments] = useState([
-        {
-            id: 1,
-            patientName: "Kamal Perera",
-            patientId: "PHE-2037",
-            dateOfService: "2024-07-20",
-            service: "General Checkup",
-            amount: 1500.00,
-            status: "pending"
-        },
-        {
-            id: 2,
-            patientName: "Wanisha Ekanayake",
-            patientId: "PHE-9148",
-            dateOfService: "2024-07-15",
-            service: "Specialist Consultation",
-            amount: 2390.00,
-            status: "pending"
-        },
-        {
-            id: 3,
-            patientName: "Jude Bevan",
-            patientId: "PHE-6720",
-            dateOfService: "2024-07-10",
-            service: "Laboratory Test",
-            amount: 1200.00,
-            status: "pending"
-        }
-    ]);
+    const [pendingPayments, setPendingPayments] = useState([]);
+    const [receptionistName, setReceptionistName] = useState("Receptionist");
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchData = async () => {
+            setIsLoading(true);
+            try {
+                const token = localStorage.getItem("token");
+                const headers = { Authorization: `Bearer ${token}` };
+                const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+
+                // Fetch Profile
+                const profileRes = await axios.get(`${apiUrl}/auth/profile`, { headers });
+                if (profileRes.data.success) {
+                    setReceptionistName(profileRes.data.data.profile.full_name);
+                }
+
+                // Fetch Unpaid Appointments
+                const paymentsRes = await axios.get(`${apiUrl}/appointments?payment_status=UNPAID`, { headers });
+                if (paymentsRes.data.success) {
+                    // Map API data to component structure
+                    const mapped = paymentsRes.data.data.map(apt => ({
+                        id: apt.appointment_id,
+                        patientName: apt.patient?.full_name || 'N/A',
+                        patientId: `PHE-${apt.patient_id}`,
+                        dateOfService: apt.appointment_date,
+                        service: apt.doctor?.specialization || 'Consultation',
+                        amount: (apt.doctor?.doctor_fee || 0) + (apt.doctor?.center_fee || 0),
+                        status: apt.payment_status.toLowerCase()
+                    }));
+                    setPendingPayments(mapped);
+                }
+            } catch (error) {
+                console.error("Error fetching payment data:", error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchData();
+    }, []);
 
     const handleLogout = () => {
+        localStorage.clear();
         navigate("/");
     };
 
@@ -64,7 +78,7 @@ function PaymentManagement() {
             {/* Main Content */}
             <div style={styles.mainWrapper}>
                 {/* Header */}
-                <ReceptionistHeader receptionistName="Sarah Johnson" />
+                <ReceptionistHeader receptionistName={receptionistName} />
 
                 {/* Page Content */}
                 <main style={styles.mainContent}>
@@ -81,10 +95,13 @@ function PaymentManagement() {
 
                         {/* Pending Payments Section */}
                         <div style={styles.tableSection}>
-                            <h2 style={styles.sectionTitle}>
-                                <FiCreditCard style={{ marginRight: '10px', verticalAlign: 'middle' }} />
-                                Pending Payments
-                            </h2>
+                            <div style={styles.sectionHeader}>
+                                <h2 style={styles.sectionTitle}>
+                                    <FiCreditCard style={styles.sectionIcon} />
+                                    Pending Payments
+                                </h2>
+                                <span style={styles.badge}>{pendingPayments.length} Items</span>
+                            </div>
 
                             <div style={styles.tableContainer}>
                                 <table style={styles.table}>
@@ -97,30 +114,45 @@ function PaymentManagement() {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {pendingPayments.length > 0 ? (
+                                        {isLoading ? (
+                                            <tr>
+                                                <td colSpan="4" style={styles.loadingCell}>Loading payments...</td>
+                                            </tr>
+                                        ) : pendingPayments.length > 0 ? (
                                             pendingPayments.map((payment) => (
                                                 <tr key={payment.id} style={styles.tableRow}>
                                                     <td style={styles.tableCell}>
-                                                        <div>
-                                                            <p style={styles.patientName}>{payment.patientName}</p>
-                                                            <p style={styles.patientId}>({payment.patientId})</p>
+                                                        <div style={styles.patientInfo}>
+                                                            <div style={styles.avatar}>
+                                                                <FiUser size={18} />
+                                                            </div>
+                                                            <div>
+                                                                <p style={styles.patientName}>{payment.patientName}</p>
+                                                                <p style={styles.patientId}>{payment.patientId}</p>
+                                                            </div>
                                                         </div>
                                                     </td>
                                                     <td style={styles.tableCell}>
-                                                        <div>
+                                                        <div style={styles.serviceInfo}>
                                                             <p style={styles.serviceText}>{payment.service}</p>
-                                                            <p style={styles.dateText}>{payment.dateOfService}</p>
+                                                            <p style={styles.dateText}>
+                                                                <FiCalendar size={12} style={{ marginRight: '4px' }} />
+                                                                {payment.dateOfService}
+                                                            </p>
                                                         </div>
                                                     </td>
                                                     <td style={styles.tableCell}>
-                                                        <span style={styles.amountText}>LKR {payment.amount.toFixed(2)}</span>
+                                                        <div style={styles.priceTag}>
+                                                            <span style={styles.currency}>LKR</span>
+                                                            <span style={styles.amountText}>{payment.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                                        </div>
                                                     </td>
                                                     <td style={styles.tableCell}>
                                                         <button
                                                             onClick={() => handlePay(payment)}
                                                             style={styles.payButton}
                                                         >
-                                                            Pay
+                                                            Process Pay
                                                         </button>
                                                     </td>
                                                 </tr>
@@ -128,7 +160,10 @@ function PaymentManagement() {
                                         ) : (
                                             <tr>
                                                 <td colSpan="4" style={styles.noDataCell}>
-                                                    No pending payments found
+                                                    <div style={styles.emptyState}>
+                                                        <FiAlertCircle size={40} color="#9ca3af" />
+                                                        <p>No pending payments found</p>
+                                                    </div>
                                                 </td>
                                             </tr>
                                         )}
@@ -162,7 +197,8 @@ const styles = {
     mainWrapper: {
         flex: 1,
         display: "flex",
-        flexDirection: "column"
+        flexDirection: "column",
+        background: "linear-gradient(135deg, #f0f8ff 0%, #e6f2ff 100%)"
     },
     mainContent: {
         flex: 1,
@@ -170,7 +206,7 @@ const styles = {
         overflow: "auto"
     },
     contentContainer: {
-        maxWidth: "1200px",
+        maxWidth: "1100px",
         margin: "0 auto"
     },
     pageHeader: {
@@ -178,36 +214,56 @@ const styles = {
     },
     pageTitle: {
         fontSize: "32px",
-        fontWeight: "700",
+        fontWeight: "800",
         color: "#1f2937",
         margin: 0,
-        marginBottom: "8px"
+        marginBottom: "8px",
+        letterSpacing: "-0.5px"
     },
     pageSubtitle: {
-        fontSize: "15px",
+        fontSize: "16px",
         color: "#6b7280",
         margin: 0
     },
     tableSection: {
         backgroundColor: "white",
-        borderRadius: "12px",
-        padding: "24px",
-        boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)",
+        borderRadius: "16px",
+        padding: "32px",
+        boxShadow: "0 12px 30px rgba(0, 102, 204, 0.15)",
+        border: "2px solid #0066CC",
+        marginBottom: "32px"
+    },
+    sectionHeader: {
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
         marginBottom: "24px"
     },
     sectionTitle: {
-        fontSize: "18px",
-        fontWeight: "600",
+        fontSize: "20px",
+        fontWeight: "700",
         color: "#1f2937",
         margin: 0,
-        marginBottom: "24px",
         display: "flex",
         alignItems: "center"
     },
+    sectionIcon: {
+        marginRight: '12px',
+        color: '#0066CC',
+        fontSize: '24px'
+    },
+    badge: {
+        background: '#e6f2ff',
+        color: '#0066CC',
+        padding: '6px 14px',
+        borderRadius: '20px',
+        fontSize: '13px',
+        fontWeight: '600'
+    },
     tableContainer: {
-        overflowX: "auto",
+        overflow: "hidden",
         border: "1px solid #e5e7eb",
-        borderRadius: "8px"
+        borderRadius: "12px"
     },
     table: {
         width: "100%",
@@ -219,80 +275,124 @@ const styles = {
     },
     tableHeader: {
         textAlign: "left",
-        padding: "16px",
+        padding: "18px 20px",
         fontSize: "13px",
-        fontWeight: "600",
-        color: "#6b7280",
+        fontWeight: "700",
+        color: "#4b5563",
         textTransform: "uppercase",
-        letterSpacing: "0.5px"
+        letterSpacing: "1px"
     },
     tableRow: {
         borderBottom: "1px solid #f3f4f6",
-        transition: "background-color 0.2s"
+        transition: "all 0.2s"
     },
     tableCell: {
-        padding: "16px",
-        fontSize: "14px",
-        color: "#374151"
+        padding: "20px",
+        fontSize: "14px"
+    },
+    patientInfo: {
+        display: "flex",
+        alignItems: "center",
+        gap: "12px"
+    },
+    avatar: {
+        width: "36px",
+        height: "36px",
+        borderRadius: "10px",
+        backgroundColor: "#0066CC",
+        color: "white",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center"
     },
     patientName: {
         fontSize: "15px",
-        fontWeight: "600",
-        color: "#1f2937",
+        fontWeight: "700",
+        color: "#111827",
         margin: 0
     },
     patientId: {
-        fontSize: "13px",
-        color: "#6b7280",
+        fontSize: "12px",
+        fontWeight: "600",
+        color: "#0066CC",
         margin: 0,
         marginTop: "2px"
     },
+    serviceInfo: {
+        display: "flex",
+        flexDirection: "column",
+        gap: "4px"
+    },
     serviceText: {
         margin: 0,
-        fontWeight: "500"
+        fontWeight: "600",
+        color: "#374151"
     },
     dateText: {
         margin: 0,
         fontSize: "13px",
         color: "#6b7280",
-        marginTop: "2px"
+        display: "flex",
+        alignItems: "center"
+    },
+    priceTag: {
+        display: "flex",
+        alignItems: "baseline",
+        gap: "4px"
+    },
+    currency: {
+        fontSize: "12px",
+        fontWeight: "700",
+        color: "#6b7280"
     },
     amountText: {
-        fontWeight: "700",
-        color: "#059669"
+        fontSize: "18px",
+        fontWeight: "800",
+        color: "#111827"
     },
     payButton: {
-        padding: "8px 20px",
-        fontSize: "13px",
-        fontWeight: "600",
+        padding: "10px 24px",
+        fontSize: "14px",
+        fontWeight: "700",
         color: "white",
-        background: "linear-gradient(135deg, #10B981 0%, #059669 100%)",
+        background: "linear-gradient(135deg, #0066CC 0%, #0052A3 100%)",
         border: "none",
-        borderRadius: "6px",
+        borderRadius: "10px",
         cursor: "pointer",
         transition: "all 0.2s",
-        boxShadow: "0 4px 10px rgba(16, 185, 129, 0.3)"
+        boxShadow: "0 4px 12px rgba(0, 102, 204, 0.3)"
+    },
+    loadingCell: {
+        padding: "40px",
+        textAlign: "center",
+        color: "#6b7280",
+        fontStyle: "italic"
     },
     noDataCell: {
-        padding: "32px",
-        textAlign: "center",
-        fontSize: "14px",
-        color: "#9ca3af"
+        padding: "60px 20px",
+        textAlign: "center"
+    },
+    emptyState: {
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: "16px",
+        color: "#6b7280"
     },
     footer: {
         display: "flex",
         justifyContent: "flex-end"
     },
     backButton: {
-        padding: "10px 24px",
+        padding: "12px 24px",
         border: "none",
-        borderRadius: "6px",
+        borderRadius: "10px",
         background: "#0066CC",
         color: "white",
-        fontWeight: "600",
+        fontWeight: "700",
         cursor: "pointer",
         transition: "all 0.2s",
-        boxShadow: "0 2px 4px rgba(0, 102, 204, 0.2)"
+        boxShadow: "0 4px 12px rgba(0, 102, 204, 0.2)"
     }
 };
 

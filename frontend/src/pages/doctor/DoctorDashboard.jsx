@@ -120,26 +120,7 @@ function DoctorDashboard() {
             <p style={styles.pageSubtitle}>Welcome back, {doctorName}</p>
           </div>
 
-          {/* Quick Actions Section */}
-          <section style={styles.quickActionsSection}>
-            <h2 style={styles.sectionTitle}>Quick Actions</h2>
-            <div style={styles.actionsGrid}>
-              <button
-                style={styles.actionButton}
-                onClick={() => setShowAvailabilityModal(true)}
-              >
-                <FiClipboard style={styles.actionIcon} />
-                Update Availability
-              </button>
-              <button
-                style={styles.actionButton}
-                onClick={() => navigate('/doctor/appointments')}
-              >
-                <FiCalendar style={styles.actionIcon} />
-                Upcoming Appointments
-              </button>
-            </div>
-          </section>
+
 
           {/* Statistics Cards */}
           <div style={styles.statsGrid}>
@@ -297,7 +278,8 @@ const styles = {
   mainContainer: {
     flex: 1,
     display: "flex",
-    flexDirection: "column"
+    flexDirection: "column",
+    background: "linear-gradient(135deg, #f0f8ff 0%, #e6f2ff 100%)"
   },
   mainContent: {
     flex: 1,
@@ -328,13 +310,13 @@ const styles = {
   },
   statCard: {
     backgroundColor: "#ffffff",
-    borderRadius: "12px",
-    padding: "20px",
+    borderRadius: "16px",
+    padding: "24px",
     display: "flex",
     alignItems: "center",
-    gap: "16px",
-    boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
-    border: "1px solid #e5e7eb",
+    gap: "20px",
+    boxShadow: "0 10px 25px rgba(0, 102, 204, 0.1)",
+    border: "1px solid #e6f2ff",
     transition: "all 0.3s ease"
   },
   statIcon: {
@@ -367,11 +349,11 @@ const styles = {
   },
   appointmentsSection: {
     backgroundColor: "#ffffff",
-    borderRadius: "12px",
-    padding: "24px",
+    borderRadius: "16px",
+    padding: "32px",
     marginBottom: "32px",
-    boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
-    border: "1px solid #e5e7eb"
+    boxShadow: "0 12px 30px rgba(0, 102, 204, 0.15)",
+    border: "2px solid #0066CC"
   },
   sectionHeader: {
     display: "flex",
@@ -500,39 +482,7 @@ const styles = {
     fontSize: "14px",
     fontFamily: "'Inter', 'Segoe UI', sans-serif"
   },
-  quickActionsSection: {
-    backgroundColor: "#ffffff",
-    borderRadius: "12px",
-    padding: "24px",
-    boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
-    border: "1px solid #e5e7eb"
-  },
-  actionsGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-    gap: "16px",
-    marginTop: "16px"
-  },
-  actionButton: {
-    padding: "16px 20px",
-    borderRadius: "10px",
-    border: "none",
-    backgroundColor: "#0066CC",
-    color: "#fff",
-    fontWeight: "600",
-    fontSize: "14px",
-    cursor: "pointer",
-    transition: "all 0.3s ease",
-    boxShadow: "0 4px 12px rgba(0, 102, 204, 0.25)",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: "8px"
-  },
-  actionIcon: {
-    fontSize: "18px"
-  },
+
   modalOverlay: {
     position: "fixed",
     top: 0,
