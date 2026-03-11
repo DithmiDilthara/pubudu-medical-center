@@ -28,8 +28,8 @@ function ConfirmBooking() {
   const doctorId = doctor.doctor_id || doctor.id;
 
   // Fee calculation
-  const doctorFee = 2500.00;
-  const medicalCenterFee = 500.00;
+  const doctorFee = Number(doctor?.doctor_fee || 2500);
+  const medicalCenterFee = Number(doctor?.center_fee || 600);
   const totalFee = doctorFee + medicalCenterFee;
 
   const monthNames = ["January", "February", "March", "April", "May", "June",

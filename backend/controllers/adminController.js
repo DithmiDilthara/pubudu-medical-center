@@ -76,7 +76,9 @@ export const createDoctor = async (req, res) => {
       contact_number,
       full_name,
       specialization,
-      license_no
+      license_no,
+      doctor_fee,
+      center_fee
     } = req.body;
 
     // Validation
@@ -140,7 +142,9 @@ export const createDoctor = async (req, res) => {
       admin_id: adminRecord.admin_id,
       full_name,
       specialization,
-      license_no
+      license_no,
+      doctor_fee,
+      center_fee
     });
 
     res.status(201).json({
@@ -152,7 +156,9 @@ export const createDoctor = async (req, res) => {
         doctor_id: doctor.doctor_id,
         full_name: doctor.full_name,
         specialization: doctor.specialization,
-        license_no: doctor.license_no
+        license_no: doctor.license_no,
+        doctor_fee: doctor.doctor_fee,
+        center_fee: doctor.center_fee
       }
     });
 
@@ -202,7 +208,7 @@ export const getDoctors = async (req, res) => {
 export const updateDoctor = async (req, res) => {
   try {
     const { id } = req.params;
-    const { full_name, specialization, email, contact_number } = req.body;
+    const { full_name, specialization, email, contact_number, doctor_fee, center_fee } = req.body;
 
     const doctor = await Doctor.findByPk(id);
     if (!doctor) {
@@ -215,6 +221,8 @@ export const updateDoctor = async (req, res) => {
     // Update doctor info
     if (full_name) doctor.full_name = full_name;
     if (specialization) doctor.specialization = specialization;
+    if (doctor_fee !== undefined) doctor.doctor_fee = doctor_fee;
+    if (center_fee !== undefined) doctor.center_fee = center_fee;
     await doctor.save();
 
     // Update user info

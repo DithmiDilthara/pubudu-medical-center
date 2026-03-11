@@ -67,8 +67,8 @@ function Appointments() {
     const apt = appointments.find(a => a.appointment_id === appointmentId);
     if (!apt) return;
 
-    const doctorFee = Number(apt.doctor?.session_fee || 2500);
-    const totalFee = doctorFee + 500; // Adding 500 medical center fee
+    const doctorFee = Number(apt.doctor?.doctor_fee || 2500);
+    const totalFee = doctorFee + Number(apt.doctor?.center_fee || 600); // Adding dynamic medical center fee
 
     navigate("/patient/payment", {
       state: {
@@ -162,7 +162,7 @@ function Appointments() {
                       </div>
                       <div style={styles.detailItem}>
                         <FiCreditCard size={20} style={styles.detailIcon} />
-                        <span style={styles.detailText}>LKR {(apt.doctor?.session_fee || 3000).toLocaleString()}</span>
+                        <span style={styles.detailText}>LKR {(Number(apt.doctor?.doctor_fee || 2500) + Number(apt.doctor?.center_fee || 600)).toLocaleString()}</span>
                       </div>
                     </div>
 

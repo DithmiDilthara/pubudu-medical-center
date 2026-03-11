@@ -23,7 +23,9 @@ const ManageDoctors = () => {
     contact_number: '',
     full_name: '',
     specialization: '',
-    license_no: ''
+    license_no: '',
+    doctor_fee: '',
+    center_fee: ''
   });
 
   const [formErrors, setFormErrors] = useState({});
@@ -158,6 +160,14 @@ const ManageDoctors = () => {
       errors.specialization = 'Specialization is required';
     }
 
+    if (!formData.doctor_fee || isNaN(formData.doctor_fee) || Number(formData.doctor_fee) <= 0) {
+      errors.doctor_fee = 'Valid Doctor Fee is required';
+    }
+
+    if (!formData.center_fee || isNaN(formData.center_fee) || Number(formData.center_fee) <= 0) {
+      errors.center_fee = 'Valid Center Fee is required';
+    }
+
     if (!formData.email) {
       errors.email = 'Email is required';
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
@@ -191,7 +201,9 @@ const ManageDoctors = () => {
           full_name: formData.full_name,
           specialization: formData.specialization,
           email: formData.email,
-          contact_number: formData.contact_number
+          contact_number: formData.contact_number,
+          doctor_fee: formData.doctor_fee,
+          center_fee: formData.center_fee
         });
 
         if (response.data.success) {
@@ -223,7 +235,9 @@ const ManageDoctors = () => {
       contact_number: doctor.user.contact_number || '',
       full_name: doctor.full_name,
       specialization: doctor.specialization,
-      license_no: doctor.license_no
+      license_no: doctor.license_no,
+      doctor_fee: doctor.doctor_fee || 2500,
+      center_fee: doctor.center_fee || 600
     });
     setShowModal(true);
   };
@@ -251,7 +265,9 @@ const ManageDoctors = () => {
       contact_number: '',
       full_name: '',
       specialization: '',
-      license_no: ''
+      license_no: '',
+      doctor_fee: '',
+      center_fee: ''
     });
     setFormErrors({});
     setShowModal(true);
@@ -267,7 +283,9 @@ const ManageDoctors = () => {
       contact_number: '',
       full_name: '',
       specialization: '',
-      license_no: ''
+      license_no: '',
+      doctor_fee: '',
+      center_fee: ''
     });
     setFormErrors({});
   };
@@ -322,6 +340,8 @@ const ManageDoctors = () => {
                     <th style={styles.th}>License No.</th>
                     <th style={styles.th}>Email</th>
                     <th style={styles.th}>Contact</th>
+                    <th style={styles.th}>Doctor Fee</th>
+                    <th style={styles.th}>Center Fee</th>
                     <th style={styles.th}>Actions</th>
                   </tr>
                 </thead>
@@ -329,11 +349,13 @@ const ManageDoctors = () => {
                   {doctors.map((doctor) => (
                     <tr key={doctor.doctor_id} style={styles.tr}>
                       <td style={styles.td}>{doctor.full_name}</td>
-                      <td style={styles.td}>{doctor.user.username}</td>
+                      <td style={styles.td}>{doctor.user?.username || 'N/A'}</td>
                       <td style={styles.td}>{doctor.specialization}</td>
                       <td style={styles.td}>{doctor.license_no}</td>
-                      <td style={styles.td}>{doctor.user.email || 'N/A'}</td>
-                      <td style={styles.td}>{doctor.user.contact_number || 'N/A'}</td>
+                      <td style={styles.td}>{doctor.user?.email || 'N/A'}</td>
+                      <td style={styles.td}>{doctor.user?.contact_number || 'N/A'}</td>
+                      <td style={styles.td}>LKR {doctor.doctor_fee || 2500}</td>
+                      <td style={styles.td}>LKR {doctor.center_fee || 600}</td>
                       <td style={styles.td}>
                         <div style={styles.actionButtons}>
                           <button
@@ -516,8 +538,7 @@ const ManageDoctors = () => {
                   <label style={styles.label}>
                     Specialization <span style={styles.required}>*</span>
                   </label>
-                  <input
-                    type="text"
+                  <select
                     name="specialization"
                     value={formData.specialization}
                     onChange={handleInputChange}
@@ -526,14 +547,85 @@ const ManageDoctors = () => {
                       ...styles.input,
                       ...(formErrors.specialization ? styles.inputError : {})
                     }}
-                    placeholder="Cardiology"
-                  />
+                  >
+                    <option value="">Select Specialization</option>
+                    <option value="General Physician">General Physician</option>
+                    <option value="Dermatology">Dermatology</option>
+                    <option value="Nephrology">Nephrology</option>
+                    <option value="Ophthalmology">Ophthalmology</option>
+                    <option value="Cardiology">Cardiology</option>
+                    <option value="Neurology">Neurology</option>
+                    <option value="Pediatrics">Pediatrics</option>
+                    <option value="Orthopedics">Orthopedics</option>
+                  </select>
                   {formErrors.specialization && (
                     <span style={styles.errorText}>
                       <FiAlertCircle style={{ marginRight: '4px' }} />
                       {formErrors.specialization}
                     </span>
                   )}
+                </div>
+
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>
+                    Doctor Fee (LKR) <span style={styles.required}>*</span>
+                  </label>
+                  <input
+                    type="number"
+                    name="doctor_fee"
+                    value={formData.doctor_fee}
+                    onChange={handleInputChange}
+                    style={{
+                      ...styles.input,
+                      ...(formErrors.doctor_fee ? styles.inputError : {})
+                    }}
+                    placeholder="2500"
+                  />
+                  {formErrors.doctor_fee && (
+                    <span style={styles.errorText}>
+                      <FiAlertCircle style={{ marginRight: '4px' }} />
+                      {formErrors.doctor_fee}
+                    </span>
+                  )}
+                </div>
+
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>
+                    Center Fee (LKR) <span style={styles.required}>*</span>
+                  </label>
+                  <input
+                    type="number"
+                    name="center_fee"
+                    value={formData.center_fee}
+                    onChange={handleInputChange}
+                    style={{
+                      ...styles.input,
+                      ...(formErrors.center_fee ? styles.inputError : {})
+                    }}
+                    placeholder="600"
+                  />
+                  {formErrors.center_fee && (
+                    <span style={styles.errorText}>
+                      <FiAlertCircle style={{ marginRight: '4px' }} />
+                      {formErrors.center_fee}
+                    </span>
+                  )}
+                </div>
+
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>
+                    Total Fee (LKR)
+                  </label>
+                  <input
+                    type="number"
+                    value={(Number(formData.doctor_fee) || 0) + (Number(formData.center_fee) || 0)}
+                    disabled
+                    style={{
+                      ...styles.input,
+                      backgroundColor: '#e9ecef',
+                      color: '#495057'
+                    }}
+                  />
                 </div>
 
                 {!editingDoctor && (

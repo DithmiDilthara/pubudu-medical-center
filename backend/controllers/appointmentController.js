@@ -152,7 +152,7 @@ export const getAppointments = async (req, res) => {
         }
 
         const include = [
-            { model: Doctor, as: 'doctor', attributes: ['full_name', 'specialization'] }
+            { model: Doctor, as: 'doctor', attributes: ['full_name', 'specialization', 'doctor_fee', 'center_fee'] }
         ];
 
         // Only include patient info if it's NOT a patient looking at another doctor's slots

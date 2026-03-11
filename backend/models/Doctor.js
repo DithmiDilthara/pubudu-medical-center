@@ -29,10 +29,15 @@ const Doctor = sequelize.define('doctor', {
     allowNull: false,
     unique: 'doctor_license_unique'
   },
-  session_fee: {
+  doctor_fee: {
     type: DataTypes.DECIMAL(10, 2),
     allowNull: false,
-    defaultValue: 3000.00
+    defaultValue: 2500.00
+  },
+  center_fee: {
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: false,
+    defaultValue: 600.00
   }
 }, {
   tableName: 'doctor',
