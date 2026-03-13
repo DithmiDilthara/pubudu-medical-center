@@ -1,7 +1,7 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import axios from "axios";
-import { FiCalendar, FiSearch, FiClipboard, FiCheckSquare, FiClock } from 'react-icons/fi';
+import { FiCalendar, FiSearch, FiClipboard, FiCheckSquare, FiClock, FiPlus, FiArrowRight } from 'react-icons/fi';
 import PatientSidebar from "../../components/PatientSidebar";
 import PatientHeader from "../../components/PatientHeader";
 import CancellationModal from "../../components/CancellationModal";
@@ -17,28 +17,26 @@ function MiniCalendar({ highlightedDates, onDateClick }) {
   for (let i = 0; i < firstDay; i++) cells.push(null);
   for (let d = 1; d <= daysInMonth; d++) cells.push(d);
 
-  // Only highlight dates in the current month
   const highlightSet = new Set(
     highlightedDates
       .filter((d) => {
-        const date = new Date(d + 'T00:00:00'); // Parse as local
+        const date = new Date(d + 'T00:00:00');
         return date.getMonth() === month && date.getFullYear() === year;
       })
       .map((d) => new Date(d + 'T00:00:00').getDate())
   );
 
-  // Today's date for highlighting
   const todayDate = today.getDate();
 
   return (
-    <div style={styles.calendarContainer}>
+    <div className="glass-card" style={styles.calendarContainer}>
       <div style={styles.calendarHeader}>
-        <p style={styles.calendarMonth}>
-          {today.toLocaleString("default", { month: "long" })} {year}
-        </p>
-        <span style={styles.calendarBadge}>
-          {highlightSet.size > 0 ? `${highlightSet.size} appointment${highlightSet.size > 1 ? 's' : ''}` : 'No upcoming'}
-        </span>
+        <div>
+          <h3 style={styles.calendarMonth}>
+            {today.toLocaleString("default", { month: "long" })} {year}
+          </h3>
+          <p style={styles.calendarSubText}>{highlightSet.size} events this month</p>
+        </div>
       </div>
       <div style={styles.calendarGrid}>
         {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((d) => (
@@ -53,13 +51,12 @@ function MiniCalendar({ highlightedDates, onDateClick }) {
             style={{
               ...styles.dayCell,
               ...(day && highlightSet.has(day) ? styles.highlightedDay : {}),
-              ...(day && !highlightSet.has(day) ? styles.normalDay : {}),
               ...(day === todayDate ? styles.todayDay : {}),
               ...(!day ? styles.emptyDay : {}),
-              ...(day && highlightSet.has(day) ? { cursor: 'pointer' } : {})
             }}
           >
             {day ?? ""}
+            {day && highlightSet.has(day) && <div style={styles.dotIndicator} />}
           </div>
         ))}
       </div>
@@ -73,7 +70,6 @@ function PatientDashboard() {
   const [loading, setLoading] = useState(true);
   const [cancellationMessages, setCancellationMessages] = useState([]);
 
-  // Get patient name from localStorage
   const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
   const patientName = storedUser.full_name?.split(' ')[0] || storedUser.username || 'Patient';
 
@@ -87,7 +83,7 @@ function PatientDashboard() {
         if (response.data.success) {
           const allApts = response.data.data;
 
-          // Check for recent cancellations to notify the patient
+          // Process cancellations
           const cancelledApts = allApts.filter(apt => apt.status === 'CANCELLED');
           if (cancelledApts.length > 0) {
             const notifiedCancellations = JSON.parse(sessionStorage.getItem('notifiedCancellations') || '[]');
@@ -97,21 +93,15 @@ function PatientDashboard() {
               const messages = newCancellations.map(apt =>
                 `Your appointment on ${apt.appointment_date} with ${apt.doctor?.full_name || 'the doctor'} has been CANCELLED.`
               ).join('\n\n');
-
-              // Show visual modal instead of browser alert
               setCancellationMessages(messages.split('\n\n'));
-
-              // Mark as notified for this session
               const updatedNotified = [...notifiedCancellations, ...newCancellations.map(a => a.appointment_id)];
               sessionStorage.setItem('notifiedCancellations', JSON.stringify(updatedNotified));
             }
           }
 
-          // Today's date for filtering
           const today = new Date();
           const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
-          // Filter for upcoming appointments (PENDING or CONFIRMED AND >= today) and sort by date
           const upcoming = allApts
             .filter(apt => ['PENDING', 'CONFIRMED'].includes(apt.status) && apt.appointment_date >= todayStr)
             .sort((a, b) => new Date(a.appointment_date) - new Date(b.appointment_date));
@@ -138,114 +128,118 @@ function PatientDashboard() {
       <div style={styles.mainWrapper}>
         <PatientHeader patientName={patientName} />
 
-        {/* Cancellation Notice Modal */}
         <CancellationModal
           messages={cancellationMessages}
           onClose={() => setCancellationMessages([])}
         />
 
         <main style={styles.mainContent}>
-          {/* Quick actions */}
-          <section style={styles.quickActionsSection}>
-            <h3 style={styles.quickActionsTitle}>
-              Quick Actions
-            </h3>
-            <div style={styles.quickActionsButtons}>
-              <Link
-                to="/patient/find-doctor"
-                style={styles.primaryButton}
-              >
-                <FiCalendar style={{ marginRight: '8px', verticalAlign: 'middle' }} />
-                Book Appointment
-              </Link>
-              <Link
-                to="/patient/find-doctor"
-                style={styles.secondaryButton}
-              >
-                <FiSearch style={{ marginRight: '8px', verticalAlign: 'middle' }} />
-                Find Doctor
-              </Link>
-              <Link
-                to="/patient/appointments"
-                style={styles.tertiaryButton}
-              >
-                <FiClipboard style={{ marginRight: '8px', verticalAlign: 'middle' }} />
-                My Appointments
-              </Link>
-            </div>
-          </section>
-
-          {/* Top grid: Upcoming + Calendar */}
-          <div style={styles.topGrid}>
-            {/* Upcoming appointments list */}
-            <section style={styles.appointmentsSection}>
-              <div style={styles.sectionHeader}>
-                <h2 style={styles.sectionTitle}>
-                  <FiCheckSquare style={{ marginRight: '8px', verticalAlign: 'middle' }} />
-                  Upcoming Appointments
-                </h2>
-                <Link
-                  to="/patient/appointments"
-                  style={styles.bookLink}
-                >
-                  View All →
+          {/* Hero Welcome Section */}
+          <div style={styles.heroSection}>
+            <div style={styles.heroContent}>
+              <h1 style={styles.heroTitle}>Track your health journey, {patientName}.</h1>
+              <p style={styles.heroSub}>Manage your bookings, consultations, and medical history in one place.</p>
+              <div style={styles.heroButtons}>
+                <Link to="/patient/find-doctor" style={styles.heroActionBtn}>
+                  <FiPlus style={{marginRight: '8px'}} /> Book Appointment
                 </Link>
               </div>
-
-              <div style={styles.appointmentsList}>
-                {loading ? (
-                  <p style={styles.noAppointmentsText}>Loading appointments...</p>
-                ) : upcomingAppointments.length > 0 ? (
-                  upcomingAppointments.slice(0, 3).map((appt) => (
-                    <div
-                      key={appt.appointment_id}
-                      style={styles.appointmentCard}
-                    >
-                      <div style={styles.appointmentCardHeader}>
-                        <div>
-                          <p style={styles.appointmentTitle}>{appt.status}</p>
-                          <p style={styles.appointmentDoctor}>
-                            {appt.doctor?.full_name || `Doctor #${appt.doctor_id}`}
-                            {appt.doctor?.specialization && ` · ${appt.doctor.specialization}`}
-                          </p>
-                        </div>
-                        <span style={{
-                          ...styles.payButton,
-                          backgroundColor: appt.status === 'CONFIRMED' ? '#059669' : '#0066CC',
-                          background: appt.status === 'CONFIRMED'
-                            ? 'linear-gradient(135deg, #059669 0%, #047857 100%)'
-                            : 'linear-gradient(135deg, #0066CC 0%, #0052A3 100%)',
-                          fontSize: '12px',
-                          padding: '6px 12px'
-                        }}>
-                          {appt.status}
-                        </span>
-                      </div>
-                      <p style={styles.appointmentDateTime}>
-                        <FiCalendar style={{ marginRight: '6px', verticalAlign: 'middle' }} />
-                        {new Date(appt.appointment_date + 'T00:00:00').toLocaleDateString('en-US', {
-                          year: 'numeric',
-                          month: 'long',
-                          day: 'numeric'
-                        })}
-                        <FiClock style={{ margin: '0 6px 0 12px', verticalAlign: 'middle' }} />
-                        {appt.time_slot}
-                      </p>
-                    </div>
-                  ))
-                ) : (
-                  <p style={styles.noAppointmentsText}>No upcoming appointments</p>
-                )}
+            </div>
+            <div style={styles.heroStats}>
+              <div style={styles.heroStatItem}>
+                <span style={styles.statVal}>{upcomingAppointments.length}</span>
+                <span style={styles.statLab}>Upcoming</span>
               </div>
-            </section>
+              <div style={styles.statDivider} />
+              <div style={styles.heroStatItem}>
+                <span style={styles.statVal}>0</span>
+                <span style={styles.statLab}>Reports</span>
+              </div>
+            </div>
+          </div>
 
-            {/* Calendar */}
-            <section style={styles.calendarSection}>
-              <MiniCalendar
-                highlightedDates={upcomingAppointments.map((a) => a.appointment_date)}
-                onDateClick={() => navigate('/patient/appointments')}
-              />
-            </section>
+          <div style={styles.dashboardGrid}>
+             {/* Left Column: Quick Actions + Appointments */}
+             <div style={styles.leftCol}>
+                {/* Secondary Quick Actions */}
+                <div style={styles.quickActionCards}>
+                   <Link to="/patient/find-doctor" style={styles.actionCard}>
+                      <div style={{...styles.actionIcon, background: 'rgba(59, 130, 246, 0.1)'}}>
+                        <FiSearch color="#3B82F6" size={24} />
+                      </div>
+                      <h4 style={styles.actionCardTitle}>Find Doctor</h4>
+                      <p style={styles.actionCardRoot}>Search specializations</p>
+                   </Link>
+                   <Link to="/patient/appointments" style={styles.actionCard}>
+                      <div style={{...styles.actionIcon, background: 'rgba(16, 185, 129, 0.1)'}}>
+                        <FiClipboard color="#10B981" size={24} />
+                      </div>
+                      <h4 style={styles.actionCardTitle}>My History</h4>
+                      <p style={styles.actionCardRoot}>View past visits</p>
+                   </Link>
+                </div>
+
+                <section style={styles.section}>
+                  <div style={styles.sectionHeader}>
+                    <h2 style={styles.sectionTitle}>Upcoming Appointments</h2>
+                    <Link to="/patient/appointments" style={styles.viewMoreLink}>View all</Link>
+                  </div>
+
+                  <div style={styles.appointmentList}>
+                    {loading ? (
+                      <div style={styles.loadingContainer}>Loading...</div>
+                    ) : upcomingAppointments.length > 0 ? (
+                      upcomingAppointments.slice(0, 3).map((appt) => (
+                        <div key={appt.appointment_id} style={styles.appointmentCard}>
+                          <div style={styles.aptInfo}>
+                            <div style={styles.dateCircle}>
+                              <span style={styles.dateDay}>{new Date(appt.appointment_date + 'T00:00:00').getDate()}</span>
+                              <span style={styles.dateMonth}>{new Date(appt.appointment_date + 'T00:00:00').toLocaleDateString('en-US', {month: 'short'})}</span>
+                            </div>
+                            <div style={styles.aptText}>
+                              <h4 style={styles.doctorName}>{appt.doctor?.full_name || `Doctor #${appt.doctor_id}`}</h4>
+                              <p style={styles.doctorSpecialty}>{appt.doctor?.specialization || 'General Practitioner'}</p>
+                              <div style={styles.timeTag}>
+                                <FiClock size={12} style={{marginRight: '4px'}} />
+                                {appt.time_slot}
+                              </div>
+                            </div>
+                          </div>
+                          <div style={styles.aptStatus}>
+                             <span style={{
+                               ...styles.statusBadge,
+                               backgroundColor: appt.status === 'CONFIRMED' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(59, 130, 246, 0.1)',
+                               color: appt.status === 'CONFIRMED' ? '#10B981' : '#3B82F6'
+                             }}>
+                               {appt.status}
+                             </span>
+                             <FiArrowRight color="#D1D5DB" />
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div style={styles.emptyState}>
+                        <FiCalendar size={48} color="#E5E7EB" />
+                        <p style={styles.emptyText}>No upcoming appointments scheduled.</p>
+                      </div>
+                    )}
+                  </div>
+                </section>
+             </div>
+
+             {/* Right Column: Calendar */}
+             <div style={styles.rightCol}>
+                <MiniCalendar 
+                  highlightedDates={upcomingAppointments.map((a) => a.appointment_date)}
+                  onDateClick={() => navigate('/patient/appointments')}
+                />
+
+                <div className="glass-card" style={styles.miniBanner}>
+                  <h4 style={styles.bannerTitle}>Need Help?</h4>
+                  <p style={styles.bannerText}>Contact our 24/7 support line for any medical emergencies.</p>
+                  <button style={styles.bannerBtn}>Call Now</button>
+                </div>
+             </div>
           </div>
         </main>
       </div>
@@ -256,272 +250,334 @@ function PatientDashboard() {
 const styles = {
   container: {
     display: 'flex',
-    flexDirection: 'row',
     minHeight: '100vh',
-    background: 'linear-gradient(135deg, #f5f5f5 0%, #f9fafb 100%)',
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    backgroundColor: '#F9FAFB',
+    fontFamily: "'Inter', sans-serif"
   },
   mainWrapper: {
     flex: 1,
     display: 'flex',
-    flexDirection: 'column'
+    flexDirection: 'column',
+    overflowY: 'auto'
   },
   mainContent: {
-    flex: 1,
-    padding: '32px'
+    padding: '40px',
+    maxWidth: '1200px',
+    width: '100%',
+    margin: '0 auto'
   },
-  quickActionsSection: {
-    marginBottom: '32px',
-    borderRadius: '12px',
+  heroSection: {
     background: 'linear-gradient(135deg, #0066CC 0%, #0052A3 100%)',
-    padding: '24px',
-    boxShadow: '0 10px 30px rgba(0, 102, 204, 0.2)',
-    border: '1px solid rgba(255, 255, 255, 0.1)'
-  },
-  quickActionsTitle: {
-    fontSize: '20px',
-    fontWeight: '700',
-    color: 'white',
-    marginBottom: '16px',
-    marginTop: 0,
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
-  },
-  quickActionsButtons: {
+    borderRadius: '24px',
+    padding: '48px',
+    marginBottom: '40px',
     display: 'flex',
-    flexWrap: 'wrap',
-    gap: '16px'
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    color: 'white',
+    boxShadow: '0 20px 40px rgba(0, 50, 150, 0.15)',
+    position: 'relative',
+    overflow: 'hidden'
   },
-  primaryButton: {
-    borderRadius: '8px',
-    backgroundColor: 'white',
-    padding: '12px 24px',
-    fontSize: '15px',
-    fontWeight: '600',
-    color: '#0066CC',
-    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-    textDecoration: 'none',
+  heroContent: {
+    zIndex: 1
+  },
+  heroTitle: {
+    fontSize: '32px',
+    fontWeight: '800',
+    marginBottom: '12px',
+    letterSpacing: '-0.5px'
+  },
+  heroSub: {
+    fontSize: '16px',
+    opacity: 0.9,
+    marginBottom: '24px',
+    maxWidth: '500px'
+  },
+  heroActionBtn: {
     display: 'inline-flex',
     alignItems: 'center',
-    transition: 'all 0.3s',
-    border: '2px solid white',
-    cursor: 'pointer',
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
-  },
-  secondaryButton: {
-    borderRadius: '8px',
     backgroundColor: 'white',
-    padding: '12px 24px',
-    fontSize: '15px',
-    fontWeight: '600',
     color: '#0066CC',
-    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-    textDecoration: 'none',
-    display: 'inline-flex',
-    alignItems: 'center',
-    transition: 'all 0.3s',
-    border: '2px solid white',
-    cursor: 'pointer',
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
-  },
-  tertiaryButton: {
-    borderRadius: '8px',
-    backgroundColor: 'white',
     padding: '12px 24px',
-    fontSize: '15px',
-    fontWeight: '600',
-    color: '#0066CC',
-    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-    textDecoration: 'none',
-    display: 'inline-flex',
-    alignItems: 'center',
-    transition: 'all 0.3s',
-    border: '2px solid white',
-    cursor: 'pointer',
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
-  },
-  topGrid: {
-    display: 'grid',
-    gap: '24px',
-    gridTemplateColumns: '2fr 1fr'
-  },
-  appointmentsSection: {
     borderRadius: '12px',
+    textDecoration: 'none',
+    fontWeight: '700',
+    fontSize: '15px',
+    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+    transition: 'transform 0.2s'
+  },
+  heroStats: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '32px',
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    padding: '24px 40px',
+    borderRadius: '20px',
+    backdropFilter: 'blur(10px)',
+    border: '1px solid rgba(255,255,255,0.1)'
+  },
+  heroStatItem: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center'
+  },
+  statVal: {
+    fontSize: '28px',
+    fontWeight: '800'
+  },
+  statLab: {
+    fontSize: '12px',
+    textTransform: 'uppercase',
+    letterSpacing: '1px',
+    opacity: 0.8
+  },
+  statDivider: {
+    width: '1px',
+    height: '40px',
+    backgroundColor: 'rgba(255,255,255,0.2)'
+  },
+  dashboardGrid: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 340px',
+    gap: '32px'
+  },
+  quickActionCards: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(2, 1fr)',
+    gap: '20px',
+    marginBottom: '32px'
+  },
+  actionCard: {
     backgroundColor: 'white',
+    borderRadius: '20px',
     padding: '24px',
-    boxShadow: '0 10px 25px rgba(0, 0, 0, 0.08)',
-    border: '1px solid rgba(0, 102, 204, 0.1)'
+    textDecoration: 'none',
+    border: '1px solid #E5E7EB',
+    transition: 'all 0.3s ease',
+    boxShadow: '0 4px 6px rgba(0,0,0,0.02)'
+  },
+  actionIcon: {
+    width: '48px',
+    height: '48px',
+    borderRadius: '12px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: '16px'
+  },
+  actionCardTitle: {
+    fontSize: '16px',
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: '4px'
+  },
+  actionCardRoot: {
+    fontSize: '13px',
+    color: '#6B7280'
+  },
+  section: {
+    backgroundColor: 'white',
+    borderRadius: '24px',
+    padding: '32px',
+    border: '1px solid #E5E7EB',
+    boxShadow: '0 4px 6px rgba(0,0,0,0.02)'
   },
   sectionHeader: {
-    marginBottom: '20px',
     display: 'flex',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    borderBottom: '2px solid #f0f0f0',
-    paddingBottom: '16px'
+    alignItems: 'center',
+    marginBottom: '24px'
   },
   sectionTitle: {
     fontSize: '20px',
-    fontWeight: '700',
-    background: 'linear-gradient(135deg, #0066CC 0%, #0052A3 100%)',
-    WebkitBackgroundClip: 'text',
-    WebkitTextFillColor: 'transparent',
-    margin: 0,
-    display: 'inline-flex',
-    alignItems: 'center',
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    fontWeight: '800',
+    color: '#111827'
   },
-  bookLink: {
+  viewMoreLink: {
     fontSize: '14px',
-    fontWeight: '600',
     color: '#0066CC',
-    textDecoration: 'none',
-    transition: 'all 0.2s',
-    cursor: 'pointer',
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    fontWeight: '600',
+    textDecoration: 'none'
   },
-  appointmentsList: {
+  appointmentList: {
     display: 'flex',
     flexDirection: 'column',
     gap: '16px'
   },
   appointmentCard: {
-    borderRadius: '10px',
-    border: '2px solid #f0f0f0',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     padding: '16px',
-    background: 'linear-gradient(135deg, rgba(0, 102, 204, 0.05) 0%, rgba(0, 82, 163, 0.05) 100%)',
-    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)',
+    borderRadius: '16px',
+    border: '1px solid #F3F4F6',
+    transition: 'all 0.2s ease',
+    cursor: 'pointer'
+  },
+  aptInfo: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '16px'
+  },
+  dateCircle: {
+    width: '60px',
+    height: '60px',
+    borderRadius: '16px',
+    backgroundColor: '#F3F4F6',
     display: 'flex',
     flexDirection: 'column',
-    gap: '8px',
-    transition: 'all 0.3s'
-  },
-  appointmentCardHeader: {
-    display: 'flex',
     alignItems: 'center',
-    justifyContent: 'space-between'
+    justifyContent: 'center'
   },
-  appointmentTitle: {
-    fontSize: '13px',
-    color: '#888',
-    margin: 0,
+  dateDay: {
+    fontSize: '20px',
+    fontWeight: '800',
+    color: '#111827',
+    lineHeight: 1
+  },
+  dateMonth: {
+    fontSize: '11px',
     textTransform: 'uppercase',
-    letterSpacing: '0.5px',
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    fontWeight: '700',
+    color: '#6B7280'
   },
-  appointmentDoctor: {
+  aptText: {},
+  doctorName: {
     fontSize: '16px',
     fontWeight: '700',
-    color: '#0066CC',
-    margin: 0,
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    color: '#111827',
+    margin: 0
   },
-  payButton: {
+  doctorSpecialty: {
     fontSize: '13px',
-    fontWeight: '700',
-    color: 'white',
-    background: 'linear-gradient(135deg, #0066CC 0%, #0052A3 100%)',
-    border: 'none',
-    borderRadius: '6px',
-    padding: '8px 16px',
-    cursor: 'pointer',
-    transition: 'all 0.3s',
-    boxShadow: '0 4px 10px rgba(0, 102, 204, 0.3)',
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    color: '#6B7280',
+    marginBottom: '6px'
   },
-  appointmentDateTime: {
-    fontSize: '13px',
-    color: '#666',
-    margin: 0,
-    fontWeight: '500',
+  timeTag: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    fontSize: '12px',
+    fontWeight: '600',
+    color: '#4B5563',
+    backgroundColor: '#F9FAFB',
+    padding: '4px 10px',
+    borderRadius: '8px',
+    border: '1px solid #E5E7EB'
+  },
+  aptStatus: {
     display: 'flex',
     alignItems: 'center',
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    gap: '16px'
   },
-  noAppointmentsText: {
-    fontSize: '14px',
-    color: '#999',
-    textAlign: 'center',
-    padding: '20px',
-    margin: 0,
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+  statusBadge: {
+    padding: '6px 12px',
+    borderRadius: '10px',
+    fontSize: '12px',
+    fontWeight: '700',
+    textTransform: 'uppercase'
   },
-  calendarSection: {
-    gridColumn: 'span 1'
+  emptyState: {
+    padding: '40px',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    textAlign: 'center'
+  },
+  emptyText: {
+    marginTop: '16px',
+    color: '#9CA3AF',
+    fontSize: '14px'
   },
   calendarContainer: {
-    borderRadius: '12px',
-    border: '1px solid rgba(0, 102, 204, 0.15)',
     backgroundColor: 'white',
-    padding: '20px',
-    boxShadow: '0 10px 25px rgba(0, 0, 0, 0.08)',
-    background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(245, 245, 245, 0.95) 100%)'
+    borderRadius: '24px',
+    padding: '24px',
+    border: '1px solid #E5E7EB',
+    boxShadow: '0 4px 6px rgba(0,0,0,0.02)',
+    marginBottom: '24px'
   },
   calendarHeader: {
-    marginBottom: '16px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderBottom: '2px solid #f0f0f0',
-    paddingBottom: '12px'
+    marginBottom: '20px'
   },
   calendarMonth: {
-    fontSize: '16px',
-    fontWeight: '700',
-    background: 'linear-gradient(135deg, #0066CC 0%, #0052A3 100%)',
-    WebkitBackgroundClip: 'text',
-    WebkitTextFillColor: 'transparent',
-    margin: 0,
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    fontSize: '18px',
+    fontWeight: '800',
+    color: '#111827',
+    margin: 0
   },
-  calendarBadge: {
+  calendarSubText: {
     fontSize: '12px',
-    background: 'linear-gradient(135deg, #0066CC 0%, #0052A3 100%)',
-    WebkitBackgroundClip: 'text',
-    WebkitTextFillColor: 'transparent',
-    fontWeight: '700',
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    color: '#6B7280',
+    marginTop: '2px'
   },
   calendarGrid: {
     display: 'grid',
     gridTemplateColumns: 'repeat(7, 1fr)',
-    gap: '8px',
-    textAlign: 'center',
-    fontSize: '14px'
+    gap: '4px'
   },
   dayLabel: {
-    color: '#0066CC',
-    fontSize: '12px',
-    fontWeight: '700',
+    textAlign: 'center',
     padding: '8px 0',
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    fontSize: '11px',
+    fontWeight: '700',
+    color: '#9CA3AF',
+    textTransform: 'uppercase'
   },
   dayCell: {
-    height: '36px',
-    borderRadius: '6px',
+    aspectRatio: '1',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    fontSize: '14px',
-    fontWeight: '500',
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    fontSize: '13px',
+    fontWeight: '600',
+    borderRadius: '10px',
+    cursor: 'pointer',
+    position: 'relative'
   },
   highlightedDay: {
-    fontWeight: 'bold',
-    color: 'white',
-    background: 'linear-gradient(135deg, #0066CC 0%, #0052A3 100%)',
-    border: '2px solid #0066CC',
-    boxShadow: '0 4px 10px rgba(0, 102, 204, 0.3)'
-  },
-  normalDay: {
-    color: '#555',
-    border: '1px solid #e5e7eb'
-  },
-  emptyDay: {
-    color: '#ddd'
+    backgroundColor: '#F0F7FF',
+    color: '#0066CC'
   },
   todayDay: {
     border: '2px solid #0066CC',
-    fontWeight: '700'
+    color: '#0066CC'
+  },
+  dotIndicator: {
+    position: 'absolute',
+    bottom: '6px',
+    width: '4px',
+    height: '4px',
+    borderRadius: '50%',
+    backgroundColor: '#0066CC'
+  },
+  miniBanner: {
+    background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+    borderRadius: '24px',
+    padding: '28px',
+    color: 'white',
+    boxShadow: '0 10px 30px rgba(16, 185, 129, 0.2)'
+  },
+  bannerTitle: {
+    fontSize: '18px',
+    fontWeight: '800',
+    marginBottom: '8px'
+  },
+  bannerText: {
+    fontSize: '13px',
+    opacity: 0.9,
+    lineHeight: 1.5,
+    marginBottom: '20px'
+  },
+  bannerBtn: {
+    backgroundColor: 'white',
+    color: '#10B981',
+    border: 'none',
+    padding: '10px 20px',
+    borderRadius: '10px',
+    fontWeight: '700',
+    fontSize: '13px',
+    cursor: 'pointer'
   }
 };
 

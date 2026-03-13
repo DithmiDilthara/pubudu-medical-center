@@ -10,7 +10,7 @@ router.get('/availability/:doctor_id', getDoctorAvailability);
 router.post('/availability', protect, setAvailability);
 
 // Clinical
-router.post('/clinical/prescription', protect, addPrescription);
-router.get('/clinical/history/:patient_id', protect, getMedicalHistory);
+router.post('/prescription', protect, addPrescription);
+router.get('/history/:patient_id', protect, getMedicalHistory);
 
 export default router;

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { FiUser, FiMail, FiPhone, FiMapPin, FiCalendar, FiClock, FiCreditCard } from 'react-icons/fi';
+import { FiUser, FiMail, FiPhone, FiMapPin, FiCalendar, FiClock, FiCreditCard, FiFileText, FiActivity } from 'react-icons/fi';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
@@ -13,6 +13,9 @@ const Profile = () => {
 
     const [transactions, setTransactions] = useState([]);
     const [loadingTransactions, setLoadingTransactions] = useState(false);
+    
+    const [history, setHistory] = useState([]);
+    const [loadingHistory, setLoadingHistory] = useState(false);
 
     // Derived values with safeguards
     const isAdmin = user?.role_id === 1;
@@ -47,6 +50,36 @@ const Profile = () => {
         };
 
         fetchTransactions();
+    }, [activeTab, isAdmin, isDoctor, user]);
+
+    useEffect(() => {
+        const fetchHistory = async () => {
+            if (activeTab !== 'history' || !user || isAdmin || isDoctor) return;
+
+            try {
+                setLoadingHistory(true);
+                const token = localStorage.getItem('token');
+                // We need the patient_id. It's usually in user.profile.patient_id or similar.
+                // Based on authController/profile, user.profile contains the patient/doctor record.
+                const patientId = user.profile?.patient_id;
+                
+                if (!patientId) return;
+
+                const response = await axios.get(`${API_URL}/clinical/history/${patientId}`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+
+                if (response.data.success) {
+                    setHistory(response.data.data);
+                }
+            } catch (error) {
+                console.error('Failed to fetch history', error);
+            } finally {
+                setLoadingHistory(false);
+            }
+        };
+
+        fetchHistory();
     }, [activeTab, isAdmin, isDoctor, user]);
 
     useEffect(() => {
@@ -112,12 +145,20 @@ const Profile = () => {
                                     <FiCalendar /> {isDoctor ? 'Appointment History' : 'Booking History'}
                                 </button>
                                 {!isDoctor && (
-                                    <button
-                                        style={activeTab === 'transactions' ? { ...styles.menuItem, ...styles.activeMenuItem } : styles.menuItem}
-                                        onClick={() => setActiveTab('transactions')}
-                                    >
-                                        <FiCreditCard /> Transactions
-                                    </button>
+                                    <>
+                                        <button
+                                            style={activeTab === 'history' ? { ...styles.menuItem, ...styles.activeMenuItem } : styles.menuItem}
+                                            onClick={() => setActiveTab('history')}
+                                        >
+                                            <FiFileText /> Medical History
+                                        </button>
+                                        <button
+                                            style={activeTab === 'transactions' ? { ...styles.menuItem, ...styles.activeMenuItem } : styles.menuItem}
+                                            onClick={() => setActiveTab('transactions')}
+                                        >
+                                            <FiCreditCard /> Transactions
+                                        </button>
+                                    </>
                                 )}
                             </>
                         )}
@@ -194,6 +235,60 @@ const Profile = () => {
                                     ))}
                                 </tbody>
                             </table>
+                        </div>
+                    )}
+
+                    {activeTab === 'history' && !isAdmin && (
+                        <div>
+                            <h2 style={styles.sectionTitle}>Medical History</h2>
+                            {loadingHistory ? (
+                                <p>Loading medical records...</p>
+                            ) : history.length > 0 ? (
+                                <div style={styles.historyList}>
+                                    {history.map(record => {
+                                        // Parse notes for follow-up
+                                        const notesParts = record.notes?.split('--- FOLLOW-UP ---') || [record.notes, ''];
+                                        const mainNotes = notesParts[0].trim();
+                                        const followUpLine = notesParts[1]?.includes('Date: ') 
+                                            ? notesParts[1].split('Date: ')[1].trim().split('\n')[0] 
+                                            : null;
+
+                                        return (
+                                            <div key={record.prescription_id} style={styles.recordCard}>
+                                                <div style={styles.recordHeader}>
+                                                    <div>
+                                                        <h3 style={styles.recordDiagnosis}>{record.diagnosis}</h3>
+                                                        <p style={styles.recordDoctor}>Dr. {record.appointment?.doctor?.full_name}</p>
+                                                    </div>
+                                                    <span style={styles.recordDate}>{new Date(record.created_at).toLocaleDateString()}</span>
+                                                </div>
+                                                
+                                                <div style={styles.recordBody}>
+                                                    <div style={styles.recordSection}>
+                                                        <label style={styles.recordLabel}><FiActivity size={12} /> Medications</label>
+                                                        <p style={{ ...styles.recordText, whiteSpace: 'pre-line' }}>{record.medications}</p>
+                                                    </div>
+                                                    
+                                                    {mainNotes && (
+                                                        <div style={styles.recordSection}>
+                                                            <label style={styles.recordLabel}><FiFileText size={12} /> Notes</label>
+                                                            <p style={styles.recordText}>{mainNotes}</p>
+                                                        </div>
+                                                    )}
+
+                                                    {followUpLine && (
+                                                        <div style={styles.followUpBadge}>
+                                                            <FiCalendar size={12} /> Next Follow-up: <strong>{followUpLine}</strong>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            ) : (
+                                <p style={styles.noTransactions}>No medical records found.</p>
+                            )}
                         </div>
                     )}
 
@@ -426,6 +521,88 @@ const styles = {
         borderRadius: '20px',
         fontSize: '12px',
         fontWeight: '600'
+    },
+    historyList: {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '20px',
+        marginTop: '20px'
+    },
+    recordCard: {
+        padding: '24px',
+        borderRadius: '12px',
+        border: '1px solid #e5e7eb',
+        background: '#fff',
+        transition: 'transform 0.2s, box-shadow 0.2s',
+        '&:hover': {
+            transform: 'translateY(-2px)',
+            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+        }
+    },
+    recordHeader: {
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'flex-start',
+        marginBottom: '20px',
+        borderBottom: '1px solid #f3f4f6',
+        paddingBottom: '15px'
+    },
+    recordDiagnosis: {
+        margin: '0 0 5px',
+        fontSize: '18px',
+        color: '#111827',
+        fontWeight: '700'
+    },
+    recordDoctor: {
+        margin: 0,
+        fontSize: '14px',
+        color: '#6b7280',
+        fontWeight: '500'
+    },
+    recordDate: {
+        fontSize: '13px',
+        color: '#9ca3af',
+        background: '#f9fafb',
+        padding: '4px 10px',
+        borderRadius: '6px'
+    },
+    recordBody: {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '15px'
+    },
+    recordSection: {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '6px'
+    },
+    recordLabel: {
+        fontSize: '12px',
+        fontWeight: '600',
+        color: '#0056b3',
+        textTransform: 'uppercase',
+        letterSpacing: '0.05em',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '6px'
+    },
+    recordText: {
+        fontSize: '15px',
+        color: '#374151',
+        margin: 0,
+        lineHeight: '1.6'
+    },
+    followUpBadge: {
+        marginTop: '10px',
+        padding: '10px 15px',
+        background: '#fff7ed',
+        border: '1px solid #fed7aa',
+        borderRadius: '8px',
+        color: '#c2410c',
+        fontSize: '14px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px'
     }
 };
 

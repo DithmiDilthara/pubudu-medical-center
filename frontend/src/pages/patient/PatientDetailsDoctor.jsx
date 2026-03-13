@@ -1,24 +1,30 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
-import { FiArrowLeft, FiUser, FiPhone, FiMail, FiMapPin, FiFileText, FiStar } from 'react-icons/fi';
+import { FiArrowLeft, FiUser, FiPhone, FiMail, FiMapPin, FiFileText, FiStar, FiPlus, FiTrash2 } from 'react-icons/fi';
 import DoctorHeader from '../../components/DoctorHeader';
 import DoctorSidebar from '../../components/DoctorSidebar';
 
 function PatientDetailsDoctor() {
   const navigate = useNavigate();
   const location = useLocation();
-  const rawId = location.state?.patientId || '1'; // Defaulting for testing, better to redirect if none
+  const rawId = location.state?.patientId || '1';
   const patientId = rawId.toString().replace('PHE-', '');
 
   const [consultationNote, setConsultationNote] = useState('');
   const [diagnosis, setDiagnosis] = useState('');
   const [followUpDate, setFollowUpDate] = useState('');
+  
+  // Single medication input state
   const [medication, setMedication] = useState('');
   const [dosage, setDosage] = useState('');
   const [frequency, setFrequency] = useState('');
   const [duration, setDuration] = useState('');
+  
+  // List of medications added
+  const [medicationsList, setMedicationsList] = useState([]);
 
+  const [activeAppointmentId, setActiveAppointmentId] = useState(location.state?.appointment_id || null);
   const [patientData, setPatientData] = useState(null);
   const [consultationHistory, setConsultationHistory] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -49,11 +55,27 @@ function PatientDetailsDoctor() {
             id: item.prescription_id,
             doctor: item.appointment?.doctor?.full_name || 'Unknown Doctor',
             date: item.created_at ? new Date(item.created_at).toISOString().split('T')[0] : 'Unknown Date',
-            rating: 5, // Static rating as it's not in DB schema
+            rating: 5, 
             notes: `Diagnosis: ${item.diagnosis}\nNotes: ${item.notes}\nMedications: ${item.medications}`,
             appointment_id: item.appointment_id
           }));
           setConsultationHistory(formattedHistory);
+        }
+
+        // Fetch appointments to find an active one if not provided in state
+        if (!activeAppointmentId) {
+            const apptsRes = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/appointments`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            if (apptsRes.data.success) {
+                const patientAppts = apptsRes.data.data.filter(a => 
+                    a.patient_id === parseInt(patientId) && 
+                    ['PENDING', 'CONFIRMED'].includes(a.status)
+                );
+                if (patientAppts.length > 0) {
+                    setActiveAppointmentId(patientAppts[0].appointment_id);
+                }
+            }
         }
 
       } catch (error) {
@@ -77,35 +99,72 @@ function PatientDetailsDoctor() {
     navigate(-1);
   };
 
+  const handleAddMedication = () => {
+    if (!medication) {
+      alert("Please enter a medication name.");
+      return;
+    }
+    const newMed = {
+      id: Date.now(),
+      name: medication,
+      dosage,
+      frequency,
+      duration
+    };
+    setMedicationsList([...medicationsList, newMed]);
+    // Clear individual inputs
+    setMedication('');
+    setDosage('');
+    setFrequency('');
+    setDuration('');
+  };
+
+  const handleRemoveMedication = (id) => {
+    setMedicationsList(medicationsList.filter(m => m.id !== id));
+  };
+
   const handleSaveConsultation = async () => {
     if (!consultationNote || !diagnosis) {
-      alert("Please enter diagnosis and notes at minimum.");
+      alert("Please enter diagnosis and clinical notes.");
+      return;
+    }
+
+    let finalMedsList = [...medicationsList];
+    if (medication && !finalMedsList.some(m => m.name === medication)) {
+        finalMedsList.push({
+            id: Date.now(),
+            name: medication,
+            dosage,
+            frequency,
+            duration
+        });
+    }
+
+    if (finalMedsList.length === 0) {
+        alert("Please add at least one medication.");
+        return;
+    }
+
+    if (!activeAppointmentId) {
+      alert('Error: No active appointment found for this patient. A prescription must be linked to a pending appointment.');
       return;
     }
 
     setIsSaving(true);
     try {
       const token = localStorage.getItem('token');
-
-      // We need an appointment_id to attach the prescription to.
-      // Easiest is to prompt or assume they are in an active appointment.
-      // But since we are on the patient profile directly (Req 13 via clicking from patients list)
-      // the endpoint realistically expects `appointment_id`. 
-      // If we don't have one passed from state, we ideally shouldn't allow prescribing here without appointment context.
-      // However, to satisfy Req 13 generically if they are viewing the profile:
-      const activeAppointmentId = location.state?.appointment_id || prompt("Enter Active Appointment ID to attach this prescription to:");
-
-      if (!activeAppointmentId) {
-        alert('Missing appointment context for prescription.');
-        setIsSaving(false);
-        return;
+      const medsString = finalMedsList.map(m => `${m.name} ${m.dosage} (${m.frequency}) for ${m.duration}`).join('\n');
+      
+      let finalNotes = consultationNote;
+      if (followUpDate) {
+        finalNotes += `\n\n--- FOLLOW-UP ---\nDate: ${followUpDate}`;
       }
 
       const payload = {
         appointment_id: parseInt(activeAppointmentId),
         diagnosis,
-        notes: consultationNote,
-        medications: `${medication} ${dosage} ${frequency} for ${duration}`.trim()
+        notes: finalNotes,
+        medications: medsString
       };
 
       const response = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/clinical/prescription`, payload, {
@@ -113,14 +172,13 @@ function PatientDetailsDoctor() {
       });
 
       if (response.data.success) {
-        alert('Consultation notes saved successfully!');
-        // Refresh history
+        alert('Consultation saved successfully!');
         const newHistoryItem = {
           id: response.data.data.prescription_id,
-          doctor: 'You', // Current doctor
+          doctor: 'You',
           date: new Date().toISOString().split('T')[0],
           rating: 5,
-          notes: `Diagnosis: ${diagnosis}\nNotes: ${consultationNote}\nMedications: ${payload.medications}`,
+          notes: `Diagnosis: ${diagnosis}\nNotes: ${finalNotes}\nMedications: ${payload.medications}`,
           appointment_id: parseInt(activeAppointmentId)
         };
         setConsultationHistory([newHistoryItem, ...consultationHistory]);
@@ -128,15 +186,20 @@ function PatientDetailsDoctor() {
         // Clear form
         setConsultationNote('');
         setDiagnosis('');
+        setFollowUpDate('');
+        setMedicationsList([]);
         setMedication('');
         setDosage('');
         setFrequency('');
         setDuration('');
+        // Clear active appt since it's now COMPLETED
+        setActiveAppointmentId(null);
       }
 
     } catch (error) {
-      console.error("Error saving consultation:", error);
-      alert(error.response?.data?.message || 'Failed to save notes');
+      console.error("Save Error Details:", error.response || error);
+      const errorMsg = error.response?.data?.message || 'Failed to save data. Please check if a prescription already exists for this appointment.';
+      alert(errorMsg);
     } finally {
       setIsSaving(false);
     }
@@ -153,13 +216,11 @@ function PatientDetailsDoctor() {
         <DoctorHeader />
 
         <main style={styles.mainContent}>
-          {/* Back Button */}
           <button onClick={handleBack} style={styles.backButton}>
             <FiArrowLeft style={{ marginRight: '8px' }} />
             Back
           </button>
 
-          {/* Header */}
           <div style={styles.header}>
             <h1 style={styles.pageTitle}>Patient Details</h1>
           </div>
@@ -167,7 +228,6 @@ function PatientDetailsDoctor() {
           <div style={styles.contentGrid}>
             {/* Left Column - Patient Info */}
             <div style={styles.leftColumn}>
-              {/* Patient Profile */}
               <section style={styles.card}>
                 <div style={styles.profileHeader}>
                   <div style={styles.avatar}>
@@ -181,7 +241,6 @@ function PatientDetailsDoctor() {
                 </div>
               </section>
 
-              {/* Contact Information */}
               <section style={styles.card}>
                 <h3 style={styles.cardTitle}>
                   <FiPhone style={{ marginRight: '8px', verticalAlign: 'middle' }} />
@@ -189,146 +248,143 @@ function PatientDetailsDoctor() {
                 </h3>
                 <div style={styles.infoGrid}>
                   <div style={styles.infoItem}>
-                    <span style={styles.infoLabel}>
-                      <FiPhone size={16} style={{ marginRight: '6px' }} />
-                      Phone
-                    </span>
+                    <span style={styles.infoLabel}><FiPhone size={16} /> Phone</span>
                     <span style={styles.infoValue}>{patientData.contact}</span>
                   </div>
                   <div style={styles.infoItem}>
-                    <span style={styles.infoLabel}>
-                      <FiMail size={16} style={{ marginRight: '6px' }} />
-                      Email
-                    </span>
+                    <span style={styles.infoLabel}><FiMail size={16} /> Email</span>
                     <span style={styles.infoValue}>{patientData.email}</span>
                   </div>
                   <div style={styles.infoItem}>
-                    <span style={styles.infoLabel}>
-                      <FiMapPin size={16} style={{ marginRight: '6px' }} />
-                      Address
-                    </span>
+                    <span style={styles.infoLabel}><FiMapPin size={16} /> Address</span>
                     <span style={styles.infoValue}>{patientData.address}</span>
                   </div>
                 </div>
               </section>
 
-              {/* Medical History */}
               <section style={styles.card}>
                 <h3 style={styles.cardTitle}>
                   <FiFileText style={{ marginRight: '8px', verticalAlign: 'middle' }} />
-                  Medical History Summary
+                  Clinical Summary
                 </h3>
                 <div style={styles.infoGrid}>
                   <div style={styles.infoItem}>
-                    <span style={styles.infoLabel}>Past Diagnoses</span>
-                    <span style={styles.infoValue}>{patientData.pastDiagnoses}</span>
-                  </div>
-                  <div style={styles.infoItem}>
-                    <span style={styles.infoLabel}>Medications</span>
-                    <span style={styles.infoValue}>{patientData.medications}</span>
-                  </div>
-                  <div style={styles.infoItem}>
-                    <span style={styles.infoLabel}>Lab Results</span>
-                    <span style={styles.infoValue}>{patientData.labResults}</span>
-                  </div>
-                  <div style={styles.infoItem}>
-                    <span style={styles.infoLabel}>Allergies</span>
-                    <span style={styles.infoValue}>{patientData.allergies}</span>
+                    <span style={styles.infoLabel}>Latest Diagnosis</span>
+                    <span style={styles.infoValue}>
+                      {consultationHistory.length > 0 
+                        ? consultationHistory[0].notes.split('\n')[0].replace('Diagnosis: ', '') 
+                        : 'No records available'}
+                    </span>
                   </div>
                 </div>
               </section>
             </div>
 
-            {/* Right Column - Consultation Notes */}
+            {/* Right Column - Consultation & Prescriptions */}
             <div style={styles.rightColumn}>
-              {/* Previous Consultation Notes */}
               <section style={styles.card}>
                 <h3 style={styles.cardTitle}>Consultation History</h3>
-                {consultationHistory.length === 0 ? (
-                  <p style={styles.consultNotes}>No previous consultation history found.</p>
-                ) : (
-                  consultationHistory.map((consult) => (
-                    <div key={consult.id} style={styles.consultationItem}>
-                      <div style={styles.consultHeader}>
-                        <span style={styles.doctorName}>{consult.doctor}</span>
-                        <span style={styles.consultDate}>{consult.date}</span>
+                <div style={styles.historyScroll}>
+                  {consultationHistory.length === 0 ? (
+                    <p style={styles.consultNotes}>No previous consultation history found.</p>
+                  ) : (
+                    consultationHistory.map((consult) => (
+                      <div key={consult.id} style={styles.consultationItem}>
+                        <div style={styles.consultHeader}>
+                          <span style={styles.doctorName}>{consult.doctor}</span>
+                          <span style={styles.consultDate}>{consult.date}</span>
+                        </div>
+                        <p style={{...styles.consultNotes, whiteSpace: 'pre-wrap'}}>{consult.notes}</p>
                       </div>
-                      <div style={styles.rating}>
-                        {Array(consult.rating).fill(0).map((_, i) => (
-                          <FiStar key={i} size={14} fill="#f59e0b" color="#f59e0b" style={{ marginRight: '2px' }} />
-                        ))}
-                      </div>
-                      <p style={styles.consultNotes}>{consult.notes}</p>
-                    </div>
-                  ))
-                )}
+                    ))
+                  )}
+                </div>
               </section>
 
-              {/* Add New Consultation Notes */}
               <section style={styles.card}>
-                <h3 style={styles.cardTitle}>Add New Consultation Notes</h3>
-                <textarea
-                  value={consultationNote}
-                  onChange={(e) => setConsultationNote(e.target.value)}
-                  placeholder="Enter consultation notes..."
-                  style={styles.textarea}
-                  rows={5}
-                />
-
+                <h3 style={styles.cardTitle}>New Consultation</h3>
                 <input
                   type="text"
                   value={diagnosis}
                   onChange={(e) => setDiagnosis(e.target.value)}
-                  placeholder="Update Diagnosis (if any)"
+                  placeholder="Diagnosis"
                   style={styles.input}
                 />
-
-                <input
-                  type="date"
-                  value={followUpDate}
-                  onChange={(e) => setFollowUpDate(e.target.value)}
-                  placeholder="Set Follow-up Appointment (Date)"
-                  style={styles.input}
+                <textarea
+                  value={consultationNote}
+                  onChange={(e) => setConsultationNote(e.target.value)}
+                  placeholder="Clinical Notes"
+                  style={styles.textarea}
+                  rows={3}
                 />
+                <div style={{ marginTop: '16px' }}>
+                  <label style={{ ...styles.infoLabel, marginBottom: '8px' }}>Follow-up Date (Optional)</label>
+                  <input
+                    type="date"
+                    value={followUpDate}
+                    onChange={(e) => setFollowUpDate(e.target.value)}
+                    style={{ ...styles.input, marginBottom: 0 }}
+                  />
+                </div>
               </section>
 
-              {/* Prescriptions */}
               <section style={styles.card}>
-                <h3 style={styles.cardTitle}>Prescriptions</h3>
-                <input
-                  type="text"
-                  value={medication}
-                  onChange={(e) => setMedication(e.target.value)}
-                  placeholder="Search for Medication"
-                  style={styles.input}
-                />
+                <h3 style={styles.cardTitle}>Prescribe Medications</h3>
+                
+                {/* Medication List Display */}
+                {medicationsList.length > 0 && (
+                  <div style={styles.addedMedsContainer}>
+                    {medicationsList.map(m => (
+                      <div key={m.id} style={styles.medTag}>
+                        <span>{m.name} - {m.dosage} ({m.frequency}) for {m.duration}</span>
+                        <button onClick={() => handleRemoveMedication(m.id)} style={styles.removeMedBtn}>
+                          <FiTrash2 size={14} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
 
-                <input
-                  type="text"
-                  value={dosage}
-                  onChange={(e) => setDosage(e.target.value)}
-                  placeholder="Dosage (e.g., 500mg)"
-                  style={styles.input}
-                />
+                <div style={styles.medsInputGrid}>
+                  <input
+                    type="text"
+                    value={medication}
+                    onChange={(e) => setMedication(e.target.value)}
+                    placeholder="Medication Name"
+                    style={{...styles.input, marginBottom: 0}}
+                  />
+                  <input
+                    type="text"
+                    value={dosage}
+                    onChange={(e) => setDosage(e.target.value)}
+                    placeholder="Dosage"
+                    style={{...styles.input, marginBottom: 0}}
+                  />
+                  <input
+                    type="text"
+                    value={frequency}
+                    onChange={(e) => setFrequency(e.target.value)}
+                    placeholder="Frequency"
+                    style={{...styles.input, marginBottom: 0}}
+                  />
+                  <input
+                    type="text"
+                    value={duration}
+                    onChange={(e) => setDuration(e.target.value)}
+                    placeholder="Duration"
+                    style={{...styles.input, marginBottom: 0}}
+                  />
+                  <button onClick={handleAddMedication} style={styles.addMedBtn}>
+                    <FiPlus style={{marginRight: '4px'}} /> Add
+                  </button>
+                </div>
 
-                <input
-                  type="text"
-                  value={frequency}
-                  onChange={(e) => setFrequency(e.target.value)}
-                  placeholder="Frequency (e.g., twice daily)"
-                  style={styles.input}
-                />
-
-                <input
-                  type="text"
-                  value={duration}
-                  onChange={(e) => setDuration(e.target.value)}
-                  placeholder="Duration (e.g., 30 days)"
-                  style={styles.input}
-                />
-
-                <button onClick={handleSaveConsultation} style={styles.saveButton}>
-                  Save Consultation
+                <button 
+                  onClick={handleSaveConsultation} 
+                  disabled={isSaving}
+                  style={{...styles.saveButton, opacity: isSaving ? 0.7 : 1}}
+                >
+                  {isSaving ? 'Saving...' : 'Complete Consultation'}
                 </button>
               </section>
             </div>
@@ -342,10 +398,8 @@ function PatientDetailsDoctor() {
 const styles = {
   container: {
     display: 'flex',
-    flexDirection: 'row',
     minHeight: '100vh',
-    background: 'linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%)',
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    backgroundColor: '#F3F4F6'
   },
   mainWrapper: {
     flex: 1,
@@ -353,60 +407,49 @@ const styles = {
     flexDirection: 'column'
   },
   mainContent: {
-    flex: 1,
     padding: '32px',
-    maxWidth: '1600px',
-    width: '100%',
-    margin: '0 auto'
+    maxWidth: '1400px',
+    margin: '0 auto',
+    width: '100%'
   },
   backButton: {
-    padding: '10px 20px',
-    fontSize: '14px',
-    fontWeight: '600',
-    color: '#0066CC',
-    background: 'white',
-    border: '2px solid #0066CC',
-    borderRadius: '10px',
-    cursor: 'pointer',
-    marginBottom: '24px',
-    transition: 'all 0.3s',
     display: 'flex',
     alignItems: 'center',
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
-  },
-  header: {
+    background: 'none',
+    border: 'none',
+    color: '#4B5563',
+    fontWeight: '600',
+    cursor: 'pointer',
     marginBottom: '24px'
   },
+  header: {
+    marginBottom: '32px'
+  },
   pageTitle: {
-    fontSize: '32px',
-    fontWeight: 'bold',
-    background: 'linear-gradient(135deg, #0066CC 0%, #0052A3 100%)',
-    WebkitBackgroundClip: 'text',
-    WebkitTextFillColor: 'transparent',
-    margin: 0,
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    fontSize: '28px',
+    fontWeight: '800',
+    color: '#111827'
   },
   contentGrid: {
     display: 'grid',
-    gridTemplateColumns: '400px 1fr',
-    gap: '24px'
+    gridTemplateColumns: '350px 1fr',
+    gap: '32px'
   },
   leftColumn: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '20px'
+    gap: '24px'
   },
   rightColumn: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '20px'
+    gap: '24px'
   },
   card: {
-    background: 'white',
-    borderRadius: '12px',
+    backgroundColor: 'white',
+    borderRadius: '16px',
     padding: '24px',
-    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
-    border: '1px solid rgba(0, 102, 204, 0.1)'
+    boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
   },
   profileHeader: {
     display: 'flex',
@@ -414,51 +457,43 @@ const styles = {
     gap: '16px'
   },
   avatar: {
-    width: '80px',
-    height: '80px',
-    borderRadius: '50%',
-    background: 'linear-gradient(135deg, #0066CC 0%, #0052A3 100%)',
+    width: '64px',
+    height: '64px',
+    borderRadius: '16px',
+    backgroundColor: '#E6F2FF',
+    color: '#0066CC',
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: '36px',
-    fontWeight: 'bold',
-    color: 'white',
-    flexShrink: 0
+    justifyContent: 'center'
   },
   patientName: {
-    fontSize: '24px',
-    fontWeight: 'bold',
-    color: '#1f2937',
-    margin: '0 0 4px 0',
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    fontSize: '20px',
+    fontWeight: '700',
+    color: '#111827',
+    margin: 0
   },
   patientId: {
     fontSize: '14px',
-    color: '#6b7280',
-    margin: '0 0 4px 0',
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    color: '#6B7280',
+    margin: '4px 0 0 0'
   },
   patientDob: {
     fontSize: '14px',
-    color: '#6b7280',
-    margin: 0,
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    color: '#6B7280',
+    margin: '2px 0 0 0'
   },
   cardTitle: {
     fontSize: '18px',
-    fontWeight: 'bold',
-    color: '#1f2937',
-    marginBottom: '16px',
-    marginTop: 0,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: '20px',
     display: 'flex',
-    alignItems: 'center',
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    alignItems: 'center'
   },
   infoGrid: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '12px'
+    gap: '16px'
   },
   infoItem: {
     display: 'flex',
@@ -466,24 +501,31 @@ const styles = {
     gap: '4px'
   },
   infoLabel: {
-    fontSize: '13px',
+    fontSize: '12px',
     fontWeight: '600',
-    color: '#6b7280',
+    color: '#9CA3AF',
+    textTransform: 'uppercase',
+    letterSpacing: '0.05em',
     display: 'flex',
     alignItems: 'center',
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    gap: '6px'
   },
   infoValue: {
     fontSize: '15px',
-    color: '#1f2937',
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    color: '#374151',
+    fontWeight: '500'
+  },
+  historyScroll: {
+    maxHeight: '400px',
+    overflowY: 'auto',
+    paddingRight: '8px'
   },
   consultationItem: {
     padding: '16px',
-    background: 'linear-gradient(135deg, rgba(0, 102, 204, 0.05) 0%, rgba(0, 82, 163, 0.05) 100%)',
-    borderRadius: '10px',
-    border: '1px solid rgba(0, 102, 204, 0.1)',
-    marginBottom: '16px'
+    borderRadius: '12px',
+    backgroundColor: '#F9FAFB',
+    marginBottom: '16px',
+    border: '1px solid #F3F4F6'
   },
   consultHeader: {
     display: 'flex',
@@ -492,69 +534,93 @@ const styles = {
     marginBottom: '8px'
   },
   doctorName: {
-    fontSize: '15px',
-    fontWeight: '600',
-    color: '#1f2937',
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    fontSize: '14px',
+    fontWeight: '700',
+    color: '#111827'
   },
   consultDate: {
-    fontSize: '13px',
-    color: '#6b7280',
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
-  },
-  rating: {
-    color: '#f59e0b',
-    fontSize: '14px',
-    marginBottom: '8px',
-    display: 'flex',
-    alignItems: 'center'
+    fontSize: '12px',
+    color: '#6B7280'
   },
   consultNotes: {
     fontSize: '14px',
-    color: '#374151',
-    lineHeight: '1.6',
-    margin: 0,
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
-  },
-  textarea: {
-    width: '100%',
-    padding: '12px',
-    fontSize: '15px',
-    border: '2px solid #e5e7eb',
-    borderRadius: '8px',
-    resize: 'vertical',
-    fontFamily: "'Inter', 'Segoe UI', sans-serif",
-    outline: 'none',
-    marginBottom: '12px',
-    boxSizing: 'border-box'
+    color: '#4B5563',
+    lineHeight: 1.5,
+    margin: 0
   },
   input: {
     width: '100%',
-    padding: '12px',
+    padding: '12px 16px',
+    borderRadius: '10px',
+    border: '1px solid #E5E7EB',
     fontSize: '15px',
-    border: '2px solid #e5e7eb',
-    borderRadius: '8px',
+    marginBottom: '16px',
+    outline: 'none'
+  },
+  textarea: {
+    width: '100%',
+    padding: '12px 16px',
+    borderRadius: '10px',
+    border: '1px solid #E5E7EB',
+    fontSize: '15px',
+    fontFamily: 'inherit',
     outline: 'none',
-    marginBottom: '12px',
-    boxSizing: 'border-box',
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    resize: 'vertical'
+  },
+  medsInputGrid: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr 1fr 1fr 100px',
+    gap: '12px',
+    marginBottom: '24px'
+  },
+  addMedBtn: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#0066CC',
+    color: 'white',
+    border: 'none',
+    borderRadius: '10px',
+    fontWeight: '600',
+    cursor: 'pointer'
+  },
+  addedMedsContainer: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px',
+    marginBottom: '20px'
+  },
+  medTag: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '12px 16px',
+    backgroundColor: '#F0F7FF',
+    color: '#0066CC',
+    borderRadius: '10px',
+    fontSize: '14px',
+    fontWeight: '600'
+  },
+  removeMedBtn: {
+    background: 'none',
+    border: 'none',
+    color: '#EF4444',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center'
   },
   saveButton: {
     width: '100%',
-    padding: '14px',
+    padding: '16px',
+    backgroundColor: '#10B981',
+    color: 'white',
+    border: 'none',
+    borderRadius: '12px',
     fontSize: '16px',
     fontWeight: '700',
-    color: 'white',
-    background: 'linear-gradient(135deg, #0066CC 0%, #0052A3 100%)',
-    border: 'none',
-    borderRadius: '10px',
     cursor: 'pointer',
-    boxShadow: '0 6px 16px rgba(0, 102, 204, 0.4)',
-    transition: 'all 0.3s',
-    marginTop: '8px',
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    transition: 'all 0.2s'
   }
 };
 
 export default PatientDetailsDoctor;
-

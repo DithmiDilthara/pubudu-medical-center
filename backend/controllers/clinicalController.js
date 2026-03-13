@@ -12,43 +12,58 @@ export const addPrescription = async (req, res) => {
         const userId = req.user.user_id;
 
         const doctor = await Doctor.findOne({ where: { user_id: userId } });
-        const appointment = await Appointment.findByPk(appointment_id);
+        if (!doctor) return res.status(404).json({ success: false, message: 'Doctor record not found for this user' });
 
+        const appointment = await Appointment.findByPk(appointment_id);
         if (!appointment) return res.status(404).json({ success: false, message: 'Appointment not found' });
+        
         if (appointment.doctor_id !== doctor.doctor_id) {
             return res.status(403).json({ success: false, message: 'You are not assigned to this appointment' });
         }
 
-        const prescription = await Prescription.create({
-            appointment_id,
-            diagnosis,
-            notes,
-            medications
-        });
+        // Check if prescription already exists (Upsert logic)
+        const existingPrescription = await Prescription.findOne({ where: { appointment_id } });
+        
+        let prescription;
+        if (existingPrescription) {
+            prescription = await existingPrescription.update({
+                diagnosis,
+                notes,
+                medications
+            });
+        } else {
+            prescription = await Prescription.create({
+                appointment_id,
+                diagnosis,
+                notes,
+                medications
+            });
+        }
 
         // Update appointment status to COMPLETED
         await Appointment.update({ status: 'COMPLETED' }, { where: { appointment_id } });
 
         // Send notification
         try {
-            const appointment = await Appointment.findByPk(appointment_id, {
+            const appointmentWithPatient = await Appointment.findByPk(appointment_id, {
                 include: [{ model: Patient, as: 'patient', include: [{ model: User, as: 'user' }] }]
             });
-            if (appointment && appointment.patient && appointment.patient.user && appointment.patient.user.email) {
-                NotificationService.sendPrescriptionReady(appointment.patient.user.email, appointment.patient.full_name);
+            if (appointmentWithPatient?.patient?.user?.email) {
+                NotificationService.sendPrescriptionReady(appointmentWithPatient.patient.user.email, appointmentWithPatient.patient.full_name);
             }
         } catch (notifyError) {
             console.error('Failed to trigger prescription notification:', notifyError);
         }
 
-        res.status(201).json({
+        res.status(existingPrescription ? 200 : 201).json({
             success: true,
+            message: existingPrescription ? 'Consultation updated successfully' : 'Consultation saved successfully',
             data: prescription
         });
 
     } catch (error) {
         console.error('Add prescription error:', error);
-        res.status(500).json({ success: false, message: 'Server error' });
+        res.status(500).json({ success: false, message: 'Server error: ' + error.message });
     }
 };
 

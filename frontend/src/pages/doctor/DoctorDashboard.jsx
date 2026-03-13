@@ -82,9 +82,10 @@ function DoctorDashboard() {
           // Format today's appointments for rendering
           const formattedToday = todayAppts.map(apt => ({
             id: apt.appointment_id,
-            time: apt.time_slot, // Assuming time_slot is stored like "09:00" or similar
+            patientId: apt.patient_id,
+            time: apt.time_slot, 
             patientName: apt.patient?.full_name || 'Unknown Patient',
-            phone: apt.patient?.user?.contact_number || apt.patient?.nic || 'N/A', // Assuming contact might not be directly in nic, fallback to nic
+            phone: apt.patient?.user?.contact_number || apt.patient?.nic || 'N/A', 
             type: apt.status === 'COMPLETED' ? 'Follow-up' : 'Consultation',
             status: apt.status
           }));
@@ -185,7 +186,12 @@ function DoctorDashboard() {
                     <div style={styles.appointmentActions}>
                       <button
                         style={styles.viewBtn}
-                        onClick={() => navigate('/doctor/patient-details', { state: { patientName: appt.patientName } })}
+                        onClick={() => navigate('/doctor/patient-details', { 
+                          state: { 
+                            patientId: appt.patientId,
+                            appointment_id: appt.id 
+                          } 
+                        })}
                       >
                         View Details
                       </button>
