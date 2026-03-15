@@ -7,11 +7,11 @@ import {
   FiUser, 
   FiLogOut, 
   FiActivity,
-  FiMenu,
-  FiX
+  FiChevronRight,
+  FiFileText
 } from "react-icons/fi";
-import { GiPill } from "react-icons/gi"; 
 import { useState, useEffect } from "react";
+import { motion } from "framer-motion";
 
 function PatientSidebar({ onLogout }) {
   const location = useLocation();
@@ -31,99 +31,87 @@ function PatientSidebar({ onLogout }) {
     { path: "/patient/dashboard", label: "Dashboard", icon: FiGrid },
     { path: "/patient/appointments", label: "My Appointments", icon: FiCalendar },
     { path: "/patient/find-doctor", label: "Find Doctors", icon: FiSearch },
-    { path: "/patient/prescriptions", label: "Prescriptions", icon: GiPill },
+    { path: "/patient/medical-history", label: "Medical History", icon: FiFileText },
     { path: "/patient/payments", label: "Payments", icon: FiCreditCard },
-    { path: "/profile", label: "My profile", icon: FiUser }
+    { path: "/profile", label: "My Profile", icon: FiUser }
   ];
 
   const isActive = (path) => location.pathname === path;
 
-  const toggleSidebar = () => setIsOpen(!isOpen);
-
-  const sidebarElement = (
+  return (
     <aside style={{
       ...styles.sidebar,
-      left: isMobile ? (isOpen ? '0' : '-256px') : '0',
+      left: isMobile ? (isOpen ? '0' : '-280px') : '0',
     }}>
       <div style={styles.sidebarContent}>
         {/* Logo Block */}
-        <div style={styles.logoBlock}>
-          <div style={styles.logoIconBox}>
+        <div style={styles.logoSection}>
+          <div style={styles.logoSquare}>
             <FiActivity style={styles.logoIcon} />
           </div>
-          <div style={styles.logoTextBox}>
-            <h2 style={styles.logoMainText}>Pubudu</h2>
-            <p style={styles.logoSubText}>MEDICAL CENTER</p>
+          <div style={styles.logoTextContainer}>
+            <h2 style={styles.logoText}>Pubudu</h2>
+            <p style={styles.roleText}>Medical Center</p>
           </div>
         </div>
 
         {/* Navigation Menu */}
         <nav style={styles.nav}>
-          {menuItems.map((item) => {
-            const active = isActive(item.path);
-            return (
-              <Link
-                key={item.path}
-                to={item.path}
-                onClick={() => isMobile && setIsOpen(false)}
-                style={{
-                  ...styles.navItem,
-                  backgroundColor: active ? 'var(--primary-blue-light)' : 'transparent',
-                  color: active ? 'var(--primary-blue)' : 'var(--slate-500)',
-                }}
-              >
-                <item.icon style={{
-                  ...styles.navIcon,
-                  color: active ? 'var(--primary-blue)' : 'var(--slate-400)',
-                }} />
-                <span style={{
-                  ...styles.navLabel,
-                  fontWeight: active ? '700' : '500',
-                }}>{item.label}</span>
-              </Link>
-            );
-          })}
+          <div style={styles.menuLabel}>Main Menu</div>
+          {menuItems.map((item) => (
+            <Link
+              key={item.path}
+              to={item.path}
+              onClick={() => isMobile && setIsOpen(false)}
+              style={{
+                ...styles.navItem,
+                ...(isActive(item.path) ? styles.navItemActive : {})
+              }}
+            >
+              <div style={{...styles.iconWrapper, ...(isActive(item.path) ? styles.iconWrapperActive : {})}}>
+                <item.icon style={{...styles.navIcon, ...(isActive(item.path) ? styles.navIconActive : {})}} />
+              </div>
+              <span style={styles.navLabel}>{item.label}</span>
+              {isActive(item.path) && (
+                <motion.div 
+                  layoutId="patientActiveIndicator"
+                  style={styles.activeIndicator} 
+                />
+              )}
+              {isActive(item.path) && <FiChevronRight style={styles.activeArrow} />}
+            </Link>
+          ))}
         </nav>
 
-        {/* Logout Button */}
-        <div style={styles.logoutContainer}>
-          <button 
-            onClick={onLogout} 
-            style={styles.logoutButton}
-          >
-            <FiLogOut style={styles.logoutIcon} />
-            <span style={styles.navLabel}>Log out</span>
+        {/* Logout Section */}
+        <div style={styles.footer}>
+          <div style={styles.divider}></div>
+          <button onClick={onLogout} style={styles.logoutButton}>
+            <div style={styles.logoutIconWrapper}>
+              <FiLogOut style={styles.logoutIcon} />
+            </div>
+            <span style={styles.logoutLabel}>Logout Session</span>
           </button>
         </div>
       </div>
     </aside>
   );
-
-  return (
-    <>
-      {isMobile && (
-        <button onClick={toggleSidebar} style={styles.mobileToggle}>
-          {isOpen ? <FiX size={24} /> : <FiMenu size={24} />}
-        </button>
-      )}
-      {isMobile && isOpen && <div onClick={toggleSidebar} style={styles.overlay} />}
-      {sidebarElement}
-    </>
-  );
 }
 
 const styles = {
   sidebar: {
-    width: "256px",
-    backgroundColor: "#FFFFFF",
+    width: "280px",
+    backgroundColor: "#ffffff",
     height: "100vh",
     display: "flex",
     flexDirection: "column",
     position: "fixed",
     top: 0,
-    borderRight: "1px solid var(--slate-200)",
+    left: 0,
+    borderRight: "1px solid #f1f5f9",
     zIndex: 1000,
-    transition: "left 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+    boxShadow: "4px 0 24px rgba(15, 23, 42, 0.02)",
+    transition: "left 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
   },
   sidebarContent: {
     display: "flex",
@@ -131,45 +119,47 @@ const styles = {
     height: "100%",
     padding: "32px 0"
   },
-  logoBlock: {
-    padding: "0 24px",
-    marginBottom: '40px',
+  logoSection: {
+    padding: "0 32px",
+    marginBottom: "48px",
     display: "flex",
     alignItems: "center",
-    gap: "12px"
+    gap: "16px"
   },
-  logoIconBox: {
-    width: "40px",
-    height: "40px",
-    borderRadius: "10px",
+  logoSquare: {
+    width: "44px",
+    height: "44px",
+    borderRadius: "12px",
+    background: "linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "var(--primary-blue)",
     flexShrink: 0,
+    boxShadow: "0 8px 16px -4px rgba(37, 99, 235, 0.3)"
   },
   logoIcon: {
     fontSize: "22px",
     color: "white"
   },
-  logoTextBox: {
+  logoTextContainer: {
     display: "flex",
-    flexDirection: "column",
+    flexDirection: "column"
   },
-  logoMainText: {
-    fontSize: "var(--text-lg)",
+  logoText: {
+    fontSize: "20px",
     fontWeight: "800",
-    color: "var(--slate-900)",
+    color: "#0f172a",
     margin: 0,
-    lineHeight: 1.1,
+    letterSpacing: "-0.5px",
+    lineHeight: 1.1
   },
-  logoSubText: {
-    fontSize: "9px",
-    fontWeight: "700",
-    color: "var(--primary-blue)",
+  roleText: {
+    fontSize: "12px",
+    color: "#64748b",
     margin: 0,
-    fontVariant: 'small-caps',
-    letterSpacing: "0.5px"
+    fontWeight: "600",
+    textTransform: "uppercase",
+    letterSpacing: "1px"
   },
   nav: {
     display: "flex",
@@ -178,73 +168,108 @@ const styles = {
     padding: "0 16px",
     flex: 1
   },
+  menuLabel: {
+    padding: "0 16px 12px 16px",
+    fontSize: "11px",
+    fontWeight: "700",
+    color: "#94a3b8",
+    textTransform: "uppercase",
+    letterSpacing: "0.05em"
+  },
   navItem: {
     display: "flex",
     alignItems: "center",
     gap: "12px",
     padding: "12px 16px",
-    borderRadius: "12px",
+    borderRadius: "14px",
     textDecoration: "none",
-    fontSize: "var(--text-sm)",
-    transition: "all 0.2s ease",
-    cursor: "pointer",
-    fontFamily: "'Inter', sans-serif",
+    color: "#64748b",
+    fontSize: "14px",
+    fontWeight: "600",
+    transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+    position: "relative",
+    marginBottom: "2px"
+  },
+  navItemActive: {
+    backgroundColor: "#eff6ff",
+    color: "#2563eb",
+    fontWeight: "700"
+  },
+  iconWrapper: {
+    width: "32px",
+    height: "32px",
+    borderRadius: "8px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    transition: "all 0.2s"
+  },
+  iconWrapperActive: {
+    backgroundColor: "white",
+    boxShadow: "0 2px 4px rgba(37, 99, 235, 0.06)"
   },
   navIcon: {
     fontSize: "18px",
-    flexShrink: 0
+    color: "#94a3b8"
+  },
+  navIconActive: {
+    color: "#2563eb"
   },
   navLabel: {
-    fontSize: "var(--text-sm)",
-    fontFamily: "'Inter', sans-serif"
+    flex: 1
   },
-  logoutContainer: {
-    padding: "0 16px",
+  activeIndicator: {
+    position: "absolute",
+    left: "-16px",
+    width: "4px",
+    height: "24px",
+    backgroundColor: "#2563eb",
+    borderRadius: "0 4px 4px 0"
+  },
+  activeArrow: {
+    fontSize: "14px",
+    opacity: 0.5
+  },
+  footer: {
     marginTop: "auto",
+    padding: "0 16px"
+  },
+  divider: {
+    height: "1px",
+    backgroundColor: "#f1f5f9",
+    margin: "0 16px 24px 16px"
   },
   logoutButton: {
-    width: "100%",
     display: "flex",
     alignItems: "center",
     gap: "12px",
-    padding: "12px 16px",
-    borderRadius: "12px",
-    color: "var(--accent-red)",
+    padding: "14px 16px",
+    borderRadius: "14px",
+    backgroundColor: "#fff1f2",
+    border: "none",
+    color: "#e11d48",
     fontSize: "14px",
     fontWeight: "700",
     cursor: "pointer",
-    transition: "all 0.2s ease",
-    backgroundColor: "transparent",
-    border: "none",
+    transition: "all 0.2s",
+    width: "100%",
     textAlign: "left"
+  },
+  logoutIconWrapper: {
+    width: "32px",
+    height: "32px",
+    borderRadius: "8px",
+    backgroundColor: "white",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    boxShadow: "0 2px 4px rgba(225, 29, 72, 0.06)"
   },
   logoutIcon: {
     fontSize: "18px"
   },
-  mobileToggle: {
-    position: "fixed",
-    top: "20px",
-    left: "20px",
-    zIndex: 1100,
-    padding: "10px",
-    borderRadius: "10px",
-    backgroundColor: "white",
-    border: "1px solid var(--slate-200)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    cursor: "pointer",
-    boxShadow: "var(--shadow-soft)",
-  },
-  overlay: {
-    position: "fixed",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: "rgba(15, 23, 42, 0.4)",
-    backdropFilter: "blur(4px)",
-    zIndex: 900,
+  logoutLabel: {
+    flex: 1
   }
 };
 

@@ -1,7 +1,8 @@
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import axios from "axios";
-import { FiSearch, FiUser, FiClock, FiPlus } from 'react-icons/fi';
+import { FiSearch, FiUser, FiClock, FiPlus, FiFilter, FiChevronRight, FiCheckCircle } from 'react-icons/fi';
+import { motion, AnimatePresence } from "framer-motion";
 import PatientSidebar from "../../components/PatientSidebar";
 import PatientHeader from "../../components/PatientHeader";
 
@@ -23,10 +24,12 @@ function FindDoctor() {
   const [doctors, setDoctors] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+
   useEffect(() => {
     const fetchDoctors = async () => {
       try {
-        const response = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/doctors`);
+        const response = await axios.get(`${API_URL}/doctors`);
         if (response.data.success) {
           setDoctors(response.data.data);
         }
@@ -37,7 +40,7 @@ function FindDoctor() {
       }
     };
     fetchDoctors();
-  }, []);
+  }, [API_URL]);
 
   const handleLogout = () => {
     localStorage.clear();
@@ -64,22 +67,49 @@ function FindDoctor() {
     return matchesSearch && matchesSpecialty;
   });
 
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: { 
+      opacity: 1,
+      transition: { staggerChildren: 0.05 }
+    }
+  };
+
+  const cardVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.4 } }
+  };
+
   return (
     <div style={styles.container}>
       <PatientSidebar onLogout={handleLogout} />
 
-      <div className="main-wrapper">
+      <div className="main-wrapper" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
         <PatientHeader patientName="Dithmi" />
 
-        <main className="content-padding">
-          {/* Search Section */}
-          <section style={styles.searchSection}>
+        <main style={styles.mainContent}>
+          <div style={styles.contentWrapper}>
+          <motion.div 
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            style={styles.headerSection}
+          >
+            <h1 style={styles.welcomeTitle}>Find Doctors</h1>
+            <p style={styles.welcomeSubtitle}>Browse specializations and book your next session.</p>
+          </motion.div>
+
+          {/* Search Header */}
+          <motion.section 
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            style={styles.searchSection}
+          >
             <div style={styles.searchBarWrapper}>
-              <div style={styles.inputIconBox}>
+              <div style={styles.inputGroup}>
                 <FiSearch style={styles.searchIcon} />
                 <input
                   type="text"
-                  placeholder="Search by doctor name or specialty..."
+                  placeholder="Search doctors by name, specialty, or hospital..."
                   value={typedSearch}
                   onChange={(e) => setTypedSearch(e.target.value)}
                   style={styles.searchInput}
@@ -87,13 +117,22 @@ function FindDoctor() {
                 />
               </div>
               <button onClick={handleSearch} style={styles.searchBtn}>
-                Search
+                Find Nearest Doctor
               </button>
             </div>
-          </section>
+          </motion.section>
 
-          {/* Specialty Filter Section */}
-          <section style={styles.filterSection}>
+          {/* Specialty Filters */}
+          <motion.section 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.2 }}
+            style={styles.filterSection}
+          >
+            <div style={styles.filterHeader}>
+              <FiFilter style={{ color: "#2563eb" }} />
+              <span style={styles.filterTitle}>Filter by Specialty</span>
+            </div>
             <div style={styles.chipsWrapper}>
               {specialties.map(specialty => (
                 <button
@@ -101,71 +140,105 @@ function FindDoctor() {
                   onClick={() => setSelectedSpecialty(specialty)}
                   style={{
                     ...styles.chip,
-                    backgroundColor: selectedSpecialty === specialty ? '#0066CC' : '#FFFFFF',
-                    color: selectedSpecialty === specialty ? '#FFFFFF' : '#4B5563',
-                    borderColor: selectedSpecialty === specialty ? '#0066CC' : '#E5E7EB',
+                    backgroundColor: selectedSpecialty === specialty ? '#2563eb' : 'white',
+                    color: selectedSpecialty === specialty ? 'white' : '#64748b',
+                    borderColor: selectedSpecialty === specialty ? '#2563eb' : '#e2e8f0',
+                    boxShadow: selectedSpecialty === specialty ? '0 4px 12px rgba(37, 99, 235, 0.2)' : 'none'
                   }}
                 >
                   {specialty}
                 </button>
               ))}
             </div>
-          </section>
+          </motion.section>
 
-          {/* Doctors Grid Section */}
-          <section style={styles.gridSection}>
+          {/* Doctors Grid */}
+          <motion.section 
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+            style={styles.gridSection}
+          >
             {isLoading ? (
-              <div style={styles.loadingBox}>Loading available doctors...</div>
+              <div style={styles.loadingBox}>
+                <motion.div 
+                  animate={{ rotate: 360 }}
+                  transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
+                  style={styles.spinner}
+                />
+                <p>Retrieving healthcare specialist list...</p>
+              </div>
             ) : filteredDoctors.length > 0 ? (
               <div style={styles.doctorGrid}>
                 {filteredDoctors.map((doctor) => (
-                  <div key={doctor.doctor_id} style={styles.doctorCard}>
-                    {/* Card Top */}
-                    <div style={styles.cardTop}>
-                      <div style={styles.avatarContainer}>
+                  <motion.div 
+                    key={doctor.doctor_id} 
+                    variants={cardVariants}
+                    whileHover={{ y: -8, transition: { duration: 0.2 } }}
+                    style={styles.doctorCard}
+                  >
+                    <div style={styles.cardInfo}>
+                      <div style={styles.avatarWrapper}>
                         <img
                           src={getDoctorImage(doctor.doctor_id)}
                           alt={doctor.full_name}
                           style={styles.avatarImg}
                         />
-                        <div style={styles.onlineDot} />
+                        <div style={styles.statusPing} />
                       </div>
                       <div style={styles.doctorMeta}>
-                        <h3 style={styles.cardName}>{doctor.full_name}</h3>
-                        <p style={styles.cardSpecialty}>{doctor.specialization}</p>
+                        <div style={styles.verifiedBadge}>
+                          <FiCheckCircle style={{ marginRight: '4px' }} />
+                          Verified
+                        </div>
+                        <h3 style={styles.doctorName}>{doctor.full_name}</h3>
+                        <p style={styles.specialtyText}>{doctor.specialization}</p>
                       </div>
                     </div>
 
-                    <div style={styles.slotInfo}>
-                      <FiClock style={styles.slotIcon} />
-                      <span style={styles.slotText}>Next available: Today, 5:00 PM</span>
+                    <div style={styles.availabilityBox}>
+                      <FiClock style={styles.clockIcon} />
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                        <span>Next availability: <span style={{ fontWeight: '700', color: '#0f172a' }}>
+                          {doctor.availability && doctor.availability.length > 0 
+                            ? `${doctor.availability[0].day_of_week}, ${doctor.availability[0].start_time}` 
+                            : 'No schedule set'}
+                        </span></span>
+                        <span style={{ fontSize: '12px', color: '#2563eb', fontWeight: '600' }}>
+                          Next Appointment No: {doctor.next_appointment_number || 1}
+                        </span>
+                      </div>
                     </div>
 
-                    <div style={styles.divider} />
+                    <div style={styles.cardDivider} />
 
-                    {/* Card Bottom */}
-                    <div style={styles.cardBottom}>
-                      <div style={styles.feeBox}>
-                        <span style={styles.feeLabel}>Fee:</span>
-                        <span style={styles.feeAmount}>LKR {Number(doctor.doctor_fee).toLocaleString()}</span>
+                    <div style={styles.cardFooter}>
+                      <div style={styles.feeSection}>
+                        <p style={styles.feeLabel}>Total Channeling Fee</p>
+                        <p style={styles.feeValue}>LKR {(Number(doctor.doctor_fee) + Number(doctor.center_fee || 0)).toLocaleString()}</p>
                       </div>
                       <button
                         onClick={() => handleBookAppointment(doctor)}
-                        style={styles.channelBtn}
+                        style={styles.bookBtn}
                       >
-                        Channel Now
+                        Book Now
+                        <FiChevronRight style={{ marginLeft: '4px' }} />
                       </button>
                     </div>
-                  </div>
+                  </motion.div>
                 ))}
               </div>
             ) : (
               <div style={styles.noResultsBox}>
-                <FiSearch size={48} style={{ color: '#D1D5DB', marginBottom: '16px' }} />
-                <p>No doctors found matching your criteria.</p>
+                <div style={styles.emptyIcon}>
+                  <FiSearch />
+                </div>
+                <h3>No specialists found</h3>
+                <p>Try adjusting your search terms or specialty filters.</p>
               </div>
             )}
-          </section>
+          </motion.section>
+          </div>
         </main>
       </div>
     </div>
@@ -176,213 +249,293 @@ const styles = {
   container: {
     display: 'flex',
     minHeight: '100vh',
-    backgroundColor: 'var(--slate-50)',
+    backgroundColor: '#f8fafc',
     fontFamily: "'Inter', sans-serif",
   },
-  mainWrapper: {
-    // Handled by .main-wrapper
-  },
   mainContent: {
-    // Handled by .content-padding
+    padding: "40px 32px",
+    display: "flex",
+    flexDirection: "column",
+    gap: "32px",
+    maxWidth: "1600px",
+    margin: "0 auto",
+    width: "100%"
+  },
+  headerSection: {
+    marginBottom: "4px",
+  },
+  welcomeTitle: {
+    fontSize: "32px",
+    fontWeight: "800",
+    color: "#0f172a",
+    margin: "0 0 8px 0",
+    letterSpacing: "-1px",
+  },
+  welcomeSubtitle: {
+    fontSize: "16px",
+    color: "#64748b",
+    margin: 0,
+    fontWeight: "500"
+  },
+  contentWrapper: {
+    maxWidth: "1200px",
+    width: "100%",
+    margin: "0 auto",
+    display: "flex",
+    flexDirection: "column",
+    gap: "32px"
   },
   searchSection: {
-    marginBottom: '24px',
     backgroundColor: 'white',
-    padding: '32px',
-    borderRadius: 'var(--radius-2xl)',
-    boxShadow: 'var(--shadow-soft)',
-    border: '1px solid var(--slate-100)',
+    padding: '40px',
+    borderRadius: '28px',
+    border: '1px solid #f1f5f9',
+    boxShadow: '0 4px 20px rgba(0,0,0,0.02)',
   },
   searchBarWrapper: {
     display: 'flex',
-    gap: '12px',
-    width: '100%',
+    gap: '16px',
+    maxWidth: '900px',
+    margin: '0 auto'
   },
-  inputIconBox: {
+  inputGroup: {
     position: 'relative',
     flex: 1,
   },
   searchIcon: {
     position: 'absolute',
-    left: '16px',
+    left: '20px',
     top: '50%',
     transform: 'translateY(-50%)',
-    color: '#9CA3AF',
+    color: '#94a3b8',
     fontSize: '20px',
   },
   searchInput: {
     width: '100%',
-    padding: '16px 16px 16px 52px',
-    borderRadius: '12px',
-    border: '1px solid var(--slate-200)',
-    fontSize: 'var(--text-base)',
+    padding: '18px 24px 18px 60px',
+    borderRadius: '16px',
+    border: '1px solid #e2e8f0',
+    fontSize: '16px',
     outline: 'none',
-    transition: 'all 0.2s ease',
-    backgroundColor: 'white',
+    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+    backgroundColor: '#f8fafc',
+    color: '#0f172a',
+    fontWeight: '500'
   },
   searchBtn: {
     padding: '0 32px',
-    backgroundColor: 'var(--primary-blue)',
+    backgroundColor: '#2563eb',
     color: 'white',
-    borderRadius: '12px',
+    borderRadius: '16px',
     border: 'none',
-    fontSize: 'var(--text-sm)',
+    fontSize: '15px',
     fontWeight: '700',
     cursor: 'pointer',
     transition: 'all 0.2s ease',
+    boxShadow: '0 10px 15px -3px rgba(37, 99, 235, 0.2)'
   },
   filterSection: {
-    marginBottom: '40px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '16px',
+  },
+  filterHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    fontSize: '14px',
+    fontWeight: '700',
+    color: '#64748b',
+    textTransform: 'uppercase',
+    letterSpacing: '0.05em',
+    paddingLeft: '4px'
   },
   chipsWrapper: {
     display: 'flex',
-    gap: '10px',
+    gap: '12px',
     overflowX: 'auto',
     paddingBottom: '8px',
-    scrollbarWidth: 'none', // For Firefox
-    msOverflowStyle: 'none', // For IE/Edge
+    scrollbarWidth: 'none',
   },
   chip: {
     padding: '12px 28px',
     borderRadius: '100px',
-    border: '1px solid var(--slate-200)',
-    fontSize: 'var(--text-sm)',
+    border: '1px solid',
+    fontSize: '14px',
     fontWeight: '600',
     cursor: 'pointer',
     whiteSpace: 'nowrap',
-    transition: 'all 0.2s ease',
+    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
   },
   gridSection: {
-    minHeight: '400px',
+    minHeight: '500px',
   },
   doctorGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-    gap: '24px',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))',
+    gap: '28px',
   },
   doctorCard: {
     backgroundColor: 'white',
-    borderRadius: '20px',
-    border: '1px solid var(--slate-200)',
+    borderRadius: '24px',
+    border: '1px solid #f1f5f9',
     padding: '24px',
-    transition: 'all 0.3s ease',
     display: 'flex',
     flexDirection: 'column',
-    cursor: 'pointer',
+    boxShadow: '0 4px 12px rgba(0,0,0,0.02)',
   },
-  cardTop: {
+  cardInfo: {
     display: 'flex',
     alignItems: 'center',
-    gap: '16px',
-    marginBottom: '20px',
+    gap: '20px',
+    marginBottom: '24px',
   },
-  avatarContainer: {
+  avatarWrapper: {
     position: 'relative',
-    width: '64px',
-    height: '64px',
+    width: '72px',
+    height: '72px',
+    flexShrink: 0
   },
   avatarImg: {
     width: '100%',
     height: '100%',
-    borderRadius: '50%',
+    borderRadius: '20px',
     objectFit: 'cover',
-    border: '2px solid #E6F2FF',
+    backgroundColor: '#f8fafc'
   },
-  onlineDot: {
+  statusPing: {
     position: 'absolute',
-    bottom: '2px',
-    right: '2px',
-    width: '12px',
-    height: '12px',
-    backgroundColor: '#22C55E',
+    bottom: '-4px',
+    right: '-4px',
+    width: '14px',
+    height: '14px',
+    backgroundColor: '#22c55e',
     borderRadius: '50%',
-    border: '2px solid white',
+    border: '3px solid white',
   },
   doctorMeta: {
     display: 'flex',
     flexDirection: 'column',
     gap: '4px',
   },
-  cardName: {
-    fontSize: 'var(--text-lg)',
+  verifiedBadge: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    fontSize: '11px',
+    fontWeight: '700',
+    color: '#2563eb',
+    backgroundColor: '#eff6ff',
+    padding: '4px 8px',
+    borderRadius: '6px',
+    alignSelf: 'flex-start',
+    marginBottom: '2px'
+  },
+  doctorName: {
+    fontSize: '18px',
     fontWeight: '800',
-    color: 'var(--slate-900)',
+    color: '#0f172a',
+    margin: 0,
+    letterSpacing: '-0.01em'
+  },
+  specialtyText: {
+    fontSize: '14px',
+    color: '#64748b',
+    fontWeight: '500',
     margin: 0,
   },
-  cardSpecialty: {
-    fontSize: 'var(--text-sm)',
-    color: 'var(--primary-blue)',
-    fontWeight: '600',
-    margin: 0,
-  },
-  slotInfo: {
+  availabilityBox: {
     display: 'flex',
     alignItems: 'center',
-    gap: '8px',
-    marginBottom: '20px',
-    padding: '8px 12px',
-    backgroundColor: '#F9FAFB',
-    borderRadius: '10px',
+    gap: '10px',
+    padding: '14px 16px',
+    backgroundColor: '#f8fafc',
+    borderRadius: '14px',
+    fontSize: '13px',
+    color: '#64748b',
+    marginBottom: '24px',
   },
-  slotIcon: {
-    fontSize: '14px',
-    color: '#6B7280',
+  clockIcon: {
+    fontSize: '16px',
+    color: '#2563eb',
   },
-  slotText: {
-    fontSize: 'var(--text-xs)',
-    color: 'var(--slate-600)',
-    fontWeight: '500',
-  },
-  divider: {
+  cardDivider: {
     height: '1px',
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#f1f5f9',
     margin: '0 -24px 20px -24px',
   },
-  cardBottom: {
+  cardFooter: {
     marginTop: 'auto',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  feeBox: {
+  feeSection: {
     display: 'flex',
     flexDirection: 'column',
   },
   feeLabel: {
-    fontSize: '12px',
-    color: '#9CA3AF',
-    fontWeight: '600',
+    fontSize: '11px',
+    color: '#94a3b8',
+    fontWeight: '700',
     textTransform: 'uppercase',
+    letterSpacing: '0.05em'
   },
-  feeAmount: {
-    fontSize: 'var(--text-lg)',
+  feeValue: {
+    fontSize: '18px',
     fontWeight: '800',
-    color: 'var(--slate-900)',
+    color: '#0f172a',
+    margin: 0
   },
-  channelBtn: {
-    padding: '12px 24px',
-    backgroundColor: 'var(--primary-blue)',
+  bookBtn: {
+    padding: '12px 20px',
+    backgroundColor: '#2563eb',
     color: 'white',
-    borderRadius: '12px',
+    borderRadius: '14px',
     border: 'none',
-    fontSize: 'var(--text-sm)',
+    fontSize: '14px',
     fontWeight: '700',
     cursor: 'pointer',
-    transition: 'all 0.2s ease',
+    transition: 'all 0.2s',
+    display: 'flex',
+    alignItems: 'center',
+    boxShadow: '0 4px 6px -1px rgba(37, 99, 235, 0.1)'
   },
   loadingBox: {
-    textAlign: 'center',
-    padding: '80px',
-    color: '#6B7280',
-  },
-  noResultsBox: {
-    textAlign: 'center',
-    padding: '80px',
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    color: '#9CA3AF',
+    justifyContent: 'center',
+    padding: '100px',
+    color: '#64748b',
+    gap: '16px'
   },
+  spinner: {
+    width: '40px',
+    height: '40px',
+    border: '4px solid #e2e8f0',
+    borderTop: '4px solid #2563eb',
+    borderRadius: '50%'
+  },
+  noResultsBox: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '100px',
+    textAlign: 'center',
+    color: '#94a3b8'
+  },
+  emptyIcon: {
+    width: '64px',
+    height: '64px',
+    borderRadius: '20px',
+    backgroundColor: '#f8fafc',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: '32px',
+    marginBottom: '20px'
+  }
 };
 
 export default FindDoctor;

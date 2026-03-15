@@ -9,7 +9,7 @@ import Token from './Token.js';
 import Payment from './Payment.js';
 import Appointment from './Appointment.js';
 import Availability from './Availability.js';
-import Prescription from './Prescription.js';
+import MedicalRecord from './MedicalRecord.js';
 
 // Define associations
 
@@ -61,9 +61,13 @@ Appointment.belongsTo(Patient, { foreignKey: 'patient_id', as: 'patient' });
 Doctor.hasMany(Appointment, { foreignKey: 'doctor_id', as: 'appointments', onDelete: 'CASCADE' });
 Appointment.belongsTo(Doctor, { foreignKey: 'doctor_id', as: 'doctor' });
 
-// Appointment - Prescription (One-to-One)
-Appointment.hasOne(Prescription, { foreignKey: 'appointment_id', as: 'prescription' });
-Prescription.belongsTo(Appointment, { foreignKey: 'appointment_id', as: 'appointment' });
+// Patient - MedicalRecord (One-to-Many)
+Patient.hasMany(MedicalRecord, { foreignKey: 'patient_id', as: 'medical_records' });
+MedicalRecord.belongsTo(Patient, { foreignKey: 'patient_id', as: 'patient' });
+
+// Doctor - MedicalRecord (One-to-Many)
+Doctor.hasMany(MedicalRecord, { foreignKey: 'doctor_id', as: 'medical_records' });
+MedicalRecord.belongsTo(Doctor, { foreignKey: 'doctor_id', as: 'doctor' });
 
 // Appointment - Payment (One-to-One)
 Appointment.hasOne(Payment, { foreignKey: 'appointment_id', as: 'payment' });
@@ -81,5 +85,5 @@ export {
   Payment,
   Appointment,
   Availability,
-  Prescription
+  MedicalRecord
 };

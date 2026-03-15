@@ -259,3 +259,40 @@ export const getNextNumber = async (req, res) => {
         res.status(500).json({ success: false, message: 'Server error', error: error.message });
     }
 };
+/**
+ * @desc    Cancel all appointments for a doctor on a specific date (Doctor Session Cancel)
+ * @route   PUT /api/appointments/cancel-session
+ * @access  Private (Receptionist, Admin)
+ */
+export const cancelDoctorSession = async (req, res) => {
+    try {
+        const { doctor_id, appointment_date, cancellation_reason } = req.body;
+
+        if (!doctor_id || !appointment_date) {
+            return res.status(400).json({ success: false, message: 'Doctor ID and Date are required' });
+        }
+
+        const [affectedCount] = await Appointment.update(
+            { 
+                status: 'CANCELLED',
+                cancellation_reason: cancellation_reason || 'Doctor cancelled the session'
+            },
+            {
+                where: {
+                    doctor_id,
+                    appointment_date,
+                    status: { [Op.in]: ['PENDING', 'CONFIRMED'] }
+                }
+            }
+        );
+
+        res.status(200).json({ 
+            success: true, 
+            message: `Successfully cancelled ${affectedCount} appointments for the session`,
+            data: { affectedCount }
+        });
+    } catch (error) {
+        console.error('Cancel doctor session error:', error);
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+};

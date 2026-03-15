@@ -1,5 +1,6 @@
-import { FiUser, FiChevronDown } from "react-icons/fi";
+import { FiUser, FiChevronDown, FiBell } from "react-icons/fi";
 import { useLocation, useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
 import { useAuth } from "../context/AuthContext";
 
 function PatientHeader() {
@@ -9,67 +10,59 @@ function PatientHeader() {
 
   const getPageContext = () => {
     const path = location.pathname;
-    const name = user?.full_name?.split(' ')[0] || "User";
+    const name = user?.profile?.full_name?.split(' ')[0] || user?.username || "User";
 
     switch (path) {
       case "/patient/dashboard":
-        return { 
-          title: `welcome ${name}! 👋`, 
-          subtitle: "Check your health status and upcoming appointments." 
-        };
       case "/patient/appointments":
-        return { 
-          title: "My Appointments", 
-          subtitle: "Manage your upcoming and past appointments." 
-        };
       case "/patient/find-doctor":
       case "/patient/channel-doctor":
-        return { 
-          title: "Find Doctors", 
-          subtitle: "Browse and channel doctors online." 
-        };
       case "/patient/prescriptions":
-        return { 
-          title: "My Prescriptions", 
-          subtitle: "View and manage your prescriptions." 
-        };
       case "/patient/payments":
-        return { 
-          title: "Payment History", 
-          subtitle: "View your billing and payment records." 
-        };
+      case "/patient/medical-history":
       case "/profile":
         return { 
-          title: "My profile", 
-          subtitle: "Manage your account." 
+          title: "", 
+          subtitle: "" 
         };
       default:
-        return { title: "Pubudu Medical", subtitle: "Excellence in Care" };
+        return { title: "Pubudu Medical", subtitle: "Excellence in Healthcare" };
     }
   };
 
   const { title, subtitle } = getPageContext();
 
   return (
-    <header style={styles.header}>
+    <motion.header 
+      initial={{ opacity: 0, y: -10 }}
+      animate={{ opacity: 1, y: 0 }}
+      style={styles.header}
+    >
       {/* Page Info */}
       <div style={styles.pageInfo}>
         <h1 style={styles.pageTitle}>{title}</h1>
         <p style={styles.pageSubtitle}>{subtitle}</p>
       </div>
 
-      {/* Right Section: Profile */}
-      <div style={styles.profileSection} onClick={() => navigate('/profile')}>
-        <div style={styles.profileDetails}>
-          <p style={styles.profileName}>{user?.full_name || "Kasun Pe"}</p>
-          <p style={styles.patientId}>patient ID: #PMC-{user?.patient_id || "8492"}</p>
+      {/* Right Section: Actions & Profile */}
+      <div style={styles.rightSection}>
+        <div style={styles.portalBadge}>
+          <div style={styles.pulseDot} />
+          Patient Portal
         </div>
-        <div style={styles.avatar}>
-          <FiUser style={styles.avatarIcon} />
+
+        <div style={styles.profileSection} onClick={() => navigate('/profile')}>
+          <div style={styles.profileDetails}>
+            <p style={styles.profileName}>{user?.profile?.full_name || "Patient"}</p>
+            <p style={styles.patientId}>ID: #PMC-{user?.profile?.patient_id || "0000"}</p>
+          </div>
+          <div style={styles.avatar}>
+            {(user?.profile?.full_name || user?.username)?.charAt(0).toUpperCase() || <FiUser style={styles.avatarIcon} />}
+          </div>
+          <FiChevronDown style={styles.chevron} />
         </div>
-        <FiChevronDown style={styles.chevron} />
       </div>
-    </header>
+    </motion.header>
   );
 }
 
@@ -78,39 +71,70 @@ const styles = {
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
-    padding: "20px 40px",
+    padding: "0 32px",
     backgroundColor: "white",
-    borderBottom: "1px solid var(--slate-100)",
+    borderBottom: "1px solid #f1f5f9",
     position: "sticky",
     top: 0,
     zIndex: 50,
-    height: "80px",
+    height: "100px",
   },
   pageInfo: {
     display: "flex",
     flexDirection: "column",
-    gap: "2px",
+    gap: "4px",
   },
   pageTitle: {
-    fontSize: "var(--text-xl)",
-    fontWeight: "700",
-    color: "var(--slate-900)",
+    fontSize: "24px",
+    fontWeight: "800",
+    color: "#0f172a",
     margin: 0,
-    textTransform: "none",
+    letterSpacing: "-0.5px",
   },
   pageSubtitle: {
-    fontSize: "var(--text-sm)",
-    color: "var(--slate-500)",
+    fontSize: "14px",
+    color: "#64748b",
     margin: 0,
+    fontWeight: "500"
+  },
+  rightSection: {
+    display: "flex",
+    alignItems: "center",
+    gap: "24px"
+  },
+  portalBadge: {
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    padding: "6px 14px",
+    borderRadius: "20px",
+    backgroundColor: "#eff6ff",
+    color: "#2563eb",
+    fontSize: "12px",
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: "0.5px",
+    border: "1px solid rgba(37, 99, 235, 0.1)"
+  },
+  pulseDot: {
+    width: "6px",
+    height: "6px",
+    borderRadius: "50%",
+    backgroundColor: "#2563eb",
+    boxShadow: "0 0 0 0 rgba(37, 99, 235, 0.4)",
+    animation: "pulse 2s infinite"
   },
   profileSection: {
     display: "flex",
     alignItems: "center",
-    gap: "12px",
+    gap: "16px",
     cursor: "pointer",
-    padding: "6px 12px",
-    borderRadius: "12px",
-    transition: "background-color 0.2s ease",
+    padding: "8px 12px",
+    borderRadius: "16px",
+    transition: "all 0.2s ease",
+    ":hover": {
+      backgroundColor: "#f8fafc"
+    }
   },
   profileDetails: {
     display: "flex",
@@ -118,32 +142,38 @@ const styles = {
     alignItems: "flex-end",
   },
   profileName: {
-    fontSize: "var(--text-sm)",
+    fontSize: "14px",
     fontWeight: "700",
-    color: "var(--slate-900)",
+    color: "#1e293b",
     margin: 0,
   },
   patientId: {
-    fontSize: "var(--text-xs)",
+    fontSize: "12px",
     fontWeight: "600",
-    color: "var(--slate-500)",
+    color: "#94a3b8",
     margin: 0,
+    textTransform: "uppercase",
+    letterSpacing: "0.5px"
   },
   avatar: {
-    width: "40px",
-    height: "40px",
-    borderRadius: "50%",
-    backgroundColor: "var(--primary-blue-light)",
+    width: "44px",
+    height: "44px",
+    borderRadius: "14px",
+    backgroundColor: "#eff6ff",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    color: "var(--primary-blue)",
+    color: "#2563eb",
+    fontSize: "18px",
+    fontWeight: "800",
+    border: "2px solid #fff",
+    boxShadow: "0 4px 6px -1px rgba(37, 99, 235, 0.1)"
   },
   avatarIcon: {
     fontSize: "20px",
   },
   chevron: {
-    color: "var(--slate-400)",
+    color: "#94a3b8",
     fontSize: "16px",
   }
 };

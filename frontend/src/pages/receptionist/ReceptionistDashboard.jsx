@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import { FiUserPlus, FiCalendar, FiClock } from "react-icons/fi";
+import { FiUserPlus, FiCalendar, FiClock, FiPlus, FiUsers, FiCreditCard, FiTrendingUp } from "react-icons/fi";
+import { motion } from "framer-motion";
 import ReceptionistSidebar from "../../components/ReceptionistSidebar";
 import ReceptionistHeader from "../../components/ReceptionistHeader";
-import CancellationModal from "../../components/CancellationModal";
 
 function ReceptionistDashboard() {
   const navigate = useNavigate();
@@ -13,7 +13,12 @@ function ReceptionistDashboard() {
   const [searchName, setSearchName] = useState('');
   const [searchSpec, setSearchSpec] = useState('');
   const [isLoading, setIsLoading] = useState(true);
-  const [cancellationMessages, setCancellationMessages] = useState([]);
+  const [stats, setStats] = useState({
+    todayAppointments: 0,
+    totalPatients: 0,
+    unpaidAppointments: 0,
+    todayRevenue: 0
+  });
 
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
@@ -42,31 +47,6 @@ function ReceptionistDashboard() {
           setDoctors(docRes.data.data);
         }
 
-        // Fetch Appointments just for cancellations notification check
-        const aptRes = await axios.get(`${API_URL}/appointments`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        if (aptRes.data.success) {
-          const allApts = aptRes.data.data;
-          // Check for recent cancellations to notify receptionist
-          const cancelledApts = allApts.filter(apt => apt.status === 'CANCELLED');
-          if (cancelledApts.length > 0) {
-            const notifiedCancellations = JSON.parse(sessionStorage.getItem('receptionistNotifiedCancellations') || '[]');
-            const newCancellations = cancelledApts.filter(apt => !notifiedCancellations.includes(apt.appointment_id));
-
-            if (newCancellations.length > 0) {
-              const messages = newCancellations.map(apt =>
-                `The ${apt.appointment_date} session with ${apt.doctor?.full_name || 'the doctor'} has been cancelled.`
-              );
-
-              setCancellationMessages(messages);
-
-              // Mark as notified for this session
-              const updatedNotified = [...notifiedCancellations, ...newCancellations.map(a => a.appointment_id)];
-              sessionStorage.setItem('receptionistNotifiedCancellations', JSON.stringify(updatedNotified));
-            }
-          }
-        }
       } catch (error) {
         console.error("Error fetching data:", error);
       } finally {
@@ -74,8 +54,22 @@ function ReceptionistDashboard() {
       }
     };
 
+    const fetchStats = async () => {
+      try {
+        const response = await axios.get(`${API_URL}/receptionist/stats`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (response.data.success) {
+          setStats(response.data.data);
+        }
+      } catch (error) {
+        console.error("Error fetching dashboard stats:", error);
+      }
+    };
+
     fetchProfile();
     fetchDoctorsAndCancellations();
+    fetchStats();
   }, []);
 
 
@@ -88,7 +82,7 @@ function ReceptionistDashboard() {
     return matchesName && matchesSpec;
   });
 
-  const uniqueSpecializations = [...new Set(doctors.map(d => d.specialization))];
+  const uniqueSpecializations = [...new Set(doctors.map(d => d.specialization).filter(Boolean))];
 
   const handleLogout = () => {
     localStorage.clear();
@@ -151,106 +145,110 @@ function ReceptionistDashboard() {
         {/* Header */}
         <ReceptionistHeader receptionistName={receptionistName} />
 
-        {/* Cancellation Notice Modal */}
-        <CancellationModal
-          messages={cancellationMessages}
-          onClose={() => setCancellationMessages([])}
-        />
-
         {/* Dashboard Content */}
         <main className="content-padding">
+          {/* Section 1: Page Header */}
+          <header style={styles.headerSection}>
+            <div style={styles.headerLeft}>
+              <h1 style={styles.welcomeTitle}>Welcome back, {receptionistName}! 👋</h1>
+              <p style={styles.welcomeSubtitle}>Check your health status and upcoming appointments.</p>
+            </div>
+            <div style={styles.headerRight}>
+              <button 
+                style={styles.btnPrimary}
+                onClick={handleAddPatient}
+              >
+                <FiUserPlus style={styles.btnIcon} />
+                Register Patient
+              </button>
+              <button 
+                style={styles.btnPrimary}
+                onClick={handleMakeBooking}
+              >
+                <FiPlus style={styles.btnIcon} />
+                New Booking
+              </button>
+            </div>
+          </header>
+
+          {/* Section 2: Cards Row */}
+          <div style={styles.statsGrid}>
+            {[
+              { title: "Today's Appointments", value: stats.todayAppointments || 0, icon: <FiCalendar />, bg: "#eff6ff", border: "#dbeafe", color: "#2563eb", valueColor: "#1e3a8a", delay: 0.1 },
+              { title: "Pending Payments", value: stats.unpaidAppointments || 0, icon: <FiCreditCard />, bg: "#fef2f2", border: "#fee2e2", color: "#dc2626", valueColor: "#7f1d1d", delay: 0.2 },
+              { title: "Total Patients", value: stats.totalPatients || 0, icon: <FiUsers />, bg: "#f0fdf4", border: "#dcfce7", color: "#10b981", valueColor: "#064e3b", delay: 0.3 },
+            ].map((card, index) => (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: card.delay }}
+                style={{ ...styles.statsCard, backgroundColor: card.bg, border: `1px solid ${card.border}` }}
+                whileHover={{ y: -5, boxShadow: `0 10px 20px -5px ${card.color}20` }}
+              >
+                <div style={styles.statsInfo}>
+                  <p style={{ ...styles.statsLabel, color: card.color }}>{card.title}</p>
+                  <h3 style={{ ...styles.statsValue, color: card.valueColor }}>{card.value}</h3>
+                </div>
+                <div style={{ ...styles.statsIconBox, backgroundColor: card.border, color: card.color }}>
+                  {card.icon}
+                </div>
+              </motion.div>
+            ))}
+          </div>
+
           <style>
             {`
-              .hover-blue-card {
-                transition: all 0.3s ease !important;
-              }
-              .hover-blue-card:hover {
-                background-color: #0066CC !important;
-                transform: translateY(-4px) !important;
-                box-shadow: 0 10px 20px rgba(0, 102, 204, 0.2) !important;
-              }
-              .hover-blue-card:hover * {
-                color: white !important;
-                border-color: rgba(255, 255, 255, 0.5) !important;
-              }
               .hover-table-row {
                 transition: all 0.2s ease !important;
               }
               .hover-table-row:hover {
                 background-color: #f8fafc !important;
-                box-shadow: inset 4px 0 0 0 #0066CC !important;
               }
             `}
           </style>
-
-          {/* Quick Access */}
-          <section style={styles.quickAccessSection}>
-            <h3 style={styles.quickAccessLabel}>Quick Access</h3>
-            <div style={styles.quickAccessGrid}>
-
-              <div className="hover-blue-card" style={styles.quickAccessCard} onClick={handleAddPatient}>
-                <div style={styles.cardHeader}>
-                  <div style={styles.infoIconWrapper}>i</div>
-                </div>
-                <div style={styles.cardBody}>
-                  <FiUserPlus style={styles.cardCenterIcon} />
-                  <p style={styles.cardText}>Admit New Patient</p>
-                </div>
-              </div>
-
-              <div className="hover-blue-card" style={styles.quickAccessCard} onClick={handleMakeBooking}>
-                <div style={styles.cardHeader}>
-                  <div style={styles.infoIconWrapper}>i</div>
-                </div>
-                <div style={styles.cardBody}>
-                  <FiCalendar style={styles.cardCenterIcon} />
-                  <p style={styles.cardText}>Make New Booking</p>
-                </div>
-              </div>
-
-              <div className="hover-blue-card" style={styles.quickAccessCard} onClick={() => navigate("/receptionist/appointments")}>
-                <div style={styles.cardHeader}>
-                  <div style={styles.infoIconWrapper}>i</div>
-                </div>
-                <div style={styles.cardBody}>
-                  <FiClock style={styles.cardCenterIcon} />
-                  <p style={styles.cardText}>Upcoming Appointments</p>
-                </div>
-              </div>
-
-            </div>
-          </section>
 
           {/* Search Bar Section */}
           <section style={styles.searchSection}>
             <div style={styles.searchContainer}>
               <div style={styles.inputGroup}>
                 <label style={styles.inputLabel}>Doctor name</label>
-                <input
-                  type="text"
-                  placeholder="Search Doctor Name"
-                  style={styles.searchInput}
-                  value={searchName}
-                  onChange={(e) => setSearchName(e.target.value)}
-                />
+                <div style={styles.inputWrapper}>
+                  <input
+                    type="text"
+                    placeholder="Search Doctor Name"
+                    style={styles.searchInput}
+                    value={searchName}
+                    onChange={(e) => setSearchName(e.target.value)}
+                    onFocus={(e) => e.target.parentElement.style.borderColor = "#2563eb"}
+                    onBlur={(e) => e.target.parentElement.style.borderColor = "#e2e8f0"}
+                  />
+                </div>
               </div>
 
               <div style={styles.inputGroup}>
                 <label style={styles.inputLabel}>Specialization</label>
-                <select
-                  style={styles.searchInput}
-                  value={searchSpec}
-                  onChange={(e) => setSearchSpec(e.target.value)}
-                >
-                  <option value="">Select Specialization</option>
-                  {uniqueSpecializations.map((spec, idx) => (
-                    <option key={idx} value={spec}>{spec}</option>
-                  ))}
-                </select>
+                <div style={styles.inputWrapper}>
+                  <select
+                    style={styles.searchInput}
+                    value={searchSpec}
+                    onChange={(e) => setSearchSpec(e.target.value)}
+                    onFocus={(e) => e.target.parentElement.style.borderColor = "#2563eb"}
+                    onBlur={(e) => e.target.parentElement.style.borderColor = "#e2e8f0"}
+                  >
+                    <option value="">Select Specialization</option>
+                    {uniqueSpecializations.map((spec, idx) => (
+                      <option key={idx} value={spec}>{spec}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               <div style={styles.searchBtnContainer}>
-                <button style={styles.searchActionBtn}>Search</button>
+                <button style={styles.searchActionBtn}>
+                  <FiClock style={{ fontSize: '18px' }} />
+                  Search Availability
+                </button>
               </div>
             </div>
           </section>
@@ -326,48 +324,133 @@ const styles = {
   container: {
     display: "flex",
     minHeight: "100vh",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    fontFamily: "'Inter', sans-serif",
+    backgroundColor: "#f8fafc"
   },
-  mainWrapper: {
-    // Handled by .main-wrapper in CSS
-    background: "linear-gradient(135deg, #f0f8ff 0%, #e6f2ff 100%)"
-  },
-  mainContent: {
-    // Handled by .content-padding in CSS
-    flex: 1,
-    overflow: "auto"
-  },
-  titleSection: {
+  headerSection: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: "32px"
   },
-  pageTitle: {
+  headerLeft: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "4px"
+  },
+  welcomeTitle: {
     fontSize: "32px",
     fontWeight: "800",
-    background: "linear-gradient(135deg, #0066CC 0%, #0052A3 100%)",
-    WebkitBackgroundClip: "text",
-    WebkitTextFillColor: "transparent",
-    margin: 0,
-    fontFamily: "'Inter', 'Segoe UI', sans-serif",
-    letterSpacing: "0.3px"
+    color: "#0f172a",
+    margin: "0 0 8px 0",
+    letterSpacing: "-1px",
   },
-  pageSubtitle: {
-    fontSize: "15px",
-    color: "#666",
+  welcomeSubtitle: {
+    fontSize: "16px",
+    color: "#64748b",
     margin: 0,
-    marginTop: "8px",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    fontWeight: "500"
+  },
+  headerRight: {
+    display: "flex",
+    gap: "12px"
+  },
+  btnPrimary: {
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    backgroundColor: "#2563eb",
+    color: "white",
+    padding: "10px 18px",
+    borderRadius: "12px",
+    border: "none",
+    fontSize: "15px",
+    fontWeight: "600",
+    cursor: "pointer",
+    boxShadow: "0 4px 6px -1px rgba(37, 99, 235, 0.2)",
+    transition: "all 0.2s"
+  },
+  btnSecondary: {
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    backgroundColor: "white",
+    color: "#334155",
+    padding: "10px 18px",
+    borderRadius: "12px",
+    border: "1px solid #e2e8f0",
+    fontSize: "15px",
+    fontWeight: "600",
+    cursor: "pointer",
+    transition: "all 0.2s"
+  },
+  btnIcon: {
+    fontSize: "18px"
+  },
+  statsGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+    gap: "24px",
+    marginBottom: "40px"
+  },
+  statsCard: {
+    borderRadius: "24px",
+    padding: "24px",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    boxShadow: "0 1px 3px rgba(0,0,0,0.02)",
+    transition: "all 0.3s ease"
+  },
+  statsInfo: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "4px"
+  },
+  statsLabel: {
+    fontSize: "13px",
+    fontWeight: "600",
+    margin: 0,
+    textTransform: "uppercase",
+    letterSpacing: "0.025em"
+  },
+  statsValue: {
+    fontSize: "32px",
+    fontWeight: "800",
+    margin: 0
+  },
+  statsIconBox: {
+    width: "56px",
+    height: "56px",
+    borderRadius: "16px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "24px"
   },
   searchSection: {
-    marginBottom: "32px",
+    marginBottom: "40px"
   },
   searchContainer: {
-    background: "linear-gradient(135deg, #0066CC 0%, #004080 100%)",
-    borderRadius: "16px",
-    padding: "24px 32px",
+    backgroundColor: "#eff6ff",
+    borderRadius: "28px",
+    padding: "32px",
     display: "flex",
     gap: "24px",
     alignItems: "flex-end",
-    boxShadow: "0 10px 25px rgba(0, 102, 204, 0.25)",
+    boxShadow: "0 10px 25px -5px rgba(37, 99, 235, 0.1)",
+    border: "2px solid #3b82f6",
+    marginBottom: "40px"
+  },
+  inputWrapper: {
+    display: "flex",
+    alignItems: "center",
+    width: "100%",
+    borderRadius: "14px",
+    border: "2px solid #e2e8f0",
+    backgroundColor: "white",
+    transition: "all 0.2s",
+    overflow: "hidden"
   },
   inputGroup: {
     display: "flex",
@@ -376,145 +459,50 @@ const styles = {
     gap: "8px"
   },
   inputLabel: {
-    color: "rgba(255, 255, 255, 0.9)",
+    color: "#64748b",
     fontSize: "13px",
-    fontWeight: "600",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    fontWeight: "700",
+    marginLeft: "4px"
   },
   searchInput: {
     padding: "14px 16px",
-    borderRadius: "8px",
     border: "none",
+    backgroundColor: "transparent",
     fontSize: "14px",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif",
+    color: "#0f172a",
     width: "100%",
     outline: "none",
-    boxSizing: "border-box"
   },
   searchBtnContainer: {
     marginBottom: "2px"
   },
   searchActionBtn: {
-    background: "#10b981", // green background
+    background: "linear-gradient(135deg, #2563eb 0%, #1e40af 100%)",
     color: "white",
     border: "none",
-    borderRadius: "8px",
+    borderRadius: "14px",
     padding: "14px 32px",
     fontSize: "15px",
-    fontWeight: "600",
+    fontWeight: "700",
     cursor: "pointer",
-    transition: "all 0.3s",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
-  },
-  dividerContainer: {
+    transition: "all 0.3s ease",
+    boxShadow: "0 4px 12px rgba(37, 99, 235, 0.25)",
     display: "flex",
     alignItems: "center",
-    justifyContent: "center",
-    marginTop: "24px",
-    gap: "16px"
-  },
-  dividerLine: {
-    height: "1px",
-    flex: 1,
-    background: "#d1d5db"
-  },
-  dividerText: {
-    color: "#4b5563",
-    fontSize: "14px",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif",
-    cursor: "pointer"
-  },
-  quickAccessSection: {
-    marginBottom: "24px" // Reduced from 40px to remove excess whitespace
-  },
-  quickAccessLabel: {
-    fontSize: "20px",
-    fontWeight: "600",
-    color: "#374151",
-    marginBottom: "20px",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
-  },
-  quickAccessGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", // Changed auto-fill to auto-fit and reduced min-width for better fitting of 3 cards
-    gap: "24px"
-  },
-  quickAccessCard: {
-    background: "white",
-    borderRadius: "16px",
-    padding: "16px",
-    boxShadow: "0 8px 20px rgba(0, 102, 204, 0.12)",
-    cursor: "pointer",
-    transition: "transform 0.2s, boxShadow 0.2s",
-    border: "2px solid #0066CC",
-    display: "flex",
-    flexDirection: "column",
-    minHeight: "120px" // Reduced from 160px to make cards less tall
-  },
-  cardHeader: {
-    display: "flex",
-    justifyContent: "flex-end",
-    alignItems: "center"
-  },
-  newBadge: {
-    background: "#10b981",
-    color: "white",
-    padding: "4px 8px",
-    borderRadius: "4px",
-    fontSize: "11px",
-    fontWeight: "bold",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
-  },
-  infoIconWrapper: {
-    width: "20px",
-    height: "20px",
-    borderRadius: "50%",
-    border: "1px solid #3b82f6",
-    color: "#3b82f6",
-    backgroundColor: "#eff6ff",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontSize: "12px",
-    fontFamily: "serif",
-    fontStyle: "italic"
-  },
-  cardBody: {
-    flex: 1,
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: "12px" // Reduced gap between icon and text
-  },
-  cardCenterIcon: {
-    fontSize: "36px", // Reduced from 48px to make icons fit the smaller cards
-    color: "#3b82f6" // fallback color if not using images
-  },
-  cardText: {
-    fontSize: "15px",
-    fontWeight: "500",
-    color: "#4b5563",
-    margin: 0,
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    gap: "10px"
   },
   tableSection: {
-    marginBottom: "32px",
-    borderRadius: "12px",
     backgroundColor: "white",
-    padding: "24px",
-    boxShadow: "0 12px 30px rgba(0, 102, 204, 0.15)",
-    border: "2px solid #0066CC"
+    borderRadius: "24px",
+    padding: "32px",
+    border: "2px solid #3b82f6",
+    boxShadow: "0 4px 20px rgba(0, 0, 0, 0.03)"
   },
   tableTitle: {
-    fontSize: "20px",
+    fontSize: "18px",
     fontWeight: "700",
-    background: "linear-gradient(135deg, #0066CC 0%, #0052A3 100%)",
-    WebkitBackgroundClip: "text",
-    WebkitTextFillColor: "transparent",
-    margin: 0,
-    marginBottom: "20px",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    color: "#0f172a",
+    margin: "0 0 24px 0"
   },
   tableContainer: {
     overflowX: "auto"
@@ -524,103 +512,58 @@ const styles = {
     borderCollapse: "collapse"
   },
   tableHeaderRow: {
-    backgroundColor: "#f0f7ff",
-    borderBottom: "2px solid #cce4ff"
+    borderBottom: "1px solid #f1f5f9"
   },
   tableHeader: {
     textAlign: "left",
-    padding: "16px",
+    padding: "12px 16px",
     fontSize: "13px",
-    fontWeight: "700",
-    color: "#0052A3",
+    fontWeight: "600",
+    color: "#64748b",
     textTransform: "uppercase",
-    letterSpacing: "0.5px",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    letterSpacing: "0.5px"
   },
   tableRow: {
-    borderBottom: "1px solid #f5f5f5",
-    transition: "all 0.2s"
+    borderBottom: "1px solid #f8fafc"
   },
   tableCell: {
     padding: "16px",
-    fontSize: "14px",
-    color: "#555",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    fontSize: "14px"
   },
   patientName: {
     fontSize: "15px",
-    fontWeight: "700",
-    color: "#1e293b",
-    margin: 0,
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    fontWeight: "600",
+    color: "#0f172a",
+    margin: 0
   },
-  patientId: {
+  doctorBadge: {
     fontSize: "12px",
-    color: "#888",
-    margin: 0,
-    marginTop: "2px",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    fontWeight: "600",
+    color: "#7c3aed",
+    backgroundColor: "#f5f3ff",
+    padding: "6px 12px",
+    borderRadius: "9999px",
+    border: "1px solid rgba(124, 58, 237, 0.1)"
   },
   amountBadge: {
     fontSize: "14px",
-    fontWeight: "700",
+    fontWeight: "600",
     color: "#059669",
     backgroundColor: "#ecfdf5",
     padding: "6px 12px",
-    borderRadius: "8px",
-    border: "1px solid #a7f3d0",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif",
-    display: "inline-block"
-  },
-  doctorBadge: {
-    fontSize: "13px",
-    fontWeight: "600",
-    color: "#0369a1",
-    backgroundColor: "#e0f2fe",
-    padding: "6px 12px",
-    borderRadius: "20px",
-    border: "1px solid #bae6fd",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif",
-    display: "inline-block"
+    borderRadius: "8px"
   },
   actionButton: {
-    fontSize: "13px",
-    fontWeight: "600",
+    background: "linear-gradient(135deg, #2563eb 0%, #1e40af 100%)",
     color: "white",
-    background: "linear-gradient(135deg, #0066CC 0%, #0052A3 100%)",
     border: "none",
-    borderRadius: "6px",
-    padding: "8px 16px",
-    cursor: "pointer",
-    transition: "all 0.3s",
-    boxShadow: "0 4px 10px rgba(0, 102, 204, 0.3)",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
-  },
-  cancelButton: {
+    borderRadius: "10px",
+    padding: "10px 20px",
     fontSize: "13px",
-    fontWeight: "600",
-    color: "#0066CC",
-    backgroundColor: "transparent",
-    border: "2px solid #0066CC",
-    borderRadius: "6px",
-    padding: "6px 16px",
+    fontWeight: "700",
     cursor: "pointer",
-    transition: "all 0.3s",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
-  },
-  viewAllContainer: {
-    marginTop: "20px",
-    textAlign: "center"
-  },
-  viewAllButton: {
-    fontSize: "14px",
-    fontWeight: "600",
-    color: "#0066CC",
-    backgroundColor: "transparent",
-    border: "none",
-    cursor: "pointer",
-    transition: "all 0.2s",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    transition: "all 0.3s ease",
+    boxShadow: "0 4px 10px rgba(37, 99, 235, 0.2)"
   }
 };
 

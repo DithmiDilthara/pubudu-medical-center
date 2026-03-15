@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import axios from "axios";
 import toast from "react-hot-toast";
-import { FiSearch, FiChevronLeft, FiChevronRight, FiAlertCircle, FiArrowRight, FiArrowLeft } from "react-icons/fi";
+import { FiSearch, FiChevronLeft, FiChevronRight, FiAlertCircle, FiArrowRight, FiArrowLeft, FiCheck, FiUser, FiCalendar, FiClock, FiActivity, FiShield } from "react-icons/fi";
+import { motion, AnimatePresence } from "framer-motion";
 import ReceptionistSidebar from "../../components/ReceptionistSidebar";
 import ReceptionistHeader from "../../components/ReceptionistHeader";
 
@@ -432,18 +433,18 @@ function NewBooking() {
 
   return (
     <div style={styles.container}>
-      {/* Sidebar */}
       <ReceptionistSidebar onLogout={handleLogout} />
 
-      {/* Main Content */}
-      <div className="main-wrapper">
-        {/* Header */}
+      <div className="main-wrapper" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
         <ReceptionistHeader receptionistName="Sarah Johnson" />
 
-        {/* Page Content */}
-        <main className="content-padding">
+        <main className="content-padding" style={{ flex: 1, overflowY: 'auto', padding: '40px 20px' }}>
           <div style={styles.contentCard}>
-            <h1 style={styles.pageTitle}>New Booking</h1>
+            {/* Header */}
+            <header style={styles.pageHeader}>
+              <h1 style={styles.welcomeTitle}>New Booking</h1>
+              <p style={styles.welcomeSubtitle}>Follow the steps below to schedule a new patient appointment securely.</p>
+            </header>
 
             {/* Stepper Wizard */}
             <div style={styles.stepperContainer}>
@@ -454,394 +455,358 @@ function NewBooking() {
 
                 return (
                   <div key={stepNum} style={styles.stepWrapper}>
-                    <div style={styles.stepIndicator}>
+                    {/* Line behind circles */}
+                    {index < steps.length - 1 && (
                       <div
                         style={{
-                          ...styles.stepCircle,
-                          ...(isActive ? styles.stepCircleActive : {}),
-                          ...(isCompleted ? styles.stepCircleCompleted : {})
+                          ...styles.stepLine,
+                          ...(isCompleted ? styles.stepLineCompleted : isActive ? styles.stepLineActive : {})
                         }}
+                      />
+                    )}
+                    
+                    <div style={styles.stepIndicator}>
+                      <motion.div
+                        initial={false}
+                        animate={{
+                          scale: isActive ? 1.1 : 1,
+                          backgroundColor: isCompleted ? "#10b981" : isActive ? "#2563eb" : "#ffffff",
+                          borderColor: isCompleted ? "#10b981" : isActive ? "#2563eb" : "#e2e8f0",
+                          color: isCompleted || isActive ? "#ffffff" : "#94a3b8"
+                        }}
+                        style={styles.stepCircle}
                       >
-                        {isCompleted ? "✓" : stepNum}
-                      </div>
-                      <div
+                        {isCompleted ? <FiCheck size={18} /> : stepNum}
+                      </motion.div>
+                      <span
                         style={{
                           ...styles.stepLabel,
                           ...(isActive || isCompleted ? styles.stepLabelActive : {})
                         }}
                       >
                         {stepName}
-                      </div>
+                      </span>
                     </div>
-                    {index < steps.length - 1 && (
-                      <div
-                        style={{
-                          ...styles.stepLine,
-                          ...(isCompleted ? styles.stepLineCompleted : {})
-                        }}
-                      />
-                    )}
                   </div>
                 );
               })}
             </div>
 
-            {/* Step 1: Patient Information */}
-            {currentStep === 1 && (
-              <div style={styles.stepSection}>
-                <h2 style={styles.stepTitle}>Step 1: Patient Information</h2>
+            {/* Content Section with Transitions */}
+            <div style={styles.stepSection}>
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={currentStep}
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.3, ease: "easeInOut" }}
+                >
+                  {/* Step 1: Patient Information */}
+                  {currentStep === 1 && (
+                    <div>
+                      <div style={styles.stepHeader}>
+                        <div style={styles.stepIcon}><FiUser /></div>
+                        <h2 style={styles.stepTitle}>Identify Patient</h2>
+                      </div>
 
-                <div style={styles.searchTypeContainer}>
-                  <label style={styles.radioLabel}>
-                    <input
-                      type="radio"
-                      name="searchType"
-                      value="nic"
-                      checked={searchType === "nic"}
-                      onChange={(e) => setSearchType(e.target.value)}
-                      style={styles.radioInput}
-                    />
-                    NIC
-                  </label>
-                  <label style={styles.radioLabel}>
-                    <input
-                      type="radio"
-                      name="searchType"
-                      value="phone"
-                      checked={searchType === "phone"}
-                      onChange={(e) => setSearchType(e.target.value)}
-                      style={styles.radioInput}
-                    />
-                    Phone
-                  </label>
-                  <label style={styles.radioLabel}>
-                    <input
-                      type="radio"
-                      name="searchType"
-                      value="name"
-                      checked={searchType === "name"}
-                      onChange={(e) => setSearchType(e.target.value)}
-                      style={styles.radioInput}
-                    />
-                    Name
-                  </label>
-                </div>
-
-                <div style={styles.searchContainer}>
-                  <input
-                    type="text"
-                    placeholder={`Search by ${searchType}`}
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    style={styles.searchInput}
-                  />
-                  <button onClick={handleSearchPatient} style={{
-                    ...styles.searchButton,
-                    ...(patientInfo.fullName ? styles.searchButtonActive : {})
-                  }}>
-                    <FiSearch />
-                  </button>
-                </div>
-
-                {patientInfo.fullName && (
-                  <div style={styles.patientInfoBox}>
-                    <div style={styles.infoRow}>
-                      <label style={styles.infoLabel}>Patient Full Name</label>
-                      <input
-                        type="text"
-                        value={patientInfo.fullName}
-                        readOnly
-                        style={styles.readOnlyInput}
-                      />
-                    </div>
-                    <div style={styles.infoRow}>
-                      <label style={styles.infoLabel}>Contact Number</label>
-                      <input
-                        type="text"
-                        value={patientInfo.contactNumber}
-                        readOnly
-                        style={styles.readOnlyInput}
-                      />
-                    </div>
-                    <div style={styles.infoRow}>
-                      <label style={styles.infoLabel}>Date of Birth (YYYY-MM-DD)</label>
-                      <input
-                        type="text"
-                        value={patientInfo.dateOfBirth}
-                        readOnly
-                        style={styles.readOnlyInput}
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Step 2: Service & Doctor */}
-            {currentStep === 2 && (
-              <div style={styles.stepSection}>
-                <h2 style={styles.stepTitle}>Step 2: Service & Doctor</h2>
-
-                <div style={styles.formGroup}>
-                  <select
-                    value={selectedService}
-                    onChange={(e) => {
-                      setSelectedService(e.target.value);
-                      setSelectedDoctor(""); // Reset doctor on service change
-                    }}
-                    style={styles.select}
-                  >
-                    <option value="">Select Service / Specialty</option>
-                    {services.map((service) => (
-                      <option key={service} value={service}>{service}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div style={styles.formGroup}>
-                  <select
-                    value={selectedDoctor}
-                    onChange={(e) => setSelectedDoctor(e.target.value)}
-                    style={styles.select}
-                    disabled={!selectedService}
-                  >
-                    <option value="">Select Doctor</option>
-                    {doctors
-                      .filter(doc => doc.specialization === selectedService)
-                      .map((doctor) => (
-                        <option key={doctor.doctor_id} value={doctor.doctor_id}>
-                          {doctor.full_name}
-                        </option>
-                      ))}
-                  </select>
-                </div>
-              </div>
-            )}
-
-            {/* Step 3: Availability */}
-            {currentStep === 3 && (
-              <div style={styles.stepSection}>
-                <h2 style={styles.stepTitle}>Step 3: Availability</h2>
-
-                  <div style={styles.calendarContainer}>
-                  <div style={styles.calendarHeader}>
-                    <button 
-                      onClick={handlePrevMonth} 
-                      style={styles.calendarNavButton}
-                    >
-                      <FiChevronLeft size={24} color="white" />
-                    </button>
-                    <span style={styles.calendarMonth}>
-                      {currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' }).toUpperCase()}
-                    </span>
-                    <button 
-                      onClick={handleNextMonth} 
-                      style={styles.calendarNavButton}
-                    >
-                      <FiChevronRight size={24} color="white" />
-                    </button>
-                  </div>
-
-                  <div style={styles.calendarGridContainer}>
-                    <div style={styles.calendarDayHeaderRow}>
-                      {['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'].map((day, index) => (
-                        <div 
-                          key={`header-${index}`} 
-                          style={{
-                            ...styles.calendarDayHeader,
-                            ...(index === 0 ? { color: '#0066CC' } : {})
-                          }}
-                        >
-                          {day}
+                      <div style={styles.searchBox}>
+                        <div style={styles.searchTypeContainer}>
+                          {["nic", "phone", "name"].map(type => (
+                            <div
+                              key={type}
+                              onClick={() => setSearchType(type)}
+                              style={{
+                                ...styles.searchTab,
+                                ...(searchType === type ? styles.searchTabActive : styles.searchTabInactive)
+                              }}
+                            >
+                              {type.toUpperCase()}
+                            </div>
+                          ))}
                         </div>
-                      ))}
-                    </div>
-                    
-                    <div style={styles.calendarGrid}>
-                      {getDaysInMonth(currentMonth).map((day, index) => {
-                      const currentDayDate = day ? new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day) : null;
-                      const hasAvailability = isDateAvailable(day);
-                      const isPast = currentDayDate && currentDayDate < new Date().setHours(0, 0, 0, 0);
 
-                      return (
-                        <div
-                          key={`day-${index}`}
-                          onClick={() => day && !isPast && hasAvailability && handleDateSelect(day)}
-                          style={{
-                            ...styles.calendarDay,
-                            ...(day ? styles.calendarDayActive : styles.calendarDayEmpty),
-                            ...(isSelectedDate(day) ? styles.calendarDaySelected : {}),
-                            ...(isPast || (day && !hasAvailability) ? styles.calendarDayDisabled : {}),
-                            ...(day && hasAvailability && !isPast ? styles.calendarDayAvailable : {})
-                          }}
-                        >
-                          <span style={styles.calendarDayNumber}>{day || ''}</span>
-                          {day && hasAvailability && !isPast && <div style={styles.calendarActiveIndicator}>Active</div>}
+                        <div style={styles.searchInputWrapper}>
+                          <FiSearch style={styles.searchIcon} />
+                          <input
+                            type="text"
+                            placeholder={`Enter patient ${searchType}...`}
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleSearchPatient()}
+                            style={styles.searchInput}
+                          />
+                          <button
+                            onClick={handleSearchPatient}
+                            style={{
+                              position: "absolute",
+                              right: "8px",
+                              top: "50%",
+                              transform: "translateY(-50%)",
+                              backgroundColor: "#2563eb",
+                              color: "white",
+                              border: "none",
+                              borderRadius: "8px",
+                              padding: "8px 16px",
+                              fontSize: "14px",
+                              fontWeight: "600",
+                              cursor: "pointer",
+                              transition: "all 0.2s"
+                            }}
+                          >
+                            Search
+                          </button>
                         </div>
-                      );
-                    })}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
+                      </div>
 
-            {/* Step 4: Select Time */}
-            {currentStep === 4 && (
-              <div style={styles.stepSection}>
-                <h2 style={styles.stepTitle}>Step 4: Select Time</h2>
-
-                <div style={styles.timeSlotsContainer}>
-                  {/* Added time range display */}
-                  <div style={{ marginBottom: '16px', fontSize: '14px', color: '#4b5563' }}>
-                    {(() => {
-                      if (!selectedDate) return null;
-                      const year = selectedDate.getFullYear();
-                      const month = selectedDate.getMonth();
-                      const day = selectedDate.getDate();
-                      const formattedDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                      const days = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
-                      const dayName = days[selectedDate.getDay()];
-
-                      // Find matching availability
-                      let avail = doctorAvailability.find(a =>
-                        a.specific_date === formattedDate &&
-                        (a.session_name === 'Available' || a.session_name === 'Half Day' || a.session_name === 'Regular Session')
-                      );
-
-                      if (!avail) {
-                        avail = doctorAvailability.find(a =>
-                          (!a.day_of_week || a.day_of_week.toUpperCase() === dayName) &&
-                          !a.specific_date &&
-                          (!a.end_date || formattedDate <= a.end_date)
-                        );
-                      }
-
-                      if (avail) {
-                        const formatTime = (t) => {
-                          const [h, m] = t.split(':');
-                          const date = new Date();
-                          date.setHours(h, m);
-                          return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-                        };
-                        return <span>Available: <strong>{formatTime(avail.start_time)} - {formatTime(avail.end_time)}</strong></span>;
-                      }
-                      return null;
-                    })()}
-                  </div>
-
-                  {(() => {
-                    const day = selectedDate ? selectedDate.getDate() : null;
-                    const slots = getTimeSlotsForDay(day);
-
-                    if (slots.length === 0) return <p style={{ gridColumn: 'span 3', textAlign: 'center', color: '#6b7280' }}>No slots available for this day</p>;
-
-                    return slots.map((time) => {
-                      const isBooked = bookedSlots.includes(time);
-                      return (
-                        <button
-                          key={time}
-                          type="button"
-                          disabled={isBooked}
-                          onClick={() => setSelectedTime(time)}
-                          style={{
-                            ...styles.timeSlot,
-                            ...(selectedTime === time ? styles.timeSlotSelected : {}),
-                            ...(isBooked ? { opacity: 0.4, cursor: 'not-allowed', backgroundColor: '#f3f4f6' } : {})
-                          }}
+                      {patientInfo.fullName && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          style={styles.patientResultCard}
                         >
-                          {time} {isBooked && '(Full)'}
-                        </button>
-                      );
-                    });
-                  })()}
-                </div>
-              </div>
-            )}
-
-            {/* Step 5: Confirm Booking */}
-            {currentStep === 5 && (
-              <div style={styles.stepSection}>
-                <h2 style={styles.stepTitle}>Step 5: Confirm Booking</h2>
-
-                <div style={styles.confirmationBox}>
-                  <div style={styles.confirmRow}>
-                    <span style={styles.confirmLabel}>Patient</span>
-                    <span style={styles.confirmValue}>
-                      {patientInfo.fullName}<br />
-                      <small style={styles.confirmSmall}>(PHE-{patientInfo.patientId})</small>
-                    </span>
-                  </div>
-
-                  <div style={styles.confirmRow}>
-                    <span style={styles.confirmLabel}>Service</span>
-                    <span style={styles.confirmValue}>{selectedService}</span>
-                  </div>
-
-                  <div style={styles.confirmRow}>
-                    <span style={styles.confirmLabel}>Doctor</span>
-                    <span style={styles.confirmValue}>
-                      {doctors.find(d => d.doctor_id === parseInt(selectedDoctor))?.full_name}
-                    </span>
-                  </div>
-
-                  <div style={styles.confirmRow}>
-                    <span style={styles.confirmLabel}>Date & Time</span>
-                    <span style={styles.confirmValue}>
-                      {selectedDate?.toLocaleDateString('en-US', {
-                        month: 'long',
-                        day: 'numeric',
-                        year: 'numeric'
-                      })}, {selectedTime}
-                    </span>
-                  </div>
-
-                  {nextQueueNumber !== null && (
-                    <div style={{ ...styles.confirmRow, borderBottom: 'none', marginBottom: 0, paddingBottom: 0 }}>
-                      <span style={{ ...styles.confirmLabel, color: '#059669', fontWeight: 'bold' }}>Next Queue Number</span>
-                      <span style={{ ...styles.confirmValue, color: '#059669', fontSize: '18px' }}>{nextQueueNumber}</span>
+                          <div style={styles.avatar}>
+                            {patientInfo.fullName.split(" ").map(n => n[0]).join("").toUpperCase()}
+                          </div>
+                          <div>
+                            <h3 style={styles.patientName}>{patientInfo.fullName}</h3>
+                            <div style={styles.patientDetail}>
+                              ID: PHE-{patientInfo.patientId} • NIC: {patientInfo.nic || 'N/A'} • {patientInfo.contactNumber}
+                            </div>
+                          </div>
+                          <div style={{ marginLeft: "auto", color: "#10b981" }}>
+                            <FiCheck size={24} />
+                          </div>
+                        </motion.div>
+                      )}
                     </div>
                   )}
-                </div>
-              </div>
-            )}
 
-            {/* Action Buttons */}
-            <div style={styles.actionButtons}>
-              {currentStep > 1 ? (
-                <button onClick={handlePrevious} style={styles.previousButton}>
-                  <FiArrowLeft size={24} />
-                </button>
-              ) : (
-                <button 
-                  onClick={() => navigate("/receptionist/dashboard")} 
-                  style={styles.previousButton}
-                >
-                  <FiArrowLeft size={24} />
-                </button>
-              )}
+                  {/* Step 2: Service & Doctor */}
+                  {currentStep === 2 && (
+                    <div>
+                      <div style={styles.stepHeader}>
+                        <div style={styles.stepIcon}><FiActivity /></div>
+                        <h2 style={styles.stepTitle}>Select Service & Specialist</h2>
+                      </div>
+
+                      <div style={styles.selectionGrid}>
+                        <div>
+                          <label style={styles.selectLabel}>Service / Specialty</label>
+                          <select
+                            value={selectedService}
+                            onChange={(e) => {
+                              setSelectedService(e.target.value);
+                              setSelectedDoctor("");
+                            }}
+                            style={styles.customSelect}
+                          >
+                            <option value="">Choose Service</option>
+                            {services.map((service) => (
+                              <option key={service} value={service}>{service}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label style={styles.selectLabel}>Specialist / Doctor</label>
+                          <select
+                            value={selectedDoctor}
+                            onChange={(e) => setSelectedDoctor(e.target.value)}
+                            style={styles.customSelect}
+                            disabled={!selectedService}
+                          >
+                            <option value="">Choose Doctor</option>
+                            {doctors
+                              .filter(doc => doc.specialization === selectedService)
+                              .map((doctor) => (
+                                <option key={doctor.doctor_id} value={doctor.doctor_id}>
+                                  {doctor.full_name}
+                                </option>
+                              ))}
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Step 3: Availability */}
+                  {currentStep === 3 && (
+                    <div>
+                      <div style={styles.stepHeader}>
+                        <div style={styles.stepIcon}><FiCalendar /></div>
+                        <h2 style={styles.stepTitle}>Select Appointment Date</h2>
+                      </div>
+
+                      <div style={styles.calendarCard}>
+                        <div style={styles.calendarHeader}>
+                          <button onClick={handlePrevMonth} style={styles.navBtn}><FiChevronLeft /></button>
+                          <span style={styles.monthTitle}>
+                            {currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' })}
+                          </span>
+                          <button onClick={handleNextMonth} style={styles.navBtn}><FiChevronRight /></button>
+                        </div>
+
+                        <div style={styles.calendarBody}>
+                          <div style={styles.dayNames}>
+                            {['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'].map(d => (
+                              <div key={d} style={styles.dayName}>{d}</div>
+                            ))}
+                          </div>
+                          
+                          <div style={styles.daysGrid}>
+                            {getDaysInMonth(currentMonth).map((day, index) => {
+                              const currentDayDate = day ? new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day) : null;
+                              const hasAvailability = isDateAvailable(day);
+                              const isPast = currentDayDate && currentDayDate < new Date().setHours(0, 0, 0, 0);
+
+                              return (
+                                <div
+                                  key={index}
+                                  onClick={() => day && !isPast && hasAvailability && handleDateSelect(day)}
+                                  style={{
+                                    ...styles.dayCell,
+                                    ...(day ? {} : { visibility: 'hidden' }),
+                                    ...(hasAvailability && !isPast ? styles.dayAvailable : styles.dayDisabled),
+                                    ...(isSelectedDate(day) ? styles.daySelected : {})
+                                  }}
+                                >
+                                  {day}
+                                  {hasAvailability && !isPast && !isSelectedDate(day) && (
+                                    <div style={{ position: 'absolute', bottom: '4px', width: '4px', height: '4px', borderRadius: '50%', backgroundColor: '#2563eb' }} />
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Step 4: Select Time */}
+                  {currentStep === 4 && (
+                    <div>
+                      <div style={styles.stepHeader}>
+                        <div style={styles.stepIcon}><FiClock /></div>
+                        <h2 style={styles.stepTitle}>Choose Time Slot</h2>
+                      </div>
+
+                      <div style={{ marginBottom: "20px", padding: "12px", backgroundColor: "#f0f9ff", borderRadius: "12px", border: "1px solid #e0f2fe", fontSize: "14px", color: "#0369a1", display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <FiAlertCircle />
+                        <span>Showing available slots for {selectedDate?.toLocaleDateString()}</span>
+                      </div>
+
+                      <div style={styles.timeGrid}>
+                        {(() => {
+                          const day = selectedDate ? selectedDate.getDate() : null;
+                          const slots = getTimeSlotsForDay(day);
+
+                          if (slots.length === 0) return <p style={{ gridColumn: '1/-1', textAlign: 'center', color: '#64748b', padding: '40px' }}>No available slots for this date.</p>;
+
+                          return slots.map((time) => {
+                            const isBooked = bookedSlots.includes(time);
+                            return (
+                              <button
+                                key={time}
+                                disabled={isBooked}
+                                onClick={() => setSelectedTime(time)}
+                                style={{
+                                  ...styles.timeBtn,
+                                  ...(selectedTime === time ? styles.timeBtnActive : {}),
+                                  ...(isBooked ? { opacity: 0.3, cursor: 'not-allowed', backgroundColor: '#f1f5f9' } : {})
+                                }}
+                              >
+                                {time}
+                              </button>
+                            );
+                          });
+                        })()}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Step 5: Confirm Booking */}
+                  {currentStep === 5 && (
+                    <div>
+                      <div style={styles.stepHeader}>
+                        <div style={styles.stepIcon}><FiShield /></div>
+                        <h2 style={styles.stepTitle}>Confirm Details</h2>
+                      </div>
+
+                      <div style={styles.confirmCard}>
+                        <div style={styles.confirmItem}>
+                          <span style={styles.confirmLabel}>Patient Name</span>
+                          <span style={styles.confirmValue}>{patientInfo.fullName}</span>
+                        </div>
+                        <div style={styles.confirmItem}>
+                          <span style={styles.confirmLabel}>Patient ID</span>
+                          <span style={styles.confirmValue}>PHE-{patientInfo.patientId}</span>
+                        </div>
+                        <div style={styles.confirmItem}>
+                          <span style={styles.confirmLabel}>Specialist</span>
+                          <span style={styles.confirmValue}>
+                            {doctors.find(d => d.doctor_id === parseInt(selectedDoctor))?.full_name}
+                          </span>
+                        </div>
+                        <div style={styles.confirmItem}>
+                          <span style={styles.confirmLabel}>Service</span>
+                          <span style={styles.confirmValue}>{selectedService}</span>
+                        </div>
+                        <div style={styles.confirmItem}>
+                          <span style={styles.confirmLabel}>Appointment</span>
+                          <span style={styles.confirmValue}>
+                            {selectedDate?.toLocaleDateString()} • {selectedTime}
+                          </span>
+                        </div>
+                        {nextQueueNumber !== null && (
+                          <div style={{ ...styles.confirmItem, borderBottom: 'none', color: '#10b981' }}>
+                            <span style={{ ...styles.confirmLabel, color: '#059669', fontWeight: '700' }}>Queue Number</span>
+                            <span style={{ fontSize: '20px', fontWeight: '800' }}>#{nextQueueNumber}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </motion.div>
+              </AnimatePresence>
+            </div>
+
+            {/* Bottom Footer Actions */}
+            <div style={styles.footer}>
+              <button
+                onClick={currentStep === 1 ? () => navigate("/receptionist/dashboard") : handlePrevious}
+                style={styles.btnSecondary}
+              >
+                <FiArrowLeft /> {currentStep === 1 ? "Cancel" : "Back"}
+              </button>
 
               {currentStep < 5 ? (
-                <button 
-                  onClick={handleNext} 
+                <button
+                  onClick={handleNext}
+                  disabled={
+                    (currentStep === 1 && !patientInfo.fullName) ||
+                    (currentStep === 2 && (!selectedService || !selectedDoctor)) ||
+                    (currentStep === 3 && !selectedDate) ||
+                    (currentStep === 4 && !selectedTime)
+                  }
                   style={{
-                    ...styles.nextButton,
-                    ...((currentStep === 1 && patientInfo.fullName) || 
-                       (currentStep === 2 && selectedService && selectedDoctor) ||
-                       (currentStep === 3 && selectedDate) ||
-                       (currentStep === 4 && selectedTime) 
-                       ? styles.nextButtonActive : {})
+                    ...styles.btnPrimary,
+                    ...((currentStep === 1 && !patientInfo.fullName) || 
+                        (currentStep === 2 && (!selectedService || !selectedDoctor)) ||
+                        (currentStep === 3 && !selectedDate) ||
+                        (currentStep === 4 && !selectedTime) ? styles.btnDisabled : {})
                   }}
                 >
-                  <FiArrowRight size={24} />
+                  Continue <FiArrowRight />
                 </button>
               ) : (
-                <div style={styles.paymentButtonsContainer}>
-                  <button onClick={handleConfirmBooking} style={styles.payLaterButton}>
-                    Pay Later
+                <div style={{ display: 'flex', gap: '12px', flex: 1, marginLeft: '20px' }}>
+                  <button onClick={handleConfirmBooking} style={styles.payLaterBtn}>
+                    Book & Pay Later
                   </button>
-                  <button onClick={handlePayNow} style={styles.payNowButton}>
-                    Pay Now
+                  <button onClick={handlePayNow} style={styles.payNowBtn}>
+                    Confirm & Pay Now
                   </button>
                 </div>
               )}
@@ -857,484 +822,450 @@ const styles = {
   container: {
     display: "flex",
     minHeight: "100vh",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif",
-    backgroundColor: "#f9fafb"
-  },
-  mainWrapper: {
-    // Handled by .main-wrapper
-  },
-  mainContent: {
-    // Handled by .content-padding
+    backgroundColor: "#f8fafc", // slate-50/50
+    fontFamily: "'Inter', system-ui, -apple-system, sans-serif"
   },
   contentCard: {
     maxWidth: "800px",
     margin: "0 auto",
     backgroundColor: "white",
-    borderRadius: "16px",
+    borderRadius: "28px",
     padding: "40px",
-    boxShadow: "0 12px 30px rgba(0, 102, 204, 0.15)",
-    border: "2px solid #0066CC"
+    boxShadow: "0 10px 30px -10px rgba(0, 0, 0, 0.05)",
+    border: "2px solid #3b82f6",
+    overflow: "hidden"
   },
-  pageTitle: {
-    fontSize: "28px",
-    fontWeight: "700",
-    color: "#1f2937",
-    margin: 0,
-    marginBottom: "32px",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+  pageHeader: {
+    marginBottom: "40px",
+    textAlign: "center"
   },
-  stepSection: {
-    marginBottom: "32px",
-    paddingBottom: "24px",
-    borderBottom: "1px solid #f3f4f6"
+  welcomeTitle: {
+    fontSize: "32px",
+    fontWeight: "800",
+    color: "#0f172a",
+    margin: "0 0 8px 0",
+    letterSpacing: "-1px",
   },
-  stepTitle: {
+  welcomeSubtitle: {
     fontSize: "16px",
-    fontWeight: "700",
-    color: "#1f2937",
+    color: "#64748b",
     margin: 0,
-    marginBottom: "16px",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    fontWeight: "500"
   },
   stepperContainer: {
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: "40px",
-    padding: "20px",
-    backgroundColor: "white",
-    borderRadius: "20px",
-    boxShadow: "0 4px 6px rgba(0, 0, 0, 0.05)",
-    border: "1px solid #f3f4f6"
+    marginBottom: "48px",
+    padding: "0 20px",
+    position: "relative"
   },
   stepWrapper: {
     display: "flex",
+    flexDirection: "column",
     alignItems: "center",
-    flex: 1
+    flex: 1,
+    position: "relative"
   },
   stepIndicator: {
+    zIndex: 2,
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
-    gap: "8px",
-    position: "relative",
-    zIndex: 1
+    gap: "12px"
   },
   stepCircle: {
-    width: "36px",
-    height: "36px",
-    borderRadius: "50%",
+    width: "40px",
+    height: "40px",
+    borderRadius: "12px", // Squircle style
     backgroundColor: "white",
-    border: "2px solid #e5e7eb",
-    color: "#9ca3af",
+    border: "2px solid #e2e8f0",
+    color: "#94a3b8",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    fontSize: "14px",
-    fontWeight: "600",
-    transition: "all 0.3s ease",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    fontSize: "15px",
+    fontWeight: "700",
+    transition: "all 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
+    boxShadow: "0 2px 4px rgba(0,0,0,0.02)"
   },
   stepCircleActive: {
-    borderColor: "#0066CC",
+    borderColor: "#2563eb",
     color: "white",
-    backgroundColor: "#0066CC",
-    boxShadow: "0 0 0 4px rgba(0, 102, 204, 0.2)"
+    backgroundColor: "#2563eb",
+    boxShadow: "0 8px 16px -4px rgba(37, 99, 235, 0.25)",
+    transform: "scale(1.1)"
   },
   stepCircleCompleted: {
-    borderColor: "#0066CC",
-    backgroundColor: "#0066CC",
-    color: "white"
+    borderColor: "#10b981",
+    backgroundColor: "#10b981",
+    color: "white",
+    boxShadow: "0 4px 12px -2px rgba(16, 185, 129, 0.2)"
   },
   stepLabel: {
     fontSize: "13px",
     fontWeight: "600",
-    color: "#9ca3af",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif",
-    position: "absolute",
-    top: "44px",
-    whiteSpace: "nowrap"
+    color: "#94a3b8",
+    transition: "color 0.3s ease",
+    textAlign: "center"
   },
   stepLabelActive: {
-    color: "#374151"
+    color: "#0f172a"
   },
   stepLine: {
-    flex: 1,
-    height: "3px",
-    backgroundColor: "#e5e7eb",
-    margin: "0 10px",
-    marginTop: "-20px",
-    transition: "background-color 0.3s ease"
+    position: "absolute",
+    top: "20px",
+    left: "50%",
+    width: "100%",
+    height: "2px",
+    backgroundColor: "#e2e8f0",
+    zIndex: 1,
+    transition: "background-color 0.5s ease"
+  },
+  stepLineActive: {
+    backgroundColor: "#2563eb"
   },
   stepLineCompleted: {
-    backgroundColor: "#0066CC"
+    backgroundColor: "#10b981"
   },
-  searchContainer: {
+  stepSection: {
+    minHeight: "360px"
+  },
+  stepHeader: {
+    marginBottom: "24px",
     display: "flex",
-    gap: "12px",
-    marginBottom: "16px"
+    alignItems: "center",
+    gap: "12px"
+  },
+  stepIcon: {
+    width: "48px",
+    height: "48px",
+    borderRadius: "14px",
+    backgroundColor: "#eff6ff",
+    color: "#2563eb",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "20px"
+  },
+  stepTitle: {
+    fontSize: "20px",
+    fontWeight: "700",
+    color: "#0f172a",
+    margin: 0
+  },
+  // Search Styles
+  searchBox: {
+    backgroundColor: "#f8fafc",
+    padding: "24px",
+    borderRadius: "20px",
+    border: "1px solid #e2e8f0",
+    marginBottom: "24px"
   },
   searchTypeContainer: {
     display: "flex",
-    gap: "16px",
-    marginBottom: "12px"
+    gap: "12px",
+    marginBottom: "20px"
   },
-  radioLabel: {
-    display: "flex",
-    alignItems: "center",
-    gap: "6px",
+  searchTab: {
+    padding: "8px 16px",
+    borderRadius: "10px",
     fontSize: "14px",
-    color: "#374151",
+    fontWeight: "600",
     cursor: "pointer",
-    fontWeight: "500"
+    transition: "all 0.2s",
+    border: "1px solid transparent"
   },
-  radioInput: {
-    cursor: "pointer",
-    width: "16px",
-    height: "16px",
-    accentColor: "#0066CC"
+  searchTabActive: {
+    backgroundColor: "white",
+    color: "#2563eb",
+    border: "1px solid #e2e8f0",
+    boxShadow: "0 2px 4px rgba(15, 23, 42, 0.05)"
+  },
+  searchTabInactive: {
+    color: "#64748b",
+    backgroundColor: "transparent"
+  },
+  searchInputWrapper: {
+    display: "flex",
+    position: "relative"
   },
   searchInput: {
-    flex: 1,
-    padding: "12px 16px",
+    width: "100%",
+    padding: "14px 16px 14px 48px",
     fontSize: "15px",
-    border: "2px solid #e0f2fe",
-    borderRadius: "8px",
+    border: "2px solid #e2e8f0",
+    borderRadius: "14px",
     outline: "none",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif",
-    transition: "all 0.2s",
-    backgroundColor: "#f8fafc"
+    transition: "all 0.2s ease",
+    backgroundColor: "white",
+    color: "#1e293b"
   },
-  searchButton: {
-    padding: "12px 20px",
-    fontSize: "18px",
-    color: "#6b7280",
-    backgroundColor: "#f3f4f6",
-    border: "1px solid #d1d5db",
-    borderRadius: "8px",
-    cursor: "pointer",
+  searchInputFocus: {
+    borderColor: "#2563eb",
+    boxShadow: "0 0 0 4px rgba(37, 99, 235, 0.1)"
+  },
+  searchIcon: {
+    position: "absolute",
+    left: "16px",
+    top: "50%",
+    transform: "translateY(-50%)",
+    color: "#94a3b8",
+    fontSize: "18px"
+  },
+  patientResultCard: {
+    padding: "20px",
+    borderRadius: "16px",
+    backgroundColor: "#f0fdf4",
+    border: "1px solid #dcfce7",
     display: "flex",
     alignItems: "center",
-    justifyContent: "center",
-    transition: "all 0.3s ease"
-  },
-  searchButtonActive: {
-    backgroundColor: "#0066CC",
-    color: "white",
-    borderColor: "#0066CC"
-  },
-  patientInfoBox: {
+    gap: "16px",
     marginTop: "16px"
   },
-  infoRow: {
-    marginBottom: "16px"
+  avatar: {
+    width: "56px",
+    height: "56px",
+    borderRadius: "50%",
+    backgroundColor: "#dcfce7",
+    color: "#166534",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "20px",
+    fontWeight: "700"
   },
-  infoLabel: {
+  patientName: {
+    fontSize: "18px",
+    fontWeight: "700",
+    color: "#065f46",
+    margin: "0 0 4px 0"
+  },
+  patientDetail: {
     fontSize: "13px",
-    fontWeight: "500",
-    color: "#6b7280",
-    display: "block",
-    marginBottom: "6px",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    color: "#166534",
+    opacity: 0.8
   },
-  readOnlyInput: {
+  // Selection Styles
+  selectionGrid: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: "20px"
+  },
+  selectLabel: {
+    fontSize: "14px",
+    fontWeight: "600",
+    color: "#475569",
+    marginBottom: "8px",
+    display: "block"
+  },
+  customSelect: {
     width: "100%",
-    padding: "10px 14px",
+    padding: "14px 16px",
     fontSize: "15px",
-    border: "1px solid #e5e7eb",
-    borderRadius: "6px",
-    backgroundColor: "#f9fafb",
-    color: "#374151",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif",
-    boxSizing: "border-box"
-  },
-  formGroup: {
-    marginBottom: "16px"
-  },
-  select: {
-    width: "100%",
-    padding: "12px 16px",
-    fontSize: "15px",
-    border: "2px solid #e0f2fe",
-    borderRadius: "8px",
-    outline: "none",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif",
-    transition: "all 0.2s",
-    backgroundColor: "#f8fafc",
-    cursor: "pointer",
-    boxSizing: "border-box"
-  },
-  calendarContainer: {
-    border: "1px solid #e5e7eb",
+    border: "1px solid #e2e8f0",
     borderRadius: "12px",
-    backgroundColor: "white",
+    backgroundColor: "#f8fafc",
+    color: "#0f172a",
+    appearance: "none",
+    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`,
+    backgroundRepeat: "no-repeat",
+    backgroundPosition: "right 16px center",
+    backgroundSize: "20px",
+    cursor: "pointer",
+    outline: "none",
+    transition: "all 0.2s"
+  },
+  // Calendar Styles
+  calendarCard: {
+    border: "1px solid #e2e8f0",
+    borderRadius: "20px",
     overflow: "hidden",
-    boxShadow: "0 10px 25px rgba(0, 0, 0, 0.1)",
-    maxWidth: "400px",
-    margin: "0 auto"
+    boxShadow: "0 10px 15px -3px rgba(15, 23, 42, 0.05)"
   },
   calendarHeader: {
+    padding: "20px",
+    background: "#0f172a",
     display: "flex",
-    alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "#0066CC",
-    padding: "16px 20px"
+    alignItems: "center"
   },
-  calendarNavButton: {
-    padding: "4px",
-    backgroundColor: "transparent",
+  navBtn: {
+    width: "36px",
+    height: "36px",
+    borderRadius: "10px",
+    backgroundColor: "rgba(255,255,255,0.1)",
     border: "none",
-    cursor: "pointer",
+    color: "white",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    transition: "transform 0.2s",
-    "&:hover": {
-      transform: "scale(1.1)"
-    }
+    cursor: "pointer",
+    transition: "all 0.2s"
   },
-  calendarMonth: {
-    fontSize: "20px",
+  monthTitle: {
+    fontSize: "18px",
     fontWeight: "700",
     color: "white",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif",
-    letterSpacing: "0.5px"
+    letterSpacing: "0.025em"
   },
-  calendarGridContainer: {
-    padding: "16px 20px"
+  calendarBody: {
+    padding: "20px",
+    backgroundColor: "white"
   },
-  calendarDayHeaderRow: {
+  dayNames: {
     display: "grid",
     gridTemplateColumns: "repeat(7, 1fr)",
-    borderBottom: "1px solid #e5e7eb",
-    paddingBottom: "12px",
     marginBottom: "12px"
   },
-  calendarGrid: {
+  dayName: {
+    textAlign: "center",
+    fontSize: "12px",
+    fontWeight: "700",
+    color: "#94a3b8"
+  },
+  daysGrid: {
     display: "grid",
     gridTemplateColumns: "repeat(7, 1fr)",
-    rowGap: "8px",
-    columnGap: "4px"
+    gap: "8px"
   },
-  calendarDayHeader: {
-    textAlign: "center",
-    fontSize: "11px",
-    fontWeight: "700",
-    color: "#333333",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
-  },
-  calendarDay: {
+  dayCell: {
     aspectRatio: "1",
     display: "flex",
-    flexDirection: "column",
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: "4px",
-    fontSize: "15px",
+    borderRadius: "10px",
+    fontSize: "14px",
     fontWeight: "600",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif",
+    cursor: "pointer",
     transition: "all 0.2s",
-    padding: "4px",
-    cursor: "pointer"
+    position: "relative"
   },
-  calendarDayActive: {
-    color: "#000000",
-    "&:hover": {
-      backgroundColor: "#f3f4f6"
-    }
+  dayAvailable: {
+    backgroundColor: "#eff6ff",
+    color: "#2563eb"
   },
-  calendarDayEmpty: {
-    visibility: "hidden"
-  },
-  calendarDaySelected: {
-    backgroundColor: "#0066CC !important",
+  daySelected: {
+    backgroundColor: "#2563eb !important",
     color: "white !important",
-    boxShadow: "0 2px 8px rgba(0, 102, 204, 0.4)"
+    boxShadow: "0 4px 12px rgba(37, 99, 235, 0.3)"
   },
-  calendarDayDisabled: {
-    cursor: "not-allowed",
-    color: "#000000",
-    "&:hover": {
-      backgroundColor: "transparent"
-    }
+  dayDisabled: {
+    color: "#cbd5e1",
+    cursor: "not-allowed"
   },
-  calendarDayAvailable: {
-    color: "#0066CC",
-    backgroundColor: "#f0f8ff"
-  },
-  calendarDayNumber: {
-    marginBottom: "2px"
-  },
-  calendarActiveIndicator: {
-    fontSize: "10px",
-    fontWeight: "700",
-    color: "inherit"
-  },
-  timeSlotsContainer: {
+  // Time Styles
+  timeGrid: {
     display: "grid",
-    gridTemplateColumns: "repeat(3, 1fr)",
+    gridTemplateColumns: "repeat(auto-fill, minmax(100px, 1fr))",
     gap: "12px"
   },
-  timeSlot: {
-    padding: "12px",
+  timeBtn: {
+    padding: "12px 10px",
+    borderRadius: "12px",
     fontSize: "14px",
-    fontWeight: "500",
-    color: "#374151",
+    fontWeight: "600",
+    border: "1px solid #e2e8f0",
     backgroundColor: "white",
-    border: "1px solid #d1d5db",
-    borderRadius: "6px",
+    color: "#475569",
     cursor: "pointer",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif",
     transition: "all 0.2s"
   },
-  timeSlotSelected: {
-    backgroundColor: "#0066CC",
+  timeBtnActive: {
+    backgroundColor: "#2563eb",
     color: "white",
-    border: "1px solid #0066CC",
-    fontWeight: "600"
+    borderColor: "#2563eb",
+    boxShadow: "0 4px 12px rgba(37, 99, 235, 0.2)"
   },
-  confirmationBox: {
-    backgroundColor: "#f9fafb",
-    border: "1px solid #e5e7eb",
-    borderRadius: "8px",
-    padding: "20px"
+  // Confirmation Styles
+  confirmCard: {
+    backgroundColor: "#f8fafc",
+    borderRadius: "20px",
+    border: "1px solid #e2e8f0",
+    padding: "24px"
   },
-  confirmRow: {
+  confirmItem: {
     display: "flex",
     justifyContent: "space-between",
-    marginBottom: "16px",
-    paddingBottom: "16px",
-    borderBottom: "1px solid #e5e7eb"
+    padding: "12px 0",
+    borderBottom: "1px solid #e2e8f0"
   },
   confirmLabel: {
+    color: "#64748b",
     fontSize: "14px",
-    fontWeight: "500",
-    color: "#6b7280",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    fontWeight: "500"
   },
   confirmValue: {
-    fontSize: "14px",
-    fontWeight: "600",
-    color: "#1f2937",
-    textAlign: "right",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    color: "#0f172a",
+    fontSize: "15px",
+    fontWeight: "700",
+    textAlign: "right"
   },
-  confirmSmall: {
-    fontSize: "12px",
-    color: "#6b7280",
-    fontWeight: "400"
-  },
+  // Footer
   footer: {
-    marginTop: "32px",
-    display: "flex",
-    justifyContent: "flex-end",
-    paddingBottom: "32px"
-  },
-  backButton: {
-    padding: "10px 24px",
-    border: "none",
-    borderRadius: "6px",
-    background: "#0066CC",
-    color: "white",
-    fontWeight: "600",
-    cursor: "pointer",
-    boxShadow: "0 2px 4px rgba(0, 102, 204, 0.2)",
-    transition: "all 0.2s",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
-  },
-  actionButtons: {
     display: "flex",
     justifyContent: "space-between",
-    alignItems: "center",
-    marginTop: "32px",
-    width: "100%"
+    marginTop: "40px"
   },
-  cancelButton: {
-    flex: 1,
-    padding: "14px 32px",
+  btnSecondary: {
+    padding: "12px 24px",
+    borderRadius: "12px",
     fontSize: "15px",
     fontWeight: "600",
-    color: "#6b7280",
+    color: "#64748b",
     backgroundColor: "white",
-    border: "2px solid #e5e7eb",
-    borderRadius: "8px",
+    border: "1px solid #e2e8f0",
     cursor: "pointer",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
-  },
-  previousButton: {
-    padding: "12px 24px",
+    transition: "all 0.2s",
     display: "flex",
     alignItems: "center",
-    justifyContent: "center",
-    color: "#0066CC",
-    backgroundColor: "#f0f8ff",
+    gap: "8px"
+  },
+  btnPrimary: {
+    padding: "12px 32px",
+    borderRadius: "12px",
+    fontSize: "15px",
+    fontWeight: "700",
+    color: "white",
+    background: "linear-gradient(135deg, #2563eb 0%, #1e40af 100%)",
     border: "none",
-    borderRadius: "8px",
+    cursor: "pointer",
+    transition: "all 0.3s ease",
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    boxShadow: "0 10px 15px -3px rgba(37, 99, 235, 0.25)"
+  },
+  btnDisabled: {
+    backgroundColor: "#e2e8f0",
+    color: "#94a3b8",
+    cursor: "not-allowed",
+    boxShadow: "none"
+  },
+  payLaterBtn: {
+    flex: 1,
+    padding: "14px",
+    borderRadius: "12px",
+    fontSize: "15px",
+    fontWeight: "700",
+    color: "#2563eb",
+    backgroundColor: "white",
+    border: "2px solid #2563eb",
     cursor: "pointer",
     transition: "all 0.2s"
   },
-  nextButton: {
-    padding: "12px 48px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    color: "#9ca3af",
-    backgroundColor: "#f3f4f6",
-    border: "none",
-    borderRadius: "8px",
-    cursor: "not-allowed",
-    transition: "all 0.3s ease"
-  },
-  nextButtonActive: {
-    color: "white",
-    backgroundColor: "#0066CC",
-    cursor: "pointer",
-    boxShadow: "0 4px 12px rgba(0, 102, 204, 0.3)",
-    transform: "translateY(-2px)"
-  },
-  confirmButton: {
+  payNowBtn: {
     flex: 1,
-    padding: "14px 32px",
+    padding: "14px",
+    borderRadius: "12px",
     fontSize: "15px",
-    fontWeight: "600",
+    fontWeight: "700",
     color: "white",
-    background: "linear-gradient(135deg, #0066CC 0%, #0052A3 100%)",
+    background: "linear-gradient(135deg, #10b981 0%, #059669 100%)",
     border: "none",
-    borderRadius: "8px",
     cursor: "pointer",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif",
-    boxShadow: "0 4px 12px rgba(0, 102, 204, 0.3)"
-  },
-  paymentButtonsContainer: {
-    flex: 1,
-    display: "flex",
-    gap: "12px"
-  },
-  payLaterButton: {
-    flex: 1,
-    padding: "14px 24px",
-    fontSize: "15px",
-    fontWeight: "600",
-    color: "#0066CC",
-    backgroundColor: "white",
-    border: "2px solid #0066CC",
-    borderRadius: "8px",
-    cursor: "pointer",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif",
-    transition: "all 0.2s ease"
-  },
-  payNowButton: {
-    flex: 1,
-    padding: "14px 32px",
-    fontSize: "15px",
-    fontWeight: "600",
-    color: "white",
-    background: "linear-gradient(135deg, #0066CC 0%, #0052A3 100%)",
-    border: "none",
-    borderRadius: "8px",
-    cursor: "pointer",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif",
-    boxShadow: "0 4px 12px rgba(0, 102, 204, 0.3)"
+    transition: "all 0.3s ease",
+    boxShadow: "0 10px 15px -3px rgba(16, 185, 129, 0.25)"
   }
 };
 

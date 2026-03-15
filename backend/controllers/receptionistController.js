@@ -1,5 +1,53 @@
 import { Op } from 'sequelize';
-import { User, Patient } from '../models/index.js';
+import { User, Patient, Appointment, Doctor } from '../models/index.js';
+
+/**
+ * @desc    Get dashboard statistics for receptionist
+ * @route   GET /api/receptionist/stats
+ * @access  Private (Receptionist)
+ */
+export const getDashboardStats = async (req, res) => {
+    try {
+        const today = new Date().toISOString().split('T')[0];
+
+        const [
+            todayAppointments,
+            totalPatients,
+            unpaidAppointments,
+            todayPaidAppointments
+        ] = await Promise.all([
+            Appointment.count({ where: { appointment_date: today, status: { [Op.ne]: 'CANCELLED' } } }),
+            Patient.count(),
+            Appointment.count({ where: { payment_status: 'UNPAID', status: { [Op.ne]: 'CANCELLED' } } }),
+            Appointment.findAll({
+                where: {
+                    appointment_date: today,
+                    payment_status: 'PAID'
+                },
+                include: [{
+                    model: Doctor,
+                    as: 'doctor',
+                    attributes: ['center_fee']
+                }]
+            })
+        ]);
+
+        const todayRevenue = todayPaidAppointments.reduce((sum, appt) => sum + parseFloat(appt.doctor?.center_fee || 0), 0);
+
+        res.status(200).json({
+            success: true,
+            data: {
+                todayAppointments,
+                totalPatients,
+                unpaidAppointments,
+                todayRevenue
+            }
+        });
+    } catch (error) {
+        console.error('Get dashboard stats error:', error);
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+};
 
 /**
  * @desc    Search for a patient by NIC, phone, or name

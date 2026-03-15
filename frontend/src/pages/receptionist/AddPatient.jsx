@@ -1,20 +1,17 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import toast from "react-hot-toast";
-import { FiSearch, FiUser, FiMail, FiPhone, FiMapPin, FiCreditCard, FiLock } from "react-icons/fi";
+import { motion, AnimatePresence } from "framer-motion";
+import { FiUser, FiMail, FiPhone, FiMapPin, FiCreditCard, FiLock, FiCalendar, FiActivity, FiShield, FiAlertCircle, FiCheck } from "react-icons/fi";
 import ReceptionistSidebar from "../../components/ReceptionistSidebar";
 import ReceptionistHeader from "../../components/ReceptionistHeader";
+import { useAuth } from "../../context/AuthContext";
 
 function AddPatient() {
   const navigate = useNavigate();
-  const location = useLocation();
-  const [showRegistrationForm, setShowRegistrationForm] = useState(true);
-
-  useEffect(() => {
-    // Component now always shows registration form directly
-  }, []);
-
+  const { user } = useAuth();
+  const receptionistName = user?.profile?.full_name || user?.username || "Receptionist";
   const [formData, setFormData] = useState({
     fullName: "",
     dateOfBirth: "",
@@ -134,37 +131,30 @@ function AddPatient() {
     }
   };
 
-  // Validate field function
   const validateField = (fieldName, value) => {
-    try {
-      const rule = validationRules[fieldName];
-      if (!rule) return "";
+    const rule = validationRules[fieldName];
+    if (!rule) return "";
 
-      if (rule.required && (!value || (typeof value === "string" && !value.trim()))) {
-        return rule.messages?.required || rule.message || "This field is required";
-      }
-
-      if (rule.minLength && value?.length < rule.minLength) {
-        return rule.messages?.minLength || `Minimum ${rule.minLength} characters required`;
-      }
-
-      if (rule.pattern && value && !rule.pattern.test(value)) {
-        return rule.messages?.pattern || "Invalid format";
-      }
-
-      if (rule.custom) {
-        const customError = rule.custom(value);
-        if (customError) return customError;
-      }
-
-      return "";
-    } catch (error) {
-      console.error(`Validation error for field ${fieldName}:`, error);
-      return "Validation error occurred";
+    if (rule.required && (!value || (typeof value === "string" && !value.trim()))) {
+      return rule.messages?.required || rule.message || "This field is required";
     }
+
+    if (rule.minLength && value?.length < rule.minLength) {
+      return rule.messages?.minLength || `Minimum ${rule.minLength} characters required`;
+    }
+
+    if (rule.pattern && value && !rule.pattern.test(value)) {
+      return rule.messages?.pattern || "Invalid format";
+    }
+
+    if (rule.custom) {
+      const customError = rule.custom(value);
+      if (customError) return customError;
+    }
+
+    return "";
   };
 
-  // Validate all fields
   const validateAllFields = () => {
     const newErrors = {};
     Object.keys(formData).forEach((key) => {
@@ -175,67 +165,43 @@ function AddPatient() {
   };
 
   const handleLogout = () => {
-    console.log("Receptionist logged out");
     navigate("/");
   };
 
-
   const handleInputChange = (e) => {
-    try {
-      const { name, value } = e.target;
-      setFormData(prev => ({
-        ...prev,
-        [name]: value
-      }));
-
-      // Clear error when user starts typing
-      if (errors[name]) {
-        setErrors(prev => ({
-          ...prev,
-          [name]: ""
-        }));
-      }
-    } catch (error) {
-      console.error("Error handling input change:", error);
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+    if (errors[name]) {
+      setErrors(prev => ({ ...prev, [name]: "" }));
     }
   };
 
   const handleBlur = (e) => {
-    try {
-      const { name, value } = e.target;
-      setTouched(prev => ({ ...prev, [name]: true }));
-      const error = validateField(name, value);
-      setErrors(prev => ({ ...prev, [name]: error }));
-    } catch (error) {
-      console.error("Error handling blur:", error);
-    }
+    const { name, value } = e.target;
+    setTouched(prev => ({ ...prev, [name]: true }));
+    const error = validateField(name, value);
+    setErrors(prev => ({ ...prev, [name]: error }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setIsSubmitting(true);
 
+    const allTouched = {};
+    Object.keys(formData).forEach(key => { allTouched[key] = true; });
+    setTouched(allTouched);
+
+    const validationErrors = validateAllFields();
+    setErrors(validationErrors);
+
+    if (Object.keys(validationErrors).length > 0) {
+      toast.error("Please fix all errors before submitting");
+      setIsSubmitting(false);
+      return;
+    }
+
+    const toastId = toast.loading("Registering patient...");
     try {
-      setIsSubmitting(true);
-
-      // Mark all fields as touched
-      const allTouched = {};
-      Object.keys(formData).forEach(key => {
-        allTouched[key] = true;
-      });
-      setTouched(allTouched);
-
-      // Validate all fields
-      const validationErrors = validateAllFields();
-      setErrors(validationErrors);
-
-      // Check if there are any errors
-      if (Object.keys(validationErrors).length > 0) {
-        toast.error("Please fix all errors before submitting");
-        setIsSubmitting(false);
-        return;
-      }
-
-      // Prepare data for API
       const registrationData = {
         username: formData.username,
         password: formData.password,
@@ -249,7 +215,6 @@ function AddPatient() {
       };
 
       const token = localStorage.getItem('token');
-      const toastId = toast.loading("Registering patient...");
       const response = await axios.post(
         `${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/receptionist/register-patient`,
         registrationData,
@@ -258,27 +223,10 @@ function AddPatient() {
 
       if (response.data.success) {
         toast.success("Patient registered successfully!", { id: toastId });
-
-        // Reset form
-        setFormData({
-          fullName: "",
-          dateOfBirth: "",
-          gender: "",
-          address: "",
-          phoneNumber: "",
-          email: "",
-          nic: "",
-          username: "",
-          password: "",
-          confirmPassword: ""
-        });
-        setErrors({});
-        setTouched({});
-        navigate("/receptionist/patients"); // redirect or just stay on same page
+        navigate("/receptionist/patients");
       }
     } catch (error) {
-      console.error("Error submitting form:", error);
-      toast.error(error.response?.data?.message || "An error occurred while registering the patient.", { id: toastId });
+      toast.error(error.response?.data?.message || "An error occurred during registration.", { id: toastId });
     } finally {
       setIsSubmitting(false);
     }
@@ -286,365 +234,332 @@ function AddPatient() {
 
   return (
     <div style={styles.container}>
-      {/* Sidebar */}
       <ReceptionistSidebar onLogout={handleLogout} />
 
-      {/* Main Content */}
-      <div className="main-wrapper">
-        {/* Header */}
-        <ReceptionistHeader receptionistName="Sarah Johnson" />
+      <div className="main-wrapper" style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: '#f8fafc' }}>
+        <ReceptionistHeader receptionistName={receptionistName} />
 
-        {/* Page Content */}
-        <main className="content-padding">
-          <div style={styles.contentCard}>
-            <h1 style={styles.pageTitle}>Add New Patient</h1>
+        <main className="content-padding" style={{ flex: 1, overflowY: 'auto', padding: '40px 20px' }}>
+          <div style={styles.pageHeaderWrapper}>
+            <h1 style={styles.welcomeTitle}>Patient Registration</h1>
+            <p style={styles.welcomeSubtitle}>Enter the patient's information to register them in the system securely.</p>
+          </div>
 
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            style={styles.contentCard}
+          >
+            <form onSubmit={handleSubmit}>
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.1 }}
+                style={styles.section}
+              >
+                <div style={styles.sectionHeader}>
+                  <div style={styles.sectionIcon}><FiUser /></div>
+                  <h2 style={styles.sectionTitle}>Personal Details</h2>
+                </div>
 
-
-            {/* Registration Form */}
-            {showRegistrationForm && (
-              <div style={styles.registrationSection}>
-                <h2 style={styles.sectionTitle}>New Patient Registration</h2>
-
-                <form onSubmit={handleSubmit} style={styles.form}>
-                  <style>
-                    {`
-                      @keyframes slideDown {
-                        from { opacity: 0; transform: translateY(-10px); }
-                        to { opacity: 1; transform: translateY(0); }
-                      }
-                    `}
-                  </style>
-
-                  {/* Full Name */}
-                  <div style={styles.formGroup}>
-                    <label style={styles.label}>
-                      Full Name <span style={styles.required}>*</span>
-                    </label>
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Full Name <span style={styles.required}>*</span></label>
+                  <div style={styles.inputWrapper}>
+                    <FiUser style={{...styles.inputIcon, color: focusedField === 'fullName' ? '#2563eb' : '#94a3b8'}} />
                     <input
                       type="text"
                       name="fullName"
-                      placeholder="Enter full name"
+                      placeholder="Enter patient's full name"
                       value={formData.fullName}
                       onChange={handleInputChange}
-                      onBlur={handleBlur}
+                      onFocus={() => setFocusedField('fullName')}
+                      onBlur={(e) => { handleBlur(e); setFocusedField(null); }}
                       style={{
                         ...styles.input,
-                        ...(touched.fullName && errors.fullName ? styles.inputError : {}),
-                        ...(touched.fullName && !errors.fullName && formData.fullName ? styles.inputValid : {})
+                        ...(focusedField === 'fullName' ? styles.inputFocus : {}),
+                        ...(touched.fullName && errors.fullName ? styles.errorInput : {})
                       }}
-                      required
                     />
-                    {touched.fullName && errors.fullName && (
-                      <span style={styles.errorText}>{errors.fullName}</span>
-                    )}
-                    {touched.fullName && !errors.fullName && formData.fullName && (
-                      <span style={styles.validText}>✓</span>
-                    )}
+                    {touched.fullName && !errors.fullName && formData.fullName && <div style={styles.validBadge}><FiCheck /></div>}
                   </div>
+                  {touched.fullName && errors.fullName && <div style={styles.errorText}><FiAlertCircle /> {errors.fullName}</div>}
+                </div>
 
-                  {/* Date of Birth & Gender */}
-                  <div style={styles.formRow}>
-                    <div style={styles.formGroupHalf}>
-                      <label style={styles.label}>
-                        Date of Birth <span style={styles.required}>*</span>
-                      </label>
+                <div style={styles.formRow}>
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>Date of Birth <span style={styles.required}>*</span></label>
+                    <div style={styles.inputWrapper}>
+                      <FiCalendar style={{...styles.inputIcon, color: focusedField === 'dateOfBirth' ? '#2563eb' : '#94a3b8'}} />
                       <input
                         type="date"
                         name="dateOfBirth"
-                        placeholder="YYYY-MM-DD"
                         value={formData.dateOfBirth}
                         onChange={handleInputChange}
-                        onBlur={handleBlur}
+                        onFocus={() => setFocusedField('dateOfBirth')}
+                        onBlur={(e) => { handleBlur(e); setFocusedField(null); }}
                         style={{
                           ...styles.input,
-                          ...(touched.dateOfBirth && errors.dateOfBirth ? styles.inputError : {}),
-                          ...(touched.dateOfBirth && !errors.dateOfBirth && formData.dateOfBirth ? styles.inputValid : {})
+                          ...(focusedField === 'dateOfBirth' ? styles.inputFocus : {}),
+                          ...(touched.dateOfBirth && errors.dateOfBirth ? styles.errorInput : {})
                         }}
-                        required
                       />
-                      {touched.dateOfBirth && errors.dateOfBirth && (
-                        <span style={styles.errorText}>{errors.dateOfBirth}</span>
-                      )}
-                      {touched.dateOfBirth && !errors.dateOfBirth && formData.dateOfBirth && (
-                        <span style={styles.validText}>✓</span>
-                      )}
                     </div>
-                    <div style={styles.formGroupHalf}>
-                      <label style={styles.label}>
-                        Gender <span style={styles.required}>*</span>
-                      </label>
+                    {touched.dateOfBirth && errors.dateOfBirth && <div style={styles.errorText}><FiAlertCircle /> {errors.dateOfBirth}</div>}
+                  </div>
+
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>Gender <span style={styles.required}>*</span></label>
+                    <div style={styles.inputWrapper}>
+                      <FiActivity style={{...styles.inputIcon, color: focusedField === 'gender' ? '#2563eb' : '#94a3b8'}} />
                       <select
                         name="gender"
                         value={formData.gender}
                         onChange={handleInputChange}
-                        onBlur={handleBlur}
+                        onFocus={() => setFocusedField('gender')}
+                        onBlur={(e) => { handleBlur(e); setFocusedField(null); }}
                         style={{
                           ...styles.select,
-                          ...(touched.gender && errors.gender ? styles.inputError : {}),
-                          ...(touched.gender && !errors.gender && formData.gender ? styles.inputValid : {})
+                          ...(focusedField === 'gender' ? styles.inputFocus : {}),
+                          ...(touched.gender && errors.gender ? styles.errorInput : {})
                         }}
-                        required
                       >
-                        <option value="">Select</option>
+                        <option value="">Select Gender</option>
                         <option value="Male">Male</option>
                         <option value="Female">Female</option>
                         <option value="Other">Other</option>
                       </select>
-                      {touched.gender && errors.gender && (
-                        <span style={styles.errorText}>{errors.gender}</span>
-                      )}
-                      {touched.gender && !errors.gender && formData.gender && (
-                        <span style={styles.validText}>✓</span>
-                      )}
                     </div>
+                    {touched.gender && errors.gender && <div style={styles.errorText}><FiAlertCircle /> {errors.gender}</div>}
                   </div>
+                </div>
+              </motion.div>
 
-                  {/* Address */}
-                  <div style={styles.formGroup}>
-                    <label style={styles.label}>
-                      Address <span style={styles.required}>*</span>
-                    </label>
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.2 }}
+                style={styles.section}
+              >
+                <div style={styles.sectionHeader}>
+                  <div style={styles.sectionIcon}><FiMapPin /></div>
+                  <h2 style={styles.sectionTitle}>Contact Information</h2>
+                </div>
+
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Physical Address <span style={styles.required}>*</span></label>
+                  <div style={styles.inputWrapper}>
+                    <FiMapPin style={{...styles.inputIcon, top: '18px', color: focusedField === 'address' ? '#2563eb' : '#94a3b8'}} />
                     <textarea
                       name="address"
-                      placeholder="Enter full address"
+                      placeholder="Enter patient's residence address"
                       value={formData.address}
                       onChange={handleInputChange}
-                      onBlur={handleBlur}
+                      onFocus={() => setFocusedField('address')}
+                      onBlur={(e) => { handleBlur(e); setFocusedField(null); }}
                       style={{
                         ...styles.textarea,
-                        ...(touched.address && errors.address ? styles.inputError : {}),
-                        ...(touched.address && !errors.address && formData.address ? styles.inputValid : {})
+                        ...(focusedField === 'address' ? styles.inputFocus : {}),
+                        ...(touched.address && errors.address ? styles.errorInput : {})
                       }}
-                      rows="3"
-                      required
                     />
-                    {touched.address && errors.address && (
-                      <span style={styles.errorText}>{errors.address}</span>
-                    )}
-                    {touched.address && !errors.address && formData.address && (
-                      <span style={styles.validText}>✓</span>
-                    )}
                   </div>
+                  {touched.address && errors.address && <div style={styles.errorText}><FiAlertCircle /> {errors.address}</div>}
+                </div>
 
-                  {/* Phone & Email */}
-                  <div style={styles.formRow}>
-                    <div style={styles.formGroupHalf}>
-                      <label style={styles.label}>
-                        Phone Number <span style={styles.required}>*</span>
-                      </label>
+                <div style={styles.formRow}>
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>Phone Number <span style={styles.required}>*</span></label>
+                    <div style={styles.inputWrapper}>
+                      <FiPhone style={{...styles.inputIcon, color: focusedField === 'phoneNumber' ? '#2563eb' : '#94a3b8'}} />
                       <input
                         type="tel"
                         name="phoneNumber"
-                        placeholder="Enter phone number"
+                        placeholder="07X XXX XXXX"
                         value={formData.phoneNumber}
                         onChange={handleInputChange}
-                        onBlur={handleBlur}
+                        onFocus={() => setFocusedField('phoneNumber')}
+                        onBlur={(e) => { handleBlur(e); setFocusedField(null); }}
                         style={{
                           ...styles.input,
-                          ...(touched.phoneNumber && errors.phoneNumber ? styles.inputError : {}),
-                          ...(touched.phoneNumber && !errors.phoneNumber && formData.phoneNumber ? styles.inputValid : {})
+                          ...(focusedField === 'phoneNumber' ? styles.inputFocus : {}),
+                          ...(touched.phoneNumber && errors.phoneNumber ? styles.errorInput : {})
                         }}
-                        required
                       />
-                      {touched.phoneNumber && errors.phoneNumber && (
-                        <span style={styles.errorText}>{errors.phoneNumber}</span>
-                      )}
-                      {touched.phoneNumber && !errors.phoneNumber && formData.phoneNumber && (
-                        <span style={styles.validText}>✓</span>
-                      )}
+                      {touched.phoneNumber && !errors.phoneNumber && formData.phoneNumber && <div style={styles.validBadge}><FiCheck /></div>}
                     </div>
+                    {touched.phoneNumber && errors.phoneNumber && <div style={styles.errorText}><FiAlertCircle /> {errors.phoneNumber}</div>}
+                  </div>
 
-                    <div style={styles.formGroupHalf}>
-                      <label style={styles.label}>
-                        Email Address <span style={styles.required}>*</span>
-                      </label>
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>Email Address <span style={styles.required}>*</span></label>
+                    <div style={styles.inputWrapper}>
+                      <FiMail style={{...styles.inputIcon, color: focusedField === 'email' ? '#2563eb' : '#94a3b8'}} />
                       <input
                         type="email"
                         name="email"
-                        placeholder="Enter email address"
+                        placeholder="patient@example.com"
                         value={formData.email}
                         onChange={handleInputChange}
-                        onBlur={handleBlur}
+                        onFocus={() => setFocusedField('email')}
+                        onBlur={(e) => { handleBlur(e); setFocusedField(null); }}
                         style={{
                           ...styles.input,
-                          ...(touched.email && errors.email ? styles.inputError : {}),
-                          ...(touched.email && !errors.email && formData.email ? styles.inputValid : {})
+                          ...(focusedField === 'email' ? styles.inputFocus : {}),
+                          ...(touched.email && errors.email ? styles.errorInput : {})
                         }}
-                        required
                       />
-                      {touched.email && errors.email && (
-                        <span style={styles.errorText}>{errors.email}</span>
-                      )}
-                      {touched.email && !errors.email && formData.email && (
-                        <span style={styles.validText}>✓</span>
-                      )}
+                      {touched.email && !errors.email && formData.email && <div style={styles.validBadge}><FiCheck /></div>}
                     </div>
+                    {touched.email && errors.email && <div style={styles.errorText}><FiAlertCircle /> {errors.email}</div>}
                   </div>
+                </div>
+              </motion.div>
 
-                  {/* National NIC Number */}
-                  <div style={styles.formGroup}>
-                    <label style={styles.label}>
-                      National NIC Number <span style={styles.required}>*</span>
-                    </label>
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.3 }}
+                style={styles.section}
+              >
+                <div style={styles.sectionHeader}>
+                  <div style={styles.sectionIcon}><FiShield /></div>
+                  <h2 style={styles.sectionTitle}>Security & Credentials</h2>
+                </div>
+
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>NIC Number <span style={styles.required}>*</span></label>
+                  <div style={styles.inputWrapper}>
+                    <FiCreditCard style={{...styles.inputIcon, color: focusedField === 'nic' ? '#2563eb' : '#94a3b8'}} />
                     <input
                       type="text"
                       name="nic"
-                      placeholder="Enter NIC number"
+                      placeholder="Enter 9 or 12 digit NIC"
                       value={formData.nic}
                       onChange={handleInputChange}
-                      onBlur={handleBlur}
+                      onFocus={() => setFocusedField('nic')}
+                      onBlur={(e) => { handleBlur(e); setFocusedField(null); }}
                       style={{
                         ...styles.input,
-                        ...(touched.nic && errors.nic ? styles.inputError : {}),
-                        ...(touched.nic && !errors.nic && formData.nic ? styles.inputValid : {})
+                        ...(focusedField === 'nic' ? styles.inputFocus : {}),
+                        ...(touched.nic && errors.nic ? styles.errorInput : {})
                       }}
-                      required
                     />
-                    {touched.nic && errors.nic && (
-                      <span style={styles.errorText}>{errors.nic}</span>
-                    )}
-                    {touched.nic && !errors.nic && formData.nic && (
-                      <span style={styles.validText}>✓</span>
-                    )}
+                    {touched.nic && !errors.nic && formData.nic && <div style={styles.validBadge}><FiCheck /></div>}
                   </div>
+                  {touched.nic && errors.nic && <div style={styles.errorText}><FiAlertCircle /> {errors.nic}</div>}
+                </div>
 
-                  {/* Username */}
-                  <div style={styles.formGroup}>
-                    <label style={styles.label}>
-                      Username <span style={styles.required}>*</span>
-                    </label>
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Portal Username <span style={styles.required}>*</span></label>
+                  <div style={styles.inputWrapper}>
+                    <FiUser style={{...styles.inputIcon, color: focusedField === 'username' ? '#2563eb' : '#94a3b8'}} />
                     <input
                       type="text"
                       name="username"
-                      placeholder="Sayumi_manujana"
+                      placeholder="e.g., Jane_Doe"
                       value={formData.username}
                       onChange={handleInputChange}
-                      onFocus={() => setFocusedField("username")}
-                      onBlur={(e) => {
-                        handleBlur(e);
-                        setFocusedField(null);
-                      }}
+                      onFocus={() => setFocusedField('username')}
+                      onBlur={(e) => { handleBlur(e); setFocusedField(null); }}
                       style={{
                         ...styles.input,
-                        ...(touched.username && errors.username ? styles.inputError : {}),
-                        ...(touched.username && !errors.username && formData.username ? styles.inputValid : {})
+                        ...(focusedField === 'username' ? styles.inputFocus : {}),
+                        ...(touched.username && errors.username ? styles.errorInput : {})
                       }}
-                      required
                     />
-                    {focusedField === "username" && (
-                      <div style={styles.hintsBox}>
-                        <p style={styles.hintsTitle}>Requirements:</p>
-                        <ul style={styles.hintsList}>
-                          <li>4-15 characters long</li>
-                          <li>Must start with a capital letter</li>
-                          <li>Must include an underscore (_)</li>
-                        </ul>
-                      </div>
-                    )}
-                    {touched.username && errors.username && (
-                      <span style={styles.errorText}>{errors.username}</span>
-                    )}
-                    {touched.username && !errors.username && formData.username && (
-                      <span style={styles.validText}>✓</span>
-                    )}
                   </div>
+                  <AnimatePresence>
+                    {focusedField === 'username' && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        style={styles.hintsBox}
+                      >
+                        <div style={styles.hintsTitle}>Username Requirements:</div>
+                        <ul style={styles.hintsList}>
+                          <li>• 4-15 characters long</li>
+                          <li>• Must start with a capital letter</li>
+                          <li>• Must include an underscore (_)</li>
+                        </ul>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                  {touched.username && errors.username && <div style={styles.errorText}><FiAlertCircle /> {errors.username}</div>}
+                </div>
 
-                  {/* Passwords */}
-                  <div style={styles.formRow}>
-                    <div style={styles.formGroupHalf}>
-                      <label style={styles.label}>
-                        Password <span style={styles.required}>*</span>
-                      </label>
+                <div style={styles.formRow}>
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>Password <span style={styles.required}>*</span></label>
+                    <div style={styles.inputWrapper}>
+                      <FiLock style={{...styles.inputIcon, color: focusedField === 'password' ? '#2563eb' : '#94a3b8'}} />
                       <input
                         type="password"
                         name="password"
-                        placeholder="Enter New Password"
+                        placeholder="••••••••"
                         value={formData.password}
                         onChange={handleInputChange}
-                        onFocus={() => setFocusedField("password")}
-                        onBlur={(e) => {
-                          handleBlur(e);
-                          setFocusedField(null);
-                        }}
+                        onFocus={() => setFocusedField('password')}
+                        onBlur={(e) => { handleBlur(e); setFocusedField(null); }}
                         style={{
                           ...styles.input,
-                          ...(touched.password && errors.password ? styles.inputError : {}),
-                          ...(touched.password && !errors.password && formData.password ? styles.inputValid : {})
+                          ...(focusedField === 'password' ? styles.inputFocus : {}),
+                          ...(touched.password && errors.password ? styles.errorInput : {})
                         }}
-                        required
                       />
-                      {focusedField === "password" && (
-                        <div style={styles.hintsBox}>
-                          <p style={styles.hintsTitle}>Requirements:</p>
-                          <ul style={styles.hintsList}>
-                            <li>Minimum 8 characters</li>
-                            <li>Include uppercase & lowercase</li>
-                            <li>Include at least one number</li>
-                            <li>Include at least one special character</li>
-                          </ul>
-                        </div>
-                      )}
-                      {touched.password && errors.password && (
-                        <span style={styles.errorText}>{errors.password}</span>
-                      )}
-                      {touched.password && !errors.password && formData.password && (
-                        <span style={styles.validText}>✓</span>
-                      )}
                     </div>
+                    <AnimatePresence>
+                      {focusedField === 'password' && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          exit={{ opacity: 0, height: 0 }}
+                          style={styles.hintsBox}
+                        >
+                          <div style={styles.hintsTitle}>Password Requirements:</div>
+                          <ul style={styles.hintsList}>
+                            <li>• Minimum 8 characters</li>
+                            <li>• Upper & Lowercase</li>
+                            <li>• Include a number & special symbol</li>
+                          </ul>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                    {touched.password && errors.password && <div style={styles.errorText}><FiAlertCircle /> {errors.password}</div>}
+                  </div>
 
-                    <div style={styles.formGroupHalf}>
-                      <label style={styles.label}>
-                        Confirm Password <span style={styles.required}>*</span>
-                      </label>
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>Confirm Password <span style={styles.required}>*</span></label>
+                    <div style={styles.inputWrapper}>
+                      <FiLock style={{...styles.inputIcon, color: focusedField === 'confirmPassword' ? '#2563eb' : '#94a3b8'}} />
                       <input
                         type="password"
                         name="confirmPassword"
-                        placeholder="Confirm new password"
+                        placeholder="••••••••"
                         value={formData.confirmPassword}
                         onChange={handleInputChange}
-                        onBlur={handleBlur}
+                        onFocus={() => setFocusedField('confirmPassword')}
+                        onBlur={(e) => { handleBlur(e); setFocusedField(null); }}
                         style={{
                           ...styles.input,
-                          ...(touched.confirmPassword && errors.confirmPassword ? styles.inputError : {}),
-                          ...(touched.confirmPassword && !errors.confirmPassword && formData.confirmPassword ? styles.inputValid : {})
+                          ...(focusedField === 'confirmPassword' ? styles.inputFocus : {}),
+                          ...(touched.confirmPassword && errors.confirmPassword ? styles.errorInput : {})
                         }}
-                        required
                       />
-                      {touched.confirmPassword && errors.confirmPassword && (
-                        <span style={styles.errorText}>{errors.confirmPassword}</span>
-                      )}
-                      {touched.confirmPassword && !errors.confirmPassword && formData.confirmPassword && (
-                        <span style={styles.validText}>✓</span>
-                      )}
                     </div>
+                    {touched.confirmPassword && errors.confirmPassword && <div style={styles.errorText}><FiAlertCircle /> {errors.confirmPassword}</div>}
                   </div>
+                </div>
+              </motion.div>
 
-                  {/* Submit Button */}
-                  <div style={styles.buttonContainer}>
-                    <button
-                      type="submit"
-                      style={{
-                        ...styles.submitButton,
-                        ...(isSubmitting ? styles.submitButtonDisabled : {})
-                      }}
-                      disabled={isSubmitting}
-                    >
-                      {isSubmitting ? "Registering..." : "Register Patient"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => navigate("/receptionist/dashboard")}
-                      style={styles.cancelButton}
-                      disabled={isSubmitting}
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </form>
+              <div style={styles.footer}>
+                <button type="button" onClick={() => navigate("/receptionist/dashboard")} style={styles.btnSecondary}>Discard</button>
+                <button type="submit" disabled={isSubmitting} style={{ ...styles.btnPrimary, ...(isSubmitting ? styles.btnDisabled : {}) }}>
+                  {isSubmitting ? "Registering..." : "Register Patient"}
+                </button>
               </div>
-            )}
-          </div>
+            </form>
+          </motion.div>
         </main>
       </div>
     </div>
@@ -655,304 +570,241 @@ const styles = {
   container: {
     display: "flex",
     minHeight: "100vh",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif",
-    backgroundColor: "#f9fafb"
-  },
-  mainWrapper: {
-    // Handled by .main-wrapper
-  },
-  mainContent: {
-    // Handled by .content-padding
+    backgroundColor: "#f8fafc",
+    fontFamily: "'Inter', sans-serif"
   },
   contentCard: {
-    maxWidth: "900px",
-    margin: "0 auto",
+    maxWidth: "1000px",
+    width: "95%",
+    margin: "0 auto 40px auto",
     backgroundColor: "white",
-    borderRadius: "16px",
-    padding: "40px",
-    boxShadow: "0 12px 30px rgba(0, 102, 204, 0.15)",
-    border: "2px solid #0066CC"
+    borderRadius: "28px",
+    padding: "32px 48px",
+    boxShadow: "0 10px 30px -10px rgba(0, 0, 0, 0.05)",
+    border: "2px solid #3b82f6"
   },
-  pageTitle: {
-    fontSize: "28px",
-    fontWeight: "700",
-    color: "#1f2937",
+  pageHeaderWrapper: {
+    maxWidth: "1000px",
+    width: "95%",
+    margin: "0 auto 32px auto",
+    display: "flex",
+    flexDirection: "column",
+    gap: "4px"
+  },
+  headerTitleSection: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "4px",
+    marginBottom: "40px"
+  },
+  welcomeTitle: {
+    fontSize: "32px",
+    fontWeight: "800",
+    color: "#0f172a",
+    margin: "0 0 8px 0",
+    letterSpacing: "-1px",
+  },
+  welcomeSubtitle: {
+    fontSize: "16px",
+    color: "#64748b",
     margin: 0,
-    marginBottom: "32px",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    fontWeight: "500"
   },
-  searchSection: {
+  section: {
     marginBottom: "32px",
-    paddingBottom: "32px",
-    borderBottom: "2px solid #f3f4f6"
+    padding: "32px",
+    backgroundColor: "#f8fafc",
+    borderRadius: "24px",
+    border: "1px solid #e2e8f0",
+    boxShadow: "0 2px 10px rgba(0,0,0,0.01)"
+  },
+  sectionHeader: {
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
+    marginBottom: "24px",
+    paddingBottom: "16px",
+    borderBottom: "1px solid #f1f5f9"
+  },
+  sectionIcon: {
+    width: "40px",
+    height: "40px",
+    borderRadius: "12px",
+    backgroundColor: "#eff6ff",
+    color: "#2563eb",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "18px"
   },
   sectionTitle: {
     fontSize: "18px",
-    fontWeight: "600",
-    color: "#374151",
-    margin: 0,
-    marginBottom: "8px",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
-  },
-  sectionSubtitle: {
-    fontSize: "14px",
-    color: "#6b7280",
-    margin: 0,
-    marginBottom: "20px",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
-  },
-  searchContainer: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "16px"
-  },
-  searchTypeContainer: {
-    display: "flex",
-    gap: "24px"
-  },
-  radioLabel: {
-    display: "flex",
-    alignItems: "center",
-    gap: "8px",
-    fontSize: "14px",
-    color: "#374151",
-    fontWeight: "500",
-    cursor: "pointer",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
-  },
-  radioInput: {
-    cursor: "pointer",
-    accentColor: "#0066CC"
-  },
-  searchInputContainer: {
-    display: "flex",
-    alignItems: "center",
-    gap: "12px",
-    position: "relative"
-  },
-  searchIcon: {
-    position: "absolute",
-    left: "16px",
-    fontSize: "20px",
-    color: "#9ca3af",
-    pointerEvents: "none"
-  },
-  searchInput: {
-    flex: 1,
-    padding: "12px 16px 12px 48px",
-    fontSize: "15px",
-    border: "2px solid #e5e7eb",
-    borderRadius: "8px",
-    outline: "none",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif",
-    transition: "all 0.2s"
-  },
-  searchButton: {
-    padding: "12px 32px",
-    fontSize: "15px",
-    fontWeight: "600",
-    color: "white",
-    background: "linear-gradient(135deg, #0066CC 0%, #0052A3 100%)",
-    border: "none",
-    borderRadius: "8px",
-    cursor: "pointer",
-    transition: "all 0.3s",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif",
-    boxShadow: "0 4px 12px rgba(0, 102, 204, 0.3)"
-  },
-  resultMessage: {
-    marginTop: "16px",
-    padding: "12px",
-    borderRadius: "8px",
-    marginBottom: "20px",
-    fontSize: "14px",
-    fontWeight: "600",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
-  },
-  existsContainer: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "12px",
-    marginBottom: "20px"
-  },
-  notExistsContainer: {
-    marginBottom: "20px"
-  },
-  bookNowButton: {
-    padding: "12px 24px",
-    backgroundColor: "#0066CC",
-    color: "white",
-    border: "none",
-    borderRadius: "8px",
-    fontWeight: "600",
-    cursor: "pointer",
-    alignSelf: "center",
-    boxShadow: "0 4px 6px rgba(0, 102, 204, 0.2)",
-    transition: "transform 0.2s",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
-  },
-  existsMessage: {
-    backgroundColor: "#fef2f2",
-    color: "#dc2626",
-    border: "2px solid #fca5a5"
-  },
-  notExistsMessage: {
-    backgroundColor: "#f0fdf4",
-    color: "#16a34a",
-    border: "2px solid #86efac"
-  },
-  registrationSection: {
-    marginTop: "32px"
-  },
-  form: {
-    marginTop: "24px"
-  },
-  formGroup: {
-    marginBottom: "20px"
+    fontWeight: "700",
+    color: "#1e293b",
+    margin: 0
   },
   formRow: {
     display: "grid",
     gridTemplateColumns: "1fr 1fr",
-    gap: "20px",
+    gap: "24px",
     marginBottom: "20px"
   },
-  formGroupHalf: {
+  formGroup: {
     display: "flex",
-    flexDirection: "column"
+    flexDirection: "column",
+    gap: "8px",
+    marginBottom: "20px",
+    position: "relative"
   },
   label: {
     fontSize: "14px",
     fontWeight: "600",
-    color: "#374151",
-    marginBottom: "8px",
-    display: "block",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    color: "#475569",
+    marginLeft: "4px"
+  },
+  required: {
+    color: "#ef4444",
+    marginLeft: "4px"
+  },
+  inputWrapper: {
+    position: "relative",
+    display: "flex",
+    alignItems: "center"
+  },
+  inputIcon: {
+    position: "absolute",
+    left: "16px",
+    color: "#94a3b8",
+    fontSize: "18px",
+    transition: "color 0.2s"
   },
   input: {
     width: "100%",
-    padding: "12px 16px",
+    padding: "14px 16px 14px 48px",
     fontSize: "15px",
-    border: "2px solid #e0f2fe",
-    borderRadius: "8px",
-    outline: "none",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif",
-    transition: "all 0.2s",
-    boxSizing: "border-box",
-    backgroundColor: "#f8fafc"
-  },
-  inputError: {
-    borderColor: "#e74c3c",
-    backgroundColor: "#fff5f5"
-  },
-  inputValid: {
-    borderColor: "#27ae60",
-    backgroundColor: "#f0fff4"
-  },
-  select: {
-    width: "100%",
-    padding: "12px 16px",
-    fontSize: "15px",
-    border: "2px solid #e0f2fe",
-    borderRadius: "8px",
-    outline: "none",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif",
-    transition: "all 0.2s",
     backgroundColor: "#f8fafc",
-    cursor: "pointer",
-    boxSizing: "border-box"
+    border: "1px solid #e2e8f0",
+    borderRadius: "14px",
+    outline: "none",
+    transition: "all 0.2s",
+    color: "#1e293b"
+  },
+  inputFocus: {
+    borderColor: "#2563eb",
+    backgroundColor: "white",
+    boxShadow: "0 0 0 4px rgba(37, 99, 235, 0.1)"
   },
   textarea: {
     width: "100%",
-    padding: "12px 16px",
+    padding: "14px 16px 14px 48px",
     fontSize: "15px",
-    border: "2px solid #e0f2fe",
-    borderRadius: "8px",
+    backgroundColor: "#f8fafc",
+    border: "1px solid #e2e8f0",
+    borderRadius: "16px",
     outline: "none",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif",
     transition: "all 0.2s",
-    resize: "vertical",
-    boxSizing: "border-box",
-    backgroundColor: "#f8fafc"
+    minHeight: "100px",
+    resize: "vertical"
   },
-  required: {
-    color: "#e74c3c",
-    marginLeft: "4px"
+  select: {
+    width: "100%",
+    padding: "14px 16px 14px 48px",
+    fontSize: "15px",
+    backgroundColor: "#f8fafc",
+    border: "1px solid #e2e8f0",
+    borderRadius: "14px",
+    outline: "none",
+    appearance: "none",
+    cursor: "pointer",
+    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`,
+    backgroundRepeat: "no-repeat",
+    backgroundPosition: "right 16px center",
+    backgroundSize: "20px"
+  },
+  errorInput: {
+    borderColor: "#fca5a5",
+    backgroundColor: "#fef2f2"
   },
   errorText: {
-    display: "block",
-    color: "#e74c3c",
-    fontSize: "13px",
-    marginTop: "6px",
-    fontWeight: "600",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
-  },
-  validText: {
-    display: "block",
-    color: "#27ae60",
-    fontSize: "13px",
-    marginTop: "6px",
-    fontWeight: "bold",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
-  },
-  buttonContainer: {
+    fontSize: "12px",
+    color: "#ef4444",
+    fontWeight: "500",
+    marginTop: "4px",
+    marginLeft: "12px",
     display: "flex",
-    gap: "16px",
-    marginTop: "32px"
+    alignItems: "center",
+    gap: "4px"
   },
-  submitButton: {
-    flex: 1,
-    padding: "14px 32px",
-    fontSize: "16px",
-    fontWeight: "600",
-    color: "white",
-    background: "linear-gradient(135deg, #0066CC 0%, #0052A3 100%)",
-    border: "none",
-    borderRadius: "8px",
-    cursor: "pointer",
-    transition: "all 0.3s",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif",
-    boxShadow: "0 4px 12px rgba(0, 102, 204, 0.3)"
-  },
-  submitButtonDisabled: {
-    opacity: 0.6,
-    cursor: "not-allowed"
-  },
-  cancelButton: {
-    flex: 1,
-    padding: "14px 32px",
-    fontSize: "16px",
-    fontWeight: "600",
-    color: "#6b7280",
-    backgroundColor: "white",
-    border: "2px solid #e5e7eb",
-    borderRadius: "8px",
-    cursor: "pointer",
-    transition: "all 0.3s",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+  validBadge: {
+    position: "absolute",
+    right: "16px",
+    color: "#10b981",
+    fontSize: "18px",
+    display: "flex"
   },
   hintsBox: {
     marginTop: "8px",
-    padding: "12px",
-    backgroundColor: "#FFFFFF",
-    borderRadius: "8px",
-    border: "1px solid #E5E7EB",
-    boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
-    zIndex: 10,
-    animation: "slideDown 0.2s ease-out"
+    padding: "16px",
+    backgroundColor: "#f8fafc",
+    borderRadius: "12px",
+    border: "1px solid #e2e8f0",
+    fontSize: "13px"
   },
   hintsTitle: {
+    fontWeight: "700",
+    color: "#475569",
+    marginBottom: "8px",
     fontSize: "12px",
-    color: "#4B5563",
-    fontWeight: "600",
-    marginBottom: "6px",
-    margin: 0
+    textTransform: "uppercase",
+    letterSpacing: "0.05em"
   },
   hintsList: {
     margin: 0,
-    paddingLeft: "18px",
-    fontSize: "12px",
-    color: "#6B7280",
-    listStyleType: "disc"
+    paddingLeft: "20px",
+    color: "#64748b",
+    display: "flex",
+    flexDirection: "column",
+    gap: "4px"
+  },
+  footer: {
+    display: "flex",
+    justifyContent: "flex-end",
+    gap: "16px",
+    marginTop: "24px",
+    paddingTop: "32px",
+    borderTop: "1px solid #f1f5f9"
+  },
+  btnSecondary: {
+    padding: "14px 28px",
+    borderRadius: "14px",
+    fontSize: "15px",
+    fontWeight: "600",
+    color: "#64748b",
+    backgroundColor: "white",
+    border: "1px solid #e2e8f0",
+    cursor: "pointer",
+    transition: "all 0.2s"
+  },
+  btnPrimary: {
+    padding: "14px 40px",
+    borderRadius: "14px",
+    fontSize: "15px",
+    fontWeight: "700",
+    color: "white",
+    background: "linear-gradient(135deg, #2563eb 0%, #1e40af 100%)",
+    border: "none",
+    cursor: "pointer",
+    transition: "all 0.3s ease",
+    boxShadow: "0 10px 15px -3px rgba(37, 99, 235, 0.25)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "8px"
+  },
+  btnDisabled: {
+    opacity: 0.6,
+    cursor: "not-allowed",
+    boxShadow: "none"
   }
 };
 

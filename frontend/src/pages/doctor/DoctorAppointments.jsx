@@ -9,12 +9,13 @@ function DoctorAppointments() {
   const [searchTerm, setSearchTerm] = useState('');
   const [appointments, setAppointments] = useState([]);
   const [selectedAppointment, setSelectedAppointment] = useState(null);
-  const [prescriptionForm, setPrescriptionForm] = useState({
+  const [recordForm, setRecordForm] = useState({
     diagnosis: '',
     notes: '',
-    medications: ''
+    prescription: '',
+    follow_up_date: ''
   });
-  const [showPrescriptionModal, setShowPrescriptionModal] = useState(false);
+  const [showRecordModal, setShowRecordModal] = useState(false);
   const [doctorName, setDoctorName] = useState('Doctor');
   const [isLoading, setIsLoading] = useState(true);
 
@@ -55,25 +56,26 @@ function DoctorAppointments() {
     fetchAppointments();
   }, []);
 
-  const handleOpenPrescription = (apt) => {
+  const handleOpenRecord = (apt) => {
     setSelectedAppointment(apt);
-    setShowPrescriptionModal(true);
+    setShowRecordModal(true);
   };
 
-  const handleAddPrescription = async () => {
+  const handleAddRecord = async () => {
     setIsLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/clinical/prescription`, {
+      const response = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/clinical/record`, {
         appointment_id: selectedAppointment.appointment_id,
-        ...prescriptionForm
+        patient_id: selectedAppointment.patient_id,
+        ...recordForm
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
       if (response.data.success) {
-        alert('Prescription added and appointment completed');
-        setShowPrescriptionModal(false);
+        alert('Medical Record added and appointment completed');
+        setShowRecordModal(false);
         // Refresh appointments
         const refreshResponse = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/appointments`, {
           headers: { Authorization: `Bearer ${token}` }
@@ -81,8 +83,8 @@ function DoctorAppointments() {
         setAppointments(refreshResponse.data.data);
       }
     } catch (error) {
-      console.error("Add prescription error:", error);
-      alert('Failed to add prescription');
+      console.error("Add record error:", error);
+      alert('Failed to add medical record');
     } finally {
       setIsLoading(false);
     }
@@ -180,10 +182,10 @@ function DoctorAppointments() {
                             </button>
                             {apt.status !== 'COMPLETED' && apt.status !== 'CANCELLED' && (
                               <button
-                                onClick={() => handleOpenPrescription(apt)}
+                                onClick={() => handleOpenRecord(apt)}
                                 style={{ ...styles.viewButton, background: '#0066CC', color: 'white', border: 'none' }}
                               >
-                                Prescribe
+                                Precribe Record
                               </button>
                             )}
                           </div>
@@ -239,48 +241,57 @@ function DoctorAppointments() {
             </div>
           </section>
 
-          {/* Prescription Modal */}
-          {showPrescriptionModal && (
+          {/* Medical Record Modal */}
+          {showRecordModal && (
             <div style={{
               position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
               backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
             }}>
-              <div style={{ background: 'white', padding: '32px', borderRadius: '12px', width: '500px', maxWidth: '90%' }}>
-                <h2 style={{ marginBottom: '24px' }}>Add Prescription</h2>
+              <div style={{ background: 'white', padding: '32px', borderRadius: '12px', width: '500px', maxWidth: '90%', maxHeight: '90vh', overflowY: 'auto' }}>
+                <h2 style={{ marginBottom: '24px' }}>Add Medical Record</h2>
                 <div style={{ marginBottom: '16px' }}>
                   <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>Diagnosis</label>
                   <input
                     type="text"
-                    value={prescriptionForm.diagnosis}
-                    onChange={(e) => setPrescriptionForm({ ...prescriptionForm, diagnosis: e.target.value })}
+                    value={recordForm.diagnosis}
+                    onChange={(e) => setRecordForm({ ...recordForm, diagnosis: e.target.value })}
                     style={styles.searchInput}
                   />
                 </div>
                 <div style={{ marginBottom: '16px' }}>
-                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>Consultation Notes</label>
+                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>Clinical Notes</label>
                   <textarea
-                    value={prescriptionForm.notes}
-                    onChange={(e) => setPrescriptionForm({ ...prescriptionForm, notes: e.target.value })}
+                    value={recordForm.notes}
+                    onChange={(e) => setRecordForm({ ...recordForm, notes: e.target.value })}
                     style={{ ...styles.searchInput, height: '100px', resize: 'none' }}
                   />
                 </div>
                 <div style={{ marginBottom: '16px' }}>
-                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>Medications</label>
+                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>Prescription</label>
                   <textarea
-                    value={prescriptionForm.medications}
-                    onChange={(e) => setPrescriptionForm({ ...prescriptionForm, medications: e.target.value })}
+                    value={recordForm.prescription}
+                    onChange={(e) => setRecordForm({ ...recordForm, prescription: e.target.value })}
                     style={{ ...styles.searchInput, height: '80px', resize: 'none' }}
                     placeholder="Amoxicillin 500mg - 3 times a day"
                   />
                 </div>
+                <div style={{ marginBottom: '24px' }}>
+                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>Follow-up Date (Optional)</label>
+                  <input
+                    type="date"
+                    value={recordForm.follow_up_date}
+                    onChange={(e) => setRecordForm({ ...recordForm, follow_up_date: e.target.value })}
+                    style={styles.searchInput}
+                  />
+                </div>
                 <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-                  <button onClick={() => setShowPrescriptionModal(false)} style={styles.viewButton}>Cancel</button>
+                  <button onClick={() => setShowRecordModal(false)} style={styles.viewButton}>Cancel</button>
                   <button
-                    onClick={handleAddPrescription}
+                    onClick={handleAddRecord}
                     disabled={isLoading}
                     style={{ ...styles.viewButton, background: '#0066CC', color: 'white', border: 'none' }}
                   >
-                    {isLoading ? 'Saving...' : 'Save Prescription'}
+                    {isLoading ? 'Saving...' : 'Save Record'}
                   </button>
                 </div>
               </div>

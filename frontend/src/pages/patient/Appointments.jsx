@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
-import { FiCalendar, FiClock, FiCreditCard, FiPlus, FiTrash2, FiSearch } from 'react-icons/fi';
+import { FiCalendar, FiPlus, FiSearch, FiInbox } from 'react-icons/fi';
+import { motion, AnimatePresence } from "framer-motion";
 import PatientSidebar from "../../components/PatientSidebar";
 import PatientHeader from "../../components/PatientHeader";
 import AppointmentCard from "../../components/AppointmentCard";
@@ -11,13 +12,15 @@ function Appointments() {
   const navigate = useNavigate();
   const [appointments, setAppointments] = useState([]);
   const [activeTab, setActiveTab] = useState('Upcoming');
-  const [gridCols, setGridCols] = useState(3);
+  const [loading, setLoading] = useState(true);
+
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
   useEffect(() => {
     const fetchAppointments = async () => {
       try {
         const token = localStorage.getItem('token');
-        const response = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/appointments`, {
+        const response = await axios.get(`${API_URL}/appointments`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         if (response.data.success) {
@@ -25,52 +28,34 @@ function Appointments() {
         }
       } catch (error) {
         console.error("Error fetching appointments:", error);
+      } finally {
+        setLoading(false);
       }
     };
     fetchAppointments();
-
-    const handleResize = () => {
-      if (window.innerWidth < 768) {
-        setGridCols(1);
-      } else if (window.innerWidth < 1024) {
-        setGridCols(2);
-      } else {
-        setGridCols(3);
-      }
-    };
-    handleResize();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  }, [API_URL]);
 
   const handleLogout = () => {
     localStorage.clear();
     navigate("/");
   };
 
-  const handleBookNew = () => {
-    navigate("/patient/find-doctor");
-  };
-
   const handleCancelAppointment = async (id) => {
-    if (window.confirm("Are you sure you want to cancel this appointment?")) {
-      const toastId = toast.loading("Cancelling appointment...");
-      try {
-        const token = localStorage.getItem('token');
-        await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/appointments/${id}/status`,
-          { status: 'CANCELLED' },
-          { headers: { Authorization: `Bearer ${token}` } });
+    const toastId = toast.loading("Processing cancellation...");
+    try {
+      const token = localStorage.getItem('token');
+      await axios.put(`${API_URL}/appointments/${id}/status`,
+        { status: 'CANCELLED' },
+        { headers: { Authorization: `Bearer ${token}` } });
 
-        setAppointments(prev => prev.map(a => a.appointment_id === id ? { ...a, status: 'CANCELLED' } : a));
-        toast.success("Appointment cancelled successfully", { id: toastId });
-      } catch (error) {
-        toast.error("Failed to cancel appointment", { id: toastId });
-      }
+      setAppointments(prev => prev.map(a => a.appointment_id === id ? { ...a, status: 'CANCELLED' } : a));
+      toast.success("Appointment cancelled", { id: toastId });
+    } catch (error) {
+      toast.error("Cancellation failed", { id: toastId });
     }
   };
 
-  const today = new Date();
-  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  const todayStr = new Date().toISOString().split('T')[0];
 
   const getFilteredAppointments = () => {
     switch (activeTab) {
@@ -87,25 +72,45 @@ function Appointments() {
 
   const filteredAppointments = getFilteredAppointments();
 
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: { opacity: 1, transition: { staggerChildren: 0.1 } }
+  };
+
+  const cardVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { opacity: 1, y: 0 }
+  };
+
   return (
     <div style={styles.container}>
       <PatientSidebar onLogout={handleLogout} />
 
-      <div className="main-wrapper">
+      <div className="main-wrapper" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
         <PatientHeader />
 
-        <main className="content-padding">
-          {/* Tab Bar and Action Header */}
-          <div style={styles.tabHeader}>
-            <div style={styles.tabBar}>
+        <main style={styles.mainContent}>
+          <div style={styles.contentWrapper}>
+          <motion.div 
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            style={styles.headerSection}
+          >
+            <h1 style={styles.welcomeTitle}>My Appointments</h1>
+            <p style={styles.welcomeSubtitle}>Manage your upcoming and past medical visits.</p>
+          </motion.div>
+
+          <div style={styles.headerRow}>
+            <div style={styles.tabPill}>
               {['Upcoming', 'Completed', 'Cancelled'].map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
                   style={{
-                    ...styles.tabBtn,
-                    backgroundColor: activeTab === tab ? '#3B82F6' : 'transparent',
-                    color: activeTab === tab ? 'white' : '#6B7280',
+                    ...styles.pillBtn,
+                    backgroundColor: activeTab === tab ? 'white' : 'transparent',
+                    color: activeTab === tab ? '#2563eb' : '#64748b',
+                    boxShadow: activeTab === tab ? '0 4px 12px rgba(0, 0, 0, 0.05)' : 'none',
                   }}
                 >
                   {tab}
@@ -113,44 +118,58 @@ function Appointments() {
               ))}
             </div>
             
-            <div style={styles.bookSection}>
-                <span style={styles.bookLabel}>Book Appointment</span>
-                <button onClick={handleBookNew} style={styles.bookBtn}>
-                  <FiPlus size={20} />
-                  <span>Book Now</span>
-                </button>
-            </div>
+            <button onClick={() => navigate("/patient/find-doctor")} style={styles.bookActionBtn}>
+              <FiPlus />
+              New Appointment
+            </button>
           </div>
 
-          {/* Appointments Grid */}
-          <section style={styles.section}>
-            {filteredAppointments.length > 0 ? (
-              <div style={{
-                ...styles.appointmentGrid,
-                gridTemplateColumns: `repeat(${gridCols}, 1fr)`
-              }}>
-                {filteredAppointments.map((apt) => (
-                  <AppointmentCard 
-                    key={apt.appointment_id} 
-                    appt={apt} 
-                    variant="grid"
-                    onCancel={handleCancelAppointment}
-                    onReschedule={(appt) => toast.error("Reschedule feature coming soon!")}
-                    onViewDetails={(appt) => toast.success(`Viewing details for ${appt.appointment_id}`)}
-                  />
-                ))}
-              </div>
-            ) : (
-              <div style={styles.emptyState}>
-                <FiCalendar size={64} style={styles.emptyIcon} />
-                <p style={styles.emptyText}>No {activeTab.toLowerCase()} appointments found</p>
-                <button onClick={handleBookNew} style={styles.emptyButton}>
-                  <FiPlus style={{ marginRight: '8px' }} />
-                  Book New Appointment
-                </button>
-              </div>
-            )}
-          </section>
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeTab}
+              variants={containerVariants}
+              initial="hidden"
+              animate="visible"
+              style={styles.gridContainer}
+            >
+              {loading ? (
+                <div style={styles.loadingBox}>
+                     <div style={styles.spinner} />
+                     <p>Retrieving your medical schedule...</p>
+                </div>
+              ) : filteredAppointments.length > 0 ? (
+                <div style={styles.appointmentGrid}>
+                  {filteredAppointments.map((apt) => (
+                    <motion.div key={apt.appointment_id} variants={cardVariants}>
+                        <AppointmentCard 
+                            appt={apt} 
+                            variant="grid"
+                            onCancel={handleCancelAppointment}
+                            onReschedule={() => navigate('/patient/find-doctor')}
+                            onViewDetails={(a) => {
+                                if (a.status === 'COMPLETED') {
+                                    navigate('/patient/medical-history');
+                                } else if (a.payment_status !== 'PAID') {
+                                    navigate('/patient/payments');
+                                }
+                            }}
+                        />
+                    </motion.div>
+                  ))}
+                </div>
+              ) : (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={styles.emptyState}>
+                  <div style={styles.emptyIconBox}><FiInbox /></div>
+                  <h3 style={styles.emptyTitle}>No {activeTab.toLowerCase()} records</h3>
+                  <p style={styles.emptyText}>You don't have any appointments in this category right now.</p>
+                  <button onClick={() => navigate("/patient/find-doctor")} style={styles.emptyActionBtn}>
+                    Book Your First Appointment
+                  </button>
+                </motion.div>
+              )}
+            </motion.div>
+          </AnimatePresence>
+          </div>
         </main>
       </div>
     </div>
@@ -161,108 +180,151 @@ const styles = {
   container: {
     display: 'flex',
     minHeight: '100vh',
-    backgroundColor: 'var(--slate-50)',
+    backgroundColor: '#f8fafc',
     fontFamily: "'Inter', sans-serif"
   },
-  mainWrapper: {
-    // Handled by .main-wrapper
-  },
   mainContent: {
-    // Handled by .content-padding
+    padding: "40px 32px",
+    display: "flex",
+    flexDirection: "column",
+    gap: "32px",
+    maxWidth: "1600px",
+    margin: "0 auto",
+    width: "100%"
   },
-  tabHeader: {
+  headerSection: {
+    marginBottom: "4px",
+  },
+  welcomeTitle: {
+    fontSize: "32px",
+    fontWeight: "800",
+    color: "#0f172a",
+    margin: "0 0 8px 0",
+    letterSpacing: "-1px",
+  },
+  welcomeSubtitle: {
+    fontSize: "16px",
+    color: "#64748b",
+    margin: 0,
+    fontWeight: "500"
+  },
+  contentWrapper: {
+    maxWidth: "1200px",
+    width: "100%",
+    margin: "0 auto",
+    display: "flex",
+    flexDirection: "column",
+    gap: "32px"
+  },
+  headerRow: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: '40px',
-    backgroundColor: 'white',
-    padding: '16px 24px',
-    borderRadius: 'var(--radius-2xl)',
-    boxShadow: 'var(--shadow-soft)',
-    border: '1px solid var(--slate-100)',
-    flexWrap: 'wrap',
-    gap: '20px',
+    flexWrap: 'wrap'
   },
-  tabBar: {
+  tabPill: {
     display: 'flex',
-    gap: '8px',
-    backgroundColor: '#F3F4F6',
+    gap: '4px',
+    backgroundColor: '#f1f5f9',
     padding: '6px',
-    borderRadius: '14px',
+    borderRadius: '16px',
+    border: '1px solid #e2e8f0'
   },
-  tabBtn: {
+  pillBtn: {
     padding: '10px 24px',
-    borderRadius: '10px',
-    fontSize: 'var(--text-sm)',
+    borderRadius: '12px',
+    fontSize: '14px',
     fontWeight: '700',
     border: 'none',
     cursor: 'pointer',
     transition: 'all 0.3s ease',
   },
-  bookSection: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '20px',
-  },
-  bookLabel: {
-    fontSize: 'var(--text-sm)',
-    fontWeight: '700',
-    color: 'var(--slate-900)',
-  },
-  bookBtn: {
-    padding: '12px 28px',
-    borderRadius: '12px',
-    backgroundColor: 'var(--primary-blue)',
+  bookActionBtn: {
+    padding: '12px 24px',
+    borderRadius: '14px',
+    backgroundColor: '#2563eb',
     color: 'white',
     border: 'none',
-    fontSize: 'var(--text-sm)',
+    fontSize: '14px',
     fontWeight: '700',
     cursor: 'pointer',
     display: 'flex',
     alignItems: 'center',
-    gap: '8px',
-    boxShadow: '0 4px 12px rgba(37, 99, 235, 0.3)',
+    gap: '10px',
+    boxShadow: '0 10px 15px -3px rgba(37, 99, 235, 0.2)',
     transition: 'all 0.2s ease',
+  },
+  gridContainer: {
+    minHeight: '400px'
   },
   appointmentGrid: {
     display: 'grid',
-    gap: '24px',
-  },
-  section: {
-    marginBottom: '32px'
+    gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+    gap: '28px',
   },
   emptyState: {
-    background: 'white',
-    padding: '60px 40px',
-    borderRadius: '16px',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '100px 40px',
     textAlign: 'center',
-    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
-    border: '2px dashed rgba(0, 102, 204, 0.2)'
+    backgroundColor: 'white',
+    borderRadius: '32px',
+    border: '1px solid #f1f5f9'
   },
-  emptyIcon: {
-    color: '#9ca3af',
-    marginBottom: '16px',
-    opacity: 0.5
+  emptyIconBox: {
+    width: '80px',
+    height: '80px',
+    borderRadius: '24px',
+    backgroundColor: '#f8fafc',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: '32px',
+    color: '#cbd5e1',
+    marginBottom: '24px'
+  },
+  emptyTitle: {
+    fontSize: '20px',
+    fontWeight: '800',
+    color: '#0f172a',
+    margin: '0 0 8px 0'
   },
   emptyText: {
-    fontSize: '16px',
-    color: '#9ca3af',
-    marginBottom: '20px',
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
-  },
-  emptyButton: {
-    padding: '12px 24px',
     fontSize: '15px',
+    color: '#64748b',
+    marginBottom: '32px',
+    maxWidth: '300px'
+  },
+  emptyActionBtn: {
+    padding: '14px 28px',
+    fontSize: '14px',
     fontWeight: '700',
     color: 'white',
-    background: 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)',
+    background: '#2563eb',
     border: 'none',
-    borderRadius: '10px',
+    borderRadius: '14px',
     cursor: 'pointer',
-    boxShadow: '0 6px 20px rgba(59, 130, 246, 0.4)',
-    display: 'inline-flex',
+    boxShadow: '0 6px 20px rgba(37, 99, 235, 0.2)',
+  },
+  loadingBox: {
+    display: 'flex',
+    flexDirection: 'column',
     alignItems: 'center',
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    justifyContent: 'center',
+    padding: '100px',
+    color: '#64748b',
+    gap: '16px'
+  },
+  spinner: {
+    width: '40px',
+    height: '40px',
+    border: '4px solid #e2e8f0',
+    borderTop: '4px solid #2563eb',
+    borderRadius: '50%',
+    animation: 'spin 1s linear infinite'
   }
 };
 

@@ -1,16 +1,20 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import { FiCreditCard, FiAlertCircle, FiUser, FiCalendar, FiDollarSign } from "react-icons/fi";
+import { FiCreditCard, FiAlertCircle, FiUser, FiCalendar, FiSearch, FiCheckCircle } from "react-icons/fi";
+import { motion, AnimatePresence } from "framer-motion";
 import ReceptionistSidebar from "../../components/ReceptionistSidebar";
 import ReceptionistHeader from "../../components/ReceptionistHeader";
 
 function PaymentManagement() {
     const navigate = useNavigate();
 
-    const [pendingPayments, setPendingPayments] = useState([]);
+    const [appointments, setAppointments] = useState([]);
     const [receptionistName, setReceptionistName] = useState("Receptionist");
     const [isLoading, setIsLoading] = useState(true);
+    const [searchQuery, setSearchQuery] = useState("");
+
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
     useEffect(() => {
         const fetchData = async () => {
@@ -18,28 +22,21 @@ function PaymentManagement() {
             try {
                 const token = localStorage.getItem("token");
                 const headers = { Authorization: `Bearer ${token}` };
-                const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
                 // Fetch Profile
-                const profileRes = await axios.get(`${apiUrl}/auth/profile`, { headers });
+                const profileRes = await axios.get(`${API_URL}/auth/profile`, { headers });
                 if (profileRes.data.success) {
                     setReceptionistName(profileRes.data.data.profile.full_name);
                 }
 
-                // Fetch Unpaid Appointments
-                const paymentsRes = await axios.get(`${apiUrl}/appointments?payment_status=UNPAID`, { headers });
-                if (paymentsRes.data.success) {
-                    // Map API data to component structure
-                    const mapped = paymentsRes.data.data.map(apt => ({
-                        id: apt.appointment_id,
-                        patientName: apt.patient?.full_name || 'N/A',
-                        patientId: `PHE-${apt.patient_id}`,
-                        dateOfService: apt.appointment_date,
-                        service: apt.doctor?.specialization || 'Consultation',
-                        amount: (apt.doctor?.doctor_fee || 0) + (apt.doctor?.center_fee || 0),
-                        status: (apt.payment_status || "").toLowerCase()
-                    }));
-                    setPendingPayments(mapped);
+                // Fetch Appointments
+                const aptRes = await axios.get(`${API_URL}/appointments`, { headers });
+                if (aptRes.data.success) {
+                    // Filter: Unpaid + non-Cancelled, sorted by date ascending
+                    const filtered = aptRes.data.data
+                        .filter(apt => apt.payment_status === 'UNPAID' && apt.status !== 'CANCELLED')
+                        .sort((a, b) => new Date(a.appointment_date) - new Date(b.appointment_date));
+                    setAppointments(filtered);
                 }
             } catch (error) {
                 console.error("Error fetching payment data:", error);
@@ -51,138 +48,189 @@ function PaymentManagement() {
         fetchData();
     }, []);
 
+    const filteredAppointments = useMemo(() => {
+        return appointments.filter(apt => {
+            const search = searchQuery.toLowerCase();
+            const name = (apt.patient?.full_name || "").toLowerCase();
+            const id = (apt.appointment_id || "").toString().toLowerCase();
+            return name.includes(search) || id.includes(search);
+        });
+    }, [appointments, searchQuery]);
+
+    const stats = useMemo(() => {
+        const pendingCount = appointments.length;
+        const totalAmount = appointments.reduce((sum, apt) => 
+            sum + (Number(apt.doctor?.doctor_fee || 0) + Number(apt.doctor?.center_fee || 0)), 0);
+        return { pendingCount, totalAmount };
+    }, [appointments]);
+
+    const handleProcessPayment = (appointment) => {
+        navigate("/receptionist/payment/confirm", { 
+            state: { appointment } 
+        });
+    };
+
     const handleLogout = () => {
         localStorage.clear();
         navigate("/");
     };
 
-    const handlePay = (payment) => {
-        navigate("/receptionist/payment/confirm", {
-            state: {
-                appointment: {
-                    patientName: payment.patientName,
-                    patientId: payment.patientId,
-                    dateOfService: payment.dateOfService,
-                    service: payment.service,
-                    amount: payment.amount
-                }
-            }
-        });
-    };
 
     return (
         <div style={styles.container}>
-            {/* Sidebar */}
             <ReceptionistSidebar onLogout={handleLogout} />
 
-            {/* Main Content */}
             <div className="main-wrapper">
-                {/* Header */}
                 <ReceptionistHeader receptionistName={receptionistName} />
 
-                {/* Page Content */}
                 <main className="content-padding">
-                    <div style={styles.contentContainer}>
-                        {/* Page Header */}
-                        <div style={styles.pageHeader}>
+                    {/* Header */}
+                    <header style={styles.headerSection}>
+                        <div style={styles.headerTitleSection}>
+                            <h1 style={styles.welcomeTitle}>Payment Processing</h1>
+                            <p style={styles.welcomeSubtitle}>Manage and process pending consultation fees securely.</p>
+                        </div>
+                    </header>
+
+                    {/* Summary Cards Row */}
+                    <div style={styles.statsGrid}>
+                        <motion.div 
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            style={{ ...styles.statsCard, backgroundColor: "#fef2f2", border: "1px solid #fee2e2" }}
+                            whileHover={{ y: -5, boxShadow: "0 10px 20px -5px rgba(220, 38, 38, 0.1)" }}
+                        >
+                            <div style={styles.statsInfo}>
+                                <p style={{ ...styles.statsLabel, color: "#dc2626" }}>Pending Payments</p>
+                                <h3 style={{ ...styles.statsValue, color: "#7f1d1d" }}>{stats.pendingCount}</h3>
+                            </div>
+                            <div style={{ ...styles.statsIconBox, backgroundColor: "#fee2e2", color: "#dc2626" }}>
+                                <FiAlertCircle />
+                            </div>
+                        </motion.div>
+
+                        <motion.div 
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.1 }}
+                            style={{ ...styles.statsCard, backgroundColor: "#eff6ff", border: "1px solid #dbeafe" }}
+                            whileHover={{ y: -5, boxShadow: "0 10px 20px -5px rgba(37, 99, 235, 0.1)" }}
+                        >
+                            <div style={styles.statsInfo}>
+                                <p style={{ ...styles.statsLabel, color: "#2563eb" }}>Outstanding Amount</p>
+                                <h3 style={{ ...styles.statsValue, color: "#1e3a8a" }}>LKR {stats.totalAmount.toLocaleString()}</h3>
+                            </div>
+                            <div style={{ ...styles.statsIconBox, backgroundColor: "#dbeafe", color: "#2563eb" }}>
+                                <FiCreditCard />
+                            </div>
+                        </motion.div>
+                    </div>
+
+                    {/* Table Section */}
+                    <section style={styles.tableCard}>
+                        <div style={styles.tableHeaderSection}>
                             <div>
-                                <h1 style={styles.pageTitle}>Payment Management</h1>
-                                <p style={styles.pageSubtitle}>
-                                    Process payments for pending patient appointments.
-                                </p>
+                                <h2 style={styles.tableTitle}>Unpaid Appointments List</h2>
+                            </div>
+                            <div style={styles.searchBox}>
+                                <FiSearch style={styles.searchIcon} />
+                                <input 
+                                    type="text" 
+                                    placeholder="Search by patient or ID..." 
+                                    style={styles.searchInput}
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    onFocus={(e) => e.target.parentElement.style.borderColor = "#3b82f6"}
+                                    onBlur={(e) => e.target.parentElement.style.borderColor = "#e2e8f0"}
+                                />
                             </div>
                         </div>
 
-                        {/* Pending Payments Section */}
-                        <div style={styles.tableSection}>
-                            <div style={styles.sectionHeader}>
-                                <h2 style={styles.sectionTitle}>
-                                    <FiCreditCard style={styles.sectionIcon} />
-                                    Pending Payments
-                                </h2>
-                                <span style={styles.badge}>{pendingPayments.length} Items</span>
-                            </div>
-
-                            <div style={styles.tableContainer}>
-                                <table style={styles.table}>
-                                    <thead>
-                                        <tr style={styles.tableHeaderRow}>
-                                            <th style={styles.tableHeader}>Patient Details</th>
-                                            <th style={styles.tableHeader}>Service & Date</th>
-                                            <th style={styles.tableHeader}>Amount Due</th>
-                                            <th style={styles.tableHeader}>Action</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
+                        <div style={styles.tableContainer}>
+                            <table style={styles.table}>
+                                <thead>
+                                    <tr style={styles.tableHeaderRow}>
+                                        <th style={styles.tableHeader}>Appt ID</th>
+                                        <th style={styles.tableHeader}>Patient</th>
+                                        <th style={styles.tableHeader}>Doctor</th>
+                                        <th style={styles.tableHeader}>Date</th>
+                                        <th style={styles.tableHeader}>Amount (LKR)</th>
+                                        <th style={styles.tableHeader}>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <AnimatePresence>
                                         {isLoading ? (
                                             <tr>
-                                                <td colSpan="4" style={styles.loadingCell}>Loading payments...</td>
+                                                <td colSpan="6" style={styles.tablePlaceholder}>Loading appointments...</td>
                                             </tr>
-                                        ) : pendingPayments.length > 0 ? (
-                                            pendingPayments.map((payment) => (
-                                                <tr key={payment.id} style={styles.tableRow}>
+                                        ) : filteredAppointments.length > 0 ? (
+                                            filteredAppointments.map((apt) => (
+                                                <motion.tr 
+                                                    key={apt.appointment_id}
+                                                    layout
+                                                    initial={{ opacity: 0 }}
+                                                    animate={{ opacity: 1 }}
+                                                    exit={{ opacity: 0, x: -20 }}
+                                                    style={styles.tableRow}
+                                                >
+                                                    <td style={styles.tableCell}>#{apt.appointment_id}</td>
                                                     <td style={styles.tableCell}>
-                                                        <div style={styles.patientInfo}>
-                                                            <div style={styles.avatar}>
-                                                                <FiUser size={18} />
-                                                            </div>
-                                                            <div>
-                                                                <p style={styles.patientName}>{payment.patientName}</p>
-                                                                <p style={styles.patientId}>{payment.patientId}</p>
-                                                            </div>
+                                                        <div style={styles.patientCell}>
+                                                            <FiUser style={styles.userIcon} />
+                                                            {apt.patient?.full_name || "Unknown"}
                                                         </div>
                                                     </td>
+                                                    <td style={styles.tableCell}>{apt.doctor?.full_name || "N/A"}</td>
                                                     <td style={styles.tableCell}>
-                                                        <div style={styles.serviceInfo}>
-                                                            <p style={styles.serviceText}>{payment.service}</p>
-                                                            <p style={styles.dateText}>
-                                                                <FiCalendar size={12} style={{ marginRight: '4px' }} />
-                                                                {payment.dateOfService}
-                                                            </p>
+                                                        <div style={styles.dateCell}>
+                                                            <FiCalendar style={styles.calIcon} />
+                                                            {apt.appointment_date}
                                                         </div>
                                                     </td>
-                                                    <td style={styles.tableCell}>
-                                                        <div style={styles.priceTag}>
-                                                            <span style={styles.currency}>LKR</span>
-                                                            <span style={styles.amountText}>{payment.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                                                        </div>
+                                                    <td style={{ ...styles.tableCell, fontWeight: "700" }}>
+                                                        {(Number(apt.doctor?.doctor_fee || 0) + Number(apt.doctor?.center_fee || 0)).toLocaleString()}
                                                     </td>
                                                     <td style={styles.tableCell}>
                                                         <button
-                                                            onClick={() => handlePay(payment)}
-                                                            style={styles.payButton}
+                                                            onClick={() => handleProcessPayment(apt)}
+                                                            style={styles.processBtn}
                                                         >
-                                                            Process Pay
+                                                            Process Payment
                                                         </button>
                                                     </td>
-                                                </tr>
+                                                </motion.tr>
                                             ))
                                         ) : (
                                             <tr>
-                                                <td colSpan="4" style={styles.noDataCell}>
+                                                <td colSpan="6" style={styles.emptyContainer}>
                                                     <div style={styles.emptyState}>
-                                                        <FiAlertCircle size={40} color="#9ca3af" />
-                                                        <p>No pending payments found</p>
+                                                        <FiCheckCircle size={48} color="#34d399" />
+                                                        <h3 style={styles.emptyTitle}>All caught up!</h3>
+                                                        <p style={styles.emptyText}>There are no unpaid appointments at the moment.</p>
                                                     </div>
                                                 </td>
                                             </tr>
                                         )}
-                                    </tbody>
-                                </table>
-                            </div>
+                                    </AnimatePresence>
+                                </tbody>
+                            </table>
                         </div>
-
-                        <div style={styles.footer}>
-                            <button
-                                onClick={() => navigate("/receptionist/dashboard")}
-                                style={styles.backButton}
-                            >
-                                Back to Dashboard
-                            </button>
-                        </div>
-                    </div>
+                    </section>
                 </main>
             </div>
+
+            <style>
+                {`
+                    @keyframes spin {
+                        from { transform: rotate(0deg); }
+                        to { transform: rotate(360deg); }
+                    }
+                    .animate-spin {
+                        animation: spin 1s linear infinite;
+                    }
+                `}
+            </style>
         </div>
     );
 }
@@ -191,203 +239,208 @@ const styles = {
     container: {
         display: "flex",
         minHeight: "100vh",
-        fontFamily: "'Inter', 'Segoe UI', sans-serif",
-        backgroundColor: "#f9fafb"
+        backgroundColor: "#f8fafc",
+        fontFamily: "'Inter', sans-serif"
     },
-    mainWrapper: {
-        // Handled by .main-wrapper
-    },
-    mainContent: {
-        // Handled by .content-padding
-    },
-    contentContainer: {
-        maxWidth: "1100px",
-        margin: "0 auto"
-    },
-    pageHeader: {
-        marginBottom: "32px"
-    },
-    pageTitle: {
-        fontSize: "32px",
-        fontWeight: "800",
-        color: "#1f2937",
-        margin: 0,
-        marginBottom: "8px",
-        letterSpacing: "-0.5px"
-    },
-    pageSubtitle: {
-        fontSize: "16px",
-        color: "#6b7280",
-        margin: 0
-    },
-    tableSection: {
-        backgroundColor: "white",
-        borderRadius: "16px",
-        padding: "32px",
-        boxShadow: "0 12px 30px rgba(0, 102, 204, 0.15)",
-        border: "2px solid #0066CC",
-        marginBottom: "32px"
-    },
-    sectionHeader: {
+    headerSection: {
         display: "flex",
         justifyContent: "space-between",
         alignItems: "center",
-        marginBottom: "24px"
+        marginBottom: "32px"
     },
-    sectionTitle: {
-        fontSize: "20px",
-        fontWeight: "700",
-        color: "#1f2937",
-        margin: 0,
+    headerTitleSection: {
         display: "flex",
-        alignItems: "center"
+        flexDirection: "column",
+        gap: "4px"
     },
-    sectionIcon: {
-        marginRight: '12px',
-        color: '#0066CC',
-        fontSize: '24px'
+    welcomeTitle: {
+        fontSize: "32px",
+        fontWeight: "800",
+        color: "#0f172a",
+        margin: "0 0 8px 0",
+        letterSpacing: "-1px",
     },
-    badge: {
-        background: '#e6f2ff',
-        color: '#0066CC',
-        padding: '6px 14px',
-        borderRadius: '20px',
-        fontSize: '13px',
-        fontWeight: '600'
+    welcomeSubtitle: {
+        fontSize: "16px",
+        color: "#64748b",
+        margin: 0,
+        fontWeight: "500"
+    },
+    statsGrid: {
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
+        gap: "24px",
+        marginBottom: "40px"
+    },
+    statsCard: {
+        borderRadius: "24px",
+        padding: "24px",
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        boxShadow: "0 1px 3px rgba(0,0,0,0.02)",
+        transition: "all 0.3s ease"
+    },
+    statsInfo: {
+        display: "flex",
+        flexDirection: "column",
+        gap: "4px"
+    },
+    statsLabel: {
+        fontSize: "13px",
+        fontWeight: "600",
+        margin: 0,
+        textTransform: "uppercase",
+        letterSpacing: "0.025em"
+    },
+    statsValue: {
+        fontSize: "32px",
+        fontWeight: "800",
+        margin: 0
+    },
+    statsIconBox: {
+        width: "56px",
+        height: "56px",
+        borderRadius: "16px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontSize: "24px"
+    },
+    tableCard: {
+        backgroundColor: "white",
+        borderRadius: "24px",
+        padding: "0",
+        border: "2px solid #3b82f6",
+        boxShadow: "0 4px 20px rgba(0, 0, 0, 0.03)",
+        overflow: "hidden"
+    },
+    tableHeaderSection: {
+        padding: "24px",
+        borderBottom: "1px solid #f1f5f9",
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        flexWrap: "wrap",
+        gap: "16px"
+    },
+    tableTitle: {
+        fontSize: "18px",
+        fontWeight: "700",
+        color: "#0f172a",
+        margin: 0
+    },
+    searchBox: {
+        position: "relative",
+        width: "288px",
+        borderRadius: "12px",
+        border: "2px solid #e2e8f0",
+        backgroundColor: "#f8fafc",
+        transition: "all 0.2s",
+        overflow: "hidden"
+    },
+    searchIcon: {
+        position: "absolute",
+        left: "12px",
+        top: "50%",
+        transform: "translateY(-50%)",
+        color: "#94a3b8",
+        zIndex: 1
+    },
+    searchInput: {
+        width: "100%",
+        padding: "10px 12px 10px 40px",
+        border: "none",
+        backgroundColor: "transparent",
+        fontSize: "14px",
+        outline: "none",
+        color: "#1e293b"
     },
     tableContainer: {
-        overflow: "hidden",
-        border: "1px solid #e5e7eb",
-        borderRadius: "12px"
+        overflowX: "auto"
     },
     table: {
         width: "100%",
         borderCollapse: "collapse"
     },
     tableHeaderRow: {
-        backgroundColor: "#f9fafb",
-        borderBottom: "1px solid #e5e7eb"
+        backgroundColor: "#f8fafc"
     },
     tableHeader: {
         textAlign: "left",
-        padding: "18px 20px",
+        padding: "14px 20px",
         fontSize: "13px",
-        fontWeight: "700",
-        color: "#4b5563",
+        fontWeight: "600",
+        color: "#64748b",
         textTransform: "uppercase",
-        letterSpacing: "1px"
+        letterSpacing: "0.5px"
     },
     tableRow: {
-        borderBottom: "1px solid #f3f4f6",
-        transition: "all 0.2s"
+        borderBottom: "1px solid #f1f5f9",
+        transition: "background-color 0.2s"
     },
     tableCell: {
-        padding: "20px",
+        padding: "18px 20px",
+        fontSize: "14px",
+        color: "#334155"
+    },
+    patientCell: {
+        display: "flex",
+        alignItems: "center",
+        gap: "8px"
+    },
+    userIcon: {
+        color: "#94a3b8"
+    },
+    dateCell: {
+        display: "flex",
+        alignItems: "center",
+        gap: "6px",
+        color: "#64748b"
+    },
+    calIcon: {
         fontSize: "14px"
     },
-    patientInfo: {
-        display: "flex",
-        alignItems: "center",
-        gap: "12px"
-    },
-    avatar: {
-        width: "36px",
-        height: "36px",
-        borderRadius: "10px",
-        backgroundColor: "#0066CC",
+    processBtn: {
+        background: "linear-gradient(135deg, #10b981 0%, #059669 100%)",
         color: "white",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center"
-    },
-    patientName: {
-        fontSize: "15px",
-        fontWeight: "700",
-        color: "#111827",
-        margin: 0
-    },
-    patientId: {
-        fontSize: "12px",
-        fontWeight: "600",
-        color: "#0066CC",
-        margin: 0,
-        marginTop: "2px"
-    },
-    serviceInfo: {
-        display: "flex",
-        flexDirection: "column",
-        gap: "4px"
-    },
-    serviceText: {
-        margin: 0,
-        fontWeight: "600",
-        color: "#374151"
-    },
-    dateText: {
-        margin: 0,
-        fontSize: "13px",
-        color: "#6b7280",
-        display: "flex",
-        alignItems: "center"
-    },
-    priceTag: {
-        display: "flex",
-        alignItems: "baseline",
-        gap: "4px"
-    },
-    currency: {
-        fontSize: "12px",
-        fontWeight: "700",
-        color: "#6b7280"
-    },
-    amountText: {
-        fontSize: "18px",
-        fontWeight: "800",
-        color: "#111827"
-    },
-    payButton: {
-        padding: "10px 24px",
+        border: "none",
+        borderRadius: "12px",
+        padding: "10px 20px",
         fontSize: "14px",
         fontWeight: "700",
-        color: "white",
-        background: "linear-gradient(135deg, #0066CC 0%, #0052A3 100%)",
-        border: "none",
-        borderRadius: "10px",
-        cursor: "pointer",
-        transition: "all 0.2s",
-        boxShadow: "0 4px 12px rgba(0, 102, 204, 0.3)"
+        display: "flex",
+        alignItems: "center",
+        gap: "8px",
+        boxShadow: "0 10px 15px -3px rgba(16, 185, 129, 0.25)",
+        transition: "all 0.3s ease",
+        cursor: "pointer"
     },
-    loadingCell: {
+    tablePlaceholder: {
         padding: "40px",
         textAlign: "center",
-        color: "#6b7280",
-        fontStyle: "italic"
+        color: "#94a3b8"
     },
-    noDataCell: {
-        padding: "60px 20px",
-        textAlign: "center"
+    emptyContainer: {
+        padding: "80px 20px"
     },
     emptyState: {
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        gap: "16px",
-        color: "#6b7280"
+        gap: "12px",
+        textAlign: "center"
     },
-    footer: {
-        display: "flex",
-        justifyContent: "flex-end"
-    },
-    backButton: {
-        padding: "12px 24px",
-        border: "none",
-        borderRadius: "10px",
-        background: "#0066CC",
-        color: "white",
+    emptyTitle: {
+        fontSize: "20px",
         fontWeight: "700",
-        cursor: "pointer",
-        transition: "all 0.2s",
-        boxShadow: "0 4px 12px rgba(0, 102, 204, 0.2)"
+        color: "#0f172a",
+        margin: "8px 0 0 0"
+    },
+    emptyText: {
+        fontSize: "15px",
+        color: "#64748b",
+        margin: 0
     }
 };
 

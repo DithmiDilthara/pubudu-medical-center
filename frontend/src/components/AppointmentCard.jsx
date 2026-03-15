@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { FiCalendar, FiClock, FiMapPin, FiMoreVertical } from 'react-icons/fi';
+import { FiCalendar, FiClock, FiMapPin, FiMoreVertical, FiChevronRight, FiUser } from 'react-icons/fi';
+import { motion, AnimatePresence } from 'framer-motion';
 import doctor_m1 from '../assets/doctor_m1.png';
 
 const AppointmentCard = ({ 
@@ -9,32 +10,29 @@ const AppointmentCard = ({
   onReschedule, 
   onViewDetails 
 }) => {
-  const [isHovered, setIsHovered] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
 
-  const getStatusColor = (status) => {
+  const getStatusStyle = (status) => {
     switch (status?.toUpperCase()) {
-      case 'CONFIRMED': return { bg: '#D1FAE5', text: '#10B981' };
-      case 'PENDING': return { bg: '#FEF3C7', text: '#F59E0B' };
-      case 'RESCHEDULED': return { bg: '#FFEDD5', text: '#F97316' };
-      case 'CANCELLED': return { bg: '#FEE2E2', text: '#EF4444' };
-      case 'COMPLETED': return { bg: '#DBEAFE', text: '#3B82F6' };
-      default: return { bg: '#F3F4F6', text: '#6B7280' };
+      case 'CONFIRMED': return { bg: '#f0fdf4', text: '#10b981', border: '#dcfce7' };
+      case 'PENDING': return { bg: '#fffbeb', text: '#f59e0b', border: '#fef3c7' };
+      case 'RESCHEDULED': return { bg: '#fff7ed', text: '#f97316', border: '#ffedd5' };
+      case 'CANCELLED': return { bg: '#fff1f2', text: '#e11d48', border: '#ffe4e6' };
+      case 'COMPLETED': return { bg: '#eff6ff', text: '#2563eb', border: '#dbeafe' };
+      default: return { bg: '#f8fafc', text: '#64748b', border: '#f1f5f9' };
     }
   };
 
-  const statusStyle = getStatusColor(appt.status);
+  const status = getStatusStyle(appt.status);
   const isUpcoming = ['PENDING', 'CONFIRMED', 'RESCHEDULED'].includes(appt.status?.toUpperCase());
 
   return (
-    <div 
+    <motion.div 
+      whileHover={{ y: -6, transition: { duration: 0.2 } }}
       style={{
         ...styles.card,
-        transform: isHovered ? 'translateY(-5px)' : 'translateY(0)',
-        boxShadow: isHovered ? '0 12px 20px rgba(0,0,0,0.05)' : '0 4px 6px rgba(0,0,0,0.02)',
-        borderTopColor: isHovered ? '#3B82F6' : 'transparent',
+        borderTop: variant === 'grid' ? `4px solid ${status.text}` : '1px solid #f1f5f9'
       }}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
     >
       <div style={styles.cardHeader}>
         <div style={styles.avatarWrapper}>
@@ -43,201 +41,270 @@ const AppointmentCard = ({
             alt={appt.doctor?.full_name} 
             style={styles.avatar}
           />
+          <div style={{...styles.statusPing, backgroundColor: status.text}} />
         </div>
         <div style={styles.doctorInfo}>
-          <h4 style={styles.doctorName}>{appt.doctor?.full_name || 'Doctor Name'}</h4>
-          <p style={styles.specialty}>{appt.doctor?.specialization || 'Specialty'}</p>
+          <h4 style={styles.doctorName}>{appt.doctor?.full_name || 'Doctor'}</h4>
+          <p style={styles.specialty}>{appt.doctor?.specialization}</p>
         </div>
         
         {variant === 'carousel' ? (
-          <div style={{...styles.statusBadge, ...styles.badgeTopRight, backgroundColor: statusStyle.bg, color: statusStyle.text}}>
+          <div style={{...styles.statusBadge, backgroundColor: status.bg, color: status.text, border: `1px solid ${status.border}`}}>
             {appt.status}
           </div>
         ) : (
-          <div style={styles.menuWrapper}>
-            <FiMoreVertical style={styles.menuIcon} />
+          <div style={styles.menuContainer}>
+             <button onClick={() => setShowMenu(!showMenu)} style={styles.menuToggle}>
+                <FiMoreVertical />
+             </button>
+             <AnimatePresence>
+                {showMenu && (
+                    <motion.div 
+                        initial={{ opacity: 0, scale: 0.9, y: -10 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.9, y: -10 }}
+                        style={styles.dropdown}
+                    >
+                        <button onClick={() => { onViewDetails(appt); setShowMenu(false); }} style={styles.dropItem}>View Details</button>
+                        {isUpcoming && <button onClick={() => { onReschedule(appt); setShowMenu(false); }} style={styles.dropItem}>Reschedule</button>}
+                        {isUpcoming && <button onClick={() => { onCancel(appt.appointment_id); setShowMenu(false); }} style={{...styles.dropItem, color: '#e11d48'}}>Cancel</button>}
+                    </motion.div>
+                )}
+             </AnimatePresence>
           </div>
         )}
       </div>
 
       <div style={styles.detailsList}>
         <div style={styles.detailItem}>
-          <FiCalendar style={styles.detailIcon} />
-          <span style={styles.detailText}>{appt.appointment_date}</span>
+          <div style={styles.iconBox}><FiCalendar /></div>
+          <div>
+            <p style={styles.detLabel}>Date</p>
+            <p style={styles.detVal}>{appt.appointment_date}</p>
+          </div>
         </div>
         <div style={styles.detailItem}>
-          <FiClock style={styles.detailIcon} />
-          <span style={styles.detailText}>{appt.time_slot}</span>
-        </div>
-        <div style={styles.detailItem}>
-          <FiMapPin style={styles.detailIcon} />
-          <span style={styles.detailText}>{appt.branch || 'Main Branch'}</span>
+          <div style={styles.iconBox}><FiClock /></div>
+          <div>
+            <p style={styles.detLabel}>Time</p>
+            <p style={styles.detVal}>{appt.time_slot}</p>
+          </div>
         </div>
       </div>
 
       <div style={styles.cardFooter}>
         {variant === 'grid' && (
-          <div style={{...styles.statusBadge, ...styles.badgeBottomLeft, backgroundColor: statusStyle.bg, color: statusStyle.text}}>
+          <div style={{...styles.statusBadge, backgroundColor: status.bg, color: status.text, border: `1px solid ${status.border}`}}>
             {appt.status}
           </div>
         )}
         
-        <div style={styles.actionButtons}>
-          {isUpcoming ? (
-            <>
+        <div style={styles.actionGroup}>
+            {isUpcoming && (
+              <>
+                <button 
+                   onClick={() => onCancel && onCancel(appt.appointment_id)}
+                   style={{...styles.viewBtn, backgroundColor: '#fff1f2', color: '#e11d48'}}
+                >
+                    Cancel
+                </button>
+                {appt.payment_status !== 'PAID' && (
+                  <button 
+                     onClick={() => onViewDetails && onViewDetails(appt)}
+                     style={{...styles.viewBtn, padding: '8px 12px'}}
+                  >
+                      Pay Now
+                      <FiChevronRight style={{ marginLeft: '4px' }} />
+                  </button>
+                )}
+              </>
+            )}
+
+            {appt.status === 'COMPLETED' && (
               <button 
-                onClick={() => onReschedule && onReschedule(appt)}
-                style={{...styles.actionBtn, ...styles.rescheduleBtn}}
+                 onClick={() => onViewDetails && onViewDetails(appt)}
+                 style={{...styles.viewBtn, width: '100%', justifyContent: 'center'}}
               >
-                Reschedule
+                  Medical History
+                  <FiChevronRight style={{ marginLeft: '4px' }} />
               </button>
-              <button 
-                onClick={() => onCancel && onCancel(appt.appointment_id)}
-                style={{...styles.actionBtn, ...styles.cancelBtn}}
-              >
-                Cancel
-              </button>
-            </>
-          ) : (
-            <button 
-              onClick={() => onViewDetails && onViewDetails(appt)}
-              style={{...styles.actionBtn, ...styles.detailsBtn, gridColumn: 'span 2'}}
-            >
-              View Details
-            </button>
-          )}
+            )}
+            
+            {/* Cancelled appointments show no action buttons */}
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 };
 
 const styles = {
   card: {
     backgroundColor: 'white',
-    borderRadius: '20px',
-    padding: '24px',
-    border: '1px solid #E5E7EB',
+    borderRadius: '24px',
+    padding: '28px',
+    border: '1px solid #f1f5f9',
     position: 'relative',
     transition: 'all 0.3s ease',
-    cursor: 'pointer',
-    overflow: 'hidden',
-    borderTop: '4px solid transparent',
     display: 'flex',
     flexDirection: 'column',
     height: '100%',
+    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.02)'
   },
   cardHeader: {
     display: 'flex',
-    alignItems: 'flex-start',
-    gap: '12px',
-    marginBottom: '20px',
+    alignItems: 'center',
+    gap: '16px',
+    marginBottom: '24px',
     position: 'relative',
   },
   avatarWrapper: {
-    width: '48px',
-    height: '48px',
-    borderRadius: '50%',
-    overflow: 'hidden',
-    border: '2px solid #F3F4F6',
+    width: '52px',
+    height: '52px',
+    borderRadius: '16px',
+    position: 'relative',
     flexShrink: 0,
   },
   avatar: {
     width: '100%',
     height: '100%',
     objectFit: 'cover',
+    borderRadius: '16px',
+    backgroundColor: '#f8fafc'
+  },
+  statusPing: {
+    position: 'absolute',
+    bottom: '-2px',
+    right: '-2px',
+    width: '12px',
+    height: '12px',
+    borderRadius: '50%',
+    border: '3px solid white',
   },
   doctorInfo: {
     flex: 1,
   },
   doctorName: {
-    fontSize: 'var(--text-base)',
+    fontSize: '16px',
     fontWeight: '700',
-    color: 'var(--slate-900)',
+    color: '#0f172a',
     margin: 0,
   },
   specialty: {
-    fontSize: 'var(--text-sm)',
-    color: 'var(--primary-blue)',
+    fontSize: '13px',
+    color: '#2563eb',
     margin: '2px 0 0 0',
-    fontWeight: '500',
+    fontWeight: '600',
   },
   statusBadge: {
-    padding: '4px 10px',
+    padding: '4px 12px',
     borderRadius: '100px',
-    fontSize: 'var(--text-xs)',
+    fontSize: '11px',
     fontWeight: '800',
     textTransform: 'uppercase',
+    letterSpacing: '0.5px'
   },
-  badgeTopRight: {
+  menuContainer: {
+    position: 'relative'
+  },
+  menuToggle: {
+    padding: '8px',
+    borderRadius: '10px',
+    border: 'none',
+    background: '#f8fafc',
+    color: '#94a3b8',
+    cursor: 'pointer',
+    fontSize: '18px'
+  },
+  dropdown: {
     position: 'absolute',
-    top: '0',
-    right: '0',
+    top: '100%',
+    right: 0,
+    backgroundColor: 'white',
+    borderRadius: '14px',
+    boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1)',
+    border: '1px solid #f1f5f9',
+    zIndex: 10,
+    padding: '8px',
+    minWidth: '140px'
   },
-  badgeBottomLeft: {
-    marginRight: 'auto',
-  },
-  menuWrapper: {
-    padding: '4px',
-    color: '#9CA3AF',
-  },
-  menuIcon: {
-    fontSize: '18px',
+  dropItem: {
+    display: 'block',
+    width: '100%',
+    padding: '10px 12px',
+    textAlign: 'left',
+    border: 'none',
+    background: 'none',
+    fontSize: '13px',
+    fontWeight: '600',
+    color: '#1e293b',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    ':hover': {
+        backgroundColor: '#f8fafc'
+    }
   },
   detailsList: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '12px',
-    marginBottom: '24px',
+    gap: '16px',
+    marginBottom: '28px',
     flex: 1,
   },
   detailItem: {
     display: 'flex',
     alignItems: 'center',
-    gap: '10px',
-    color: '#6B7280',
+    gap: '12px',
   },
-  detailIcon: {
-    fontSize: '16px',
-    color: '#9CA3AF',
+  iconBox: {
+    width: '36px',
+    height: '36px',
+    borderRadius: '10px',
+    backgroundColor: '#f8fafc',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    color: '#94a3b8',
+    fontSize: '16px'
   },
-  detailText: {
-    fontSize: 'var(--text-sm)',
-    fontWeight: '500',
+  detLabel: {
+    fontSize: '11px',
+    fontWeight: '700',
+    color: '#94a3b8',
+    textTransform: 'uppercase',
+    margin: 0
+  },
+  detVal: {
+    fontSize: '14px',
+    fontWeight: '700',
+    color: '#1e293b',
+    margin: 0
   },
   cardFooter: {
     display: 'flex',
-    flexDirection: 'column',
-    gap: '16px',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: '20px',
+    borderTop: '1px solid #f8fafc',
+    minHeight: '44px'
   },
-  actionButtons: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap: '12px',
+  actionGroup: {
+    display: 'flex',
+    gap: '8px',
+    alignItems: 'center'
   },
-  actionBtn: {
-    padding: '10px',
-    borderRadius: '12px',
-    fontSize: 'var(--text-sm)',
-    fontWeight: '600',
-    cursor: 'pointer',
-    transition: 'all 0.2s ease',
+  viewBtn: {
+    padding: '8px 16px',
+    borderRadius: '10px',
+    backgroundColor: '#eff6ff',
+    color: '#2563eb',
     border: 'none',
-  },
-  rescheduleBtn: {
-    border: '1px solid #E5E7EB',
-    backgroundColor: '#F9FAFB',
-    color: '#4B5563',
-  },
-  cancelBtn: {
-    backgroundColor: '#F3F4F6',
-    color: '#EF4444',
-  },
-  detailsBtn: {
-    backgroundColor: '#3B82F6',
-    color: 'white',
-    boxShadow: '0 4px 12px rgba(59, 130, 246, 0.2)',
-  },
+    fontSize: '13px',
+    fontWeight: '700',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    transition: 'all 0.2s'
+  }
 };
 
 export default AppointmentCard;

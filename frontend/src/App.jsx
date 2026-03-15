@@ -13,7 +13,7 @@ import ConfirmBooking from './pages/patient/ConfirmBooking';
 import OnlinePayment from './pages/patient/OnlinePayment';
 import Appointments from './pages/patient/Appointments';
 import Payments from './pages/patient/Payments';
-import Prescriptions from './pages/patient/Prescriptions';
+import MedicalHistory from './pages/patient/MedicalHistory';
 import ChannelDoctor from './pages/patient/ChannelDoctor';
 import DoctorDashboard from './pages/doctor/DoctorDashboard';
 import DoctorAppointments from './pages/doctor/DoctorAppointments';
@@ -50,7 +50,7 @@ function App() {
           <Route path="/patient/payment" element={<OnlinePayment />} />
           <Route path="/patient/appointments" element={<Appointments />} />
           <Route path="/patient/payments" element={<Payments />} />
-          <Route path="/patient/prescriptions" element={<Prescriptions />} />
+          <Route path="/patient/medical-history" element={<MedicalHistory />} />
           <Route path="/patient/channel-doctor" element={<ChannelDoctor />} />
           <Route path="/doctor/dashboard" element={<DoctorDashboard />} />
           <Route path="/doctor/appointments" element={<DoctorAppointments />} />

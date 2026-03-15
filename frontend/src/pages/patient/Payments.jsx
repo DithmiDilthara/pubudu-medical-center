@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { FiCreditCard, FiClock, FiCheckCircle, FiFileText, FiTrendingUp, FiAlertCircle, FiDownload } from "react-icons/fi";
+import { FiCreditCard, FiClock, FiCheckCircle, FiFileText, FiTrendingUp, FiAlertCircle, FiDownload, FiArrowRight } from "react-icons/fi";
+import { motion, AnimatePresence } from "framer-motion";
 import PatientSidebar from "../../components/PatientSidebar";
 import PatientHeader from "../../components/PatientHeader";
 import axios from 'axios';
@@ -9,11 +10,13 @@ function Payments() {
   const [appointments, setAppointments] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+
   useEffect(() => {
     const fetchAppointments = async () => {
       try {
         const token = localStorage.getItem('token');
-        const response = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/appointments`, {
+        const response = await axios.get(`${API_URL}/appointments`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         if (response.data.success) {
@@ -21,13 +24,12 @@ function Payments() {
         }
       } catch (error) {
         console.error("Error fetching payment data:", error);
-        toast.error("Failed to load payment history");
       } finally {
         setIsLoading(false);
       }
     };
     fetchAppointments();
-  }, []);
+  }, [API_URL]);
 
   const handleLogout = () => {
     localStorage.clear();
@@ -49,133 +51,183 @@ function Payments() {
   const totalPaidAllTime = paidAppointments
     .reduce((sum, a) => sum + (Number(a.doctor?.doctor_fee || 0) + Number(a.doctor?.center_fee || 0)), 0);
 
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: { opacity: 1, transition: { staggerChildren: 0.1 } }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { opacity: 1, y: 0 }
+  };
+
   return (
     <div style={styles.container}>
       <PatientSidebar onLogout={handleLogout} />
 
-      <div className="main-wrapper">
+      <div className="main-wrapper" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
         <PatientHeader />
 
-        <main className="content-padding">
+        <main style={styles.mainContent}>
+          <div style={styles.contentWrapper}>
+          <motion.div 
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            style={styles.headerSection}
+          >
+            <h1 style={styles.welcomeTitle}>Billing & Invoices</h1>
+            <p style={styles.welcomeSubtitle}>View and track your medical payment history.</p>
+          </motion.div>
 
           {/* Summary Cards */}
-          <section style={styles.summarySection}>
-            <div style={styles.summaryCard}>
-              <div style={{ ...styles.iconCircle, backgroundColor: '#E6F2FF' }}>
-                <FiTrendingUp style={{ color: '#0066CC' }} />
+          <motion.section 
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+            style={styles.summarySection}
+          >
+            <motion.div variants={itemVariants} style={styles.summaryCard}>
+              <div style={{ ...styles.iconBox, backgroundColor: '#eff6ff', color: '#2563eb' }}>
+                <FiTrendingUp />
               </div>
-              <div>
+              <div style={styles.summaryInfo}>
                 <p style={styles.summaryLabel}>Total Spent ({currentYear})</p>
                 <h3 style={styles.summaryValue}>LKR {totalSpentYTD.toLocaleString()}</h3>
               </div>
-            </div>
+              <div style={styles.cardDecoration} />
+            </motion.div>
 
-            <div style={styles.summaryCard}>
-              <div style={{ ...styles.iconCircle, backgroundColor: '#FFF7ED' }}>
-                <FiAlertCircle style={{ color: '#F97316' }} />
+            <motion.div variants={itemVariants} style={styles.summaryCard}>
+              <div style={{ ...styles.iconBox, backgroundColor: '#fff7ed', color: '#f97316' }}>
+                <FiAlertCircle />
               </div>
-              <div>
-                <p style={styles.summaryLabel}>Pending Payments</p>
-                <h3 style={styles.summaryValue}>LKR {pendingAmount.toLocaleString()}</h3>
+              <div style={styles.summaryInfo}>
+                <p style={styles.summaryLabel}>Pending Dues</p>
+                <h3 style={{...styles.summaryValue, color: '#f97316'}}>LKR {pendingAmount.toLocaleString()}</h3>
               </div>
-            </div>
+            </motion.div>
 
-            <div style={styles.summaryCard}>
-              <div style={{ ...styles.iconCircle, backgroundColor: '#F0FDF4' }}>
-                <FiCheckCircle style={{ color: '#16A34A' }} />
+            <motion.div variants={itemVariants} style={styles.summaryCard}>
+              <div style={{ ...styles.iconBox, backgroundColor: '#f0fdf4', color: '#10b981' }}>
+                <FiCheckCircle />
               </div>
-              <div>
-                <p style={styles.summaryLabel}>Total Paid All Time</p>
+              <div style={styles.summaryInfo}>
+                <p style={styles.summaryLabel}>All-time Paid</p>
                 <h3 style={styles.summaryValue}>LKR {totalPaidAllTime.toLocaleString()}</h3>
               </div>
-            </div>
-          </section>
+            </motion.div>
+          </motion.section>
 
-          {/* Transaction History */}
-          <section style={styles.tableSection}>
-            <div style={styles.tableHeader}>
-              <h2 style={styles.tableTitle}>Transaction History</h2>
-            </div>
+          {/* History Header */}
+          <div style={styles.sectionHeader}>
+            <h2 style={styles.sectionTitle}>Transaction Records</h2>
+            <div style={styles.filterChip}>Recent activity first</div>
+          </div>
 
+          {/* Transaction List */}
+          <motion.section 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            style={styles.tableCard}
+          >
             <div style={styles.tableWrapper}>
-              <table style={styles.table}>
-                <thead>
-                  <tr style={styles.tableHeadRow}>
-                    <th style={styles.th}>Transaction</th>
-                    <th style={styles.th}>Date</th>
-                    <th style={styles.th}>Amount</th>
-                    <th style={styles.th}>Status</th>
-                    <th style={styles.th}>Receipt</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {appointments.length > 0 ? (
-                    appointments.map((apt) => {
-                      const total = Number(apt.doctor?.doctor_fee || 0) + Number(apt.doctor?.center_fee || 0);
-                      const isPaid = apt.payment_status === 'PAID';
-                      const isRefunded = apt.status === 'CANCELLED' && isPaid;
-
-                      let statusLabel = isPaid ? 'Paid' : 'Pending';
-                      let statusColor = isPaid ? '#10B981' : '#F59E0B';
-                      let statusBg = isPaid ? '#D1FAE5' : '#FEF3C7';
-
-                      if (isRefunded) {
-                        statusLabel = 'Refunded';
-                        statusColor = '#6B7280';
-                        statusBg = '#F3F4F6';
-                      }
-
-                      return (
-                        <tr key={apt.appointment_id} style={styles.tr}>
-                          <td style={styles.td}>
-                            <div style={styles.transactionInfo}>
-                              <span style={styles.txDesc}>Consultation - {apt.doctor?.full_name}</span>
-                              <span style={styles.txId}>ID: #{String(apt.appointment_id).slice(-8).toUpperCase()}</span>
-                            </div>
-                          </td>
-                          <td style={styles.td}>
-                            {new Date(apt.appointment_date).toLocaleDateString('en-US', {
-                                month: 'short',
-                                day: 'numeric',
-                                year: 'numeric'
-                            })}
-                          </td>
-                          <td style={styles.td}>
-                            <span style={styles.amount}>LKR {total.toLocaleString()}</span>
-                          </td>
-                          <td style={styles.td}>
-                            <span style={{ 
-                                ...styles.badge, 
-                                color: statusColor, 
-                                backgroundColor: statusBg 
-                            }}>
-                              {statusLabel}
-                            </span>
-                          </td>
-                          <td style={styles.td}>
-                            {isPaid && !isRefunded && (
-                              <button 
-                                onClick={() => toast.success("Downloading receipt...")}
-                                style={styles.receiptBtn}
-                              >
-                                <FiDownload />
-                              </button>
-                            )}
-                          </td>
+                {appointments.length > 0 ? (
+                    <table style={styles.table}>
+                        <thead>
+                        <tr style={styles.theadRow}>
+                            <th style={styles.th}>Transaction Details</th>
+                            <th style={styles.th}>Date</th>
+                            <th style={styles.th}>Amount</th>
+                            <th style={styles.th}>Status</th>
+                            <th style={styles.th}>Actions</th>
                         </tr>
-                      );
-                    })
-                  ) : (
-                    <tr>
-                      <td colSpan="5" style={styles.emptyTd}>
-                        {isLoading ? 'Loading transactions...' : 'No transactions found'}
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+                        </thead>
+                        <tbody>
+                        {appointments.map((apt) => {
+                            const total = Number(apt.doctor?.doctor_fee || 0) + Number(apt.doctor?.center_fee || 0);
+                            const isPaid = apt.payment_status === 'PAID';
+                            const isCancelled = apt.status === 'CANCELLED';
+
+                            let statusLabel = isPaid ? 'PAID' : 'PENDING';
+                            let statusColor = isPaid ? '#10b981' : '#f59e0b';
+                            let statusBg = isPaid ? '#f0fdf4' : '#fffbeb';
+
+                            if (isCancelled && isPaid) {
+                                statusLabel = 'REFUNDED';
+                                statusColor = '#64748b';
+                                statusBg = '#f8fafc';
+                            } else if (isCancelled) {
+                                statusLabel = 'VOID';
+                                statusColor = '#94a3b8';
+                                statusBg = '#f1f5f9';
+                            }
+
+                            return (
+                                <tr key={apt.appointment_id} style={styles.tr}>
+                                    <td style={styles.td}>
+                                        <div style={styles.txCell}>
+                                            <div style={styles.txIcon}><FiFileText /></div>
+                                            <div>
+                                                <p style={styles.txTitle}>Medical Consultation</p>
+                                                <p style={styles.txSub}>Dr. {apt.doctor?.full_name}</p>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td style={styles.td}>
+                                        <p style={styles.dateVal}>
+                                            {new Date(apt.appointment_date).toLocaleDateString('en-US', {
+                                                month: 'short', day: 'numeric', year: 'numeric'
+                                            })}
+                                        </p>
+                                    </td>
+                                    <td style={styles.td}>
+                                        <p style={styles.amountVal}>LKR {total.toLocaleString()}</p>
+                                    </td>
+                                    <td style={styles.td}>
+                                        <span style={{ 
+                                            ...styles.statusChip, 
+                                            color: statusColor, 
+                                            backgroundColor: statusBg,
+                                            border: `1px solid ${isPaid ? '#dcfce7' : '#fef3c7'}`
+                                        }}>
+                                            {statusLabel}
+                                        </span>
+                                    </td>
+                                    <td style={styles.td}>
+                                        <div style={styles.actionsCell}>
+                                            {isPaid && !isCancelled ? (
+                                                <button 
+                                                    onClick={() => toast.success("Opening Digital Receipt...")}
+                                                    style={styles.downloadBtn}
+                                                >
+                                                    <FiDownload />
+                                                </button>
+                                            ) : (
+                                                <span style={{ color: '#cbd5e1' }}>N/A</span>
+                                            )}
+                                        </div>
+                                    </td>
+                                </tr>
+                            );
+                        })}
+                        </tbody>
+                    </table>
+                ) : (
+                    <div style={styles.emptyContainer}>
+                        {isLoading ? (
+                            <div style={styles.fetching}>Verifying financial records...</div>
+                        ) : (
+                            <>
+                                <div style={styles.emptyIcon}><FiCreditCard /></div>
+                                <h4 style={styles.emptyHeading}>No payment history</h4>
+                                <p style={styles.emptyPara}>All your digital receipts and billing information will be stored here.</p>
+                            </>
+                        )}
+                    </div>
+                )}
             </div>
-          </section>
+          </motion.section>
+          </div>
         </main>
       </div>
     </div>
@@ -186,82 +238,123 @@ const styles = {
   container: {
     display: 'flex',
     minHeight: '100vh',
-    backgroundColor: 'var(--slate-50)',
+    backgroundColor: '#f8fafc',
     fontFamily: "'Inter', sans-serif",
   },
-  mainWrapper: {
-    // Handled by .main-wrapper
-  },
   mainContent: {
-    // Handled by .content-padding
+    padding: "40px 32px",
+    display: "flex",
+    flexDirection: "column",
+    gap: "32px",
+    maxWidth: "1600px",
+    margin: "0 auto",
+    width: "100%"
   },
-  pageHeader: {
-    marginBottom: '32px',
+  headerSection: {
+    marginBottom: "4px",
   },
-  pageTitle: {
-    fontSize: '28px',
-    fontWeight: '800',
-    color: '#111827',
-    margin: '0 0 8px 0',
+  welcomeTitle: {
+    fontSize: "32px",
+    fontWeight: "800",
+    color: "#0f172a",
+    margin: "0 0 8px 0",
+    letterSpacing: "-1px",
   },
-  pageSubtitle: {
-    fontSize: '15px',
-    color: '#6B7280',
+  welcomeSubtitle: {
+    fontSize: "16px",
+    color: "#64748b",
     margin: 0,
+    fontWeight: "500"
+  },
+  contentWrapper: {
+    maxWidth: "1200px",
+    width: "100%",
+    margin: "0 auto",
+    display: "flex",
+    flexDirection: "column",
+    gap: "32px"
   },
   summarySection: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-    gap: '24px',
-    marginBottom: '40px',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+    gap: '28px',
+    marginBottom: '48px',
   },
   summaryCard: {
     backgroundColor: 'white',
-    padding: '24px',
-    borderRadius: 'var(--radius-2xl)',
-    boxShadow: 'var(--shadow-soft)',
-    border: '1px solid var(--slate-100)',
+    padding: '32px',
+    borderRadius: '28px',
+    border: '1px solid #f1f5f9',
     display: 'flex',
     alignItems: 'center',
-    gap: '20px',
+    gap: '24px',
+    position: 'relative',
+    overflow: 'hidden',
+    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.02)'
   },
-  iconCircle: {
-    width: '56px',
-    height: '56px',
-    borderRadius: '16px',
+  iconBox: {
+    width: '64px',
+    height: '64px',
+    borderRadius: '18px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    fontSize: '24px',
+    fontSize: '28px',
+    zIndex: 2
+  },
+  summaryInfo: {
+    zIndex: 2
   },
   summaryLabel: {
-    fontSize: 'var(--text-sm)',
-    fontWeight: '600',
-    color: 'var(--slate-500)',
-    margin: '0 0 4px 0',
+    fontSize: '13px',
+    fontWeight: '700',
+    color: '#94a3b8',
+    textTransform: 'uppercase',
+    letterSpacing: '0.5px',
+    margin: '0 0 6px 0',
   },
   summaryValue: {
-    fontSize: 'var(--text-xl)',
+    fontSize: '24px',
     fontWeight: '800',
-    color: 'var(--slate-900)',
+    color: '#0f172a',
     margin: 0,
+    letterSpacing: '-0.5px'
   },
-  tableSection: {
+  cardDecoration: {
+    position: "absolute",
+    right: "-20px",
+    top: "-20px",
+    width: "100px",
+    height: "100px",
+    borderRadius: "50%",
+    background: "radial-gradient(circle, rgba(37,99,235,0.05) 0%, transparent 70%)"
+  },
+  sectionHeader: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: "24px"
+  },
+  sectionTitle: {
+    fontSize: "20px",
+    fontWeight: "800",
+    color: "#0f172a",
+    margin: 0
+  },
+  filterChip: {
+    fontSize: "12px",
+    fontWeight: "700",
+    color: "#2563eb",
+    backgroundColor: "#eff6ff",
+    padding: "6px 16px",
+    borderRadius: "100px"
+  },
+  tableCard: {
     backgroundColor: 'white',
-    borderRadius: 'var(--radius-2xl)',
-    border: '1px solid var(--slate-100)',
-    boxShadow: 'var(--shadow-soft)',
+    borderRadius: '28px',
+    border: '1px solid #f1f5f9',
     overflow: 'hidden',
-  },
-  tableHeader: {
-    padding: '24px 32px',
-    borderBottom: '1px solid #F3F4F6',
-  },
-  tableTitle: {
-    fontSize: '18px',
-    fontWeight: '700',
-    color: '#111827',
-    margin: 0,
+    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.02)'
   },
   tableWrapper: {
     overflowX: 'auto',
@@ -271,76 +364,114 @@ const styles = {
     borderCollapse: 'collapse',
     textAlign: 'left',
   },
-  tableHeadRow: {
-    backgroundColor: '#F9FAFB',
+  theadRow: {
+    backgroundColor: '#f8fafc',
+    borderBottom: '1px solid #f1f5f9'
   },
   th: {
-    padding: '16px 32px',
-    fontSize: '13px',
-    fontWeight: '700',
-    color: '#4B5563',
+    padding: '20px 32px',
+    fontSize: '11px',
+    fontWeight: '800',
+    color: '#94a3b8',
     textTransform: 'uppercase',
-    letterSpacing: '0.5px',
+    letterSpacing: '1px',
   },
   tr: {
-    borderBottom: '1px solid #F3F4F6',
-    transition: 'background-color 0.2s ease',
-    ':hover': {
-      backgroundColor: '#F9FAFB',
-    },
+    borderBottom: '1px solid #f8fafc',
+    transition: 'all 0.2s ease',
   },
   td: {
-    padding: '20px 32px',
-    fontSize: 'var(--text-sm)',
-    color: 'var(--slate-600)',
+    padding: '24px 32px',
+    fontSize: '14px',
     verticalAlign: 'middle',
   },
-  transactionInfo: {
+  txCell: {
     display: 'flex',
-    flexDirection: 'column',
-    gap: '4px',
+    alignItems: 'center',
+    gap: '16px',
   },
-  txDesc: {
+  txIcon: {
+    width: "40px",
+    height: "40px",
+    borderRadius: "12px",
+    backgroundColor: "#f8fafc",
+    color: "#cbd5e1",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "18px"
+  },
+  txTitle: {
+    fontWeight: '700',
+    color: '#1e293b',
+    margin: 0
+  },
+  txSub: {
+    fontSize: '13px',
+    color: '#2563eb',
     fontWeight: '600',
-    color: '#111827',
+    margin: 0
   },
-  txId: {
-    fontSize: '12px',
-    color: '#9CA3AF',
+  amountVal: {
+    fontWeight: '800',
+    color: '#0f172a',
+    margin: 0
   },
-  amount: {
-    fontWeight: '700',
-    color: '#111827',
-  },
-  badge: {
-    padding: '6px 12px',
+  statusChip: {
+    padding: '6px 14px',
     borderRadius: '100px',
-    fontSize: '12px',
-    fontWeight: '700',
+    fontSize: '11px',
+    fontWeight: '800',
+    letterSpacing: '0.5px'
   },
-  receiptBtn: {
+  downloadBtn: {
     width: '36px',
     height: '36px',
     borderRadius: '10px',
-    border: '1px solid #E5E7EB',
-    backgroundColor: 'white',
+    border: 'none',
+    backgroundColor: '#eff6ff',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    color: '#3B82F6',
+    color: '#2563eb',
     cursor: 'pointer',
-    transition: 'all 0.2s ease',
-    ':hover': {
-      backgroundColor: '#E6F2FF',
-      borderColor: '#3B82F6',
-    },
+    fontSize: '18px',
+    transition: 'all 0.2s',
   },
-  emptyTd: {
-    padding: '48px',
-    textAlign: 'center',
-    color: '#9CA3AF',
-    fontSize: '15px',
+  emptyContainer: {
+    padding: "80px 40px",
+    textAlign: "center",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center"
   },
+  emptyIcon: {
+    fontSize: "48px",
+    color: "#cbd5e1",
+    marginBottom: "20px"
+  },
+  emptyHeading: {
+    fontSize: "18px",
+    fontWeight: "800",
+    color: "#1e293b",
+    margin: "0 0 8px 0"
+  },
+  emptyPara: {
+    fontSize: "14px",
+    color: "#94a3b8",
+    maxWidth: "300px",
+    margin: 0
+  },
+  fetching: {
+    color: "#94a3b8",
+    fontSize: "14px",
+    fontWeight: "600"
+  },
+  dateVal: {
+    fontWeight: "600",
+    color: "#64748b",
+    margin: 0
+  }
 };
 
 export default Payments;

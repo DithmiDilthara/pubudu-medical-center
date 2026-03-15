@@ -165,8 +165,8 @@ textarea:focus {
 
 /* Layout Utilities */
 .main-wrapper {
-  margin-left: 256px;
-  width: calc(100% - 256px);
+  margin-left: 280px;
+  width: calc(100% - 280px);
   min-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -194,4 +194,155 @@ textarea:focus {
   .content-padding {
     padding: 24px;
   }
+}
+
+/* --- Medical History Component Specific Styles --- */
+.premium-record-card {
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+    padding: 24px;
+    margin-bottom: 24px;
+    border: 1px solid rgba(226, 232, 240, 0.8);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.premium-record-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 30px rgba(0, 102, 204, 0.08);
+}
+
+.record-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #f1f5f9;
+    margin-bottom: 20px;
+}
+
+.record-date {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #475569;
+    font-weight: 500;
+    font-size: 0.95rem;
+}
+
+.record-date .icon {
+    color: #0066CC;
+}
+
+.record-status {
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+}
+
+.record-status.completed {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.record-doctor-info {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.doctor-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #0066CC 0%, #0052a3 100%);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    font-weight: 600;
+    box-shadow: 0 4px 10px rgba(0, 102, 204, 0.2);
+}
+
+.doctor-name {
+    margin: 0 0 4px 0;
+    font-size: 1.1rem;
+    color: #1e293b;
+}
+
+.doctor-specialty {
+    margin: 0;
+    color: #64748b;
+    font-size: 0.9rem;
+}
+
+.record-details {
+    display: grid;
+    gap: 20px;
+}
+
+.detail-section h4 {
+    margin: 0 0 8px 0;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #94a3b8;
+}
+
+.detail-section p {
+    margin: 0;
+    color: #334155;
+    line-height: 1.5;
+}
+
+.prescription-box {
+    background: #f8fafc;
+    border-left: 3px solid #0066CC;
+    padding: 12px 16px;
+    border-radius: 0 8px 8px 0;
+}
+
+.prescription-box p {
+    font-family: monospace;
+    font-size: 0.95rem;
+}
+
+.clinical-notes {
+    font-style: italic;
+    color: #64748b !important;
+}
+
+.follow-up {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #fffbeb;
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid #fde68a;
+    color: #b45309;
+}
+
+.text-amber {
+    color: #d97706;
+}
+
+.record-card-footer {
+    margin-top: 24px;
+    padding-top: 16px;
+    border-top: 1px dashed #e2e8f0;
+    display: flex;
+    justify-content: flex-end;
+}
+
+.download-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9rem;
+    padding: 8px 16px;
 }

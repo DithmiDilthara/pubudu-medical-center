@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import AppointmentCard from './AppointmentCard';
 
-const AppointmentCarousel = ({ appointments = [] }) => {
+const AppointmentCarousel = ({ appointments = [], onManageClick }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [itemsPerPage, setItemsPerPage] = useState(3);
 
@@ -67,6 +67,7 @@ const AppointmentCarousel = ({ appointments = [] }) => {
               key={appt.uniqueKey} 
               appt={appt} 
               variant="carousel"
+              onViewDetails={onManageClick}
             />
           ))}
         </div>
@@ -104,6 +105,7 @@ const styles = {
     fontWeight: '800',
     color: '#111827',
     margin: 0,
+    paddingLeft: '4px',
   },
   navControls: {
     display: 'flex',

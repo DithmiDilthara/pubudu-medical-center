@@ -5,8 +5,9 @@ import toast from 'react-hot-toast';
 import { 
     FiCalendar, FiClock, FiCheck, FiArrowRight, FiArrowLeft, 
     FiCheckCircle, FiCreditCard, FiHome, FiInfo, FiUser,
-    FiChevronLeft, FiChevronRight
+    FiChevronLeft, FiChevronRight, FiActivity, FiShield
 } from 'react-icons/fi';
+import { motion, AnimatePresence } from 'framer-motion';
 import PatientSidebar from '../../components/PatientSidebar';
 import PatientHeader from '../../components/PatientHeader';
 
@@ -84,7 +85,6 @@ const ChannelDoctor = () => {
         const formattedDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
         const dayName = dayNames[dateObj.getDay()];
         
-        // Simplified check: check if day name exists in availability
         return availabilities.some(a => a.day_of_week === dayName || a.specific_date === formattedDate);
     };
 
@@ -102,7 +102,6 @@ const ChannelDoctor = () => {
         const dayName = dayNames[dateObj.getDay()];
         const formattedDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(selectedDate).padStart(2, '0')}`;
 
-        // Find applicable availability records
         const relevantAvails = availabilities.filter(a => 
             a.specific_date === formattedDate || 
             (a.day_of_week === dayName && !a.specific_date)
@@ -114,7 +113,6 @@ const ChannelDoctor = () => {
         relevantAvails.forEach(avail => {
             if (!avail.start_time || !avail.end_time) return;
 
-            // Convert "HH:MM:SS" to fractional hours
             const startParts = avail.start_time.split(':');
             const endParts = avail.end_time.split(':');
             
@@ -130,10 +128,7 @@ const ChannelDoctor = () => {
             }
         });
 
-        // Unique slots (in case of overlaps)
         const uniqueSlots = [...new Set(slots)];
-
-        // Check booked status from real appointment data
         const bookedForDay = bookedSlots
             .filter(apt => apt.appointment_date === formattedDate && apt.status !== 'CANCELLED')
             .map(apt => apt.time_slot);
@@ -145,9 +140,6 @@ const ChannelDoctor = () => {
     };
 
     // --- Action Handlers ---
-    const handleNext = () => setStep(prev => prev + 1);
-    const handleBack = () => setStep(prev => prev - 1);
-
     const handleConfirmBooking = async () => {
         setIsLoading(true);
         const toastId = toast.loading("Confirming your appointment...");
@@ -190,282 +182,310 @@ const ChannelDoctor = () => {
         });
     };
 
-    // --- Rendering Helpers ---
+    const steps = [
+        { id: 1, label: "Select Date", icon: FiCalendar },
+        { id: 2, label: "Select Time", icon: FiClock },
+        { id: 3, label: "Review", icon: FiActivity },
+        { id: 4, label: "Finished", icon: FiCheckCircle }
+    ];
+
+    const slideVariants = {
+        enter: (direction) => ({
+            x: direction > 0 ? 50 : -50,
+            opacity: 0
+        }),
+        center: {
+            zIndex: 1,
+            x: 0,
+            opacity: 1
+        },
+        exit: (direction) => ({
+            zIndex: 0,
+            x: direction < 0 ? 50 : -50,
+            opacity: 0
+        })
+    };
+
     const renderProgressBar = () => (
-        <div style={styles.progressSection}>
-            <div style={styles.progressBar}>
-                {[1, 2, 3, 4].map(s => (
-                    <div key={s} style={styles.stepIndicatorWrapper}>
-                        <div style={{
-                            ...styles.stepCircle,
-                            backgroundColor: step === s ? '#0066CC' : (step > s ? '#22C55E' : '#E5E7EB'),
-                            color: step >= s ? 'white' : '#9CA3AF'
-                        }}>
-                            {step > s ? <FiCheck /> : s}
-                        </div>
+        <div style={styles.progressContainer}>
+            {steps.map((s, idx) => (
+                <div key={s.id} style={styles.stepWrapper}>
+                    <div style={{
+                        ...styles.stepCircle,
+                        backgroundColor: step === s.id ? '#2563eb' : (step > s.id ? '#10b981' : '#f1f5f9'),
+                        color: step >= s.id ? 'white' : '#94a3b8',
+                        boxShadow: step === s.id ? '0 0 0 4px rgba(37, 99, 235, 0.15)' : 'none'
+                    }}>
+                        {step > s.id ? <FiCheck /> : <s.icon />}
+                    </div>
+                    <div style={styles.stepTextWrapper}>
                         <span style={{
                             ...styles.stepLabel,
-                            color: step === s ? '#0066CC' : '#6B7280'
-                        }}>
-                            {s === 1 ? 'Select Date' : s === 2 ? 'Select Time' : s === 3 ? 'Review' : 'Confirmation'}
-                        </span>
-                        {s < 4 && <div style={{
-                            ...styles.stepLine,
-                            backgroundColor: step > s ? '#22C55E' : '#E5E7EB'
-                        }} />}
+                            color: step === s.id ? '#0f172a' : '#94a3b8'
+                        }}>Step {s.id}</span>
+                        <span style={{
+                            ...styles.stepTitle,
+                            color: step === s.id ? '#2563eb' : '#64748b'
+                        }}>{s.label}</span>
                     </div>
-                ))}
-            </div>
-        </div>
-    );
-
-    const renderStep1 = () => (
-        <div style={styles.wizardCard}>
-            {/* Doctor Summary */}
-            <div style={styles.doctorSummary}>
-                <div style={styles.avatarMini}>
-                    <FiUser />
+                    {idx < steps.length - 1 && (
+                        <div style={{
+                            ...styles.stepConnector,
+                            background: step > s.id ? '#10b981' : '#e2e8f0'
+                        }} />
+                    )}
                 </div>
-                <div>
-                    <h3 style={styles.summaryName}>{doctor.full_name}</h3>
-                    <p style={styles.summarySpec}>{doctor.specialization}</p>
-                </div>
-            </div>
-
-            <div style={styles.divider} />
-
-            {/* Calendar */}
-            <div style={styles.calendarContainer}>
-                <div style={styles.calHeader}>
-                    <button onClick={() => setCurrentMonth(new Date(year, month - 1, 1))} style={styles.calNav}>
-                        <FiChevronLeft />
-                    </button>
-                    <h4 style={styles.calTitle}>{monthNames[month]} {year}</h4>
-                    <button onClick={() => setCurrentMonth(new Date(year, month + 1, 1))} style={styles.calNav}>
-                        <FiChevronRight />
-                    </button>
-                </div>
-
-                <div style={styles.calGrid}>
-                    {dayNames.map(d => <div key={d} style={styles.calDayLabel}>{d}</div>)}
-                    {Array(firstDay).fill(null).map((_, i) => <div key={`empty-${i}`} />)}
-                    {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(d => {
-                        const available = isDateAvailable(d);
-                        const selected = selectedDate === d;
-                        return (
-                            <div
-                                key={d}
-                                onClick={() => handleDateClick(d)}
-                                style={{
-                                    ...styles.calDay,
-                                    backgroundColor: selected ? '#0066CC' : (available ? '#EBF5FF' : 'transparent'),
-                                    color: selected ? 'white' : (available ? '#0066CC' : '#D1D5DB'),
-                                    cursor: available ? 'pointer' : 'default',
-                                    border: available && !selected ? '1px solid #0066CC' : '1px solid transparent',
-                                    fontWeight: available ? '700' : '600',
-                                }}
-                            >
-                                {d}
-                            </div>
-                        );
-                    })}
-                </div>
-
-                {/* Calendar Legend */}
-                <div style={styles.calLegend}>
-                    <div style={styles.legendItem}>
-                        <div style={{...styles.legendBox, backgroundColor: '#0066CC'}} />
-                        <span>Selected</span>
-                    </div>
-                    <div style={styles.legendItem}>
-                        <div style={{...styles.legendBox, backgroundColor: '#EBF5FF', border: '1px solid #0066CC'}} />
-                        <span>Available</span>
-                    </div>
-                    <div style={styles.legendItem}>
-                        <div style={{...styles.legendBox, backgroundColor: 'transparent', border: '1px solid #E5E7EB'}} />
-                        <span>Unavailable</span>
-                    </div>
-                </div>
-            </div>
-
-            <div style={styles.wizardActions}>
-                <button onClick={() => navigate(-1)} style={styles.btnBack}>Back</button>
-                <button 
-                    onClick={handleNext} 
-                    disabled={!selectedDate} 
-                    style={{...styles.btnContinue, opacity: selectedDate ? 1 : 0.5}}
-                >
-                    Continue
-                </button>
-            </div>
-        </div>
-    );
-
-    const renderStep2 = () => (
-        <div style={styles.wizardCard}>
-            <div style={styles.stepHeader}>
-                <h3 style={styles.stepTitle}>Select Time Slot</h3>
-                <p style={styles.stepSubtitle}>Showing slots for {monthNames[month]} {selectedDate}, {year}</p>
-            </div>
-
-            <div style={styles.timeGrid}>
-                {getTimeSlots().map((slot, i) => (
-                    <button
-                        key={i}
-                        disabled={slot.isBooked}
-                        onClick={() => setSelectedTime(slot.time)}
-                        style={{
-                            ...styles.timeSlot,
-                            backgroundColor: selectedTime === slot.time ? '#0066CC' : (slot.isBooked ? '#F3F4F6' : 'white'),
-                            color: selectedTime === slot.time ? 'white' : (slot.isBooked ? '#9CA3AF' : '#111827'),
-                            borderColor: selectedTime === slot.time ? '#0066CC' : '#E5E7EB',
-                            textDecoration: slot.isBooked ? 'line-through' : 'none',
-                        }}
-                    >
-                        {slot.time}
-                    </button>
-                ))}
-            </div>
-
-            <div style={styles.wizardActions}>
-                <button onClick={handleBack} style={styles.btnBack}>Back</button>
-                <button 
-                    onClick={handleNext} 
-                    disabled={!selectedTime} 
-                    style={{...styles.btnContinue, opacity: selectedTime ? 1 : 0.5}}
-                >
-                    Continue
-                </button>
-            </div>
-        </div>
-    );
-
-    const renderStep3 = () => (
-        <div style={styles.wizardCard}>
-            <div style={styles.stepHeader}>
-                <h3 style={styles.stepTitle}>Review Summary</h3>
-            </div>
-
-            <div style={styles.reviewBox}>
-                <div style={styles.reviewMain}>
-                    <div style={styles.avatarLarge}>
-                        {doctor.full_name?.charAt(0)}
-                    </div>
-                    <div style={styles.reviewMeta}>
-                        <h4 style={styles.reviewName}>{doctor.full_name}</h4>
-                        <p style={styles.reviewSpec}>{doctor.specialization}</p>
-                    </div>
-                </div>
-
-                <div style={styles.reviewGrid}>
-                    <div style={styles.reviewItem}>
-                        <FiCalendar style={styles.reviewIcon} />
-                        <div>
-                            <p style={styles.reviewLabel}>Date</p>
-                            <p style={styles.reviewValue}>{monthNames[month]} {selectedDate}, {year}</p>
-                        </div>
-                    </div>
-                    <div style={styles.reviewItem}>
-                        <FiClock style={styles.reviewIcon} />
-                        <div>
-                            <p style={styles.reviewLabel}>Time</p>
-                            <p style={styles.reviewValue}>{selectedTime}</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div style={styles.feeBreakdown}>
-                    <div style={styles.feeRow}>
-                        <span>Consultation Fee</span>
-                        <span>LKR {Number(doctor.doctor_fee).toLocaleString()}</span>
-                    </div>
-                    <div style={styles.feeRow}>
-                        <span>Service Charge</span>
-                        <span>LKR 200.00</span>
-                    </div>
-                    <div style={{...styles.feeRow, fontWeight: '800', color: '#111827', fontSize: '18px', marginTop: '12px', paddingTop: '12px', borderTop: '1px dashed #E5E7EB'}}>
-                        <span>Total Amount</span>
-                        <span>LKR {(Number(doctor.doctor_fee) + 200).toLocaleString()}</span>
-                    </div>
-                </div>
-
-                <label style={styles.policyLabel}>
-                    <input 
-                        type="checkbox" 
-                        checked={policyAgreed} 
-                        onChange={(e) => setPolicyAgreed(e.target.checked)}
-                        style={styles.checkbox}
-                    />
-                    <span>I agree to the cancellation policy and terms of service.</span>
-                </label>
-            </div>
-
-            <div style={styles.wizardActions}>
-                <button onClick={handleBack} style={styles.btnBack}>Back</button>
-                <button 
-                    onClick={handleConfirmBooking} 
-                    disabled={!policyAgreed || isLoading} 
-                    style={{...styles.btnContinue, opacity: policyAgreed ? 1 : 0.5}}
-                >
-                    {isLoading ? 'Confirming...' : 'Confirm Appointment'}
-                </button>
-            </div>
-        </div>
-    );
-
-    const renderStep4 = () => (
-        <div style={styles.wizardCard}>
-            <div style={styles.successHeader}>
-                <div style={styles.successIconBox}>
-                    <FiCheckCircle size={48} />
-                </div>
-                <h2 style={styles.successTitle}>Appointment Confirmed!</h2>
-                <p style={styles.successSubtitle}>Your booking has been successfully processed.</p>
-            </div>
-
-            <div style={styles.detailsCard}>
-                <div style={styles.refInfo}>
-                    <p style={styles.refLabel}>Appointment ID</p>
-                    <p style={styles.refValue}>#APT-{confirmedAppointment?.appointment_id || '2026-0342'}</p>
-                </div>
-                <div style={styles.tokenBox}>
-                    <p style={styles.tokenLabel}>Token No.</p>
-                    <p style={styles.tokenValue}>{confirmedAppointment?.token_number || '15'}</p>
-                </div>
-            </div>
-
-            <div style={styles.paymentSelection}>
-                <p style={styles.payTitle}>How would you like to pay?</p>
-                <div style={styles.payGrid}>
-                    <button onClick={handlePayNow} style={styles.payOptionBlue}>
-                        <FiCreditCard size={20} />
-                        <span>Pay Online Now</span>
-                    </button>
-                    <button onClick={() => navigate('/patient/appointments')} style={styles.payOptionWhite}>
-                        <FiHome size={20} />
-                        <span>Pay at Center</span>
-                    </button>
-                </div>
-            </div>
-
-            <div style={styles.finalLinks}>
-                <button onClick={() => navigate('/patient/appointments')} style={styles.linkBtn}>Go to My Appointments</button>
-                <button onClick={() => navigate('/patient/dashboard')} style={styles.linkText}>Back to Dashboard</button>
-            </div>
+            ))}
         </div>
     );
 
     return (
         <div style={styles.container}>
             <PatientSidebar onLogout={() => { localStorage.clear(); navigate('/'); }} />
-            <div className="main-wrapper">
+            <div className="main-wrapper" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
                 <PatientHeader />
-                <main className="content-padding">
-                    {renderProgressBar()}
-                    {step === 1 && renderStep1()}
-                    {step === 2 && renderStep2()}
-                    {step === 3 && renderStep3()}
-                    {step === 4 && renderStep4()}
+                <main style={styles.mainContent}>
+                    <div style={styles.wizardShell}>
+                        {renderProgressBar()}
+
+                        <div style={styles.cardContainer}>
+                            <AnimatePresence mode="wait">
+                                {step === 1 && (
+                                    <motion.div 
+                                        key="step1"
+                                        initial="enter" animate="center" exit="exit" variants={slideVariants}
+                                        style={styles.stepCard}
+                                    >
+                                        <div style={styles.cardHeader}>
+                                            <h2 style={styles.cardTitle}>When would you like to visit?</h2>
+                                            <p style={styles.cardSubtitle}>Select an available date for {doctor.full_name}</p>
+                                        </div>
+
+                                        <div style={styles.calendarLayer}>
+                                            <div style={styles.calControls}>
+                                                <button onClick={() => setCurrentMonth(new Date(year, month - 1, 1))} style={styles.calNav}>
+                                                    <FiChevronLeft />
+                                                </button>
+                                                <h4 style={styles.currentMonthText}>{monthNames[month]} {year}</h4>
+                                                <button onClick={() => setCurrentMonth(new Date(year, month + 1, 1))} style={styles.calNav}>
+                                                    <FiChevronRight />
+                                                </button>
+                                            </div>
+
+                                            <div style={styles.calGrid}>
+                                                {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(d => (
+                                                    <div key={d} style={styles.calDayLabel}>{d}</div>
+                                                ))}
+                                                {Array(firstDay).fill(null).map((_, i) => <div key={`empty-${i}`} />)}
+                                                {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(d => {
+                                                    const available = isDateAvailable(d);
+                                                    const selected = selectedDate === d;
+                                                    return (
+                                                        <div
+                                                            key={d}
+                                                            onClick={() => handleDateClick(d)}
+                                                            style={{
+                                                                ...styles.calDay,
+                                                                backgroundColor: selected ? '#2563eb' : (available ? '#eff6ff' : 'transparent'),
+                                                                color: selected ? 'white' : (available ? '#2563eb' : '#cbd5e1'),
+                                                                cursor: available ? 'pointer' : 'default',
+                                                                border: selected ? 'none' : (available ? '1px solid #dbeafe' : 'none'),
+                                                                fontWeight: available ? '700' : '500',
+                                                            }}
+                                                        >
+                                                            {d}
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+
+                                        <div style={styles.cardFooter}>
+                                            <span style={styles.selectionInfo}>
+                                                {selectedDate ? `Selected: ${monthNames[month]} ${selectedDate}` : "Please select a date"}
+                                            </span>
+                                            <button 
+                                                onClick={() => setStep(2)} 
+                                                disabled={!selectedDate} 
+                                                style={{...styles.primaryBtn, filter: !selectedDate ? 'grayscale(1)' : 'none'}}
+                                            >
+                                                Next Step
+                                                <FiArrowRight style={{ marginLeft: '8px' }} />
+                                            </button>
+                                        </div>
+                                    </motion.div>
+                                )}
+
+                                {step === 2 && (
+                                    <motion.div 
+                                        key="step2"
+                                        initial="enter" animate="center" exit="exit" variants={slideVariants}
+                                        style={styles.stepCard}
+                                    >
+                                        <div style={styles.cardHeader}>
+                                            <h2 style={styles.cardTitle}>Pick a time slot</h2>
+                                            <p style={styles.cardSubtitle}>Available appointments for {monthNames[month]} {selectedDate}</p>
+                                        </div>
+
+                                        <div style={styles.slotsGrid}>
+                                            {getTimeSlots().map((slot, i) => (
+                                                <button
+                                                    key={i}
+                                                    disabled={slot.isBooked}
+                                                    onClick={() => setSelectedTime(slot.time)}
+                                                    style={{
+                                                        ...styles.slotBtn,
+                                                        backgroundColor: selectedTime === slot.time ? '#2563eb' : (slot.isBooked ? '#f8fafc' : 'white'),
+                                                        color: selectedTime === slot.time ? 'white' : (slot.isBooked ? '#cbd5e1' : '#1e293b'),
+                                                        borderColor: selectedTime === slot.time ? '#2563eb' : '#e2e8f0',
+                                                        opacity: slot.isBooked ? 0.6 : 1
+                                                    }}
+                                                >
+                                                    <FiClock style={{ marginRight: '8px', opacity: 0.5 }} />
+                                                    {slot.time}
+                                                </button>
+                                            ))}
+                                        </div>
+
+                                        <div style={styles.cardFooter}>
+                                            <button onClick={() => setStep(1)} style={styles.secondaryBtn}>Back</button>
+                                            <button 
+                                                onClick={() => setStep(3)} 
+                                                disabled={!selectedTime} 
+                                                style={{...styles.primaryBtn, filter: !selectedTime ? 'grayscale(1)' : 'none'}}
+                                            >
+                                                Review Details
+                                                <FiArrowRight style={{ marginLeft: '8px' }} />
+                                            </button>
+                                        </div>
+                                    </motion.div>
+                                )}
+
+                                {step === 3 && (
+                                    <motion.div 
+                                        key="step3"
+                                        initial="enter" animate="center" exit="exit" variants={slideVariants}
+                                        style={styles.stepCard}
+                                    >
+                                        <div style={styles.cardHeader}>
+                                            <h2 style={styles.cardTitle}>Final Review</h2>
+                                            <p style={styles.cardSubtitle}>Please confirm your appointment details</p>
+                                        </div>
+
+                                        <div style={styles.reviewLayout}>
+                                            <div style={styles.reviewMain}>
+                                                <div style={styles.doctorBadge}>
+                                                    <div style={styles.badgeAvatar}>{doctor.full_name?.charAt(0)}</div>
+                                                    <div>
+                                                        <h4 style={styles.badgeName}>{doctor.full_name}</h4>
+                                                        <p style={styles.badgeSpec}>{doctor.specialization}</p>
+                                                    </div>
+                                                </div>
+                                                <div style={styles.detailsList}>
+                                                    <div style={styles.detailItem}>
+                                                        <FiCalendar />
+                                                        <span>{monthNames[month]} {selectedDate}, {year}</span>
+                                                    </div>
+                                                    <div style={styles.detailItem}>
+                                                        <FiClock />
+                                                        <span>{selectedTime}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div style={styles.billingCard}>
+                                                <h5 style={styles.billingTitle}>Billing Summary</h5>
+                                                <div style={styles.billingRow}>
+                                                    <span>Doctor Fee</span>
+                                                    <span>LKR {Number(doctor.doctor_fee).toLocaleString()}</span>
+                                                </div>
+                                                <div style={styles.billingRow}>
+                                                    <span>Service Charge</span>
+                                                    <span>LKR 200</span>
+                                                </div>
+                                                <div style={styles.billingTotal}>
+                                                    <span>Total Payable</span>
+                                                    <span>LKR {(Number(doctor.doctor_fee) + 200).toLocaleString()}</span>
+                                                </div>
+                                            </div>
+
+                                            <label style={styles.policyCheck}>
+                                                <input 
+                                                    type="checkbox" 
+                                                    checked={policyAgreed} 
+                                                    onChange={(e) => setPolicyAgreed(e.target.checked)}
+                                                    style={styles.realCheckbox}
+                                                />
+                                                <span>I agree to the center's booking policies and terms.</span>
+                                            </label>
+                                        </div>
+
+                                        <div style={styles.cardFooter}>
+                                            <button onClick={() => setStep(2)} style={styles.secondaryBtn}>Back</button>
+                                            <button 
+                                                onClick={handleConfirmBooking} 
+                                                disabled={!policyAgreed || isLoading} 
+                                                style={{...styles.primaryBtn, filter: !policyAgreed ? 'grayscale(1)' : 'none'}}
+                                            >
+                                                {isLoading ? 'Processing...' : 'Confirm Appointment'}
+                                            </button>
+                                        </div>
+                                    </motion.div>
+                                )}
+
+                                {step === 4 && (
+                                    <motion.div 
+                                        key="step4"
+                                        initial="enter" animate="center" exit="exit" variants={slideVariants}
+                                        style={styles.stepCard}
+                                    >
+                                        <div style={styles.successBox}>
+                                            <div style={styles.successLottie}>
+                                                <FiCheckCircle />
+                                            </div>
+                                            <h2 style={styles.successHeading}>Successfully Booked!</h2>
+                                            <p style={styles.successInfo}>Your appointment has been added to our schedule. We've sent the details to your email.</p>
+                                        </div>
+
+                                        <div style={styles.ticketCard}>
+                                            <div style={styles.ticketHeader}>
+                                                <div>
+                                                    <p style={styles.ticketLabel}>Appointment ID</p>
+                                                    <h4 style={styles.ticketVal}>#APT-{confirmedAppointment?.appointment_id}</h4>
+                                                </div>
+                                                <div style={styles.tokenCircle}>
+                                                    <p style={styles.tokenLabel}>Token</p>
+                                                    <h3 style={styles.tokenNum}>{confirmedAppointment?.token_number}</h3>
+                                                </div>
+                                            </div>
+                                            <div style={styles.ticketBody}>
+                                                <div style={styles.ticketRow}>
+                                                    <FiUser /> <span>{doctor.full_name}</span>
+                                                </div>
+                                                <div style={styles.ticketRow}>
+                                                    <FiCalendar /> <span>{monthNames[month]} {selectedDate}</span>
+                                                </div>
+                                                <div style={styles.ticketRow}>
+                                                    <FiClock /> <span>{selectedTime}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div style={styles.paymentActions}>
+                                            <button onClick={handlePayNow} style={styles.payNowBtn}>
+                                                <FiCreditCard />
+                                                Pay Online Now
+                                            </button>
+                                            <button onClick={() => navigate('/patient/dashboard')} style={styles.payLaterBtn}>
+                                                <FiHome />
+                                                Return to Dashboard
+                                            </button>
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </div>
+                    </div>
                 </main>
             </div>
         </div>
@@ -476,457 +496,415 @@ const styles = {
     container: {
         display: 'flex',
         minHeight: '100vh',
-        backgroundColor: 'var(--slate-50)',
-        fontFamily: "'Inter', sans-serif",
-    },
-    mainWrapper: {
-        // Handled by .main-wrapper
+        backgroundColor: '#f8fafc',
     },
     mainContent: {
-        // Handled by .content-padding
-    },
-    progressSection: {
-        marginBottom: '40px',
-    },
-    progressBar: {
-        display: 'flex',
-        justifyContent: 'space-between',
-        position: 'relative',
-    },
-    stepIndicatorWrapper: {
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
+        padding: "40px 32px",
         flex: 1,
-        position: 'relative',
+        maxWidth: "1000px",
+        margin: "0 auto",
+        width: "100%"
+    },
+    wizardShell: {
+        display: "flex",
+        flexDirection: "column",
+        gap: "40px"
+    },
+    progressContainer: {
+        display: "flex",
+        justifyContent: "space-between",
+        padding: "0 20px"
+    },
+    stepWrapper: {
+        display: "flex",
+        alignItems: "center",
+        gap: "12px",
+        flex: 1,
+        position: "relative"
     },
     stepCircle: {
-        width: '32px',
-        height: '32px',
-        borderRadius: '50%',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        fontWeight: '700',
-        fontSize: '14px',
+        width: "40px",
+        height: "40px",
+        borderRadius: "14px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontSize: "18px",
         zIndex: 2,
-        transition: 'all 0.3s ease',
+        transition: "all 0.4s ease"
+    },
+    stepTextWrapper: {
+        display: "flex",
+        flexDirection: "column",
+        gap: "2px"
     },
     stepLabel: {
-        marginTop: '8px',
-        fontSize: 'var(--text-xs)',
-        fontWeight: '600',
-    },
-    stepLine: {
-        position: 'absolute',
-        top: '16px',
-        left: '50%',
-        width: '100%',
-        height: '2px',
-        zIndex: 1,
-    },
-    wizardCard: {
-        backgroundColor: 'white',
-        borderRadius: 'var(--radius-2xl)',
-        border: '1px solid var(--slate-100)',
-        padding: '32px',
-        boxShadow: 'var(--shadow-soft)',
-    },
-    doctorSummary: {
-        display: 'flex',
-        alignItems: 'center',
-        gap: '16px',
-        marginBottom: '24px',
-    },
-    avatarMini: {
-        width: '48px',
-        height: '48px',
-        borderRadius: '12px',
-        backgroundColor: '#E6F2FF',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        color: '#0066CC',
-        fontSize: '20px',
-    },
-    summaryName: {
-        fontSize: 'var(--text-lg)',
-        fontWeight: '700',
-        color: 'var(--slate-900)',
-        margin: 0,
-    },
-    summarySpec: {
-        fontSize: 'var(--text-sm)',
-        color: 'var(--primary-blue)',
-        fontWeight: '600',
-        margin: 0,
-    },
-    divider: {
-        height: '1px',
-        backgroundColor: '#F3F4F6',
-        margin: '24px 0',
-    },
-    calendarContainer: {
-        marginBottom: '32px',
-    },
-    calHeader: {
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        marginBottom: '20px',
-    },
-    calNav: {
-        width: '36px',
-        height: '36px',
-        borderRadius: '10px',
-        border: '1px solid #E5E7EB',
-        background: 'white',
-        cursor: 'pointer',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    calTitle: {
-        fontSize: 'var(--text-base)',
-        fontWeight: '700',
-        color: 'var(--slate-900)',
-        margin: 0,
-    },
-    calGrid: {
-        display: 'grid',
-        gridTemplateColumns: 'repeat(7, 1fr)',
-        gap: '8px',
-    },
-    calDayLabel: {
-        fontSize: '11px',
-        fontWeight: '700',
-        color: '#9CA3AF',
-        textAlign: 'center',
-        padding: '8px 0',
-    },
-    calDay: {
-        height: '44px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        fontSize: 'var(--text-sm)',
-        fontWeight: '600',
-        borderRadius: '12px',
-        position: 'relative',
-        transition: 'all 0.2s ease',
-    },
-    availDot: {
-        position: 'absolute',
-        bottom: '6px',
-        width: '4px',
-        height: '4px',
-        borderRadius: '50%',
-        backgroundColor: '#0066CC',
-    },
-    calLegend: {
-        display: 'flex',
-        justifyContent: 'center',
-        gap: '24px',
-        marginTop: '24px',
-        padding: '12px',
-        backgroundColor: '#F9FAFB',
-        borderRadius: '12px',
-    },
-    legendItem: {
-        display: 'flex',
-        alignItems: 'center',
-        gap: '8px',
-        fontSize: 'var(--text-xs)',
-        fontWeight: '600',
-        color: 'var(--slate-500)',
-    },
-    legendBox: {
-        width: '16px',
-        height: '16px',
-        borderRadius: '4px',
-    },
-    wizardActions: {
-        display: 'flex',
-        justifyContent: 'space-between',
-        marginTop: '40px',
-        gap: '16px',
-    },
-    btnBack: {
-        padding: '12px 32px',
-        borderRadius: '12px',
-        border: '1px solid var(--slate-200)',
-        backgroundColor: 'white',
-        color: 'var(--slate-700)',
-        fontSize: 'var(--text-base)',
-        fontWeight: '600',
-        cursor: 'pointer',
-    },
-    btnContinue: {
-        flex: 1,
-        padding: '12px 32px',
-        borderRadius: '12px',
-        border: 'none',
-        backgroundColor: 'var(--primary-blue)',
-        color: 'white',
-        fontSize: 'var(--text-base)',
-        fontWeight: '700',
-        cursor: 'pointer',
-        boxShadow: '0 4px 12px rgba(37, 99, 235, 0.2)',
-    },
-    stepHeader: {
-        marginBottom: '32px',
+        fontSize: "11px",
+        fontWeight: "700",
+        textTransform: "uppercase",
+        letterSpacing: "0.5px"
     },
     stepTitle: {
-        fontSize: '20px',
-        fontWeight: '800',
-        color: '#111827',
-        margin: '0 0 4px 0',
+        fontSize: "14px",
+        fontWeight: "700"
     },
-    stepSubtitle: {
-        fontSize: '14px',
-        color: '#6B7280',
-        margin: 0,
+    stepConnector: {
+        height: "2px",
+        flex: 1,
+        margin: "0 10px",
+        borderRadius: "2px"
     },
-    timeGrid: {
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))',
-        gap: '12px',
+    cardContainer: {
+        position: "relative",
+        minHeight: "500px"
     },
-    timeSlot: {
-        padding: '14px',
-        borderRadius: '12px',
-        border: '1px solid #E5E7EB',
-        fontSize: '14px',
-        fontWeight: '600',
-        cursor: 'pointer',
-        transition: 'all 0.2s ease',
+    stepCard: {
+        backgroundColor: "white",
+        borderRadius: "28px",
+        padding: "40px",
+        border: "1px solid #f1f5f9",
+        boxShadow: "0 4px 20px rgba(0, 0, 0, 0.02)",
+        display: "flex",
+        flexDirection: "column",
+        gap: "32px"
     },
-    reviewBox: {
-        backgroundColor: '#F9FAFB',
-        borderRadius: '20px',
-        padding: '24px',
+    cardHeader: {
+        display: "flex",
+        flexDirection: "column",
+        gap: "8px"
+    },
+    cardTitle: {
+        fontSize: "24px",
+        fontWeight: "800",
+        color: "#0f172a",
+        margin: 0
+    },
+    cardSubtitle: {
+        fontSize: "15px",
+        color: "#64748b",
+        margin: 0
+    },
+    calendarLayer: {
+        display: "flex",
+        flexDirection: "column",
+        gap: "24px"
+    },
+    calControls: {
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        backgroundColor: "#f8fafc",
+        padding: "16px",
+        borderRadius: "16px"
+    },
+    calNav: {
+        width: "36px",
+        height: "36px",
+        borderRadius: "10px",
+        border: "1px solid #e2e8f0",
+        backgroundColor: "white",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        cursor: "pointer",
+        color: "#64748b"
+    },
+    currentMonthText: {
+        fontSize: "16px",
+        fontWeight: "700",
+        margin: 0
+    },
+    calGrid: {
+        display: "grid",
+        gridTemplateColumns: "repeat(7, 1fr)",
+        gap: "8px",
+        textAlign: "center"
+    },
+    calDayLabel: {
+        fontSize: "11px",
+        fontWeight: "800",
+        color: "#cbd5e1",
+        textTransform: "uppercase",
+        paddingBottom: "10px"
+    },
+    calDay: {
+        height: "44px",
+        borderRadius: "12px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontSize: "14px",
+        fontWeight: "600",
+        transition: "all 0.2s"
+    },
+    cardFooter: {
+        marginTop: "auto",
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        paddingTop: "32px",
+        borderTop: "1px solid #f1f5f9"
+    },
+    selectionInfo: {
+        fontSize: "14px",
+        color: "#94a3b8",
+        fontWeight: "600"
+    },
+    primaryBtn: {
+        padding: "14px 28px",
+        backgroundColor: "#2563eb",
+        color: "white",
+        borderRadius: "14px",
+        border: "none",
+        fontSize: "15px",
+        fontWeight: "700",
+        cursor: "pointer",
+        display: "flex",
+        alignItems: "center",
+        boxShadow: "0 10px 15px -3px rgba(37, 99, 235, 0.2)"
+    },
+    secondaryBtn: {
+        padding: "14px 28px",
+        backgroundColor: "white",
+        color: "#64748b",
+        borderRadius: "14px",
+        border: "1px solid #e2e8f0",
+        fontSize: "15px",
+        fontWeight: "700",
+        cursor: "pointer"
+    },
+    slotsGrid: {
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))",
+        gap: "12px"
+    },
+    slotBtn: {
+        padding: "16px",
+        borderRadius: "16px",
+        border: "1px solid",
+        fontSize: "14px",
+        fontWeight: "700",
+        cursor: "pointer",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        transition: "all 0.2s"
+    },
+    reviewLayout: {
+        display: "flex",
+        flexDirection: "column",
+        gap: "24px"
     },
     reviewMain: {
-        display: 'flex',
-        alignItems: 'center',
-        gap: '20px',
-        marginBottom: '24px',
+        backgroundColor: "#f8fafc",
+        padding: "24px",
+        borderRadius: "20px",
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center"
     },
-    avatarLarge: {
-        width: '64px',
-        height: '64px',
-        borderRadius: '16px',
-        backgroundColor: '#0066CC',
-        color: 'white',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        fontSize: '24px',
-        fontWeight: '800',
+    doctorBadge: {
+        display: "flex",
+        alignItems: "center",
+        gap: "16px"
     },
-    reviewMeta: {
-        display: 'flex',
-        flexDirection: 'column',
+    badgeAvatar: {
+        width: "48px",
+        height: "48px",
+        borderRadius: "14px",
+        backgroundColor: "#2563eb",
+        color: "white",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontSize: "20px",
+        fontWeight: "800"
     },
-    reviewName: {
-        fontSize: '18px',
-        fontWeight: '800',
-        color: '#111827',
-        margin: 0,
+    badgeName: {
+        fontSize: "16px",
+        fontWeight: "700",
+        color: "#0f172a",
+        margin: 0
     },
-    reviewSpec: {
-        fontSize: '14px',
-        color: '#6B7280',
-        fontWeight: '600',
-        margin: 0,
+    badgeSpec: {
+        fontSize: "13px",
+        color: "#2563eb",
+        fontWeight: "600",
+        margin: 0
     },
-    reviewGrid: {
-        display: 'grid',
-        gridTemplateColumns: '1fr 1fr',
-        gap: '20px',
-        marginBottom: '24px',
+    detailsList: {
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "flex-end",
+        gap: "6px"
     },
-    reviewItem: {
-        display: 'flex',
-        alignItems: 'center',
-        gap: '12px',
+    detailItem: {
+        display: "flex",
+        alignItems: "center",
+        gap: "8px",
+        fontSize: "14px",
+        color: "#64748b",
+        fontWeight: "600"
     },
-    reviewIcon: {
-        color: '#0066CC',
-        fontSize: '20px',
+    billingCard: {
+        border: "2px dashed #f1f5f9",
+        padding: "24px",
+        borderRadius: "20px"
     },
-    reviewLabel: {
-        fontSize: '12px',
-        color: '#9CA3AF',
-        fontWeight: '600',
-        textTransform: 'uppercase',
-        margin: 0,
+    billingTitle: {
+        fontSize: "14px",
+        fontWeight: "800",
+        color: "#0f172a",
+        textTransform: "uppercase",
+        letterSpacing: "0.5px",
+        marginBottom: "16px"
     },
-    reviewValue: {
-        fontSize: '15px',
-        color: '#111827',
-        fontWeight: '700',
-        margin: 0,
+    billingRow: {
+        display: "flex",
+        justifyContent: "space-between",
+        fontSize: "14px",
+        color: "#64748b",
+        marginBottom: "8px"
     },
-    feeBreakdown: {
-        marginTop: '24px',
-        padding: '20px',
-        backgroundColor: 'white',
-        borderRadius: '16px',
+    billingTotal: {
+        display: "flex",
+        justifyContent: "space-between",
+        marginTop: "16px",
+        paddingTop: "16px",
+        borderTop: "1px solid #f1f5f9",
+        fontSize: "18px",
+        fontWeight: "800",
+        color: "#0f172a"
     },
-    feeRow: {
-        display: 'flex',
-        justifyContent: 'space-between',
-        fontSize: '14px',
-        color: '#6B7280',
-        fontWeight: '600',
-        marginBottom: '8px',
+    policyCheck: {
+        display: "flex",
+        alignItems: "flex-start",
+        gap: "12px",
+        fontSize: "13px",
+        color: "#64748b",
+        cursor: "pointer"
     },
-    policyLabel: {
-        display: 'flex',
-        alignItems: 'flex-start',
-        gap: '12px',
-        marginTop: '24px',
-        fontSize: '13px',
-        color: '#6B7280',
-        cursor: 'pointer',
+    realCheckbox: {
+        marginTop: "3px"
     },
-    checkbox: {
-        marginTop: '2px',
+    successBox: {
+        textAlign: "center",
+        padding: "20px 0"
     },
-    successHeader: {
-        textAlign: 'center',
-        marginBottom: '40px',
+    successLottie: {
+        fontSize: "64px",
+        color: "#10b981",
+        marginBottom: "16px"
     },
-    successIconBox: {
-        width: '80px',
-        height: '80px',
-        borderRadius: '50%',
-        backgroundColor: '#DCFCE7',
-        color: '#22C55E',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        margin: '0 auto 24px auto',
+    successHeading: {
+        fontSize: "28px",
+        fontWeight: "800",
+        color: "#0f172a",
+        marginBottom: "8px"
     },
-    successTitle: {
-        fontSize: '24px',
-        fontWeight: '800',
-        color: '#111827',
-        margin: '0 0 8px 0',
+    successInfo: {
+        fontSize: "16px",
+        color: "#64748b",
+        maxWidth: "400px",
+        margin: "0 auto"
     },
-    successSubtitle: {
-        fontSize: '16px',
-        color: '#6B7280',
-        margin: 0,
+    ticketCard: {
+        background: "linear-gradient(135deg, #1e293b 0%, #0f172a 100%)",
+        borderRadius: "24px",
+        padding: "32px",
+        color: "white",
+        boxShadow: "0 20px 30px -10px rgba(15, 23, 42, 0.2)"
     },
-    detailsCard: {
-        backgroundColor: '#F9FAFB',
-        borderRadius: '20px',
-        padding: '24px',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: '32px',
+    ticketHeader: {
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginBottom: "24px",
+        paddingBottom: "24px",
+        borderBottom: "1px solid rgba(255,255,255,0.1)"
     },
-    refInfo: {},
-    refLabel: {
-        fontSize: '12px',
-        color: '#9CA3AF',
-        fontWeight: '600',
-        textTransform: 'uppercase',
-        margin: 0,
+    ticketLabel: {
+        fontSize: "11px",
+        fontWeight: "700",
+        color: "#94a3b8",
+        textTransform: "uppercase",
+        margin: 0
     },
-    refValue: {
-        fontSize: '18px',
-        fontWeight: '800',
-        color: '#111827',
-        margin: 0,
+    ticketVal: {
+        fontSize: "18px",
+        fontWeight: "700",
+        margin: 0
     },
-    tokenBox: {
-        textAlign: 'right',
+    tokenCircle: {
+        width: "64px",
+        height: "64px",
+        backgroundColor: "rgba(255,255,255,0.05)",
+        borderRadius: "50%",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        border: "1px solid rgba(255,255,255,0.1)"
     },
     tokenLabel: {
-        fontSize: '12px',
-        color: '#9CA3AF',
-        fontWeight: '600',
-        textTransform: 'uppercase',
+        fontSize: "9px",
+        fontWeight: "800",
         margin: 0,
+        opacity: 0.6
     },
-    tokenValue: {
-        fontSize: '32px',
-        fontWeight: '900',
-        color: '#0066CC',
-        margin: 0,
+    tokenNum: {
+        fontSize: "24px",
+        fontWeight: "800",
+        margin: 0
     },
-    paymentSelection: {
-        marginBottom: '40px',
+    ticketBody: {
+        display: "flex",
+        justifyContent: "space-between",
+        gap: "20px"
     },
-    payTitle: {
-        fontSize: '16px',
-        fontWeight: '700',
-        color: '#111827',
-        marginBottom: '20px',
+    ticketRow: {
+        display: "flex",
+        alignItems: "center",
+        gap: "8px",
+        fontSize: "14px",
+        fontWeight: "600",
+        color: "#cbd5e1"
     },
-    payGrid: {
-        display: 'grid',
-        gridTemplateColumns: '1fr 1fr',
-        gap: '16px',
+    paymentActions: {
+        display: "flex",
+        flexDirection: "column",
+        gap: "12px",
+        marginTop: "12px"
     },
-    payOptionBlue: {
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: '12px',
-        padding: '16px',
-        borderRadius: '16px',
-        border: 'none',
-        backgroundColor: '#0066CC',
-        color: 'white',
-        fontSize: '15px',
-        fontWeight: '700',
-        cursor: 'pointer',
-        boxShadow: '0 4px 12px rgba(0, 102, 204, 0.2)',
+    payNowBtn: {
+        width: "100%",
+        padding: "18px",
+        borderRadius: "16px",
+        backgroundColor: "#2563eb",
+        color: "white",
+        border: "none",
+        fontSize: "15px",
+        fontWeight: "700",
+        cursor: "pointer",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: "10px"
     },
-    payOptionWhite: {
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: '12px',
-        padding: '16px',
-        borderRadius: '16px',
-        border: '1px solid #E5E7EB',
-        backgroundColor: 'white',
-        color: '#374151',
-        fontSize: '15px',
-        fontWeight: '700',
-        cursor: 'pointer',
-    },
-    finalLinks: {
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        gap: '16px',
-    },
-    linkBtn: {
-        width: '100%',
-        padding: '14px',
-        borderRadius: '12px',
-        border: '1px solid #0066CC',
-        backgroundColor: 'transparent',
-        color: '#0066CC',
-        fontSize: '15px',
-        fontWeight: '700',
-        cursor: 'pointer',
-    },
-    linkText: {
-        border: 'none',
-        backgroundColor: 'transparent',
-        color: '#6B7280',
-        fontSize: '14px',
-        fontWeight: '600',
-        cursor: 'pointer',
-        textDecoration: 'underline',
+    payLaterBtn: {
+        width: "100%",
+        padding: "18px",
+        borderRadius: "16px",
+        backgroundColor: "#f8fafc",
+        color: "#64748b",
+        border: "1px solid #e2e8f0",
+        fontSize: "15px",
+        fontWeight: "700",
+        cursor: "pointer",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: "10px"
     }
 };
 

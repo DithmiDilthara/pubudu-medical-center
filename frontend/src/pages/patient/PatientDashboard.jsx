@@ -1,10 +1,14 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import axios from "axios";
-import { FiCalendar, FiSearch, FiClipboard, FiCheckSquare, FiClock, FiPlus, FiArrowRight } from 'react-icons/fi';
+import { 
+  FiCalendar, FiSearch, FiClipboard, FiCheckSquare, 
+  FiClock, FiPlus, FiArrowRight, FiActivity, FiUser,
+  FiCreditCard
+} from 'react-icons/fi';
+import { motion, AnimatePresence } from "framer-motion";
 import PatientSidebar from "../../components/PatientSidebar";
 import PatientHeader from "../../components/PatientHeader";
-import CancellationModal from "../../components/CancellationModal";
 import HeroCarousel from "../../components/HeroCarousel";
 import AppointmentCarousel from "../../components/AppointmentCarousel";
 
@@ -31,13 +35,13 @@ function MiniCalendar({ highlightedDates, onDateClick }) {
   const todayDate = today.getDate();
 
   return (
-    <div className="glass-card" style={styles.calendarContainer}>
+    <div style={styles.calendarContainer}>
       <div style={styles.calendarHeader}>
         <div>
           <h3 style={styles.calendarMonth}>
             {today.toLocaleString("default", { month: "long" })} {year}
           </h3>
-          <p style={styles.calendarSubText}>{highlightSet.size} events this month</p>
+          <p style={styles.calendarSubText}>{highlightSet.size} appointments this month</p>
         </div>
       </div>
       <div style={styles.calendarGrid}>
@@ -70,39 +74,23 @@ function PatientDashboard() {
   const navigate = useNavigate();
   const [upcomingAppointments, setUpcomingAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [cancellationMessages, setCancellationMessages] = useState([]);
 
   const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
   const patientName = storedUser.full_name?.split(' ')[0] || storedUser.username || 'Patient';
+
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
   useEffect(() => {
     const fetchAppointments = async () => {
       try {
         const token = localStorage.getItem('token');
-        const response = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/appointments`, {
+        const response = await axios.get(`${API_URL}/appointments`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         if (response.data.success) {
           const allApts = response.data.data;
 
-          // Process cancellations
-          const cancelledApts = allApts.filter(apt => apt.status === 'CANCELLED');
-          if (cancelledApts.length > 0) {
-            const notifiedCancellations = JSON.parse(sessionStorage.getItem('notifiedCancellations') || '[]');
-            const newCancellations = cancelledApts.filter(apt => !notifiedCancellations.includes(apt.appointment_id));
-
-            if (newCancellations.length > 0) {
-              const messages = newCancellations.map(apt =>
-                `Your appointment on ${apt.appointment_date} with ${apt.doctor?.full_name || 'the doctor'} has been CANCELLED.`
-              ).join('\n\n');
-              setCancellationMessages(messages.split('\n\n'));
-              const updatedNotified = [...notifiedCancellations, ...newCancellations.map(a => a.appointment_id)];
-              sessionStorage.setItem('notifiedCancellations', JSON.stringify(updatedNotified));
-            }
-          }
-
-          const today = new Date();
-          const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+          const todayStr = new Date().toISOString().split('T')[0];
 
           const upcoming = allApts
             .filter(apt => ['PENDING', 'CONFIRMED'].includes(apt.status) && apt.appointment_date >= todayStr)
@@ -116,84 +104,139 @@ function PatientDashboard() {
       }
     };
     fetchAppointments();
-  }, []);
+  }, [API_URL]);
 
   const handleLogout = () => {
     localStorage.clear();
     navigate('/');
   };
 
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: { 
+      opacity: 1,
+      transition: { staggerChildren: 0.1 }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } }
+  };
+
   return (
     <div style={styles.container}>
       <PatientSidebar onLogout={handleLogout} />
 
-      <div className="main-wrapper">
+      <div className="main-wrapper" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
         <PatientHeader patientName={patientName} />
 
-        <CancellationModal
-          messages={cancellationMessages}
-          onClose={() => setCancellationMessages([])}
-        />
+        <main style={styles.mainContent}>
+          <motion.div 
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+            style={styles.dashboardContent}
+          >
+            {/* Integrated Header Section */}
+            <motion.div variants={itemVariants} style={styles.headerSection}>
+              <h1 style={styles.welcomeTitle}>Welcome back, {patientName}! 👋</h1>
+              <p style={styles.welcomeSubtitle}>Check your health status and upcoming appointments.</p>
+            </motion.div>
 
-        <main className="content-padding">
-          {/* Hero Carousel Section */}
-          <HeroCarousel />
+            {/* Hero Carousel Section */}
+            <motion.section variants={itemVariants} style={styles.heroSection}>
+              <HeroCarousel />
+            </motion.section>
 
-          <div style={styles.summaryRow}>
-            <div style={styles.statCard}>
-              <div style={styles.statInfo}>
-                <span style={styles.statVal}>{upcomingAppointments.length}</span>
-                <span style={styles.statLab}>Upcoming Appointments</span>
-              </div>
-              <FiCalendar size={24} color="#3B82F6" />
-            </div>
-            <div style={styles.statCard}>
-              <div style={styles.statInfo}>
-                <span style={styles.statVal}>0</span>
-                <span style={styles.statLab}>New Medical Reports</span>
-              </div>
-              <FiClipboard size={24} color="#10B981" />
-            </div>
-          </div>
-
-          <div style={styles.dashboardGrid}>
-             {/* Left Column: Quick Actions + Appointments */}
-             <div style={styles.leftCol}>
-                {/* Secondary Quick Actions */}
-                <div style={styles.quickActionCards}>
-                   <Link to="/patient/find-doctor" style={styles.actionCard}>
-                      <div style={{...styles.actionIcon, background: 'rgba(59, 130, 246, 0.1)'}}>
-                        <FiSearch color="#3B82F6" size={24} />
-                      </div>
-                      <h4 style={styles.actionCardTitle}>Find Doctor</h4>
-                      <p style={styles.actionCardRoot}>Search specializations</p>
-                   </Link>
-                   <Link to="/patient/appointments" style={styles.actionCard}>
-                      <div style={{...styles.actionIcon, background: 'rgba(16, 185, 129, 0.1)'}}>
-                        <FiClipboard color="#10B981" size={24} />
-                      </div>
-                      <h4 style={styles.actionCardTitle}>My History</h4>
-                      <p style={styles.actionCardRoot}>View past visits</p>
-                   </Link>
+            {/* Summary Row */}
+            <motion.div variants={itemVariants} style={styles.statsGrid}>
+              <Link to="/patient/appointments" style={{ ...styles.statsCard, backgroundColor: "#eff6ff", border: "1px solid #dbeafe", textDecoration: 'none' }}>
+                <div style={styles.statsInfo}>
+                  <p style={{ ...styles.statsLabel, color: "#2563eb" }}>Upcoming Appointments</p>
+                  <h3 style={{ ...styles.statsValue, color: "#1e3a8a" }}>{upcomingAppointments.length}</h3>
                 </div>
-
-                <AppointmentCarousel appointments={upcomingAppointments} />
-             </div>
-
-             {/* Right Column: Calendar */}
-             <div style={styles.rightCol}>
-                <MiniCalendar 
-                  highlightedDates={upcomingAppointments.map((a) => a.appointment_date)}
-                  onDateClick={() => navigate('/patient/appointments')}
-                />
-
-                <div className="glass-card" style={styles.miniBanner}>
-                  <h4 style={styles.bannerTitle}>Need Help?</h4>
-                  <p style={styles.bannerText}>Contact our 24/7 support line for any medical emergencies.</p>
-                  <button style={styles.bannerBtn}>Call Now</button>
+                <div style={{ ...styles.statsIconBox, backgroundColor: "#dbeafe", color: "#2563eb" }}>
+                  <FiCalendar />
                 </div>
-             </div>
-          </div>
+              </Link>
+
+              <Link to="/patient/medical-history" style={{ ...styles.statsCard, backgroundColor: "#f0fdf4", border: "1px solid #dcfce7", textDecoration: 'none' }}>
+                <div style={styles.statsInfo}>
+                  <p style={{ ...styles.statsLabel, color: "#10b981" }}>Medical History</p>
+                  <h3 style={{ ...styles.statsValue, color: "#064e3b" }}>0</h3>
+                </div>
+                <div style={{ ...styles.statsIconBox, backgroundColor: "#dcfce7", color: "#10b981" }}>
+                  <FiClipboard />
+                </div>
+              </Link>
+
+              <Link to="/patient/payments" style={{ ...styles.statsCard, backgroundColor: "#fdf2f8", border: "1px solid #fce7f3", textDecoration: 'none' }}>
+                <div style={styles.statsInfo}>
+                  <p style={{ ...styles.statsLabel, color: "#db2777" }}>Pending Payments</p>
+                  <h3 style={{ ...styles.statsValue, color: "#831843" }}>0</h3>
+                </div>
+                <div style={{ ...styles.statsIconBox, backgroundColor: "#fce7f3", color: "#db2777" }}>
+                  <FiCreditCard />
+                </div>
+              </Link>
+            </motion.div>
+
+            <div style={styles.layoutGrid}>
+              {/* Left Column: Quick Actions + Appointments */}
+              <div style={styles.leftColumn}>
+                <motion.div variants={itemVariants} style={styles.quickActions}>
+                  <Link to="/patient/find-doctor" style={styles.actionCard}>
+                    <div style={{ ...styles.actionIcon, backgroundColor: "#eff6ff", color: "#2563eb" }}>
+                      <FiSearch />
+                    </div>
+                    <div>
+                      <h4 style={styles.actionTitle}>Find Doctor</h4>
+                      <p style={styles.actionSubtitle}>Search by specialization</p>
+                    </div>
+                    <FiArrowRight style={styles.actionArrow} />
+                  </Link>
+
+                  <Link to="/patient/appointments" style={styles.actionCard}>
+                    <div style={{ ...styles.actionIcon, backgroundColor: "#f0fdf4", color: "#10b981" }}>
+                      <FiActivity />
+                    </div>
+                    <div>
+                      <h4 style={styles.actionTitle}>My History</h4>
+                      <p style={styles.actionSubtitle}>View past medical visits</p>
+                    </div>
+                    <FiArrowRight style={styles.actionArrow} />
+                  </Link>
+                </motion.div>
+
+                <motion.div variants={itemVariants} style={styles.appointmentSection}>
+                  <AppointmentCarousel 
+                    appointments={upcomingAppointments} 
+                    onManageClick={() => navigate('/patient/appointments')}
+                  />
+                </motion.div>
+              </div>
+
+              {/* Right Column: Calendar & Support */}
+              <div style={styles.rightColumn}>
+                <motion.div variants={itemVariants}>
+                  <MiniCalendar 
+                    highlightedDates={upcomingAppointments.map((a) => a.appointment_date)}
+                    onDateClick={() => navigate('/patient/appointments')}
+                  />
+                </motion.div>
+
+                <motion.div variants={itemVariants} style={styles.supportBanner}>
+                  <div style={styles.supportHeader}>
+                    <FiClock style={styles.supportIcon} />
+                    <h4 style={styles.supportTitle}>Need Help?</h4>
+                  </div>
+                  <p style={styles.supportText}>Our digital support team is available 24/7 for any technical or medical inquiries.</p>
+                  <button style={styles.supportBtn}>Contact Support</button>
+                </motion.div>
+              </div>
+            </div>
+          </motion.div>
         </main>
       </div>
     </div>
@@ -204,251 +247,202 @@ const styles = {
   container: {
     display: 'flex',
     minHeight: '100vh',
-    backgroundColor: 'var(--slate-50)',
+    backgroundColor: '#f8fafc',
     fontFamily: "'Inter', sans-serif"
   },
-  mainWrapper: {
-    // Handled by .main-wrapper
-  },
   mainContent: {
-    // Handled by .content-padding
+    padding: "40px 32px",
+    display: "flex",
+    flexDirection: "column",
+    gap: "32px",
+    maxWidth: "1600px",
+    margin: "0 auto",
+    width: "100%"
   },
-  summaryRow: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(2, 1fr)',
-    gap: '24px',
-    marginBottom: '40px'
+  headerSection: {
+    marginBottom: "8px",
   },
-  statCard: {
-    backgroundColor: 'white',
-    borderRadius: 'var(--radius-2xl)',
-    padding: '24px',
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    border: '1px solid var(--slate-100)',
-    boxShadow: 'var(--shadow-soft)'
+  welcomeTitle: {
+    fontSize: "32px",
+    fontWeight: "800",
+    color: "#0f172a",
+    margin: "0 0 8px 0",
+    letterSpacing: "-1px",
   },
-  statInfo: {
-    display: 'flex',
-    flexDirection: 'column'
+  welcomeSubtitle: {
+    fontSize: "16px",
+    color: "#64748b",
+    margin: 0,
+    fontWeight: "500"
   },
-  statVal: {
-    fontSize: 'var(--text-2xl)',
-    fontWeight: '800',
-    color: 'var(--slate-900)'
+  dashboardContent: {
+    maxWidth: "1200px",
+    width: "100%",
+    margin: "0 auto",
+    display: "flex",
+    flexDirection: "column",
+    gap: "32px"
   },
-  statLab: {
-    fontSize: 'var(--text-sm)',
-    color: 'var(--slate-500)',
-    marginTop: '4px',
-    fontWeight: '500'
+  heroSection: {
+    borderRadius: "28px",
+    overflow: "hidden",
+    boxShadow: "0 4px 20px rgba(0, 0, 0, 0.04)"
   },
-  dashboardGrid: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 340px',
-    gap: '32px'
+  statsGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(3, 1fr)",
+    gap: "24px"
   },
-  quickActionCards: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(2, 1fr)',
-    gap: '20px',
-    marginBottom: '32px'
+  statsCard: {
+    borderRadius: "24px",
+    padding: "24px",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    boxShadow: "0 1px 3px rgba(0,0,0,0.02)"
   },
-  actionCard: {
-    backgroundColor: 'white',
-    borderRadius: 'var(--radius-2xl)',
-    padding: '24px',
-    textDecoration: 'none',
-    border: '1px solid var(--slate-100)',
-    transition: 'all 0.3s ease',
-    boxShadow: 'var(--shadow-soft)'
+  statsInfo: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "4px"
   },
-  actionIcon: {
-    width: '48px',
-    height: '48px',
-    borderRadius: '12px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: '16px'
+  statsLabel: {
+    fontSize: "13px",
+    fontWeight: "600",
+    margin: 0,
+    textTransform: "uppercase",
+    letterSpacing: "0.025em"
   },
-  actionCardTitle: {
-    fontSize: 'var(--text-base)',
-    fontWeight: '700',
-    color: 'var(--slate-900)',
-    marginBottom: '4px'
-  },
-  actionCardRoot: {
-    fontSize: 'var(--text-sm)',
-    color: 'var(--slate-500)'
-  },
-  section: {
-    backgroundColor: 'white',
-    borderRadius: '24px',
-    padding: '32px',
-    border: '1px solid #E5E7EB',
-    boxShadow: '0 4px 6px rgba(0,0,0,0.02)'
-  },
-  sectionHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '24px'
-  },
-  sectionTitle: {
-    fontSize: '20px',
-    fontWeight: '800',
-    color: '#111827'
-  },
-  viewMoreLink: {
-    fontSize: '14px',
-    color: '#0066CC',
-    fontWeight: '600',
-    textDecoration: 'none'
-  },
-  appointmentList: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '16px'
-  },
-  appointmentCard: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: '16px',
-    borderRadius: '16px',
-    border: '1px solid #F3F4F6',
-    transition: 'all 0.2s ease',
-    cursor: 'pointer'
-  },
-  aptInfo: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '16px'
-  },
-  dateCircle: {
-    width: '60px',
-    height: '60px',
-    borderRadius: '16px',
-    backgroundColor: '#F3F4F6',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center'
-  },
-  dateDay: {
-    fontSize: '20px',
-    fontWeight: '800',
-    color: '#111827',
-    lineHeight: 1
-  },
-  dateMonth: {
-    fontSize: '11px',
-    textTransform: 'uppercase',
-    fontWeight: '700',
-    color: '#6B7280'
-  },
-  aptText: {},
-  doctorName: {
-    fontSize: '16px',
-    fontWeight: '700',
-    color: '#111827',
+  statsValue: {
+    fontSize: "32px",
+    fontWeight: "800",
     margin: 0
   },
-  doctorSpecialty: {
-    fontSize: '13px',
-    color: '#6B7280',
-    marginBottom: '6px'
+  statsIconBox: {
+    width: "56px",
+    height: "56px",
+    borderRadius: "16px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "24px"
   },
-  timeTag: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    fontSize: '12px',
-    fontWeight: '600',
-    color: '#4B5563',
-    backgroundColor: '#F9FAFB',
-    padding: '4px 10px',
-    borderRadius: '8px',
-    border: '1px solid #E5E7EB'
+  layoutGrid: {
+    display: "grid",
+    gridTemplateColumns: "1fr 360px",
+    gap: "32px"
   },
-  aptStatus: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '16px'
+  leftColumn: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "32px"
   },
-  statusBadge: {
-    padding: '6px 12px',
-    borderRadius: '10px',
-    fontSize: '12px',
-    fontWeight: '700',
-    textTransform: 'uppercase'
+  quickActions: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: "20px"
   },
-  emptyState: {
-    padding: '40px',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    textAlign: 'center'
+  actionCard: {
+    backgroundColor: "white",
+    borderRadius: "20px",
+    padding: "24px",
+    display: "flex",
+    alignItems: "center",
+    gap: "16px",
+    textDecoration: "none",
+    border: "1px solid #f1f5f9",
+    transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+    position: "relative",
+    overflow: "hidden"
   },
-  emptyText: {
-    marginTop: '16px',
-    color: '#9CA3AF',
-    fontSize: '14px'
+  actionIcon: {
+    width: "48px",
+    height: "48px",
+    borderRadius: "12px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "20px",
+    flexShrink: 0
+  },
+  actionTitle: {
+    fontSize: "16px",
+    fontWeight: "700",
+    color: "#0f172a",
+    margin: 0
+  },
+  actionSubtitle: {
+    fontSize: "13px",
+    color: "#64748b",
+    margin: 0
+  },
+  actionArrow: {
+    marginLeft: "auto",
+    color: "#cbd5e1",
+    fontSize: "18px"
+  },
+  appointmentSection: {
+    borderRadius: "28px",
+    overflow: "hidden"
+  },
+  rightColumn: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "32px"
   },
   calendarContainer: {
-    backgroundColor: 'white',
-    borderRadius: 'var(--radius-2xl)',
-    padding: '24px',
-    border: '1px solid var(--slate-100)',
-    boxShadow: 'var(--shadow-soft)',
-    marginBottom: '24px'
+    backgroundColor: "white",
+    borderRadius: "28px",
+    padding: "28px",
+    border: "1px solid #f1f5f9",
+    boxShadow: "0 4px 12px rgba(0, 0, 0, 0.02)"
   },
   calendarHeader: {
-    marginBottom: '20px'
+    marginBottom: "24px"
   },
   calendarMonth: {
-    fontSize: '18px',
-    fontWeight: '800',
-    color: '#111827',
+    fontSize: "18px",
+    fontWeight: "800",
+    color: "#0f172a",
     margin: 0
   },
   calendarSubText: {
-    fontSize: '12px',
-    color: '#6B7280',
-    marginTop: '2px'
+    fontSize: "12px",
+    color: "#94a3b8",
+    marginTop: "4px"
   },
   calendarGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(7, 1fr)',
-    gap: '4px'
+    display: "grid",
+    gridTemplateColumns: "repeat(7, 1fr)",
+    gap: "6px"
   },
   dayLabel: {
-    textAlign: 'center',
-    padding: '8px 0',
-    fontSize: '11px',
-    fontWeight: '700',
-    color: '#9CA3AF',
-    textTransform: 'uppercase'
+    textAlign: "center",
+    padding: "8px 0",
+    fontSize: "11px",
+    fontWeight: "700",
+    color: "#cbd5e1",
+    textTransform: "uppercase"
   },
   dayCell: {
-    aspectRatio: '1',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: '13px',
-    fontWeight: '600',
-    borderRadius: '10px',
-    cursor: 'pointer',
-    position: 'relative'
+    aspectRatio: "1",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "13px",
+    fontWeight: "600",
+    borderRadius: "12px",
+    cursor: "pointer",
+    position: "relative",
+    color: "#475569"
   },
   highlightedDay: {
-    backgroundColor: '#F0F7FF',
-    color: '#0066CC'
+    backgroundColor: "#eff6ff",
+    color: "#2563eb"
   },
   todayDay: {
-    border: '2px solid #0066CC',
-    color: '#0066CC'
+    border: "2px solid #2563eb",
+    color: "#2563eb"
   },
   dotIndicator: {
     position: 'absolute',
@@ -456,38 +450,48 @@ const styles = {
     width: '4px',
     height: '4px',
     borderRadius: '50%',
-    backgroundColor: '#0066CC'
+    backgroundColor: '#2563eb'
   },
-  miniBanner: {
-    background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
-    borderRadius: '24px',
-    padding: '28px',
-    color: 'white',
-    boxShadow: '0 10px 30px rgba(16, 185, 129, 0.2)'
+  supportBanner: {
+    background: "linear-gradient(135deg, #1e293b 0%, #0f172a 100%)",
+    borderRadius: "28px",
+    padding: "32px",
+    color: "white",
+    boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1)"
   },
-  bannerTitle: {
-    fontSize: '18px',
-    fontWeight: '800',
-    marginBottom: '8px'
+  supportHeader: {
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
+    marginBottom: "16px"
   },
-  bannerText: {
-    fontSize: '13px',
-    opacity: 0.9,
-    lineHeight: 1.5,
-    marginBottom: '20px'
+  supportIcon: {
+    fontSize: "20px",
+    color: "#38bdf8"
   },
-  bannerBtn: {
-    backgroundColor: 'white',
-    color: '#10B981',
-    border: 'none',
-    padding: '10px 20px',
-    borderRadius: '10px',
-    fontWeight: '700',
-    fontSize: '13px',
-    cursor: 'pointer'
+  supportTitle: {
+    fontSize: "18px",
+    fontWeight: "700",
+    margin: 0
+  },
+  supportText: {
+    fontSize: "14px",
+    opacity: 0.7,
+    lineHeight: 1.6,
+    marginBottom: "24px"
+  },
+  supportBtn: {
+    width: "100%",
+    padding: "14px",
+    borderRadius: "14px",
+    backgroundColor: "white",
+    color: "#0f172a",
+    border: "none",
+    fontSize: "14px",
+    fontWeight: "700",
+    cursor: "pointer",
+    transition: "all 0.2s"
   }
 };
 
 export default PatientDashboard;
-
-

@@ -1,4 +1,4 @@
-import { Doctor, User, Availability, Appointment, Patient, Prescription } from '../models/index.js';
+import { Doctor, User, Availability, Appointment, Patient } from '../models/index.js';
 
 /**
  * @desc    Get all doctors with their specializations
@@ -15,7 +15,20 @@ export const getAllDoctors = async (req, res) => {
             ]
         });
 
-        res.status(200).json({ success: true, data: doctors });
+        // Calculate next appointment number for each doctor
+        const doctorsWithApptNumbers = await Promise.all(doctors.map(async (doc) => {
+            const docJson = doc.toJSON();
+            const maxAppt = await Appointment.max('appointment_number', {
+                where: { 
+                    doctor_id: doc.doctor_id,
+                    status: ['PENDING', 'CONFIRMED'] 
+                }
+            });
+            docJson.next_appointment_number = (maxAppt || 0) + 1;
+            return docJson;
+        }));
+
+        res.status(200).json({ success: true, data: doctorsWithApptNumbers });
     } catch (error) {
         console.error('Get all doctors error:', error);
         res.status(500).json({ success: false, message: 'Server error' });
