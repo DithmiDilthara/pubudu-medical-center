@@ -423,7 +423,7 @@ function PatientRegistration() {
         username: formData.username,
         password: formData.password,
         email: formData.email || null,
-        contact_number: formData.contact_number ? parseInt(formData.contact_number) : null,
+        phone: formData.contact_number || null,
         full_name: formData.full_name,
         nic: formData.nic,
         gender: formData.gender,

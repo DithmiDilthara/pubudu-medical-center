@@ -27,7 +27,8 @@ function Reports() {
     setIsLoading(true);
     try {
       const token = localStorage.getItem('token');
-      let url = `${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/admin/reports/financial`;
+      const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+      let url = `${baseUrl}/admin/reports/${selectedReportType}`;
 
       const response = await axios.get(url, {
         params: { startDate, endDate },
@@ -36,7 +37,7 @@ function Reports() {
 
       if (response.data.success) {
         setReportData(response.data.data);
-        alert(`Report generated successfully!`);
+        alert(`Report data fetched successfully!`);
       }
     } catch (error) {
       console.error("Report error:", error);
@@ -46,10 +47,50 @@ function Reports() {
     }
   };
 
+  const downloadCSV = () => {
+    if (!reportData) return;
+
+    let csvContent = "data:text/csv;charset=utf-8,";
+    let filename = `${selectedReportType}_report_${startDate}_to_${endDate}.csv`;
+
+    if (selectedReportType === 'revenue') {
+      csvContent += "Appointment ID,Patient,Doctor,Date,Center Fee\n";
+      reportData.appointments.forEach(a => {
+        csvContent += `${a.appointment_id},${a.patient_name},${a.doctor_name},${a.date},${a.center_fee}\n`;
+      });
+      csvContent += `\nTotal Center Revenue,,Rs. ${reportData.totalRevenue}\n`;
+    } else if (selectedReportType === 'patients') {
+      csvContent += "Name,NIC,Source,Registration Date,Contact\n";
+      reportData.patients.forEach(p => {
+        csvContent += `${p.name},${p.nic},${p.source},${new Date(p.date).toLocaleDateString()},${p.contact}\n`;
+      });
+      csvContent += `\nTotal Registrations,${reportData.summary.total}\n`;
+      csvContent += `Online,${reportData.summary.online}\n`;
+      csvContent += `Receptionist,${reportData.summary.receptionist}\n`;
+    } else if (selectedReportType === 'appointments') {
+      csvContent += "ID,Patient,Doctor,Date,Status,Payment,Reason,Absent\n";
+      reportData.appointments.forEach(a => {
+        csvContent += `${a.id},${a.patient},${a.doctor},${a.date},${a.status},${a.payment},${a.reason || ''},${a.absent ? 'Yes' : 'No'}\n`;
+      });
+      csvContent += `\nTotal Appointments,${reportData.summary.total}\n`;
+      csvContent += `Cancelled,${reportData.summary.cancelled}\n`;
+      csvContent += `Unpaid Cancellations,${reportData.summary.cancelledUnpaid}\n`;
+      csvContent += `Absent/No-show,${reportData.summary.absent}\n`;
+    }
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const reportTypes = [
     { value: "appointments", label: "Appointments Report", icon: FiCalendar },
     { value: "patients", label: "Patient Registration Report", icon: FiFileText },
-    { value: "revenue", label: "Revenue Report", icon: FiFileText }
+    { value: "revenue", label: "Revenue Report (Center Fees)", icon: FiFileText }
   ];
 
   return (
@@ -58,24 +99,35 @@ function Reports() {
       <AdminSidebar onLogout={handleLogout} />
 
       {/* Main Content */}
-      <div style={styles.mainWrapper}>
+      <div className="main-wrapper">
         {/* Header */}
         <AdminHeader adminName="Admin User" />
 
         {/* Dashboard Content */}
-        <main style={styles.mainContent}>
+        <main className="content-padding">
           <h1 style={styles.pageTitle}>Generate Reports</h1>
 
           {/* Report Generation Form */}
           <div style={styles.reportCard}>
-            <h2 style={styles.cardTitle}>Report Configuration</h2>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+              <h2 style={{ ...styles.cardTitle, margin: 0 }}>Report Configuration</h2>
+              {reportData && (
+                <button style={{ ...styles.generateButton, width: 'auto', marginTop: 0, backgroundColor: '#10b981' }} onClick={downloadCSV}>
+                  <FiDownload style={styles.buttonIcon} />
+                   Download CSV
+                </button>
+              )}
+            </div>
 
             <div style={styles.formContainer}>
               <div style={styles.formGroup}>
                 <label style={styles.label}>Report Type</label>
                 <select
                   value={selectedReportType}
-                  onChange={(e) => setSelectedReportType(e.target.value)}
+                  onChange={(e) => {
+                    setSelectedReportType(e.target.value);
+                    setReportData(null);
+                  }}
                   style={styles.select}
                 >
                   {reportTypes.map((type) => (
@@ -108,33 +160,64 @@ function Reports() {
                 </div>
               </div>
 
-              <button style={styles.generateButton} onClick={handleGenerateReport}>
-                <FiDownload style={styles.buttonIcon} />
-                Generate & Download Report
+              <button style={styles.generateButton} onClick={handleGenerateReport} disabled={isLoading}>
+                {isLoading ? "Generating..." : "Preview Report Data"}
               </button>
             </div>
           </div>
 
           {/* Report Statistics / Summary */}
-          {reportData && (
-            <div style={{ ...styles.reportCard, display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
+          {reportData && selectedReportType === 'revenue' && (
+            <div style={{ ...styles.reportCard, display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '20px' }}>
               <div style={styles.statBox}>
-                <h4 style={{ margin: '0 0 8px 0', color: '#6b7280' }}>Total Revenue</h4>
+                <h4 style={{ margin: '0 0 8px 0', color: '#6b7280' }}>Total Center Revenue</h4>
                 <p style={{ fontSize: '24px', fontWeight: 'bold', margin: 0, color: '#10b981' }}>
                   Rs. {reportData.totalRevenue?.toLocaleString()}
                 </p>
               </div>
               <div style={styles.statBox}>
-                <h4 style={{ margin: '0 0 8px 0', color: '#6b7280' }}>Total Paid</h4>
+                <h4 style={{ margin: '0 0 8px 0', color: '#6b7280' }}>Paid Appointments</h4>
                 <p style={{ fontSize: '24px', fontWeight: 'bold', margin: 0, color: '#0066CC' }}>
-                  Rs. {reportData.totalPaid?.toLocaleString()}
+                  {reportData.appointmentCount}
                 </p>
               </div>
+            </div>
+          )}
+
+          {reportData && selectedReportType === 'patients' && (
+            <div style={{ ...styles.reportCard, display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
               <div style={styles.statBox}>
-                <h4 style={{ margin: '0 0 8px 0', color: '#6b7280' }}>Total Pending</h4>
-                <p style={{ fontSize: '24px', fontWeight: 'bold', margin: 0, color: '#ef4444' }}>
-                  Rs. {reportData.totalPending?.toLocaleString()}
-                </p>
+                <h4 style={{ margin: '0 0 8px 0', color: '#6b7280' }}>Total Registrations</h4>
+                <p style={{ fontSize: '24px', fontWeight: 'bold', margin: 0 }}>{reportData.summary.total}</p>
+              </div>
+              <div style={styles.statBox}>
+                <h4 style={{ margin: '0 0 8px 0', color: '#6b7280' }}>Online</h4>
+                <p style={{ fontSize: '24px', fontWeight: 'bold', margin: 0, color: '#10b981' }}>{reportData.summary.online}</p>
+              </div>
+              <div style={styles.statBox}>
+                <h4 style={{ margin: '0 0 8px 0', color: '#6b7280' }}>Receptionist</h4>
+                <p style={{ fontSize: '24px', fontWeight: 'bold', margin: 0, color: '#0066CC' }}>{reportData.summary.receptionist}</p>
+              </div>
+            </div>
+          )}
+
+          {reportData && selectedReportType === 'appointments' && (
+            <div style={{ ...styles.reportCard, display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px' }}>
+              <div style={styles.statBox}>
+                <h4 style={{ margin: '0 0 8px 0', color: '#6b7280' }}>Total</h4>
+                <p style={{ fontSize: '24px', fontWeight: 'bold', margin: 0 }}>{reportData.summary.total}</p>
+              </div>
+              <div style={styles.statBox}>
+                <h4 style={{ margin: '0 0 8px 0', color: '#6b7280' }}>Cancelled</h4>
+                <p style={{ fontSize: '24px', fontWeight: 'bold', margin: 0, color: '#ef4444' }}>{reportData.summary.cancelled}</p>
+              </div>
+              <div style={styles.statBox}>
+                <h4 style={{ margin: '0 0 8px 0', color: '#6b7280' }}>Unpaid</h4>
+                <p style={{ fontSize: '24px', fontWeight: 'bold', margin: 0, color: '#f59e0b' }}>{reportData.summary.cancelledUnpaid}</p>
+              </div>
+              <div style={styles.statBox}>
+                <h4 style={{ margin: '0 0 8px 0', color: '#6b7280' }}>Absent</h4>
+                <p style={{ fontSize: '24px', fontWeight: 'bold', margin: 0, color: '#6366f1' }}>{reportData.summary.absent}</p>
               </div>
             </div>
           )}
@@ -159,47 +242,74 @@ function Reports() {
             </div>
           </div>
 
-          {/* Recent Reports */}
-          <div style={styles.recentReportsSection}>
-            <h2 style={styles.sectionTitle}>Recent Reports</h2>
-            <div style={styles.tableContainer}>
-              <table style={styles.table}>
-                <thead>
-                  <tr>
-                    <th style={styles.th}>Report Type</th>
-                    <th style={styles.th}>Date Range</th>
-                    <th style={styles.th}>Generated On</th>
-                    <th style={styles.th}>Generated By</th>
-                    <th style={styles.th}>Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr style={styles.tr}>
-                    <td style={styles.td}>Appointments Report</td>
-                    <td style={styles.td}>2024-01-01 to 2024-01-15</td>
-                    <td style={styles.td}>2024-01-15 10:00 AM</td>
-                    <td style={styles.td}>Admin User</td>
-                    <td style={styles.td}>
-                      <button style={styles.downloadButton}>
-                        <FiDownload />
-                      </button>
-                    </td>
-                  </tr>
-                  <tr style={styles.tr}>
-                    <td style={styles.td}>Revenue Report</td>
-                    <td style={styles.td}>2024-01-01 to 2024-01-13</td>
-                    <td style={styles.td}>2024-01-13 05:45 PM</td>
-                    <td style={styles.td}>Admin User</td>
-                    <td style={styles.td}>
-                      <button style={styles.downloadButton}>
-                        <FiDownload />
-                      </button>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+          {/* Report Data Preview */}
+          {reportData && (
+            <div style={styles.recentReportsSection}>
+              <h2 style={styles.sectionTitle}>Data Preview (Latest 20 entries)</h2>
+              <div style={styles.tableContainer}>
+                <table style={styles.table}>
+                  <thead>
+                    {selectedReportType === 'revenue' && (
+                      <tr>
+                        <th style={styles.th}>ID</th>
+                        <th style={styles.th}>Patient</th>
+                        <th style={styles.th}>Doctor</th>
+                        <th style={styles.th}>Date</th>
+                        <th style={styles.th}>Center Fee</th>
+                      </tr>
+                    )}
+                    {selectedReportType === 'patients' && (
+                      <tr>
+                        <th style={styles.th}>Name</th>
+                        <th style={styles.th}>NIC</th>
+                        <th style={styles.th}>Source</th>
+                        <th style={styles.th}>Date</th>
+                        <th style={styles.th}>Contact</th>
+                      </tr>
+                    )}
+                    {selectedReportType === 'appointments' && (
+                      <tr>
+                        <th style={styles.th}>ID</th>
+                        <th style={styles.th}>Patient</th>
+                        <th style={styles.th}>Doctor</th>
+                        <th style={styles.th}>Date</th>
+                        <th style={styles.th}>Status</th>
+                      </tr>
+                    )}
+                  </thead>
+                  <tbody>
+                    {selectedReportType === 'revenue' && reportData.appointments?.slice(0, 20).map((a, idx) => (
+                      <tr key={idx} style={styles.tr}>
+                        <td style={styles.td}>{a.appointment_id}</td>
+                        <td style={styles.td}>{a.patient_name}</td>
+                        <td style={styles.td}>{a.doctor_name}</td>
+                        <td style={styles.td}>{a.date}</td>
+                        <td style={styles.td}>Rs. {a.center_fee}</td>
+                      </tr>
+                    ))}
+                    {selectedReportType === 'patients' && reportData.patients?.slice(0, 20).map((p, idx) => (
+                      <tr key={idx} style={styles.tr}>
+                        <td style={styles.td}>{p.name}</td>
+                        <td style={styles.td}>{p.nic}</td>
+                        <td style={styles.td}>{p.source}</td>
+                        <td style={styles.td}>{new Date(p.date).toLocaleDateString()}</td>
+                        <td style={styles.td}>{p.contact}</td>
+                      </tr>
+                    ))}
+                    {selectedReportType === 'appointments' && reportData.appointments?.slice(0, 20).map((a, idx) => (
+                      <tr key={idx} style={styles.tr}>
+                        <td style={styles.td}>{a.id}</td>
+                        <td style={styles.td}>{a.patient}</td>
+                        <td style={styles.td}>{a.doctor}</td>
+                        <td style={styles.td}>{a.date}</td>
+                        <td style={styles.td}>{a.status}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </div>
+          )}
 
           <div style={styles.footer}>
             <button
@@ -222,13 +332,10 @@ const styles = {
     backgroundColor: "#f3f4f6"
   },
   mainWrapper: {
-    flex: 1,
-    display: "flex",
-    flexDirection: "column"
+    // Handled by .main-wrapper
   },
   mainContent: {
-    padding: "32px",
-    flex: 1
+    // Handled by .content-padding
   },
   pageTitle: {
     fontSize: "32px",

@@ -36,6 +36,19 @@ const Appointment = sequelize.define('appointment', {
     notes: {
         type: DataTypes.TEXT,
         allowNull: true
+    },
+    appointment_number: {
+        type: DataTypes.INTEGER,
+        allowNull: true
+    },
+    cancellation_reason: {
+        type: DataTypes.STRING(255),
+        allowNull: true
+    },
+    is_noshow: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false
     }
 }, {
     tableName: 'appointment',

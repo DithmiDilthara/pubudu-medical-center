@@ -37,7 +37,7 @@ function PaymentManagement() {
                         dateOfService: apt.appointment_date,
                         service: apt.doctor?.specialization || 'Consultation',
                         amount: (apt.doctor?.doctor_fee || 0) + (apt.doctor?.center_fee || 0),
-                        status: apt.payment_status.toLowerCase()
+                        status: (apt.payment_status || "").toLowerCase()
                     }));
                     setPendingPayments(mapped);
                 }
@@ -76,12 +76,12 @@ function PaymentManagement() {
             <ReceptionistSidebar onLogout={handleLogout} />
 
             {/* Main Content */}
-            <div style={styles.mainWrapper}>
+            <div className="main-wrapper">
                 {/* Header */}
                 <ReceptionistHeader receptionistName={receptionistName} />
 
                 {/* Page Content */}
-                <main style={styles.mainContent}>
+                <main className="content-padding">
                     <div style={styles.contentContainer}>
                         {/* Page Header */}
                         <div style={styles.pageHeader}>
@@ -195,15 +195,10 @@ const styles = {
         backgroundColor: "#f9fafb"
     },
     mainWrapper: {
-        flex: 1,
-        display: "flex",
-        flexDirection: "column",
-        background: "linear-gradient(135deg, #f0f8ff 0%, #e6f2ff 100%)"
+        // Handled by .main-wrapper
     },
     mainContent: {
-        flex: 1,
-        padding: "32px",
-        overflow: "auto"
+        // Handled by .content-padding
     },
     contentContainer: {
         maxWidth: "1100px",

@@ -129,10 +129,10 @@ function OnlinePayment() {
     <div style={styles.container}>
       <PatientSidebar onLogout={handleLogout} />
 
-      <div style={styles.mainWrapper}>
+      <div className="main-wrapper">
         <PatientHeader patientName="Dithmi" />
 
-        <main style={styles.mainContent}>
+        <main className="content-padding">
           {/* Header */}
           <div style={styles.header}>
             <h1 style={styles.pageTitle}>Secure Checkout</h1>
@@ -240,16 +240,10 @@ const styles = {
     fontFamily: "'Inter', 'Segoe UI', sans-serif"
   },
   mainWrapper: {
-    flex: 1,
-    display: 'flex',
-    flexDirection: 'column'
+    // Handled by .main-wrapper
   },
   mainContent: {
-    flex: 1,
-    padding: '32px',
-    maxWidth: '800px', // Narrower max-width since cards are stacked
-    width: '100%',
-    margin: '0 auto'
+    // Handled by .content-padding
   },
   header: {
     marginBottom: '32px',

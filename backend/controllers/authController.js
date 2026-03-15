@@ -1,7 +1,9 @@
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import nodemailer from 'nodemailer';
+import bcrypt from 'bcryptjs';
 import { User, Role, Patient, Doctor, Receptionist, Admin, Token } from '../models/index.js';
+import sequelize from '../config/database.js';
 
 // Configure Nodemailer Transporter
 const transporter = nodemailer.createTransport({
@@ -18,9 +20,10 @@ const generateToken = (user) => {
     {
       user_id: user.user_id,
       username: user.username,
-      role_id: user.role_id
+      role_id: user.role_id,
+      role_name: user.role ? user.role.role_name : undefined
     },
-    process.env.JWT_SECRET,
+    process.env.JWT_SECRET || 'your-super-secret-jwt-key',
     { expiresIn: process.env.JWT_EXPIRES_IN || '24h' }
   );
 };
@@ -33,7 +36,7 @@ const getUserProfile = async (userId, roleId) => {
       {
         model: Role,
         as: 'role',
-        attributes: ['role_name']
+        attributes: ['role_id', 'role_name']
       }
     ]
   });
@@ -65,101 +68,25 @@ const getUserProfile = async (userId, roleId) => {
   return userData;
 };
 
-// @desc    Register a new patient
+// @desc    Register a new user (Legacy/Generic)
 // @route   POST /api/auth/register
 // @access  Public
 export const register = async (req, res) => {
   try {
-    const {
-      username,
-      password,
-      email,
-      contact_number,
-      full_name,
-      nic,
-      gender,
-      date_of_birth,
-      address
-    } = req.body;
-
-    // Validation
-    if (!username || !password || !full_name || !nic) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please provide all required fields'
-      });
+    const { username, password, email, role_name } = req.body;
+    
+    // Default to Patient if no role provided
+    const requestedRole = role_name || 'Patient';
+    
+    // Redirect based on role if needed, or handle generically
+    if (requestedRole === 'Patient') {
+        return registerPatient(req, res);
     }
-
-    // Check if username already exists
-    const existingUser = await User.findOne({ where: { username } });
-    if (existingUser) {
-      return res.status(400).json({
-        success: false,
-        message: 'Username already exists'
-      });
-    }
-
-    // Check if NIC already exists
-    const existingNIC = await Patient.findOne({ where: { nic } });
-    if (existingNIC) {
-      return res.status(400).json({
-        success: false,
-        message: 'NIC already registered'
-      });
-    }
-
-    // Check if email already exists (if provided)
-    if (email) {
-      const existingEmail = await User.findOne({ where: { email } });
-      if (existingEmail) {
-        return res.status(400).json({
-          success: false,
-          message: 'Email already registered'
-        });
-      }
-    }
-
-    // Create user (password will be hashed by the model hook)
-    const user = await User.create({
-      username,
-      password_hash: password,
-      email,
-      contact_number,
-      role_id: 4 // Patient role
-    });
-
-    // Create patient record
-    await Patient.create({
-      user_id: user.user_id,
-      full_name,
-      nic,
-      gender,
-      date_of_birth,
-      address
-    });
-
-    // Generate token
-    const token = generateToken(user);
-
-    // Get full user profile
-    const userProfile = await getUserProfile(user.user_id, user.role_id);
-
-    res.status(201).json({
-      success: true,
-      message: 'Patient registered successfully',
-      data: {
-        user: userProfile,
-        token
-      }
-    });
-
+    
+    return res.status(400).json({ success: false, message: 'General registration restricted to patients. Please use appropriate endpoints for staff.' });
   } catch (error) {
     console.error('Registration error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error during registration',
-      error: error.message
-    });
+    res.status(500).json({ success: false, message: 'Server error during registration' });
   }
 };
 
@@ -170,372 +97,252 @@ export const login = async (req, res) => {
   try {
     const { username, password } = req.body;
 
-    // Validation
     if (!username || !password) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please provide username and password'
-      });
+      return res.status(400).json({ success: false, message: 'Username and password are required.' });
     }
 
-    // Find user
     const user = await User.findOne({
       where: { username },
-      include: [
-        {
-          model: Role,
-          as: 'role',
-          attributes: ['role_name']
-        }
-      ]
+      include: [{
+        model: Role,
+        as: 'role',
+        attributes: ['role_id', 'role_name']
+      }]
     });
 
     if (!user) {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid credentials'
-      });
+      return res.status(401).json({ success: false, message: 'Invalid username or password.' });
     }
 
-    // Check password
+    if (!user.is_active) {
+      return res.status(401).json({ success: false, message: 'Your account has been deactivated.' });
+    }
+
     const isPasswordValid = await user.comparePassword(password);
     if (!isPasswordValid) {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid credentials'
-      });
+      return res.status(401).json({ success: false, message: 'Invalid username or password.' });
     }
 
-    // Generate token
+    await user.update({ last_login: new Date() });
     const token = generateToken(user);
-
-    // Get full user profile
     const userProfile = await getUserProfile(user.user_id, user.role_id);
 
     res.status(200).json({
       success: true,
-      message: 'Login successful',
-      data: {
-        user: userProfile,
-        token
-      }
+      message: 'Login successful.',
+      data: { user: userProfile, token }
     });
-
   } catch (error) {
     console.error('Login error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error during login',
-      error: error.message
-    });
+    res.status(500).json({ success: false, message: 'Server error during login' });
   }
 };
 
 // @desc    Get current user profile
-// @route   GET /api/auth/profile
-// @access  Private
 export const getProfile = async (req, res) => {
   try {
     const userProfile = await getUserProfile(req.user.user_id, req.user.role_id);
-
-    if (!userProfile) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      data: userProfile
-    });
-
+    if (!userProfile) return res.status(404).json({ success: false, message: 'User not found' });
+    res.status(200).json({ success: true, data: userProfile });
   } catch (error) {
-    console.error('Get profile error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 };
 
 // @desc    Update user profile
-// @route   PUT /api/auth/profile
-// @access  Private
 export const updateProfile = async (req, res) => {
   try {
     const { email, contact_number, full_name, address, gender, date_of_birth } = req.body;
     const userId = req.user.user_id;
     const roleId = req.user.role_id;
 
-    // Update user table
     const updateData = {};
     if (email !== undefined) updateData.email = email;
-    if (contact_number !== undefined) updateData.contact_number = contact_number;
+    const targetPhone = contact_number || req.body.phone;
+    if (targetPhone !== undefined) updateData.contact_number = targetPhone;
 
     if (Object.keys(updateData).length > 0) {
       await User.update(updateData, { where: { user_id: userId } });
     }
 
-    // Update role-specific table
-    const profileUpdateData = {};
-    if (full_name !== undefined) profileUpdateData.full_name = full_name;
-    if (address !== undefined) profileUpdateData.address = address;
-    if (gender !== undefined) profileUpdateData.gender = gender;
-    if (date_of_birth !== undefined) profileUpdateData.date_of_birth = date_of_birth;
+    const profileUpdateData = { full_name, address, gender, date_of_birth };
+    // Filter undefined
+    Object.keys(profileUpdateData).forEach(key => profileUpdateData[key] === undefined && delete profileUpdateData[key]);
 
     if (Object.keys(profileUpdateData).length > 0) {
       switch (roleId) {
-        case 4: // Patient
-          await Patient.update(profileUpdateData, { where: { user_id: userId } });
-          break;
-        case 3: // Receptionist
-          if (full_name !== undefined) {
-            await Receptionist.update({ full_name }, { where: { user_id: userId } });
-          }
-          break;
-        case 2: // Doctor
-          if (full_name !== undefined) {
-            await Doctor.update({ full_name }, { where: { user_id: userId } });
-          }
-          break;
+        case 4: await Patient.update(profileUpdateData, { where: { user_id: userId } }); break;
+        case 3: await Receptionist.update(profileUpdateData, { where: { user_id: userId } }); break;
+        case 2: await Doctor.update(profileUpdateData, { where: { user_id: userId } }); break;
       }
     }
 
-    // Get updated profile
     const userProfile = await getUserProfile(userId, roleId);
-
-    res.status(200).json({
-      success: true,
-      message: 'Profile updated successfully',
-      data: userProfile
-    });
-
+    res.status(200).json({ success: true, message: 'Profile updated successfully', data: userProfile });
   } catch (error) {
-    console.error('Update profile error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
-  }
-};
-
-// @desc    Change password
-// @route   PUT /api/auth/change-password
-// @access  Private
-export const changePassword = async (req, res) => {
-  try {
-    const { currentPassword, newPassword } = req.body;
-    const userId = req.user.user_id;
-
-    // Validation
-    if (!currentPassword || !newPassword) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please provide current and new password'
-      });
-    }
-
-    if (newPassword.length < 6) {
-      return res.status(400).json({
-        success: false,
-        message: 'New password must be at least 6 characters'
-      });
-    }
-
-    // Find user
-    const user = await User.findByPk(userId);
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
-    }
-
-    // Verify current password
-    const isPasswordValid = await user.comparePassword(currentPassword);
-    if (!isPasswordValid) {
-      return res.status(401).json({
-        success: false,
-        message: 'Current password is incorrect'
-      });
-    }
-
-    // Update password (will be hashed by model hook)
-    user.password_hash = newPassword;
-    await user.save();
-
-    res.status(200).json({
-      success: true,
-      message: 'Password changed successfully'
-    });
-
-  } catch (error) {
-    console.error('Change password error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
-  }
-};
-
-// @desc    Logout user
-// @route   POST /api/auth/logout
-// @access  Private
-// @desc    Forgot Password
-// @route   POST /api/auth/forgot-password
-// @access  Public
-export const forgotPassword = async (req, res) => {
-  try {
-    const { email } = req.body;
-
-    if (!email) {
-      return res.status(400).json({ success: false, message: 'Please provide an email' });
-    }
-
-    const user = await User.findOne({ where: { email } });
-
-    if (!user) {
-      return res.status(404).json({ success: false, message: 'User not found with this email' });
-    }
-
-    // Generate token
-    const resetToken = crypto.randomBytes(32).toString('hex');
-    const tokenHash = crypto.createHash('sha256').update(resetToken).digest('hex');
-
-    // Create token record in DB
-    await Token.create({
-      user_id: user.user_id,
-      token: tokenHash,
-      expires_at: new Date(Date.now() + 3600000) // 1 hour expiration
-    });
-
-    // Send Actual Email
-    const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
-
-    const mailOptions = {
-      from: `"Pubudu Medical Center" <${process.env.EMAIL_USER}>`,
-      to: email,
-      subject: 'Password Reset Request',
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; borderRadius: 8px;">
-          <h2 style="color: #0056b3; text-align: center;">Password Reset Request</h2>
-          <p>Hello,</p>
-          <p>You requested a password reset for your account at Pubudu Medical Center. Please click the button below to reset your password:</p>
-          <div style="text-align: center; margin: 30px 0;">
-            <a href="${resetUrl}" style="background-color: #0056b3; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">Reset Password</a>
-          </div>
-          <p>This link will expire in 1 hour.</p>
-          <p>If you did not request this, please ignore this email.</p>
-          <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
-          <p style="font-size: 12px; color: #666; text-align: center;">Pubudu Medical Center © 2026</p>
-        </div>
-      `
-    };
-
-    try {
-      await transporter.sendMail(mailOptions);
-      console.log(`✓ Reset email sent to ${email}`);
-    } catch (mailError) {
-      console.error('Email sending failed:', mailError);
-      return res.status(500).json({
-        success: false,
-        message: 'Failed to send reset email. Please try again later.'
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      message: 'Password reset link has been sent to your email.'
-    });
-
-  } catch (error) {
-    console.error('Forgot password error:', error);
-    res.status(500).json({ success: false, message: 'Server error', error: error.message });
-  }
-};
-
-// @desc    Reset Password
-// @route   POST /api/auth/reset-password
-// @access  Public
-export const resetPassword = async (req, res) => {
-  try {
-    const { token, newPassword } = req.body;
-
-    if (!token || !newPassword) {
-      return res.status(400).json({ success: false, message: 'Please provide token and new password' });
-    }
-
-    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
-
-    // Find valid token
-    const tokenRecord = await Token.findOne({ where: { token: tokenHash } });
-
-    if (!tokenRecord) {
-      return res.status(400).json({ success: false, message: 'Invalid or expired token' });
-    }
-
-    // Check expiration
-    if (new Date() > tokenRecord.expires_at) {
-      await tokenRecord.destroy(); // Cleanup expired
-      return res.status(400).json({ success: false, message: 'Token expired' });
-    }
-
-    // Determine User
-    const user = await User.findByPk(tokenRecord.user_id);
-    if (!user) {
-      return res.status(404).json({ success: false, message: 'User not found' });
-    }
-
-    // Update Password (hashed by hook)
-    user.password_hash = newPassword;
-    await user.save();
-
-    // Delete used token (and potentially all other tokens for this user for security)
-    await Token.destroy({ where: { user_id: user.user_id } });
-
-    res.status(200).json({ success: true, message: 'Password reset successful. You can now login.' });
-
-  } catch (error) {
-    console.error('Reset password error:', error);
-    res.status(500).json({ success: false, message: 'Server error', error: error.message });
-  }
-};
-
-// @desc    Get all reset tokens (Admin Debug)
-// @route   GET /api/auth/tokens
-// @access  Private (Admin)
-export const getTokens = async (req, res) => {
-  try {
-    const tokens = await Token.findAll({
-      include: [{ model: User, as: 'user', attributes: ['username', 'email'] }],
-      order: [['created_at', 'DESC']]
-    });
-
-    res.status(200).json({ success: true, data: tokens });
-  } catch (error) {
-    console.error('Get tokens error:', error);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };
 
-export const logout = async (req, res) => {
+// @desc    Change password
+export const changePassword = async (req, res) => {
   try {
-    // In a stateless JWT system, logout is handled client-side
-    // You could implement token blacklisting here if needed
-    res.status(200).json({
-      success: true,
-      message: 'Logged out successfully'
-    });
+    const { currentPassword, newPassword } = req.body;
+    const user = await User.findByPk(req.user.user_id);
+    
+    if (!user || !(await user.comparePassword(currentPassword))) {
+      return res.status(401).json({ success: false, message: 'Incorrect current password' });
+    }
+
+    user.password_hash = newPassword;
+    await user.save();
+    res.status(200).json({ success: true, message: 'Password changed successfully' });
   } catch (error) {
-    console.error('Logout error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+    res.status(500).json({ success: false, message: 'Server error' });
   }
+};
+
+// @desc    Forgot Password
+export const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    const user = await User.findOne({ where: { email } });
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(resetToken).digest('hex');
+
+    await Token.create({
+      user_id: user.user_id,
+      token: tokenHash,
+      expires_at: new Date(Date.now() + 3600000)
+    });
+
+    const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
+    await transporter.sendMail({
+      from: `"Pubudu Medical Center" <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: 'Password Reset Request',
+      html: `<p>Click <a href="${resetUrl}">here</a> to reset your password.</p>`
+    });
+
+    res.status(200).json({ success: true, message: 'Reset link sent to email' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+// @desc    Reset Password
+export const resetPassword = async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const tokenRecord = await Token.findOne({ where: { token: tokenHash } });
+
+    if (!tokenRecord || new Date() > tokenRecord.expires_at) {
+      return res.status(400).json({ success: false, message: 'Invalid or expired token' });
+    }
+
+    const user = await User.findByPk(tokenRecord.user_id);
+    user.password_hash = newPassword;
+    await user.save();
+    await tokenRecord.destroy();
+
+    res.status(200).json({ success: true, message: 'Password reset successful' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+// @desc    Logout user
+export const logout = async (req, res) => {
+    res.status(200).json({ success: true, message: 'Logged out successfully' });
+};
+
+// @desc    Register a new patient (Public)
+export const registerPatient = async (req, res) => {
+    const transaction = await sequelize.transaction();
+    try {
+        const { username, email, password, first_name, last_name, phone, contact_number, date_of_birth, gender, address } = req.body;
+        const targetPhone = phone || contact_number;
+
+        if (!username || !email || !password) {
+            await transaction.rollback();
+            return res.status(400).json({ success: false, message: 'Username, email, and password are required.' });
+        }
+
+        const role = await Role.findOne({ where: { role_name: 'Patient' }, transaction });
+        const newUser = await User.create({ username, email, password_hash: password, role_id: role.role_id, contact_number: targetPhone, is_active: true }, { transaction });
+        await Patient.create({ user_id: newUser.user_id, first_name, last_name, date_of_birth, gender, address, registration_source: 'ONLINE' }, { transaction });
+
+        await transaction.commit();
+        res.status(201).json({ success: true, message: 'Patient registered successfully.', data: { user: { user_id: newUser.user_id, username, email, role: 'Patient' }, token: generateToken(newUser) } });
+    } catch (error) {
+        await transaction.rollback();
+        res.status(500).json({ success: false, message: 'An error occurred during registration.', error: error.message });
+    }
+};
+
+// @desc    Admin add staff
+export const addStaff = async (req, res) => {
+    const transaction = await sequelize.transaction();
+    try {
+        const { username, email, password, role_name, first_name, last_name, phone, specialization, qualification, experience_years, consultation_fee, bio, shift } = req.body;
+        const admin_id = req.user.user_id;
+
+        if (!['Doctor', 'Receptionist'].includes(role_name)) {
+            await transaction.rollback();
+            return res.status(400).json({ success: false, message: 'Invalid role' });
+        }
+
+        const role = await Role.findOne({ where: { role_name }, transaction });
+        const newUser = await User.create({ username, email, password_hash: password, role_id: role.role_id, contact_number: phone, is_active: true }, { transaction });
+
+        if (role_name === 'Doctor') {
+            await Doctor.create({ user_id: newUser.user_id, first_name, last_name, phone, specialization, qualification, experience_years, consultation_fee, bio, is_available: true, admin_id }, { transaction });
+        } else {
+            await Receptionist.create({ user_id: newUser.user_id, first_name, last_name, phone, shift }, { transaction });
+        }
+
+        await transaction.commit();
+        res.status(201).json({ success: true, message: `${role_name} account created success.`, data: { user: { user_id: newUser.user_id, username, email, role: role_name } } });
+    } catch (error) {
+        await transaction.rollback();
+        res.status(500).json({ success: false, message: 'An error occurred.', error: error.message });
+    }
+};
+
+// @desc    Get all tokens (Admin)
+export const getTokens = async (req, res) => {
+  try {
+    const tokens = await Token.findAll({ include: [{ model: User, as: 'user', attributes: ['username', 'email'] }] });
+    res.status(200).json({ success: true, data: tokens });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+// @desc    Verify token
+export const verifyAuth = async (req, res) => {
+  try {
+    const userProfile = await getUserProfile(req.user.user_id, req.user.role_id);
+    res.status(200).json({ success: true, data: { user: userProfile } });
+  } catch (error) {
+    res.status(401).json({ success: false, message: 'Invalid token' });
+  }
+};
+
+export default {
+    register,
+    registerPatient,
+    addStaff,
+    login,
+    getProfile,
+    updateProfile,
+    changePassword,
+    logout,
+    forgotPassword,
+    resetPassword,
+    getTokens,
+    verifyAuth
 };

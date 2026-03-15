@@ -42,10 +42,10 @@ function ConfirmPayment() {
     <div style={styles.container}>
       <ReceptionistSidebar />
 
-      <div style={styles.mainContainer}>
+      <div className="main-wrapper">
         <ReceptionistHeader />
 
-        <div style={styles.content}>
+        <div className="content-padding">
           <div style={styles.paymentCard}>
             <h1 style={styles.pageTitle}>Confirm Payment</h1>
 
@@ -120,17 +120,11 @@ const styles = {
   },
 
   mainContainer: {
-    flex: 1,
-    display: 'flex',
-    flexDirection: 'column'
+    // Handled by .main-wrapper
   },
 
   content: {
-    flex: 1,
-    padding: '40px',
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'flex-start'
+    // Handled by .content-padding
   },
 
   paymentCard: {

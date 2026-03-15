@@ -59,17 +59,17 @@ function ReceptionistSidebar({ onLogout }) {
 
 const styles = {
   sidebar: {
-    width: "280px",
+    width: "256px",
     backgroundColor: "#FFFFFF",
-    minHeight: "100vh",
-    boxShadow: "2px 0 20px rgba(0, 0, 0, 0.04)",
+    height: "100vh",
+    boxShadow: "var(--shadow-soft)",
     display: "flex",
     flexDirection: "column",
-    position: "sticky",
+    position: "fixed",
     top: 0,
     left: 0,
-    borderRight: "1px solid #E5E7EB",
-    zIndex: 100
+    borderRight: "1px solid var(--slate-100)",
+    zIndex: 1000
   },
   sidebarContent: {
     display: "flex",
@@ -100,16 +100,16 @@ const styles = {
     color: "white"
   },
   logoText: {
-    fontSize: "19px",
+    fontSize: "var(--text-lg)",
     fontWeight: "800",
-    color: "#111827",
+    color: "var(--slate-900)",
     margin: 0,
     letterSpacing: "-0.3px",
     fontFamily: "'Plus Jakarta Sans', 'Inter', sans-serif"
   },
   roleText: {
-    fontSize: "12px",
-    color: "#6B7280",
+    fontSize: "var(--text-xs)",
+    color: "var(--slate-500)",
     margin: 0,
     fontWeight: "600",
     fontFamily: "'Inter', sans-serif",
@@ -127,11 +127,11 @@ const styles = {
     display: "flex",
     alignItems: "center",
     gap: "14px",
-    padding: "14px 18px",
+    padding: "12px 18px",
     borderRadius: "12px",
     textDecoration: "none",
-    color: "#6B7280",
-    fontSize: "15px",
+    color: "var(--slate-500)",
+    fontSize: "var(--text-sm)",
     fontWeight: "600",
     transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
     cursor: "pointer",
@@ -150,7 +150,7 @@ const styles = {
     fontSize: "21px"
   },
   navLabel: {
-    fontSize: "15px",
+    fontSize: "var(--text-sm)",
     fontFamily: "'Inter', sans-serif"
   },
   logoutContainer: {

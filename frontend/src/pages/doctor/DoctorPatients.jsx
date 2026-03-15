@@ -44,8 +44,12 @@ function DoctorPatients() {
   };
 
   const filteredPatients = patients.filter(patient => {
-    const matchesSearch = patient.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         patient.patientId.toLowerCase().includes(searchTerm.toLowerCase());
+    const name = patient.name || "";
+    const id = patient.patientId || "";
+    const search = searchTerm.toLowerCase();
+
+    const matchesSearch = name.toLowerCase().includes(search) ||
+                         id.toLowerCase().includes(search);
     const matchesDate = !filterDate || patient.lastVisit === filterDate;
     return matchesSearch && matchesDate;
   });
@@ -59,10 +63,10 @@ function DoctorPatients() {
     <div style={styles.pageContainer}>
       <DoctorSidebar onLogout={handleLogout} />
 
-      <div style={styles.mainContainer}>
+      <div className="main-wrapper">
         <DoctorHeader />
 
-        <main style={styles.mainContent}>
+        <main className="content-padding">
           {/* Header */}
           <div style={styles.header}>
             <div>
@@ -200,17 +204,10 @@ const styles = {
     fontFamily: "'Inter', 'Segoe UI', sans-serif"
   },
   mainContainer: {
-    flex: 1,
-    display: "flex",
-    flexDirection: "column",
-    background: "linear-gradient(135deg, #f0f8ff 0%, #e6f2ff 100%)"
+    // Handled by .main-wrapper
   },
   mainContent: {
-    flex: 1,
-    padding: '32px',
-    maxWidth: '1400px',
-    width: '100%',
-    margin: '0 auto'
+    // Handled by .content-padding
   },
   header: {
     marginBottom: '24px'

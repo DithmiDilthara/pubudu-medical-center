@@ -32,10 +32,17 @@ const Patient = sequelize.define('patient', {
   address: {
     type: DataTypes.STRING(255),
     allowNull: true
+  },
+  registration_source: {
+    type: DataTypes.ENUM('ONLINE', 'RECEPTIONIST'),
+    allowNull: false,
+    defaultValue: 'ONLINE'
   }
 }, {
   tableName: 'patient',
-  timestamps: false
+  timestamps: true,
+  createdAt: 'created_at',
+  updatedAt: 'updated_at'
 });
 
 export default Patient;

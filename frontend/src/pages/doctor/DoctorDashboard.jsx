@@ -111,11 +111,11 @@ function DoctorDashboard() {
     <div style={styles.pageContainer}>
       <DoctorSidebar onLogout={handleLogout} />
 
-      <div style={styles.mainContainer}>
+      <div className="main-wrapper">
         <DoctorHeader doctorName={doctorName} />
 
         {/* Main Content */}
-        <main style={styles.mainContent}>
+        <main className="content-padding">
           <div style={styles.pageHeader}>
             <h1 style={styles.pageTitle}>Dashboard</h1>
             <p style={styles.pageSubtitle}>Welcome back, {doctorName}</p>
@@ -282,14 +282,12 @@ const styles = {
     fontFamily: "'Inter', 'Segoe UI', sans-serif"
   },
   mainContainer: {
-    flex: 1,
-    display: "flex",
-    flexDirection: "column",
+    // Handled by .main-wrapper in CSS
     background: "linear-gradient(135deg, #f0f8ff 0%, #e6f2ff 100%)"
   },
   mainContent: {
+    // Handled by .content-padding in CSS
     flex: 1,
-    padding: "32px",
     overflowY: "auto"
   },
   pageHeader: {

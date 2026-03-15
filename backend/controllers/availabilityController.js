@@ -170,8 +170,8 @@ async function cancelAffectedAppointments(doctorId, filter) {
             appt.status = 'CANCELLED';
             await appt.save();
 
-            if (appt.patient?.user?.email) {
-                NotificationService.sendCancellationNotice(appt.patient.user.email, {
+            if (appt.patient?.user?.email || appt.patient?.user?.contact_number) {
+                NotificationService.sendCancellationNotice(appt.patient.user?.email, appt.patient.user?.contact_number, {
                     doctorName: appt.doctor.full_name,
                     patientName: appt.patient.full_name,
                     date: appt.appointment_date,

@@ -12,6 +12,9 @@ import DoctorDetails from './pages/patient/DoctorDetails';
 import ConfirmBooking from './pages/patient/ConfirmBooking';
 import OnlinePayment from './pages/patient/OnlinePayment';
 import Appointments from './pages/patient/Appointments';
+import Payments from './pages/patient/Payments';
+import Prescriptions from './pages/patient/Prescriptions';
+import ChannelDoctor from './pages/patient/ChannelDoctor';
 import DoctorDashboard from './pages/doctor/DoctorDashboard';
 import DoctorAppointments from './pages/doctor/DoctorAppointments';
 import PatientDetailsDoctor from './pages/patient/PatientDetailsDoctor';
@@ -27,6 +30,7 @@ import AdminDashboard from './pages/admin/AdminDashboard';
 import ManageDoctors from './pages/admin/ManageDoctors';
 import ManageReceptionist from './pages/admin/ManageReceptionist';
 import Reports from './pages/admin/Reports';
+import AddStaff from './pages/admin/AddStaff';
 
 function App() {
   return (
@@ -45,6 +49,9 @@ function App() {
           <Route path="/patient/confirm-booking" element={<ConfirmBooking />} />
           <Route path="/patient/payment" element={<OnlinePayment />} />
           <Route path="/patient/appointments" element={<Appointments />} />
+          <Route path="/patient/payments" element={<Payments />} />
+          <Route path="/patient/prescriptions" element={<Prescriptions />} />
+          <Route path="/patient/channel-doctor" element={<ChannelDoctor />} />
           <Route path="/doctor/dashboard" element={<DoctorDashboard />} />
           <Route path="/doctor/appointments" element={<DoctorAppointments />} />
           <Route path="/doctor/patient-details" element={<PatientDetailsDoctor />} />
@@ -61,6 +68,7 @@ function App() {
           <Route path="/admin/doctors" element={<ManageDoctors />} />
           <Route path="/admin/receptionist" element={<ManageReceptionist />} />
           <Route path="/admin/reports" element={<Reports />} />
+          <Route path="/admin/add-staff" element={<AddStaff />} />
         </Routes>
       </Router>
     </AuthProvider>

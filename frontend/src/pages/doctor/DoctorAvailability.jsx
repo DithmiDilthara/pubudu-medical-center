@@ -302,10 +302,10 @@ function DoctorAvailability() {
     <div style={styles.pageContainer}>
       <DoctorSidebar onLogout={handleLogout} />
 
-      <div style={styles.mainContainer}>
+      <div className="main-wrapper">
         <DoctorHeader doctorName={doctorName} />
 
-        <main style={styles.mainContent}>
+        <main className="content-padding">
           {/* Header */}
           <div style={styles.header}>
             <div>
@@ -455,16 +455,10 @@ const styles = {
     fontFamily: "'Inter', 'Segoe UI', sans-serif"
   },
   mainContainer: {
-    flex: 1,
-    display: "flex",
-    flexDirection: "column"
+    // Handled by .main-wrapper
   },
   mainContent: {
-    flex: 1,
-    padding: '32px',
-    maxWidth: '1400px',
-    width: '100%',
-    margin: '0 auto'
+    // Handled by .content-padding
   },
   header: {
     marginBottom: '24px'

@@ -155,7 +155,8 @@ export const registerPatient = async (req, res) => {
             nic,
             gender: gender.toUpperCase(),
             date_of_birth,
-            address
+            address,
+            registration_source: 'RECEPTIONIST'
         });
 
         res.status(201).json({

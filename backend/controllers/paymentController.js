@@ -57,7 +57,7 @@ export const initiatePayment = async (req, res) => {
             first_name: appointment.patient.full_name.split(' ')[0],
             last_name: appointment.patient.full_name.split(' ').slice(1).join(' ') || 'Patient',
             email: appointment.patient.user.email,
-            phone: appointment.patient.phone || '0771234567',
+            phone: appointment.patient.user.contact_number || '0771234567',
             address: appointment.patient.address || 'Colombo, Sri Lanka',
             city: 'Colombo',
             country: 'Sri Lanka',
@@ -128,17 +128,19 @@ export const handleNotify = async (req, res) => {
 
                 // Send Confirmation Email
                 try {
-                    if (appointment.patient.user.email) {
-                        NotificationService.sendAppointmentConfirmation(appointment.patient.user.email, {
-                            patientName: appointment.patient.full_name,
-                            doctorName: appointment.doctor.full_name,
-                            date: appointment.appointment_date,
-                            time: appointment.time_slot,
-                            paymentStatus: 'PAID'
-                        });
-                    }
-                } catch (emailError) {
-                    console.error('Notify webhook email error:', emailError);
+                    NotificationService.sendPaymentSuccess(appointment.patient?.user?.email, appointment.patient?.user?.contact_number, {
+                        patientName: appointment.patient.full_name,
+                        amount: payhere_amount,
+                        appointmentId: appointment.appointment_id,
+                        doctorName: appointment.doctor.full_name,
+                        date: appointment.appointment_date,
+                        time: appointment.time_slot,
+                        appointmentNumber: appointment.appointment_number,
+                        transactionId: payhere_payment_id,
+                        method: method || 'PayHere'
+                    });
+                } catch (notifyError) {
+                    console.error('Notify webhook notification error:', notifyError);
                 }
             }
         }
@@ -201,17 +203,19 @@ export const verifyPayment = async (req, res) => {
 
             // Send Confirmation Email safely
             try {
-                if (appointment.patient && appointment.patient.user && appointment.patient.user.email) {
-                    NotificationService.sendAppointmentConfirmation(appointment.patient.user.email, {
-                        patientName: appointment.patient.full_name,
-                        doctorName: appointment.doctor.full_name,
-                        date: appointment.appointment_date,
-                        time: appointment.time_slot,
-                        paymentStatus: 'PAID'
-                    });
-                }
-            } catch (emailError) {
-                console.error('Verify payment email error:', emailError);
+                NotificationService.sendPaymentSuccess(appointment.patient?.user?.email, appointment.patient?.user?.contact_number, {
+                    patientName: appointment.patient.full_name,
+                    amount: appointment.doctor.session_fee || 3000.00,
+                    appointmentId: appointment.appointment_id,
+                    doctorName: appointment.doctor.full_name,
+                    date: appointment.appointment_date,
+                    time: appointment.time_slot,
+                    appointmentNumber: appointment.appointment_number,
+                    transactionId: `PH_VERIFY_${Date.now()}`,
+                    method: 'PayHere'
+                });
+            } catch (notifyError) {
+                console.error('Verify payment notification error:', notifyError);
             }
         }
 

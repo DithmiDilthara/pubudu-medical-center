@@ -66,3 +66,4 @@ export const protect = async (req, res, next) => {
 
 // Verify user is authenticated (alias for protect)
 export const authenticate = protect;
+export const verifyToken = protect;

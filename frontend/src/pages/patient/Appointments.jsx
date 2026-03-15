@@ -1,14 +1,17 @@
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
-import { FiCalendar, FiClock, FiCreditCard, FiPlus, FiTrash2 } from 'react-icons/fi';
+import { FiCalendar, FiClock, FiCreditCard, FiPlus, FiTrash2, FiSearch } from 'react-icons/fi';
 import PatientSidebar from "../../components/PatientSidebar";
 import PatientHeader from "../../components/PatientHeader";
+import AppointmentCard from "../../components/AppointmentCard";
 import axios from 'axios';
 import toast from 'react-hot-toast';
 
 function Appointments() {
   const navigate = useNavigate();
   const [appointments, setAppointments] = useState([]);
+  const [activeTab, setActiveTab] = useState('Upcoming');
+  const [gridCols, setGridCols] = useState(3);
 
   useEffect(() => {
     const fetchAppointments = async () => {
@@ -26,15 +29,18 @@ function Appointments() {
     };
     fetchAppointments();
 
-    // Check for payment status in URL
-    const queryParams = new URLSearchParams(window.location.search);
-    if (queryParams.get('payment') === 'success') {
-      toast.success("Payment successful! Your appointment is being confirmed.");
-      window.history.replaceState({}, document.title, window.location.pathname);
-    } else if (queryParams.get('payment') === 'cancel') {
-      toast.error("Payment was cancelled.");
-      window.history.replaceState({}, document.title, window.location.pathname);
-    }
+    const handleResize = () => {
+      if (window.innerWidth < 768) {
+        setGridCols(1);
+      } else if (window.innerWidth < 1024) {
+        setGridCols(2);
+      } else {
+        setGridCols(3);
+      }
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   const handleLogout = () => {
@@ -63,201 +69,88 @@ function Appointments() {
     }
   };
 
-  const handlePayNow = (appointmentId) => {
-    const apt = appointments.find(a => a.appointment_id === appointmentId);
-    if (!apt) return;
-
-    const doctorFee = Number(apt.doctor?.doctor_fee || 2500);
-    const totalFee = doctorFee + Number(apt.doctor?.center_fee || 600); // Adding dynamic medical center fee
-
-    navigate("/patient/payment", {
-      state: {
-        paymentData: {
-          appointmentId: apt.appointment_id,
-          doctor: {
-            name: apt.doctor?.full_name || 'Doctor',
-            specialty: apt.doctor?.specialization || 'General'
-          },
-          date: apt.appointment_date,
-          time: apt.time_slot,
-          totalFee: totalFee,
-          notes: apt.notes
-        }
-      }
-    });
-  };
-
   const today = new Date();
   const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
-  const upcomingAppointments = appointments.filter(apt =>
-    ['PENDING', 'CONFIRMED'].includes(apt.status) && apt.appointment_date >= todayStr
-  );
+  const getFilteredAppointments = () => {
+    switch (activeTab) {
+      case 'Upcoming':
+        return appointments.filter(apt => ['PENDING', 'CONFIRMED', 'RESCHEDULED'].includes(apt.status) && apt.appointment_date >= todayStr);
+      case 'Completed':
+        return appointments.filter(apt => apt.status === 'COMPLETED' || (apt.status === 'CONFIRMED' && apt.appointment_date < todayStr));
+      case 'Cancelled':
+        return appointments.filter(apt => apt.status === 'CANCELLED');
+      default:
+        return appointments;
+    }
+  };
 
-  const pastAppointments = appointments.filter(apt =>
-    ['COMPLETED', 'CANCELLED'].includes(apt.status) || apt.appointment_date < todayStr
-  );
+  const filteredAppointments = getFilteredAppointments();
 
   return (
     <div style={styles.container}>
       <PatientSidebar onLogout={handleLogout} />
 
-      <div style={styles.mainWrapper}>
-        <PatientHeader patientName="Dithmi" />
+      <div className="main-wrapper">
+        <PatientHeader />
 
-        <main style={styles.mainContent}>
-          {/* Header */}
-          <div style={styles.header}>
-            <div>
-              <h1 style={styles.pageTitle}>My Appointments</h1>
-              <p style={styles.pageSubtitle}>Manage your medical appointments</p>
+        <main className="content-padding">
+          {/* Tab Bar and Action Header */}
+          <div style={styles.tabHeader}>
+            <div style={styles.tabBar}>
+              {['Upcoming', 'Completed', 'Cancelled'].map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  style={{
+                    ...styles.tabBtn,
+                    backgroundColor: activeTab === tab ? '#3B82F6' : 'transparent',
+                    color: activeTab === tab ? 'white' : '#6B7280',
+                  }}
+                >
+                  {tab}
+                </button>
+              ))}
             </div>
-            <button onClick={handleBookNew} style={styles.bookNewButton}>
-              <FiPlus style={{ marginRight: '8px' }} />
-              Book New Appointment
-            </button>
+            
+            <div style={styles.bookSection}>
+                <span style={styles.bookLabel}>Book Appointment</span>
+                <button onClick={handleBookNew} style={styles.bookBtn}>
+                  <FiPlus size={20} />
+                  <span>Book Now</span>
+                </button>
+            </div>
           </div>
 
-          {/* Upcoming Appointments */}
+          {/* Appointments Grid */}
           <section style={styles.section}>
-            <h2 style={styles.sectionTitle}>
-              <FiCalendar style={{ marginRight: '8px', verticalAlign: 'middle' }} />
-              Upcoming Appointments
-            </h2>
-
-            {upcomingAppointments.length > 0 ? (
-              <div style={styles.appointmentsList}>
-                {upcomingAppointments.map((apt) => (
-                  <div key={apt.appointment_id} style={styles.appointmentCard}>
-                    <div style={styles.appointmentHeader}>
-                      <div style={styles.appointmentLeft}>
-                        <div style={styles.doctorAvatar}>
-                          {apt.doctor?.full_name?.charAt(0) || "D"}
-                        </div>
-                        <div>
-                          <h3 style={styles.doctorName}>{apt.doctor?.full_name}</h3>
-                          <p style={styles.specialty}>{apt.doctor?.specialization}</p>
-                        </div>
-                      </div>
-                      <div style={styles.appointmentRight}>
-                        <span style={styles.statusBadge}>{apt.status}</span>
-                      </div>
-                    </div>
-
-                    <div style={styles.appointmentDetails}>
-                      <div style={styles.detailItem}>
-                        <FiCalendar size={20} style={styles.detailIcon} />
-                        <span style={styles.detailText}>
-                          {new Date(apt.appointment_date).toLocaleDateString('en-US', {
-                            weekday: 'long',
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric'
-                          })}
-                        </span>
-                      </div>
-                      <div style={styles.detailItem}>
-                        <FiClock size={20} style={styles.detailIcon} />
-                        <span style={styles.detailText}>{apt.time_slot}</span>
-                      </div>
-                      <div style={styles.detailItem}>
-                        <FiCreditCard size={20} style={styles.detailIcon} />
-                        <span style={styles.detailText}>LKR {(Number(apt.doctor?.doctor_fee || 2500) + Number(apt.doctor?.center_fee || 600)).toLocaleString()}</span>
-                      </div>
-                    </div>
-
-                    {apt.notes && (
-                      <div style={styles.notesSection}>
-                        <p style={styles.notesLabel}>Notes:</p>
-                        <p style={styles.notesText}>{apt.notes}</p>
-                      </div>
-                    )}
-
-                    <div style={styles.appointmentActions}>
-                      {apt.status === 'PENDING' && (
-                        <>
-                          {apt.payment_status === 'UNPAID' && (
-                            <button
-                              onClick={() => handlePayNow(apt.appointment_id)}
-                              style={styles.payNowButton}
-                            >
-                              <FiCreditCard style={{ marginRight: '6px' }} />
-                              Pay Now
-                            </button>
-                          )}
-                          <button
-                            onClick={() => handleCancelAppointment(apt.appointment_id)}
-                            style={styles.cancelButton}
-                          >
-                            <FiTrash2 style={{ marginRight: '6px' }} />
-                            Cancel Appointment
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </div>
+            {filteredAppointments.length > 0 ? (
+              <div style={{
+                ...styles.appointmentGrid,
+                gridTemplateColumns: `repeat(${gridCols}, 1fr)`
+              }}>
+                {filteredAppointments.map((apt) => (
+                  <AppointmentCard 
+                    key={apt.appointment_id} 
+                    appt={apt} 
+                    variant="grid"
+                    onCancel={handleCancelAppointment}
+                    onReschedule={(appt) => toast.error("Reschedule feature coming soon!")}
+                    onViewDetails={(appt) => toast.success(`Viewing details for ${appt.appointment_id}`)}
+                  />
                 ))}
               </div>
             ) : (
               <div style={styles.emptyState}>
                 <FiCalendar size={64} style={styles.emptyIcon} />
-                <p style={styles.emptyText}>No upcoming appointments</p>
+                <p style={styles.emptyText}>No {activeTab.toLowerCase()} appointments found</p>
                 <button onClick={handleBookNew} style={styles.emptyButton}>
                   <FiPlus style={{ marginRight: '8px' }} />
-                  Book Your First Appointment
+                  Book New Appointment
                 </button>
               </div>
             )}
           </section>
-
-          {/* Past Appointments */}
-          {pastAppointments.length > 0 && (
-            <section style={styles.section}>
-              <h2 style={styles.sectionTitle}>
-                <FiCalendar style={{ marginRight: '8px', verticalAlign: 'middle' }} />
-                Past Appointments
-              </h2>
-
-              <div style={styles.appointmentsList}>
-                {pastAppointments.map((apt) => (
-                  <div key={apt.appointment_id} style={{ ...styles.appointmentCard, ...styles.pastCard }}>
-                    <div style={styles.appointmentHeader}>
-                      <div style={styles.appointmentLeft}>
-                        <div style={styles.doctorAvatar}>
-                          {apt.doctor?.full_name?.charAt(0) || "D"}
-                        </div>
-                        <div>
-                          <h3 style={styles.doctorName}>{apt.doctor?.full_name}</h3>
-                          <p style={styles.specialty}>{apt.doctor?.specialization}</p>
-                        </div>
-                      </div>
-                      <div style={styles.appointmentRight}>
-                        <span style={styles.pastBadge}>{apt.status}</span>
-                      </div>
-                    </div>
-
-                    <div style={styles.appointmentDetails}>
-                      <div style={styles.detailItem}>
-                        <FiCalendar size={20} style={styles.detailIcon} />
-                        <span style={styles.detailText}>
-                          {new Date(apt.appointment_date).toLocaleDateString('en-US', {
-                            weekday: 'long',
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric'
-                          })}
-                        </span>
-                      </div>
-                      <div style={styles.detailItem}>
-                        <FiClock size={20} style={styles.detailIcon} />
-                        <span style={styles.detailText}>{apt.time_slot}</span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
         </main>
       </div>
     </div>
@@ -267,228 +160,76 @@ function Appointments() {
 const styles = {
   container: {
     display: 'flex',
-    flexDirection: 'row',
     minHeight: '100vh',
-    background: 'linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%)',
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    backgroundColor: 'var(--slate-50)',
+    fontFamily: "'Inter', sans-serif"
   },
   mainWrapper: {
-    flex: 1,
-    display: 'flex',
-    flexDirection: 'column'
+    // Handled by .main-wrapper
   },
   mainContent: {
-    flex: 1,
-    padding: '32px',
-    maxWidth: '1200px',
-    width: '100%',
-    margin: '0 auto'
+    // Handled by .content-padding
   },
-  header: {
+  tabHeader: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: '32px',
+    marginBottom: '40px',
+    backgroundColor: 'white',
+    padding: '16px 24px',
+    borderRadius: 'var(--radius-2xl)',
+    boxShadow: 'var(--shadow-soft)',
+    border: '1px solid var(--slate-100)',
     flexWrap: 'wrap',
-    gap: '16px'
+    gap: '20px',
   },
-  pageTitle: {
-    fontSize: '32px',
-    fontWeight: 'bold',
-    background: 'linear-gradient(135deg, #0066CC 0%, #0052A3 100%)',
-    WebkitBackgroundClip: 'text',
-    WebkitTextFillColor: 'transparent',
-    margin: '0 0 8px 0',
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+  tabBar: {
+    display: 'flex',
+    gap: '8px',
+    backgroundColor: '#F3F4F6',
+    padding: '6px',
+    borderRadius: '14px',
   },
-  pageSubtitle: {
-    fontSize: '15px',
-    color: '#6b7280',
-    margin: 0,
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
-  },
-  bookNewButton: {
-    padding: '12px 24px',
-    fontSize: '15px',
-    fontWeight: '700',
-    color: 'white',
-    background: 'linear-gradient(135deg, #0066CC 0%, #0052A3 100%)',
-    border: 'none',
+  tabBtn: {
+    padding: '10px 24px',
     borderRadius: '10px',
+    fontSize: 'var(--text-sm)',
+    fontWeight: '700',
+    border: 'none',
     cursor: 'pointer',
-    boxShadow: '0 6px 20px rgba(0, 102, 204, 0.4)',
-    transition: 'all 0.3s',
+    transition: 'all 0.3s ease',
+  },
+  bookSection: {
     display: 'flex',
     alignItems: 'center',
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    gap: '20px',
+  },
+  bookLabel: {
+    fontSize: 'var(--text-sm)',
+    fontWeight: '700',
+    color: 'var(--slate-900)',
+  },
+  bookBtn: {
+    padding: '12px 28px',
+    borderRadius: '12px',
+    backgroundColor: 'var(--primary-blue)',
+    color: 'white',
+    border: 'none',
+    fontSize: 'var(--text-sm)',
+    fontWeight: '700',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    boxShadow: '0 4px 12px rgba(37, 99, 235, 0.3)',
+    transition: 'all 0.2s ease',
+  },
+  appointmentGrid: {
+    display: 'grid',
+    gap: '24px',
   },
   section: {
     marginBottom: '32px'
-  },
-  sectionTitle: {
-    fontSize: '22px',
-    fontWeight: 'bold',
-    color: '#1f2937',
-    margin: '0 0 20px 0',
-    display: 'flex',
-    alignItems: 'center',
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
-  },
-  appointmentsList: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '20px'
-  },
-  appointmentCard: {
-    background: 'white',
-    padding: '24px',
-    borderRadius: '16px',
-    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
-    border: '2px solid rgba(0, 102, 204, 0.1)',
-    transition: 'all 0.3s'
-  },
-  pastCard: {
-    opacity: 0.7,
-    border: '2px solid #e5e7eb'
-  },
-  appointmentHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '20px'
-  },
-  appointmentLeft: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '16px'
-  },
-  doctorAvatar: {
-    width: '56px',
-    height: '56px',
-    borderRadius: '50%',
-    background: 'linear-gradient(135deg, #0066CC 0%, #0052A3 100%)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: '24px',
-    fontWeight: 'bold',
-    color: 'white',
-    boxShadow: '0 4px 12px rgba(0, 102, 204, 0.3)',
-    flexShrink: 0,
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
-  },
-  doctorName: {
-    fontSize: '18px',
-    fontWeight: '700',
-    color: '#1f2937',
-    margin: '0 0 4px 0',
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
-  },
-  specialty: {
-    fontSize: '14px',
-    color: '#0066CC',
-    fontWeight: '600',
-    margin: 0,
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
-  },
-  appointmentRight: {},
-  statusBadge: {
-    padding: '6px 16px',
-    fontSize: '13px',
-    fontWeight: '700',
-    color: 'white',
-    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-    borderRadius: '20px',
-    boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)',
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
-  },
-  pastBadge: {
-    padding: '6px 16px',
-    fontSize: '13px',
-    fontWeight: '700',
-    color: '#6b7280',
-    background: '#f3f4f6',
-    borderRadius: '20px',
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
-  },
-  appointmentDetails: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-    gap: '16px',
-    marginBottom: '16px'
-  },
-  detailItem: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '12px',
-    padding: '12px 16px',
-    background: 'linear-gradient(135deg, rgba(0, 102, 204, 0.05) 0%, rgba(0, 82, 163, 0.05) 100%)',
-    borderRadius: '10px',
-    border: '1px solid rgba(0, 102, 204, 0.1)'
-  },
-  detailIcon: {
-    color: '#0066CC'
-  },
-  detailText: {
-    fontSize: '14px',
-    color: '#374151',
-    fontWeight: '600',
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
-  },
-  notesSection: {
-    padding: '16px',
-    background: '#fef3c7',
-    borderRadius: '10px',
-    border: '1px solid #fbbf24',
-    marginBottom: '16px'
-  },
-  notesLabel: {
-    fontSize: '13px',
-    color: '#92400e',
-    fontWeight: '700',
-    margin: '0 0 4px 0',
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
-  },
-  notesText: {
-    fontSize: '14px',
-    color: '#78350f',
-    margin: 0,
-    lineHeight: '1.5',
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
-  },
-  appointmentActions: {
-    display: 'flex',
-    justifyContent: 'flex-end',
-    gap: '12px'
-  },
-  cancelButton: {
-    padding: '10px 20px',
-    fontSize: '14px',
-    fontWeight: '600',
-    color: '#dc2626',
-    background: 'white',
-    border: '2px solid #dc2626',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    transition: 'all 0.3s',
-    display: 'flex',
-    alignItems: 'center',
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
-  },
-  payNowButton: {
-    padding: '10px 20px',
-    fontSize: '14px',
-    fontWeight: '700',
-    color: 'white',
-    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-    border: 'none',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)',
-    transition: 'all 0.3s',
-    display: 'flex',
-    alignItems: 'center',
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
   },
   emptyState: {
     background: 'white',
@@ -514,11 +255,11 @@ const styles = {
     fontSize: '15px',
     fontWeight: '700',
     color: 'white',
-    background: 'linear-gradient(135deg, #0066CC 0%, #0052A3 100%)',
+    background: 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)',
     border: 'none',
     borderRadius: '10px',
     cursor: 'pointer',
-    boxShadow: '0 6px 20px rgba(0, 102, 204, 0.4)',
+    boxShadow: '0 6px 20px rgba(59, 130, 246, 0.4)',
     display: 'inline-flex',
     alignItems: 'center',
     fontFamily: "'Inter', 'Segoe UI', sans-serif"
@@ -526,4 +267,3 @@ const styles = {
 };
 
 export default Appointments;
-

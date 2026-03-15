@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import axios from "axios";
-import { FiSearch, FiUser } from 'react-icons/fi';
+import { FiSearch, FiUser, FiClock, FiPlus } from 'react-icons/fi';
 import PatientSidebar from "../../components/PatientSidebar";
 import PatientHeader from "../../components/PatientHeader";
 
@@ -18,6 +18,7 @@ const getDoctorImage = (id) => doctorImages[id % doctorImages.length];
 function FindDoctor() {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
+  const [typedSearch, setTypedSearch] = useState("");
   const [selectedSpecialty, setSelectedSpecialty] = useState("All");
   const [doctors, setDoctors] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -44,15 +45,22 @@ function FindDoctor() {
   };
 
   const handleBookAppointment = (doctor) => {
-    navigate("/patient/doctor-details", { state: { doctor } });
+    navigate("/patient/channel-doctor", { state: { doctor } });
   };
 
-  const specialties = ["All", ...new Set(doctors.map(d => d.specialization))];
+  const handleSearch = () => {
+    setSearchTerm(typedSearch);
+  };
+
+  const specialties = ["All", "Cardiology", "Dermatology", "Neurology", "Orthopedic", "General", "Pediatrics"];
 
   const filteredDoctors = doctors.filter(doctor => {
-    const matchesSearch = doctor.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      doctor.specialization.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesSpecialty = selectedSpecialty === "All" || doctor.specialization === selectedSpecialty;
+    const name = doctor.full_name || "";
+    const specialty = doctor.specialization || "";
+    const search = searchTerm.toLowerCase();
+
+    const matchesSearch = name.toLowerCase().includes(search) || specialty.toLowerCase().includes(search);
+    const matchesSpecialty = selectedSpecialty === "All" || specialty === selectedSpecialty;
     return matchesSearch && matchesSpecialty;
   });
 
@@ -60,59 +68,42 @@ function FindDoctor() {
     <div style={styles.container}>
       <PatientSidebar onLogout={handleLogout} />
 
-      <div style={styles.mainWrapper}>
+      <div className="main-wrapper">
         <PatientHeader patientName="Dithmi" />
 
-        <main style={styles.mainContent}>
-          <div style={styles.headerSection}>
-            <div>
-              <h1 style={styles.pageTitle}>Our Doctors</h1>
-              <p style={styles.pageSubtitle}>
-                Choose a doctor to view their availability and book an appointment
-              </p>
+        <main className="content-padding">
+          {/* Search Section */}
+          <section style={styles.searchSection}>
+            <div style={styles.searchBarWrapper}>
+              <div style={styles.inputIconBox}>
+                <FiSearch style={styles.searchIcon} />
+                <input
+                  type="text"
+                  placeholder="Search by doctor name or specialty..."
+                  value={typedSearch}
+                  onChange={(e) => setTypedSearch(e.target.value)}
+                  style={styles.searchInput}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                />
+              </div>
+              <button onClick={handleSearch} style={styles.searchBtn}>
+                Search
+              </button>
             </div>
-          </div>
+          </section>
 
+          {/* Specialty Filter Section */}
           <section style={styles.filterSection}>
-            <div style={styles.searchContainer}>
-              <FiSearch style={styles.searchIcon} />
-              <input
-                type="text"
-                placeholder="Search by doctor name or specialty..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                style={styles.searchInput}
-                onFocus={(e) => {
-                  e.target.style.borderColor = '#0066CC';
-                  e.target.style.boxShadow = '0 0 0 3px rgba(0, 102, 204, 0.1)';
-                }}
-                onBlur={(e) => {
-                  e.target.style.borderColor = '#E5E7EB';
-                  e.target.style.boxShadow = 'none';
-                }}
-              />
-            </div>
-
-            <div style={styles.specialtyFilters}>
+            <div style={styles.chipsWrapper}>
               {specialties.map(specialty => (
                 <button
                   key={specialty}
                   onClick={() => setSelectedSpecialty(specialty)}
                   style={{
-                    ...styles.specialtyButton,
-                    ...(selectedSpecialty === specialty ? styles.specialtyButtonActive : {})
-                  }}
-                  onMouseEnter={(e) => {
-                    if (selectedSpecialty !== specialty) {
-                      e.currentTarget.style.borderColor = '#0066CC';
-                      e.currentTarget.style.color = '#0066CC';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (selectedSpecialty !== specialty) {
-                      e.currentTarget.style.borderColor = '#E5E7EB';
-                      e.currentTarget.style.color = '#6B7280';
-                    }
+                    ...styles.chip,
+                    backgroundColor: selectedSpecialty === specialty ? '#0066CC' : '#FFFFFF',
+                    color: selectedSpecialty === specialty ? '#FFFFFF' : '#4B5563',
+                    borderColor: selectedSpecialty === specialty ? '#0066CC' : '#E5E7EB',
                   }}
                 >
                   {specialty}
@@ -121,61 +112,57 @@ function FindDoctor() {
             </div>
           </section>
 
-          <section style={styles.doctorsSection}>
-            {filteredDoctors.length > 0 ? (
-              <div style={styles.doctorsList}>
+          {/* Doctors Grid Section */}
+          <section style={styles.gridSection}>
+            {isLoading ? (
+              <div style={styles.loadingBox}>Loading available doctors...</div>
+            ) : filteredDoctors.length > 0 ? (
+              <div style={styles.doctorGrid}>
                 {filteredDoctors.map((doctor) => (
-                  <div
-                    key={doctor.doctor_id}
-                    style={styles.doctorCard}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.transform = 'translateY(-2px)';
-                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.08)';
-                      e.currentTarget.style.borderColor = '#0066CC';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.transform = 'translateY(0)';
-                      e.currentTarget.style.boxShadow = '0 1px 2px rgba(0, 0, 0, 0.05)';
-                      e.currentTarget.style.borderColor = '#F3F4F6';
-                    }}
-                  >
-                    <div style={styles.doctorCardLeft}>
-                      <div style={styles.doctorAvatar}>
+                  <div key={doctor.doctor_id} style={styles.doctorCard}>
+                    {/* Card Top */}
+                    <div style={styles.cardTop}>
+                      <div style={styles.avatarContainer}>
                         <img
                           src={getDoctorImage(doctor.doctor_id)}
                           alt={doctor.full_name}
-                          style={styles.doctorAvatarImg}
+                          style={styles.avatarImg}
                         />
+                        <div style={styles.onlineDot} />
                       </div>
-                      <div style={styles.doctorInfo}>
-                        <h3 style={styles.doctorName}>{doctor.full_name}</h3>
-                        <p style={styles.doctorSpecialty}>{doctor.specialization}</p>
+                      <div style={styles.doctorMeta}>
+                        <h3 style={styles.cardName}>{doctor.full_name}</h3>
+                        <p style={styles.cardSpecialty}>{doctor.specialization}</p>
                       </div>
                     </div>
-                    <div style={styles.doctorCardRight}>
+
+                    <div style={styles.slotInfo}>
+                      <FiClock style={styles.slotIcon} />
+                      <span style={styles.slotText}>Next available: Today, 5:00 PM</span>
+                    </div>
+
+                    <div style={styles.divider} />
+
+                    {/* Card Bottom */}
+                    <div style={styles.cardBottom}>
+                      <div style={styles.feeBox}>
+                        <span style={styles.feeLabel}>Fee:</span>
+                        <span style={styles.feeAmount}>LKR {Number(doctor.doctor_fee).toLocaleString()}</span>
+                      </div>
                       <button
                         onClick={() => handleBookAppointment(doctor)}
-                        style={styles.bookButton}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.transform = 'translateY(-2px)';
-                          e.currentTarget.style.boxShadow = '0 6px 20px rgba(0, 102, 204, 0.35)';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.transform = 'translateY(0)';
-                          e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 102, 204, 0.25)';
-                        }}
+                        style={styles.channelBtn}
                       >
-                        <FiUser style={{ marginRight: '8px' }} />
-                        Book Appointment
+                        Channel Now
                       </button>
                     </div>
                   </div>
                 ))}
               </div>
             ) : (
-              <div style={styles.noResults}>
-                <FiSearch size={48} style={{ color: '#9ca3af', marginBottom: '12px' }} />
-                <p style={styles.noResultsText}>No doctors found matching your search.</p>
+              <div style={styles.noResultsBox}>
+                <FiSearch size={48} style={{ color: '#D1D5DB', marginBottom: '16px' }} />
+                <p>No doctors found matching your criteria.</p>
               </div>
             )}
           </section>
@@ -188,204 +175,214 @@ function FindDoctor() {
 const styles = {
   container: {
     display: 'flex',
-    flexDirection: 'row',
     minHeight: '100vh',
-    background: '#F9FAFB',
-    fontFamily: "'Inter', sans-serif"
+    backgroundColor: 'var(--slate-50)',
+    fontFamily: "'Inter', sans-serif",
   },
   mainWrapper: {
-    flex: 1,
-    display: 'flex',
-    flexDirection: 'column'
+    // Handled by .main-wrapper
   },
   mainContent: {
-    flex: 1,
-    padding: '40px',
-    maxWidth: '1400px',
-    width: '100%',
-    margin: '0 auto'
+    // Handled by .content-padding
   },
-  headerSection: {
-    marginBottom: '32px'
+  searchSection: {
+    marginBottom: '24px',
+    backgroundColor: 'white',
+    padding: '32px',
+    borderRadius: 'var(--radius-2xl)',
+    boxShadow: 'var(--shadow-soft)',
+    border: '1px solid var(--slate-100)',
   },
-  pageTitle: {
-    fontSize: '36px',
-    fontWeight: '800',
-    color: '#111827',
-    margin: 0,
-    fontFamily: "'Plus Jakarta Sans', 'Inter', sans-serif",
-    letterSpacing: '-0.5px'
-  },
-  pageSubtitle: {
-    fontSize: '16px',
-    color: '#6B7280',
-    margin: '10px 0 0 0',
-    fontFamily: "'Inter', sans-serif",
-    fontWeight: '500'
-  },
-  filterSection: {
-    marginBottom: '28px',
-    background: 'white',
-    padding: '28px',
-    borderRadius: '16px',
-    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
-    border: '1px solid #E5E7EB'
-  },
-  searchContainer: {
-    marginBottom: '20px',
-    position: 'relative',
+  searchBarWrapper: {
     display: 'flex',
-    alignItems: 'center'
+    gap: '12px',
+    width: '100%',
+  },
+  inputIconBox: {
+    position: 'relative',
+    flex: 1,
   },
   searchIcon: {
     position: 'absolute',
-    left: '18px',
+    left: '16px',
+    top: '50%',
+    transform: 'translateY(-50%)',
     color: '#9CA3AF',
-    fontSize: '20px'
+    fontSize: '20px',
   },
   searchInput: {
     width: '100%',
-    padding: '14px 18px 14px 52px',
-    fontSize: '15px',
-    border: '2px solid #E5E7EB',
+    padding: '16px 16px 16px 52px',
     borderRadius: '12px',
+    border: '1px solid var(--slate-200)',
+    fontSize: 'var(--text-base)',
     outline: 'none',
-    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-    boxSizing: 'border-box',
-    fontFamily: "'Inter', sans-serif",
-    color: '#111827',
-    backgroundColor: '#FFFFFF'
+    transition: 'all 0.2s ease',
+    backgroundColor: 'white',
   },
-  specialtyFilters: {
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: '10px'
-  },
-  specialtyButton: {
-    padding: '10px 20px',
-    fontSize: '14px',
-    fontWeight: '600',
-    border: '2px solid #E5E7EB',
-    borderRadius: '10px',
-    background: 'white',
-    color: '#6B7280',
-    cursor: 'pointer',
-    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-    fontFamily: "'Inter', sans-serif"
-  },
-  specialtyButtonActive: {
-    background: 'linear-gradient(135deg, #0066CC 0%, #0052A3 100%)',
+  searchBtn: {
+    padding: '0 32px',
+    backgroundColor: 'var(--primary-blue)',
     color: 'white',
-    border: '2px solid #0066CC',
-    boxShadow: '0 4px 12px rgba(0, 102, 204, 0.25)'
+    borderRadius: '12px',
+    border: 'none',
+    fontSize: 'var(--text-sm)',
+    fontWeight: '700',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
   },
-  doctorsSection: {
-    background: 'white',
-    padding: '32px',
-    borderRadius: '16px',
-    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
-    border: '1px solid #E5E7EB'
+  filterSection: {
+    marginBottom: '40px',
   },
-  doctorsList: {
+  chipsWrapper: {
     display: 'flex',
-    flexDirection: 'column',
-    gap: '16px'
+    gap: '10px',
+    overflowX: 'auto',
+    paddingBottom: '8px',
+    scrollbarWidth: 'none', // For Firefox
+    msOverflowStyle: 'none', // For IE/Edge
+  },
+  chip: {
+    padding: '12px 28px',
+    borderRadius: '100px',
+    border: '1px solid var(--slate-200)',
+    fontSize: 'var(--text-sm)',
+    fontWeight: '600',
+    cursor: 'pointer',
+    whiteSpace: 'nowrap',
+    transition: 'all 0.2s ease',
+  },
+  gridSection: {
+    minHeight: '400px',
+  },
+  doctorGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+    gap: '24px',
   },
   doctorCard: {
+    backgroundColor: 'white',
+    borderRadius: '20px',
+    border: '1px solid var(--slate-200)',
+    padding: '24px',
+    transition: 'all 0.3s ease',
+    display: 'flex',
+    flexDirection: 'column',
+    cursor: 'pointer',
+  },
+  cardTop: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '16px',
+    marginBottom: '20px',
+  },
+  avatarContainer: {
+    position: 'relative',
+    width: '64px',
+    height: '64px',
+  },
+  avatarImg: {
+    width: '100%',
+    height: '100%',
+    borderRadius: '50%',
+    objectFit: 'cover',
+    border: '2px solid #E6F2FF',
+  },
+  onlineDot: {
+    position: 'absolute',
+    bottom: '2px',
+    right: '2px',
+    width: '12px',
+    height: '12px',
+    backgroundColor: '#22C55E',
+    borderRadius: '50%',
+    border: '2px solid white',
+  },
+  doctorMeta: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '4px',
+  },
+  cardName: {
+    fontSize: 'var(--text-lg)',
+    fontWeight: '800',
+    color: 'var(--slate-900)',
+    margin: 0,
+  },
+  cardSpecialty: {
+    fontSize: 'var(--text-sm)',
+    color: 'var(--primary-blue)',
+    fontWeight: '600',
+    margin: 0,
+  },
+  slotInfo: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    marginBottom: '20px',
+    padding: '8px 12px',
+    backgroundColor: '#F9FAFB',
+    borderRadius: '10px',
+  },
+  slotIcon: {
+    fontSize: '14px',
+    color: '#6B7280',
+  },
+  slotText: {
+    fontSize: 'var(--text-xs)',
+    color: 'var(--slate-600)',
+    fontWeight: '500',
+  },
+  divider: {
+    height: '1px',
+    backgroundColor: '#F3F4F6',
+    margin: '0 -24px 20px -24px',
+  },
+  cardBottom: {
+    marginTop: 'auto',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: '20px',
-    border: '1px solid #F3F4F6',
-    borderRadius: '14px',
-    background: '#FFFFFF',
-    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-    boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)'
   },
-  doctorCardLeft: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '18px',
-    flex: 1
-  },
-  doctorAvatar: {
-    width: '64px',
-    height: '64px',
-    borderRadius: '50%',
-    background: 'linear-gradient(135deg, #0066CC 0%, #0052A3 100%)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: '24px',
-    fontWeight: 'bold',
-    color: 'white',
-    boxShadow: '0 4px 12px rgba(0, 102, 204, 0.25)',
-    flexShrink: 0,
-    fontFamily: "'Inter', sans-serif",
-    border: '3px solid #E6F2FF',
-    overflow: 'hidden',
-    padding: 0
-  },
-  doctorAvatarImg: {
-    width: '100%',
-    height: '100%',
-    objectFit: 'cover'
-  },
-  doctorInfo: {
-    flex: 1
-  },
-  doctorName: {
-    fontSize: '18px',
-    fontWeight: '700',
-    color: '#111827',
-    margin: '0 0 6px 0',
-    fontFamily: "'Plus Jakarta Sans', 'Inter', sans-serif"
-  },
-  doctorSpecialty: {
-    fontSize: '14px',
-    color: '#0066CC',
-    fontWeight: '600',
-    margin: 0,
-    fontFamily: "'Inter', sans-serif",
-    backgroundColor: '#E6F2FF',
-    padding: '4px 12px',
-    borderRadius: '6px',
-    display: 'inline-block'
-  },
-  doctorCardRight: {
-    display: 'flex',
-    alignItems: 'center'
-  },
-  bookButton: {
-    padding: '12px 24px',
-    fontSize: '14px',
-    fontWeight: '700',
-    color: 'white',
-    background: 'linear-gradient(135deg, #0066CC 0%, #0052A3 100%)',
-    border: 'none',
-    borderRadius: '10px',
-    cursor: 'pointer',
-    boxShadow: '0 4px 12px rgba(0, 102, 204, 0.25)',
-    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-    whiteSpace: 'nowrap',
-    display: 'flex',
-    alignItems: 'center',
-    fontFamily: "'Inter', sans-serif"
-  },
-  noResults: {
-    textAlign: 'center',
-    padding: '60px 20px',
+  feeBox: {
     display: 'flex',
     flexDirection: 'column',
-    alignItems: 'center'
   },
-  noResultsText: {
-    fontSize: '16px',
+  feeLabel: {
+    fontSize: '12px',
     color: '#9CA3AF',
-    margin: 0,
-    fontFamily: "'Inter', sans-serif",
-    fontWeight: '500'
-  }
+    fontWeight: '600',
+    textTransform: 'uppercase',
+  },
+  feeAmount: {
+    fontSize: 'var(--text-lg)',
+    fontWeight: '800',
+    color: 'var(--slate-900)',
+  },
+  channelBtn: {
+    padding: '12px 24px',
+    backgroundColor: 'var(--primary-blue)',
+    color: 'white',
+    borderRadius: '12px',
+    border: 'none',
+    fontSize: 'var(--text-sm)',
+    fontWeight: '700',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+  },
+  loadingBox: {
+    textAlign: 'center',
+    padding: '80px',
+    color: '#6B7280',
+  },
+  noResultsBox: {
+    textAlign: 'center',
+    padding: '80px',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    color: '#9CA3AF',
+  },
 };
 
 export default FindDoctor;

@@ -212,10 +212,10 @@ function PatientDetailsDoctor() {
     <div style={styles.container}>
       <DoctorSidebar onLogout={handleLogout} />
 
-      <div style={styles.mainWrapper}>
+      <div className="main-wrapper">
         <DoctorHeader />
 
-        <main style={styles.mainContent}>
+        <main className="content-padding">
           <button onClick={handleBack} style={styles.backButton}>
             <FiArrowLeft style={{ marginRight: '8px' }} />
             Back
@@ -402,15 +402,10 @@ const styles = {
     backgroundColor: '#F3F4F6'
   },
   mainWrapper: {
-    flex: 1,
-    display: 'flex',
-    flexDirection: 'column'
+    // Handled by .main-wrapper
   },
   mainContent: {
-    padding: '32px',
-    maxWidth: '1400px',
-    margin: '0 auto',
-    width: '100%'
+    // Handled by .content-padding
   },
   backButton: {
     display: 'flex',

@@ -124,12 +124,12 @@ function AppointmentsManagement() {
       <ReceptionistSidebar onLogout={handleLogout} />
 
       {/* Main Content */}
-      <div style={styles.mainWrapper}>
+      <div className="main-wrapper">
         {/* Header */}
         <ReceptionistHeader receptionistName={receptionistName} />
 
         {/* Page Content */}
-        <main style={styles.mainContent}>
+        <main className="content-padding">
           <div style={styles.contentContainer}>
             {/* Page Header */}
             <div style={styles.pageHeader}>
@@ -186,6 +186,7 @@ function AppointmentsManagement() {
                     <tr style={styles.tableHeaderRow}>
                       <th style={styles.tableHeader}>Patient Name</th>
                       <th style={styles.tableHeader}>Date & Time</th>
+                      <th style={styles.tableHeader}>Queue No.</th>
                       <th style={styles.tableHeader}>Doctor</th>
                       <th style={styles.tableHeader}>Payment</th>
                       <th style={styles.tableHeader}>Action</th>
@@ -210,6 +211,19 @@ function AppointmentsManagement() {
                           <td style={styles.tableCell}>
                             <div style={styles.dateTimeCell}>
                               {formatDate(appointment.appointment_date)} {appointment.time_slot}
+                            </div>
+                          </td>
+                          <td style={styles.tableCell}>
+                            <div style={{ 
+                                background: '#f0fdf4', 
+                                color: '#16a34a', 
+                                border: '1px solid #16a34a',
+                                borderRadius: '4px',
+                                padding: '2px 8px',
+                                display: 'inline-block',
+                                fontWeight: 'bold'
+                            }}>
+                              #{appointment.appointment_number || '--'}
                             </div>
                           </td>
                           <td style={styles.tableCell}>
@@ -272,15 +286,10 @@ const styles = {
     backgroundColor: "#f9fafb"
   },
   mainWrapper: {
-    flex: 1,
-    display: "flex",
-    flexDirection: "column",
-    background: "linear-gradient(135deg, #f0f8ff 0%, #e6f2ff 100%)"
+    // Handled by .main-wrapper
   },
   mainContent: {
-    flex: 1,
-    padding: "32px",
-    overflow: "auto"
+    // Handled by .content-padding
   },
   contentContainer: {
     maxWidth: "1200px",

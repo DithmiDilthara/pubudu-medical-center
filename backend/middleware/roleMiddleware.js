@@ -37,6 +37,9 @@ export const authorizeRoles = (...roles) => {
   };
 };
 
+// Alias for authorizeRoles
+export const authorizeRole = authorizeRoles;
+
 // Specific role middlewares for convenience
 export const isAdmin = authorizeRoles(ROLES.ADMIN);
 export const isDoctor = authorizeRoles(ROLES.DOCTOR);

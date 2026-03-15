@@ -39,25 +39,39 @@ export const createAppointment = async (req, res) => {
             return res.status(400).json({ success: false, message: 'This time slot is already booked' });
         }
 
+        // Calculate next appointment number for this doctor and date
+        const lastAppointment = await Appointment.findOne({
+            where: {
+                doctor_id,
+                appointment_date,
+                status: { [Op.ne]: 'CANCELLED' }
+            },
+            order: [['appointment_number', 'DESC']]
+        });
+
+        const nextNumber = lastAppointment ? (lastAppointment.appointment_number || 0) + 1 : 1;
+
         const appointment = await Appointment.create({
             patient_id: targetPatientId,
             doctor_id,
             appointment_date,
             time_slot,
             status: 'PENDING',
-            payment_status: 'UNPAID'
+            payment_status: 'UNPAID',
+            appointment_number: nextNumber
         });
 
         // Send confirmation notification (Async)
         try {
             const patient = await Patient.findByPk(targetPatientId, { include: [{ model: User, as: 'user' }] });
             const doctor = await Doctor.findByPk(doctor_id);
-            if (patient && patient.user && patient.user.email) {
-                NotificationService.sendAppointmentConfirmation(patient.user.email, {
+            if (patient && (patient.user?.email || patient.user?.contact_number)) {
+                NotificationService.sendAppointmentConfirmation(patient.user?.email, patient.user?.contact_number, {
                     patientName: patient.full_name,
                     doctorName: doctor.full_name,
                     date: appointment_date,
-                    time: time_slot
+                    time: time_slot,
+                    appointmentNumber: appointment.appointment_number
                 });
             }
         } catch (notifyError) {
@@ -98,7 +112,10 @@ export const cancelAppointment = async (req, res) => {
             }
         }
 
+        const { cancellation_reason, is_noshow } = req.body;
         appointment.status = 'CANCELLED';
+        if (cancellation_reason) appointment.cancellation_reason = cancellation_reason;
+        if (is_noshow !== undefined) appointment.is_noshow = is_noshow;
         await appointment.save();
 
         res.status(200).json({ success: true, message: 'Appointment cancelled successfully', data: appointment });
@@ -209,5 +226,36 @@ export const updateStatus = async (req, res) => {
     } catch (error) {
         console.error('Update status error:', error);
         res.status(500).json({ success: false, message: 'Server error' });
+    }
+};
+
+/**
+ * @desc    Get next available queue number
+ * @route   GET /api/appointments/next-number
+ * @access  Private
+ */
+export const getNextNumber = async (req, res) => {
+    try {
+        const { doctor_id, date } = req.query;
+
+        if (!doctor_id || !date) {
+            return res.status(400).json({ success: false, message: 'Doctor ID and Date are required' });
+        }
+
+        const lastAppointment = await Appointment.findOne({
+            where: {
+                doctor_id,
+                appointment_date: date,
+                status: { [Op.ne]: 'CANCELLED' }
+            },
+            order: [['appointment_number', 'DESC']]
+        });
+
+        const nextNumber = lastAppointment ? (lastAppointment.appointment_number || 0) + 1 : 1;
+
+        res.status(200).json({ success: true, nextNumber });
+    } catch (error) {
+        console.error('Get next number error:', error);
+        res.status(500).json({ success: false, message: 'Server error', error: error.message });
     }
 };

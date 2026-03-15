@@ -1,5 +1,5 @@
 import { useNavigate, useLocation } from "react-router-dom";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import axios from "axios";
 import toast from "react-hot-toast";
 import { FiClipboard, FiCalendar, FiClock, FiCreditCard, FiInfo, FiFileText, FiArrowLeft } from 'react-icons/fi';
@@ -13,6 +13,9 @@ function ConfirmBooking() {
 
   const [notes, setNotes] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [nextNumber, setNextNumber] = useState(null);
+
+
 
   const handleLogout = () => {
     localStorage.clear();
@@ -26,6 +29,28 @@ function ConfirmBooking() {
 
   const { doctor, date, time } = appointmentData;
   const doctorId = doctor.doctor_id || doctor.id;
+
+  useEffect(() => {
+    const fetchNextNumber = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const localDate = new Date(date.getTime() - (date.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+        const response = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/appointments/next-number`, {
+          params: { doctor_id: doctorId, date: localDate },
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (response.data.success) {
+          setNextNumber(response.data.nextNumber);
+        }
+      } catch (error) {
+        console.error("Error fetching next number:", error);
+      }
+    };
+
+    if (doctorId && date) {
+      fetchNextNumber();
+    }
+  }, [doctorId, date]);
 
   // Fee calculation
   const doctorFee = Number(doctor?.doctor_fee || 2500);
@@ -115,10 +140,10 @@ function ConfirmBooking() {
     <div style={styles.container}>
       <PatientSidebar onLogout={handleLogout} />
 
-      <div style={styles.mainWrapper}>
+      <div className="main-wrapper">
         <PatientHeader patientName="Dithmi" />
 
-        <main style={styles.mainContent}>
+        <main className="content-padding">
           {/* Header */}
           <div style={styles.header}>
             <h1 style={styles.pageTitle}>Confirm Your Appointment</h1>
@@ -167,6 +192,18 @@ function ConfirmBooking() {
                     <p style={styles.detailValue}>{time}</p>
                   </div>
                 </div>
+
+                {nextNumber !== null && (
+                  <div style={{ ...styles.detailCard, gridColumn: 'span 2', background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(5, 150, 105, 0.1) 100%)', borderColor: '#10b981' }}>
+                    <div style={{ ...styles.detailIcon, background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)' }}>
+                      <FiInfo size={24} color="white" />
+                    </div>
+                    <div>
+                      <p style={styles.detailLabel}>Queue Position</p>
+                      <p style={{ ...styles.detailValue, color: '#059669', fontSize: '20px' }}>Your Number: {nextNumber}</p>
+                    </div>
+                  </div>
+                )}
               </div>
             </section>
 
@@ -255,16 +292,10 @@ const styles = {
     fontFamily: "'Inter', 'Segoe UI', sans-serif"
   },
   mainWrapper: {
-    flex: 1,
-    display: 'flex',
-    flexDirection: 'column'
+    // Handled by .main-wrapper
   },
   mainContent: {
-    flex: 1,
-    padding: '32px',
-    maxWidth: '800px',
-    width: '100%',
-    margin: '0 auto'
+    // Handled by .content-padding
   },
   header: {
     marginBottom: '32px',

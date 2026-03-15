@@ -28,38 +28,159 @@ export const getSystemStats = async (req, res) => {
   }
 };
 
-/**
- * @desc    Get financial reports (revenue stats)
- * @route   GET /api/admin/reports/financial
- * @access  Private/Admin
- */
-export const getFinancialReports = async (req, res) => {
+export const getRevenueReport = async (req, res) => {
   try {
-    // Total Revenue
-    const totalRevenue = await Payment.sum('amount', { where: { status: 'SUCCESS' } }) || 0;
+    const { startDate, endDate } = req.query;
+    
+    const where = {
+      payment_status: 'PAID'
+    };
 
-    // Revenue by month (grouped)
-    const monthlyRevenue = await Payment.findAll({
-      attributes: [
-        [sequelize.fn('date_format', sequelize.col('created_at'), '%Y-%m'), 'month'],
-        [sequelize.fn('sum', sequelize.col('amount')), 'total']
-      ],
-      where: { status: 'SUCCESS' },
-      group: ['month'],
-      order: [['month', 'DESC']],
-      limit: 6
+    if (startDate && endDate) {
+      where.appointment_date = {
+        [Op.between]: [startDate, endDate]
+      };
+    }
+
+    const appointments = await Appointment.findAll({
+      where,
+      include: [
+        {
+          model: Doctor,
+          as: 'doctor',
+          attributes: ['center_fee', 'full_name']
+        },
+        {
+          model: Patient,
+          as: 'patient',
+          attributes: ['full_name']
+        }
+      ]
     });
+
+    const totalCenterRevenue = appointments.reduce((sum, appt) => sum + parseFloat(appt.doctor?.center_fee || 0), 0);
 
     res.status(200).json({
       success: true,
       data: {
-        totalRevenue,
-        monthlyRevenue
+        totalRevenue: totalCenterRevenue,
+        appointmentCount: appointments.length,
+        appointments: appointments.map(a => ({
+          appointment_id: a.appointment_id,
+          patient_name: a.patient?.full_name,
+          doctor_name: a.doctor?.full_name,
+          date: a.appointment_date,
+          center_fee: parseFloat(a.doctor?.center_fee || 0)
+        }))
       }
     });
 
   } catch (error) {
-    console.error('Financial report error:', error);
+    console.error('Revenue report error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+/**
+ * @desc    Get Patient Registration Report
+ * @route   GET /api/admin/reports/patients
+ * @access  Private/Admin
+ */
+export const getPatientRegistrationReport = async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+    const where = {};
+
+    if (startDate && endDate) {
+      where.created_at = {
+        [Op.between]: [new Date(startDate), new Date(endDate + 'T23:59:59')]
+      };
+    }
+
+    const patients = await Patient.findAll({
+      where,
+      include: [{
+        model: User,
+        as: 'user',
+        attributes: ['email', 'contact_number']
+      }],
+      order: [['created_at', 'DESC']]
+    });
+
+    const summary = {
+      total: patients.length,
+      online: patients.filter(p => p.registration_source === 'ONLINE').length,
+      receptionist: patients.filter(p => p.registration_source === 'RECEPTIONIST').length
+    };
+
+    res.status(200).json({
+      success: true,
+      data: {
+        summary,
+        patients: patients.map(p => ({
+          name: p.full_name,
+          nic: p.nic,
+          source: p.registration_source,
+          date: p.created_at,
+          contact: p.user?.contact_number || 'N/A'
+        }))
+      }
+    });
+  } catch (error) {
+    console.error('Patient report error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+/**
+ * @desc    Get Appointment Report
+ * @route   GET /api/admin/reports/appointments
+ * @access  Private/Admin
+ */
+export const getAppointmentReport = async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+    const where = {};
+
+    if (startDate && endDate) {
+      where.appointment_date = {
+        [Op.between]: [startDate, endDate]
+      };
+    }
+
+    const appointments = await Appointment.findAll({
+      where,
+      include: [
+        { model: Doctor, as: 'doctor', attributes: ['full_name'] },
+        { model: Patient, as: 'patient', attributes: ['full_name'] }
+      ]
+    });
+
+    const summary = {
+      total: appointments.length,
+      cancelled: appointments.filter(a => a.status === 'CANCELLED').length,
+      cancelledUnpaid: appointments.filter(a => a.status === 'CANCELLED' && a.cancellation_reason === 'Unpaid').length,
+      absent: appointments.filter(a => a.status === 'CANCELLED' && a.is_noshow).length
+    };
+
+    res.status(200).json({
+      success: true,
+      data: {
+        summary,
+        appointments: appointments.map(a => ({
+          id: a.appointment_id,
+          patient: a.patient?.full_name,
+          doctor: a.doctor?.full_name,
+          date: a.appointment_date,
+          status: a.status,
+          payment: a.payment_status,
+          reason: a.cancellation_reason,
+          absent: a.is_noshow
+        }))
+      }
+    });
+  } catch (error) {
+    console.error('Appointment report error:', error);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };

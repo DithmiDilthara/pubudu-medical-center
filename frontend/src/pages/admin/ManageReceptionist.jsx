@@ -260,10 +260,10 @@ const ManageReceptionist = () => {
   return (
     <div style={styles.container}>
       <AdminSidebar />
-      <div style={styles.mainContent}>
+      <div className="main-wrapper">
         <AdminHeader title="Manage Receptionists" />
 
-        <div style={styles.content}>
+        <div className="content-padding">
           {/* Alert Messages */}
           {error && (
             <div style={styles.errorAlert}>
@@ -588,8 +588,12 @@ const ManageReceptionist = () => {
 
 const styles = {
   container: { display: 'flex', minHeight: '100vh', backgroundColor: '#f3f4f6' },
-  mainContent: { flex: 1 },
-  content: { padding: '30px' },
+  mainContent: {
+    // Handled by .main-wrapper
+  },
+  content: {
+    // Handled by .content-padding
+  },
 
   errorAlert: { padding: '12px 16px', backgroundColor: '#fee', color: '#c33', borderRadius: '8px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
   successAlert: { padding: '12px 16px', backgroundColor: '#d4edda', color: '#155724', borderRadius: '8px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },

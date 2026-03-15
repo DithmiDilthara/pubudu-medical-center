@@ -18,7 +18,16 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Middleware
-app.use(cors());
+app.use(cors({
+    origin: [
+        process.env.FRONTEND_URL || 'http://localhost:5173',
+        'http://localhost:5174',
+        'http://localhost:5175',
+        'http://localhost:5176',
+        'http://localhost:3000'
+    ],
+    credentials: true
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -51,7 +60,7 @@ const startServer = async () => {
         console.log('✓ Database connection established successfully.');
 
         // Sync models (use { force: false } in production)
-        await sequelize.sync({ alter: true });
+        await sequelize.sync({ alter: false });
         console.log('✓ Database models synchronized.');
 
         // Start server

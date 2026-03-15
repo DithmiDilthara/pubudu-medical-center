@@ -109,6 +109,38 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
+    // Register patient function (public registration)
+    const registerPatient = async (userData) => {
+        try {
+            setError(null);
+            setLoading(true);
+
+            const response = await api.post('/auth/register-patient', userData);
+
+            if (response.data.success) {
+                const { user: newUser, token: authToken } = response.data.data;
+
+                // Store in localStorage
+                localStorage.setItem('token', authToken);
+                localStorage.setItem('user', JSON.stringify(newUser));
+
+                // Update state
+                setToken(authToken);
+                setUser(newUser);
+
+                return { success: true, user: newUser };
+            } else {
+                throw new Error(response.data.message);
+            }
+        } catch (err) {
+            const errorMessage = err.response?.data?.message || err.message || 'Registration failed';
+            setError(errorMessage);
+            return { success: false, error: errorMessage };
+        } finally {
+            setLoading(false);
+        }
+    };
+
     // Register function
     const register = async (userData) => {
         try {
@@ -138,6 +170,24 @@ export const AuthProvider = ({ children }) => {
             return { success: false, error: errorMessage };
         } finally {
             setLoading(false);
+        }
+    };
+
+    // Add staff function (admin only)
+    const addStaff = async (staffData) => {
+        try {
+            setError(null);
+
+            const response = await api.post('/auth/add-staff', staffData);
+
+            if (response.data.success) {
+                return { success: true, data: response.data.data };
+            } else {
+                throw new Error(response.data.message);
+            }
+        } catch (err) {
+            const errorMessage = err.response?.data?.message || err.message || 'Failed to add staff';
+            return { success: false, error: errorMessage };
         }
     };
 
@@ -186,6 +236,8 @@ export const AuthProvider = ({ children }) => {
         error,
         login,
         register,
+        registerPatient,
+        addStaff,
         logout,
         getProfile,
         hasRole,

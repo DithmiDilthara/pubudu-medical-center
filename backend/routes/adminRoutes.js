@@ -9,7 +9,9 @@ import {
   updateReceptionist,
   deleteReceptionist,
   getSystemStats,
-  getFinancialReports
+  getRevenueReport,
+  getPatientRegistrationReport,
+  getAppointmentReport
 } from '../controllers/adminController.js';
 import { protect } from '../middleware/authMiddleware.js';
 import { isAdmin } from '../middleware/roleMiddleware.js';
@@ -34,6 +36,8 @@ router.delete('/receptionists/:id', deleteReceptionist);
 
 // System statistics and reports
 router.get('/stats', getSystemStats);
-router.get('/reports/financial', getFinancialReports);
+router.get('/reports/revenue', getRevenueReport);
+router.get('/reports/patients', getPatientRegistrationReport);
+router.get('/reports/appointments', getAppointmentReport);
 
 export default router;

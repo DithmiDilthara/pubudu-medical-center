@@ -240,7 +240,7 @@ function AddPatient() {
         username: formData.username,
         password: formData.password,
         email: formData.email || null,
-        contact_number: formData.phoneNumber ? parseInt(formData.phoneNumber.replace(/\D/g, "")) : null,
+        phone: formData.phoneNumber ? formData.phoneNumber.replace(/\D/g, "") : null,
         full_name: formData.fullName,
         nic: formData.nic,
         gender: formData.gender.toUpperCase(),
@@ -290,12 +290,12 @@ function AddPatient() {
       <ReceptionistSidebar onLogout={handleLogout} />
 
       {/* Main Content */}
-      <div style={styles.mainWrapper}>
+      <div className="main-wrapper">
         {/* Header */}
         <ReceptionistHeader receptionistName="Sarah Johnson" />
 
         {/* Page Content */}
-        <main style={styles.mainContent}>
+        <main className="content-padding">
           <div style={styles.contentCard}>
             <h1 style={styles.pageTitle}>Add New Patient</h1>
 
@@ -659,15 +659,10 @@ const styles = {
     backgroundColor: "#f9fafb"
   },
   mainWrapper: {
-    flex: 1,
-    display: "flex",
-    flexDirection: "column",
-    background: "linear-gradient(135deg, #f0f8ff 0%, #e6f2ff 100%)"
+    // Handled by .main-wrapper
   },
   mainContent: {
-    flex: 1,
-    padding: "32px",
-    overflow: "auto"
+    // Handled by .content-padding
   },
   contentCard: {
     maxWidth: "900px",

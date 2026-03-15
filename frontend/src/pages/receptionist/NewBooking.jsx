@@ -45,6 +45,7 @@ function NewBooking() {
   const [doctorAvailability, setDoctorAvailability] = useState([]);
   const [bookedSlots, setBookedSlots] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [nextQueueNumber, setNextQueueNumber] = useState(null);
 
   // Calendar state
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -115,6 +116,33 @@ function NewBooking() {
       fetchBookedSlots();
     }
   }, [selectedDoctor, selectedDate]);
+
+  // Fetch next queue number when reaching step 5
+  useEffect(() => {
+    if (currentStep === 5 && selectedDoctor && selectedDate) {
+      const fetchNextQueueNumber = async () => {
+        try {
+          const year = selectedDate.getFullYear();
+          const month = selectedDate.getMonth();
+          const day = selectedDate.getDate();
+          const formattedDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+          
+          const token = localStorage.getItem('token');
+          const response = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/appointments/next-number`, {
+            params: { doctor_id: selectedDoctor, date: formattedDate },
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          
+          if (response.data.success) {
+            setNextQueueNumber(response.data.nextNumber);
+          }
+        } catch (error) {
+          console.error("Error fetching next queue number:", error);
+        }
+      };
+      fetchNextQueueNumber();
+    }
+  }, [currentStep, selectedDoctor, selectedDate]);
 
   const handleLogout = () => {
     toast.success("Logged out successfully");
@@ -408,12 +436,12 @@ function NewBooking() {
       <ReceptionistSidebar onLogout={handleLogout} />
 
       {/* Main Content */}
-      <div style={styles.mainWrapper}>
+      <div className="main-wrapper">
         {/* Header */}
         <ReceptionistHeader receptionistName="Sarah Johnson" />
 
         {/* Page Content */}
-        <main style={styles.mainContent}>
+        <main className="content-padding">
           <div style={styles.contentCard}>
             <h1 style={styles.pageTitle}>New Booking</h1>
 
@@ -767,6 +795,13 @@ function NewBooking() {
                       })}, {selectedTime}
                     </span>
                   </div>
+
+                  {nextQueueNumber !== null && (
+                    <div style={{ ...styles.confirmRow, borderBottom: 'none', marginBottom: 0, paddingBottom: 0 }}>
+                      <span style={{ ...styles.confirmLabel, color: '#059669', fontWeight: 'bold' }}>Next Queue Number</span>
+                      <span style={{ ...styles.confirmValue, color: '#059669', fontSize: '18px' }}>{nextQueueNumber}</span>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -826,15 +861,10 @@ const styles = {
     backgroundColor: "#f9fafb"
   },
   mainWrapper: {
-    flex: 1,
-    display: "flex",
-    flexDirection: "column",
-    background: "linear-gradient(135deg, #f0f8ff 0%, #e6f2ff 100%)"
+    // Handled by .main-wrapper
   },
   mainContent: {
-    flex: 1,
-    padding: "32px",
-    overflow: "auto"
+    // Handled by .content-padding
   },
   contentCard: {
     maxWidth: "800px",

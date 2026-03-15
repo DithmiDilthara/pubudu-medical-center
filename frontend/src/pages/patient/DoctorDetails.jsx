@@ -194,10 +194,10 @@ function DoctorDetails() {
     <div style={styles.container}>
       <PatientSidebar onLogout={handleLogout} />
 
-      <div style={styles.mainWrapper}>
+      <div className="main-wrapper">
         <PatientHeader patientName="Dithmi" />
 
-        <main style={styles.mainContent}>
+        <main className="content-padding">
           {/* Back Button */}
           <button onClick={handleBack} style={styles.backButton}>
             <FiArrowLeft style={{ marginRight: '8px' }} />
@@ -399,16 +399,10 @@ const styles = {
     fontFamily: "'Inter', 'Segoe UI', sans-serif"
   },
   mainWrapper: {
-    flex: 1,
-    display: 'flex',
-    flexDirection: 'column'
+    // Handled by .main-wrapper
   },
   mainContent: {
-    flex: 1,
-    padding: '32px',
-    maxWidth: '1400px',
-    width: '100%',
-    margin: '0 auto'
+    // Handled by .content-padding
   },
   backButton: {
     padding: '10px 20px',

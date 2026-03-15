@@ -82,7 +82,8 @@ function ReceptionistDashboard() {
 
   // Filtered doctors
   const filteredDoctors = doctors.filter(doc => {
-    const matchesName = doc.full_name.toLowerCase().includes(searchName.toLowerCase());
+    const name = doc.full_name || "";
+    const matchesName = name.toLowerCase().includes(searchName.toLowerCase());
     const matchesSpec = searchSpec ? doc.specialization === searchSpec : true;
     return matchesName && matchesSpec;
   });
@@ -146,7 +147,7 @@ function ReceptionistDashboard() {
       <ReceptionistSidebar onLogout={handleLogout} />
 
       {/* Main Content */}
-      <div style={styles.mainWrapper}>
+      <div className="main-wrapper">
         {/* Header */}
         <ReceptionistHeader receptionistName={receptionistName} />
 
@@ -157,7 +158,7 @@ function ReceptionistDashboard() {
         />
 
         {/* Dashboard Content */}
-        <main style={styles.mainContent}>
+        <main className="content-padding">
           <style>
             {`
               .hover-blue-card {
@@ -328,14 +329,12 @@ const styles = {
     fontFamily: "'Inter', 'Segoe UI', sans-serif"
   },
   mainWrapper: {
-    flex: 1,
-    display: "flex",
-    flexDirection: "column",
+    // Handled by .main-wrapper in CSS
     background: "linear-gradient(135deg, #f0f8ff 0%, #e6f2ff 100%)"
   },
   mainContent: {
+    // Handled by .content-padding in CSS
     flex: 1,
-    padding: "32px",
     overflow: "auto"
   },
   titleSection: {

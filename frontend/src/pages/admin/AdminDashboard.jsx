@@ -63,12 +63,12 @@ function AdminDashboard() {
       <AdminSidebar />
 
       {/* Main Content */}
-      <div style={styles.mainWrapper}>
+      <div className="main-wrapper">
         {/* Header */}
         <AdminHeader adminName={adminName} />
 
         {/* Dashboard Content */}
-        <main style={styles.mainContent}>
+        <main className="content-padding">
           {/* Page Title */}
           <h1 style={styles.pageTitle}>Admin Dashboard</h1>
 
@@ -122,13 +122,10 @@ const styles = {
     backgroundColor: "#f3f4f6"
   },
   mainWrapper: {
-    flex: 1,
-    display: "flex",
-    flexDirection: "column"
+    // Handled by .main-wrapper in CSS
   },
   mainContent: {
-    padding: "32px",
-    flex: 1
+    // Handled by .content-padding in CSS
   },
   pageTitle: {
     fontSize: "32px",

@@ -61,8 +61,18 @@ const Login = () => {
       case 'password':
         if (!value) {
           error = 'Password is required';
-        } else if (value.length < 6) {
-          error = 'Password must be at least 6 characters';
+        } else if (value.length < 8) {
+          error = 'Password must be at least 8 characters';
+        } else if (value.length > 100) {
+          error = 'Password must not exceed 100 characters';
+        } else if (!/(?=.*[a-z])/.test(value)) {
+          error = 'Password must contain at least one lowercase letter';
+        } else if (!/(?=.*[A-Z])/.test(value)) {
+          error = 'Password must contain at least one uppercase letter';
+        } else if (!/(?=.*\d)/.test(value)) {
+          error = 'Password must contain at least one number';
+        } else if (!/(?=.*[@#$!%*?&])/.test(value)) {
+          error = 'Password must contain at least one special character (@, #, $, !, %, *, ?, &)';
         }
         break;
 
