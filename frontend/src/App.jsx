@@ -17,7 +17,7 @@ import MedicalHistory from './pages/patient/MedicalHistory';
 import ChannelDoctor from './pages/patient/ChannelDoctor';
 import DoctorDashboard from './pages/doctor/DoctorDashboard';
 import DoctorAppointments from './pages/doctor/DoctorAppointments';
-import PatientDetailsDoctor from './pages/patient/PatientDetailsDoctor';
+import PatientDetailsDoctor from './pages/doctor/PatientDetailsDoctor';
 import DoctorPatients from './pages/doctor/DoctorPatients';
 import DoctorAvailability from './pages/doctor/DoctorAvailability';
 import ReceptionistDashboard from './pages/receptionist/ReceptionistDashboard';

@@ -1,7 +1,19 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { FiCheck } from 'react-icons/fi';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  FiCheck, 
+  FiClock, 
+  FiCalendar, 
+  FiChevronLeft, 
+  FiChevronRight, 
+  FiTrash2, 
+  FiPlus, 
+  FiAlertCircle,
+  FiInfo,
+  FiCornerDownRight
+} from 'react-icons/fi';
 import DoctorHeader from '../../components/DoctorHeader';
 import DoctorSidebar from '../../components/DoctorSidebar';
 
@@ -14,14 +26,13 @@ function DoctorAvailability() {
   const [endTime, setEndTime] = useState('20:00');
   const [recurringDays, setRecurringDays] = useState([]);
   const [doctorName, setDoctorName] = useState('Doctor');
-
   const [availability, setAvailability] = useState({});
   const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState(null);
 
   const fetchAvailability = async () => {
     try {
       const token = localStorage.getItem('token');
-
       const profileRes = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/auth/profile`, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -34,19 +45,16 @@ function DoctorAvailability() {
         if (availabilityRes.data.success) {
           const availData = availabilityRes.data.data;
 
-          // Map recurring days
+          const daysOrder = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
           const recurringArr = [...new Set(availData
             .filter(a => a.day_of_week && !a.specific_date)
-            .map(a => {
-              const days = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
-              return days.indexOf(a.day_of_week);
-            }))];
+            .map(a => daysOrder.indexOf(a.day_of_week)))];
           setRecurringDays(recurringArr);
 
-          // Map specific dates
           const specificAvail = {};
-          const today = new Date();
-          const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+          const todayDate = new Date();
+          todayDate.setHours(0,0,0,0);
+          const todayStr = todayDate.toISOString().split('T')[0];
 
           availData.filter(a => a.specific_date && a.specific_date >= todayStr).forEach(a => {
             specificAvail[a.specific_date] = {
@@ -61,10 +69,10 @@ function DoctorAvailability() {
       }
     } catch (error) {
       console.error("Error fetching availability:", error);
+      setErrorMessage("Failed to load availability data.");
     }
   };
 
-  // Fetch availability on mount
   useEffect(() => {
     fetchAvailability();
   }, []);
@@ -73,117 +81,81 @@ function DoctorAvailability() {
     'July', 'August', 'September', 'October', 'November', 'December'];
   const daysOfWeek = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-  const getDaysInMonth = (month, year) => {
-    return new Date(year, month + 1, 0).getDate();
-  };
-
+  const getDaysInMonth = (month, year) => new Date(year, month + 1, 0).getDate();
   const getFirstDayOfMonth = (month, year) => {
     const day = new Date(year, month, 1).getDay();
-    return day === 0 ? 6 : day - 1; // Adjust so Monday is 0
+    return day === 0 ? 6 : day - 1;
   };
 
-  const generateCalendar = () => {
+  const today = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }, []);
+
+  const calendarDays = useMemo(() => {
     const daysInMonth = getDaysInMonth(selectedMonth, selectedYear);
     const firstDay = getFirstDayOfMonth(selectedMonth, selectedYear);
     const days = [];
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
 
-    // Add empty cells for days before the first day of the month
     for (let i = 0; i < firstDay; i++) {
-      days.push(<div key={`empty-${i}`} style={styles.calendarDayEmpty} />);
+      days.push({ type: 'empty', id: `empty-${i}` });
     }
 
-    // Add cells for each day of the month
     for (let day = 1; day <= daysInMonth; day++) {
       const dateKey = `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
       const dateObj = new Date(selectedYear, selectedMonth, day);
       const dayOfWeekIndex = dateObj.getDay() === 0 ? 6 : dateObj.getDay() - 1;
-
       const isRecurring = recurringDays.includes(dayOfWeekIndex);
       const dayAvailability = availability[dateKey] || (isRecurring ? { status: 'available', startTime: 'Recurring' } : null);
-      const isSelected = selectedDate === dateKey;
-      const isPast = dateObj < today;
-
-      days.push(
-        <div
-          key={day}
-          onClick={() => !isPast && setSelectedDate(dateKey)}
-          style={{
-            ...styles.calendarDay,
-            ...(isPast ? styles.calendarDayPast : {}),
-            ...(!isPast && isSelected ? styles.calendarDaySelected : {}),
-            ...(!isPast && dayAvailability?.status === 'available' ? styles.calendarDayAvailable : {}),
-            ...(!isPast && dayAvailability?.status === 'unavailable' ? styles.calendarDayUnavailable : {})
-          }}
-        >
-          <span style={{ ...styles.calendarDayNumber, ...(isPast ? styles.textPast : {}) }}>{day}</span>
-          {!isPast && dayAvailability && dayAvailability.status === 'available' && (
-            <span style={styles.calendarDayStatus}>
-              <FiCheck />
-            </span>
-          )}
-        </div>
-      );
+      
+      days.push({
+        type: 'day',
+        day,
+        dateKey,
+        dateObj,
+        isPast: dateObj < today,
+        availability: dayAvailability,
+        isSelected: selectedDate === dateKey
+      });
     }
-
     return days;
-  };
+  }, [selectedMonth, selectedYear, recurringDays, availability, selectedDate, today]);
 
   const handlePrevMonth = () => {
     if (selectedMonth === 0) {
       setSelectedMonth(11);
-      setSelectedYear(selectedYear - 1);
+      setSelectedYear(v => v - 1);
     } else {
-      setSelectedMonth(selectedMonth - 1);
+      setSelectedMonth(v => v - 1);
     }
+    setSelectedDate(null);
   };
 
   const handleNextMonth = () => {
     if (selectedMonth === 11) {
       setSelectedMonth(0);
-      setSelectedYear(selectedYear + 1);
+      setSelectedYear(v => v + 1);
     } else {
-      setSelectedMonth(selectedMonth + 1);
+      setSelectedMonth(v => v + 1);
     }
+    setSelectedDate(null);
   };
 
   const handleSetAvailability = async (status) => {
-    if (!selectedDate) {
-      alert('Please select a date first');
-      return;
-    }
-
-    if (!startTime || !endTime) {
-      alert('Please ensure start and end times are set');
-      return;
-    }
-
+    if (!selectedDate) return;
     setIsLoading(true);
+    setErrorMessage(null);
+
     try {
       const token = localStorage.getItem('token');
-
-      // Prevent past dates
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const selectedDateObj = new Date(selectedDate);
-      if (selectedDateObj < today) {
-        alert('Cannot manage availability for past dates');
-        setIsLoading(false);
-        return;
-      }
-
       const availabilityPayload = [{
         specific_date: selectedDate,
-        day_of_week: null, // Specific date takes priority
+        day_of_week: null,
         start_time: startTime,
         end_time: endTime,
         session_name: status === 'available' ? 'Available' : 'Unavailable'
       }];
-
-      // If status is unavailable, maybe we just want to remove availability for that day
-      // But the backend destroy logic I wrote will handle it if the payload is empty for that date?
-      // No, my backend logic replaces specific dates with whatever is in the payload.
 
       const response = await axios.post(
         `${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/clinical/availability`,
@@ -192,53 +164,31 @@ function DoctorAvailability() {
       );
 
       if (response.data.success) {
-        // Local update
-        const newAvailability = { ...availability };
-        if (status === 'DELETED') {
-          delete newAvailability[selectedDate];
-        } else {
-          newAvailability[selectedDate] = {
-            status,
-            startTime,
-            endTime
-          };
-        }
-        setAvailability(newAvailability);
-
-        // Success/Cancellation messages - REPLACED with non-blocking feedback (or just visual change)
-        // User requested no alerts and immediate green color.
-        // We rely on the local state update above to show the green color immediately.
-
-        // Refresh data in background to ensure sync, but UI should already be updated locally
+        setAvailability(prev => ({
+          ...prev,
+          [selectedDate]: { status, startTime, endTime }
+        }));
         await fetchAvailability();
       }
     } catch (error) {
-      console.error("Save single day availability error:", error);
-      const outputMsg = error.response?.data?.message || error.response?.data?.error || error.message;
-      alert(`Failed to save availability: ${outputMsg}`);
+      setErrorMessage("Failed to update availability.");
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleToggleRecurringDay = (dayIndex) => {
-    if (recurringDays.includes(dayIndex)) {
-      setRecurringDays(recurringDays.filter(d => d !== dayIndex));
-    } else {
-      setRecurringDays([...recurringDays, dayIndex]);
-    }
+    setRecurringDays(prev => 
+      prev.includes(dayIndex) ? prev.filter(d => d !== dayIndex) : [...prev, dayIndex]
+    );
   };
 
   const handleApplyRecurring = async () => {
-    if (recurringDays.length === 0) {
-      alert('Please select at least one day');
-      return;
-    }
-
+    if (recurringDays.length === 0) return;
     setIsLoading(true);
-    const days = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
+    const daysOrder = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
     const availabilityPayload = recurringDays.map(index => ({
-      day_of_week: days[index],
+      day_of_week: daysOrder[index],
       start_time: startTime,
       end_time: endTime,
       session_name: "Regular Session"
@@ -246,48 +196,33 @@ function DoctorAvailability() {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.post(
+      await axios.post(
         `${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/clinical/availability`,
         { availability: availabilityPayload },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-
-      if (response.data.success) {
-        alert('Recurring availability saved to database!');
-        fetchAvailability();
-      }
+      await fetchAvailability();
     } catch (error) {
-      console.error("Save availability error:", error);
-      const outputMsg = error.response?.data?.message || error.response?.data?.error || error.message;
-      alert(`Failed to save availability: ${outputMsg}`);
+      setErrorMessage("Failed to save recurring availability.");
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleCancelAllRecurring = async () => {
-    if (!window.confirm('Are you sure you want to cancel all recurring availability?')) {
-      return;
-    }
-
+    if (!window.confirm('Cancel all recurring availability?')) return;
     setIsLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.post(
+      await axios.post(
         `${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/clinical/availability`,
-        { availability: [], clear_all_recurring: true }, // Explicit flag
+        { availability: [], clear_all_recurring: true },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-
-      if (response.data.success) {
-        alert('Recurring availability cancelled successfully');
-        setRecurringDays([]);
-        fetchAvailability();
-      }
+      setRecurringDays([]);
+      await fetchAvailability();
     } catch (error) {
-      console.error("Cancel recurring error:", error);
-      const outputMsg = error.response?.data?.message || error.response?.data?.error || error.message;
-      alert(`Failed to cancel recurring availability: ${outputMsg}`);
+      setErrorMessage("Failed to clear recurring availability.");
     } finally {
       setIsLoading(false);
     }
@@ -302,144 +237,260 @@ function DoctorAvailability() {
     <div style={styles.pageContainer}>
       <DoctorSidebar onLogout={handleLogout} />
 
-      <div className="main-wrapper">
+      <div className="main-wrapper" style={styles.mainWrapper}>
         <DoctorHeader doctorName={doctorName} />
 
-        <main className="content-padding">
-          {/* Header */}
-          <div style={styles.header}>
-            <div>
-              <h1 style={styles.pageTitle}>Availability Management</h1>
-              <p style={styles.pageSubtitle}>Set your working hours and manage your schedule</p>
-            </div>
+        <main style={styles.contentPadding}>
+          {/* Page Header */}
+          <div style={styles.headerRow}>
+            <motion.div 
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              <h1 style={styles.pageTitle}>Schedule & Availability</h1>
+              <p style={styles.pageSubtitle}>
+                <FiClock style={{ color: '#2563eb', marginRight: '8px' }} />
+                Manage your working hours and weekly routine
+              </p>
+            </motion.div>
+
+            {errorMessage && (
+              <motion.div 
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                style={styles.errorBadge}
+              >
+                <FiAlertCircle />
+                {errorMessage}
+              </motion.div>
+            )}
           </div>
 
-          <div style={styles.content}>
-            {/* Calendar Section */}
-            <section style={styles.calendarSection}>
+          <div style={styles.gridContainer}>
+            {/* Left Column: Calendar */}
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              style={styles.calendarCard}
+            >
+              {/* Calendar Header */}
               <div style={styles.calendarHeader}>
-                <button onClick={handlePrevMonth} style={styles.monthButton}>&lt;</button>
-                <h2 style={styles.monthTitle}>{monthNames[selectedMonth]} {selectedYear}</h2>
-                <button onClick={handleNextMonth} style={styles.monthButton}>&gt;</button>
+                <h2 style={styles.monthTitle}>
+                  {monthNames[selectedMonth]} {selectedYear}
+                </h2>
+                <div style={styles.calendarNav}>
+                  <button onClick={handlePrevMonth} style={styles.iconBtn}>
+                    <FiChevronLeft size={20} />
+                  </button>
+                  <button 
+                    onClick={() => {
+                      setSelectedMonth(new Date().getMonth());
+                      setSelectedYear(new Date().getFullYear());
+                    }}
+                    style={styles.todayBtn}
+                  >
+                    Today
+                  </button>
+                  <button onClick={handleNextMonth} style={styles.iconBtn}>
+                    <FiChevronRight size={20} />
+                  </button>
+                </div>
               </div>
 
+              {/* Legend */}
               <div style={styles.legend}>
                 <div style={styles.legendItem}>
-                  <div style={{ ...styles.legendBox, background: '#10b981' }} />
-                  <span style={styles.legendText}>Available</span>
+                  <div style={{ ...styles.legendDot, background: '#2563eb' }} />
+                  <span>Available</span>
                 </div>
                 <div style={styles.legendItem}>
-                  <div style={{ ...styles.legendBox, background: '#f9fafb', border: '2px solid #e5e7eb' }} />
-                  <span style={styles.legendText}>Unavailable / Not Set</span>
+                  <div style={{ ...styles.legendDot, background: '#e2e8f0' }} />
+                  <span style={{ color: '#94a3b8' }}>Not Set</span>
+                </div>
+                <div style={styles.legendItem}>
+                  <div style={{ ...styles.legendDot, background: '#fbbf24' }} />
+                  <span>Recurring Only</span>
                 </div>
               </div>
 
+              {/* Calendar Grid */}
               <div style={styles.calendarGrid}>
                 {daysOfWeek.map(day => (
-                  <div key={day} style={styles.calendarDayHeader}>{day}</div>
+                  <div key={day} style={styles.dayHeaderCell}>{day}</div>
                 ))}
-                {generateCalendar()}
+                {calendarDays.map((item, idx) => (
+                  item.type === 'empty' ? (
+                    <div key={item.id} style={styles.emptyCell} />
+                  ) : (
+                    <motion.button
+                      key={item.dateKey}
+                      whileHover={!item.isPast ? { y: -2, scale: 1.02 } : {}}
+                      whileTap={!item.isPast ? { scale: 0.98 } : {}}
+                      onClick={() => !item.isPast && setSelectedDate(item.dateKey)}
+                      style={{
+                        ...styles.dayCell,
+                        ...(item.isPast ? styles.pastCell : {}),
+                        ...(item.isSelected ? styles.selectedCell : {})
+                      }}
+                    >
+                      <span style={{ 
+                        fontSize: '14px', 
+                        fontWeight: '700',
+                        color: item.isSelected ? '#1d4ed8' : (item.isPast ? '#94a3b8' : '#334155')
+                      }}>
+                        {item.day}
+                      </span>
+                      
+                      {item.availability && (
+                        <div style={{
+                          marginTop: '4px',
+                          width: '6px',
+                          height: '6px',
+                          borderRadius: '50%',
+                          background: item.availability.startTime === 'Recurring' ? '#fbbf24' : '#2563eb'
+                        }} />
+                      )}
+                      
+                      {item.dateKey === new Date().toISOString().split('T')[0] && (
+                        <div style={styles.todayIndicator} />
+                      )}
+                    </motion.button>
+                  )
+                ))}
               </div>
 
-              {selectedDate && (
-                <div style={styles.selectedDateInfo}>
-                  Selected Date: <strong>{selectedDate}</strong>
-                  {availability[selectedDate] && (
-                    <span style={styles.currentStatus}>
-                      Current: {availability[selectedDate].status}
-                      {availability[selectedDate].startTime && ` (${availability[selectedDate].startTime} - ${availability[selectedDate].endTime})`}
-                    </span>
-                  )}
-                </div>
-              )}
-            </section>
+              {/* Selected Day Footer */}
+              <AnimatePresence mode="wait">
+                {selectedDate && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 20 }}
+                    style={styles.selectedFooter}
+                  >
+                    <div style={styles.footerLeft}>
+                      <div style={styles.footerIconBox}>
+                        <FiCalendar size={24} />
+                      </div>
+                      <div>
+                        <p style={styles.footerLabel}>Selected Date</p>
+                        <h3 style={styles.footerDate}>
+                          {new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+                        </h3>
+                      </div>
+                    </div>
+                    <div style={styles.footerRight}>
+                      <button 
+                        onClick={() => handleSetAvailability('available')}
+                        disabled={isLoading}
+                        style={styles.markAvailableBtn}
+                      >
+                        <FiCheck strokeWidth={3} /> Mark Available
+                      </button>
+                      <button 
+                        onClick={() => handleSetAvailability('DELETED')}
+                        disabled={isLoading}
+                        style={styles.deleteBtn}
+                      >
+                        <FiTrash2 />
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
 
-            {/* Settings Section */}
-            <section style={styles.settingsSection}>
-              {/* Time Slots */}
-              <div style={styles.settingsCard}>
-                <h3 style={styles.settingsTitle}>Time Slots</h3>
-                <div style={styles.timeInputs}>
+            {/* Right Column: Settings */}
+            <div style={styles.settingsColumn}>
+              {/* Working Hours Card */}
+              <motion.div 
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                style={styles.settingsCard}
+              >
+                <div style={styles.cardHeader}>
+                  <div style={{ ...styles.cardIconBox, background: '#eff6ff', color: '#2563eb' }}>
+                    <FiClock size={20} />
+                  </div>
+                  <h3 style={styles.cardTitle}>Working Hours</h3>
+                </div>
+
+                <div style={styles.inputStack}>
                   <div style={styles.inputGroup}>
                     <label style={styles.label}>Start Time</label>
-                    <input
-                      type="time"
+                    <input 
+                      type="time" 
                       value={startTime}
-                      onChange={(e) => setStartTime(e.target.value)}
+                      onChange={e => setStartTime(e.target.value)}
                       style={styles.timeInput}
                     />
                   </div>
                   <div style={styles.inputGroup}>
                     <label style={styles.label}>End Time</label>
-                    <input
-                      type="time"
+                    <input 
+                      type="time" 
                       value={endTime}
-                      onChange={(e) => setEndTime(e.target.value)}
+                      onChange={e => setEndTime(e.target.value)}
                       style={styles.timeInput}
                     />
                   </div>
                 </div>
-              </div>
+              </motion.div>
 
-              {/* Availability Actions */}
-              <div style={styles.settingsCard}>
-                <h3 style={styles.settingsTitle}>Set Availability</h3>
-                <div style={styles.actionButtons}>
-                  <button
-                    onClick={() => handleSetAvailability('available')}
-                    style={{ ...styles.actionButton, background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)' }}
-                  >
-                    Mark as Available
-                  </button>
-                  <button
-                    onClick={() => handleSetAvailability('unavailable')}
-                    style={{ ...styles.actionButton, background: 'linear-gradient(135deg, #6b7280 0%, #4b5563 100%)' }}
-                  >
-                    Cancel Session for this Date
-                  </button>
+              {/* Weekly Routine Card */}
+              <motion.div 
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.1 }}
+                style={styles.settingsCard}
+              >
+                <div style={styles.cardHeader}>
+                  <div style={{ ...styles.cardIconBox, background: '#eef2ff', color: '#4f46e5' }}>
+                    <FiCornerDownRight size={20} />
+                  </div>
+                  <h3 style={styles.cardTitle}>Weekly Routine</h3>
                 </div>
-              </div>
 
-              {/* Recurring Availability */}
-              <div style={styles.settingsCard}>
-                <h3 style={styles.settingsTitle}>Set Recurring Availability</h3>
-                <p style={styles.recurringSubtitle}>Select days of the week for recurring availability</p>
-                <div style={styles.dayButtons}>
-                  {daysOfWeek.map((day, index) => (
+                <p style={styles.cardSubtitle}>Apply hours for the next 3 months.</p>
+
+                <div style={styles.daySelectionGrid}>
+                  {daysOfWeek.map((day, idx) => (
                     <button
                       key={day}
-                      onClick={() => handleToggleRecurringDay(index)}
+                      onClick={() => handleToggleRecurringDay(idx)}
                       style={{
-                        ...styles.dayButton,
-                        ...(recurringDays.includes(index) ? styles.dayButtonActive : {})
+                        ...styles.dayChip,
+                        ...(recurringDays.includes(idx) ? styles.dayChipActive : {})
                       }}
                     >
-                      {day}
+                      {day[0]}
                     </button>
                   ))}
                 </div>
-                <div style={styles.recurringActions}>
-                  <button onClick={handleApplyRecurring} style={styles.applyRecurringButton}>
-                    Apply for Next 3 Months
-                  </button>
-                  <button
-                    onClick={handleCancelAllRecurring}
-                    style={{ ...styles.applyRecurringButton, background: '#ef4444', marginTop: '12px', boxShadow: '0 4px 12px rgba(239, 68, 68, 0.3)' }}
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <button 
+                    onClick={handleApplyRecurring}
+                    disabled={isLoading || recurringDays.length === 0}
+                    style={styles.saveRoutineBtn}
                   >
-                    Cancel All Recurring Availability
+                    <FiPlus /> Save Routine
+                  </button>
+                  <button 
+                    onClick={handleCancelAllRecurring}
+                    disabled={isLoading}
+                    style={styles.clearRoutineBtn}
+                  >
+                    Clear All Recurring
                   </button>
                 </div>
-              </div>
-            </section>
-          </div>
 
-          <div style={styles.footer}>
-            <button
-              onClick={() => navigate("/doctor/dashboard")}
-              style={styles.backButton}
-            >
-              Back
-            </button>
+                <div style={styles.infoBox}>
+                  <FiInfo size={16} style={{ marginTop: '2px' }} />
+                  <p>Specific date settings will override your weekly routine.</p>
+                </div>
+              </motion.div>
+            </div>
           </div>
         </main>
       </div>
@@ -449,301 +500,361 @@ function DoctorAvailability() {
 
 const styles = {
   pageContainer: {
-    display: "flex",
-    minHeight: "100vh",
-    backgroundColor: "#f9fafb",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    display: 'flex',
+    minHeight: '100vh',
+    backgroundColor: '#f8fafc',
+    fontFamily: "'Inter', sans-serif"
   },
-  mainContainer: {
-    // Handled by .main-wrapper
+  mainWrapper: {
+    flex: 1,
+    display: 'flex',
+    flexDirection: 'column',
+    minWidth: 0
   },
-  mainContent: {
-    // Handled by .content-padding
+  contentPadding: {
+    padding: '32px',
+    maxWidth: '1200px',
+    margin: '0 auto',
+    width: '100%'
   },
-  header: {
-    marginBottom: '24px'
+  headerRow: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+    marginBottom: '32px'
   },
   pageTitle: {
-    fontSize: '28px',
-    fontWeight: '700',
-    color: '#1f2937',
-    margin: '0 0 8px 0',
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    fontSize: '30px',
+    fontWeight: '800',
+    color: '#0f172a',
+    marginBottom: '8px'
   },
   pageSubtitle: {
-    fontSize: '14px',
-    color: '#6b7280',
-    margin: 0,
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    fontSize: '16px',
+    color: '#64748b',
+    display: 'flex',
+    alignItems: 'center'
   },
-  content: {
-    display: 'grid',
-    gridTemplateColumns: '2fr 1fr',
-    gap: '24px'
-  },
-  calendarSection: {
-    background: 'white',
+  errorBadge: {
+    backgroundColor: '#fef2f2',
+    color: '#dc2626',
+    padding: '8px 16px',
     borderRadius: '12px',
-    padding: '24px',
-    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
-    border: '1px solid #e5e7eb'
-  },
-  calendarHeader: {
+    border: '1px solid #fee2e2',
+    fontSize: '14px',
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: '20px'
+    gap: '8px'
   },
-  monthButton: {
-    padding: '8px 16px',
-    fontSize: '18px',
-    fontWeight: '700',
-    color: '#0066CC',
-    background: 'white',
-    border: '2px solid #0066CC',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    transition: 'all 0.3s',
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+  gridContainer: {
+    display: 'grid',
+    gridTemplateColumns: '1.8fr 1fr',
+    gap: '32px'
+  },
+  calendarCard: {
+    backgroundColor: 'white',
+    borderRadius: '24px',
+    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)',
+    border: '1px solid #e2e8f0',
+    overflow: 'hidden'
+  },
+  calendarHeader: {
+    padding: '24px',
+    borderBottom: '1px solid #f1f5f9',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#f8fafc'
   },
   monthTitle: {
-    fontSize: '24px',
-    fontWeight: 'bold',
-    color: '#1f2937',
-    margin: 0
+    fontSize: '20px',
+    fontWeight: '700',
+    color: '#1e293b'
+  },
+  calendarNav: {
+    display: 'flex',
+    gap: '8px',
+    alignItems: 'center'
+  },
+  iconBtn: {
+    padding: '8px',
+    borderRadius: '12px',
+    border: '1px solid transparent',
+    backgroundColor: 'transparent',
+    color: '#64748b',
+    cursor: 'pointer',
+    transition: 'all 0.2s'
+  },
+  todayBtn: {
+    padding: '8px 16px',
+    fontSize: '14px',
+    fontWeight: '600',
+    color: '#2563eb',
+    backgroundColor: '#eff6ff',
+    border: 'none',
+    borderRadius: '12px',
+    cursor: 'pointer',
+    transition: 'all 0.2s'
   },
   legend: {
+    padding: '16px 24px',
     display: 'flex',
-    gap: '20px',
-    marginBottom: '20px',
-    justifyContent: 'center'
+    flexWrap: 'wrap',
+    gap: '24px',
+    borderBottom: '1px solid #f8fafc',
+    fontSize: '14px'
   },
   legendItem: {
     display: 'flex',
     alignItems: 'center',
-    gap: '8px'
+    gap: '8px',
+    color: '#64748b'
   },
-  legendBox: {
-    width: '20px',
-    height: '20px',
-    borderRadius: '4px'
-  },
-  legendText: {
-    fontSize: '14px',
-    color: '#6b7280'
+  legendDot: {
+    width: '12px',
+    height: '12px',
+    borderRadius: '50%'
   },
   calendarGrid: {
+    padding: '24px',
     display: 'grid',
     gridTemplateColumns: 'repeat(7, 1fr)',
-    gap: '8px'
+    gap: '12px'
   },
-  calendarDayHeader: {
-    padding: '12px',
-    fontSize: '14px',
-    fontWeight: '700',
-    color: '#374151',
+  dayHeaderCell: {
     textAlign: 'center',
-    background: 'rgba(0, 102, 204, 0.08)',
-    borderRadius: '8px',
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    fontSize: '12px',
+    fontWeight: '700',
+    color: '#94a3b8',
+    textTransform: 'uppercase',
+    letterSpacing: '0.05em',
+    padding: '8px 0'
   },
-  calendarDay: {
+  dayCell: {
     aspectRatio: '1',
-    padding: '4px',
+    borderRadius: '16px',
+    border: '2px solid #f8fafc',
+    backgroundColor: 'white',
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    borderStyle: 'solid',
-    borderWidth: '1px',
-    borderColor: '#e5e7eb',
-    borderRadius: '6px',
     cursor: 'pointer',
     transition: 'all 0.2s',
-    position: 'relative',
-    background: 'white',
-    height: '60px' // Check if this fixes "big" issue
+    position: 'relative'
   },
-  calendarDayPast: {
-    background: '#f3f4f6',
-    cursor: 'not-allowed',
-    borderColor: '#e5e7eb',
-    opacity: 0.7
+  emptyCell: {
+    aspectRatio: '1',
+    backgroundColor: 'rgba(248, 250, 252, 0.5)',
+    borderRadius: '16px'
   },
-  textPast: {
-    color: '#9ca3af'
+  pastCell: {
+    backgroundColor: '#f8fafc',
+    borderColor: 'transparent',
+    opacity: 0.5,
+    cursor: 'not-allowed'
   },
-  calendarDayEmpty: {
-    aspectRatio: '1'
+  selectedCell: {
+    borderColor: '#2563eb',
+    backgroundColor: '#eff6ff',
+    boxShadow: '0 10px 15px -3px rgba(37, 99, 235, 0.1)'
   },
-  calendarDayNumber: {
-    fontSize: '14px',
-    fontWeight: '600',
-    color: '#1f2937'
+  todayIndicator: {
+    position: 'absolute',
+    top: '8px',
+    right: '8px',
+    width: '6px',
+    height: '6px',
+    backgroundColor: '#2563eb',
+    borderRadius: '50%'
   },
-  calendarDayStatus: {
-    fontSize: '12px',
-    marginTop: '4px'
-  },
-  calendarDayAvailable: {
-    background: 'rgba(16, 185, 129, 0.1)',
-    borderColor: '#10b981'
-  },
-  calendarDayUnavailable: {
-    background: '#f9fafb',
-    borderColor: '#e5e7eb'
-  },
-  calendarDaySelected: {
-    borderColor: '#0066CC',
-    borderWidth: '3px',
-    boxShadow: '0 0 0 3px rgba(0, 102, 204, 0.2)'
-  },
-  selectedDateInfo: {
-    marginTop: '20px',
-    padding: '16px',
-    background: 'rgba(0, 102, 204, 0.08)',
-    borderRadius: '8px',
-    fontSize: '15px',
-    color: '#1f2937',
-    textAlign: 'center',
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
-  },
-  currentStatus: {
-    marginLeft: '12px',
-    color: '#0066CC',
-    fontWeight: '600',
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
-  },
-  settingsSection: {
+  selectedFooter: {
+    padding: '24px',
+    backgroundColor: '#2563eb',
+    color: 'white',
     display: 'flex',
-    flexDirection: 'column',
-    gap: '20px'
+    justifyContent: 'space-between',
+    alignItems: 'center'
   },
-  settingsCard: {
-    background: 'white',
-    borderRadius: '12px',
-    padding: '20px',
-    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
-    border: '1px solid rgba(0, 102, 204, 0.1)'
+  footerLeft: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '16px'
   },
-  settingsTitle: {
+  footerIconBox: {
+    width: '48px',
+    height: '48px',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: '16px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backdropFilter: 'blur(4px)'
+  },
+  footerLabel: {
+    fontSize: '12px',
+    color: '#bfdbfe',
+    fontWeight: '500'
+  },
+  footerDate: {
     fontSize: '18px',
-    fontWeight: 'bold',
-    color: '#1f2937',
-    marginTop: 0,
-    marginBottom: '16px'
+    fontWeight: '700'
   },
-  timeInputs: {
+  footerRight: {
     display: 'flex',
     gap: '12px'
   },
+  markAvailableBtn: {
+    backgroundColor: 'white',
+    color: '#2563eb',
+    padding: '10px 20px',
+    borderRadius: '12px',
+    fontWeight: '700',
+    border: 'none',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    fontSize: '14px',
+    boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
+  },
+  deleteBtn: {
+    backgroundColor: 'rgba(239, 68, 68, 0.2)',
+    color: 'white',
+    padding: '10px',
+    borderRadius: '12px',
+    border: 'none',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  settingsColumn: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '24px'
+  },
+  settingsCard: {
+    backgroundColor: 'white',
+    borderRadius: '24px',
+    padding: '24px',
+    border: '1px solid #e2e8f0',
+    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)'
+  },
+  cardHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    marginBottom: '24px'
+  },
+  cardIconBox: {
+    width: '40px',
+    height: '40px',
+    borderRadius: '12px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  cardTitle: {
+    fontSize: '18px',
+    fontWeight: '700',
+    color: '#1e293b'
+  },
+  cardSubtitle: {
+    fontSize: '14px',
+    color: '#64748b',
+    marginBottom: '20px'
+  },
+  inputStack: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '16px'
+  },
   inputGroup: {
-    flex: 1,
     display: 'flex',
     flexDirection: 'column',
     gap: '8px'
   },
   label: {
-    fontSize: '14px',
-    fontWeight: '600',
-    color: '#374151'
+    fontSize: '12px',
+    fontWeight: '700',
+    color: '#94a3b8',
+    textTransform: 'uppercase',
+    letterSpacing: '0.05em'
   },
   timeInput: {
-    padding: '10px',
-    fontSize: '15px',
-    border: '2px solid #e5e7eb',
-    borderRadius: '8px',
-    outline: 'none',
-    transition: 'all 0.3s'
-  },
-  textInput: {
-    padding: '10px',
-    fontSize: '15px',
-    border: '2px solid #e5e7eb',
-    borderRadius: '8px',
-    outline: 'none',
-    transition: 'all 0.3s',
     width: '100%',
-    boxSizing: 'border-box'
-  },
-  actionButtons: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '10px'
-  },
-  actionButton: {
-    padding: '12px',
-    fontSize: '15px',
+    backgroundColor: '#f8fafc',
+    border: '2px solid #f1f5f9',
+    borderRadius: '16px',
+    padding: '12px 16px',
+    fontSize: '16px',
     fontWeight: '700',
-    color: 'white',
-    border: 'none',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    transition: 'all 0.3s'
+    color: '#334155',
+    outline: 'none',
+    transition: 'all 0.2s'
   },
-  recurringSubtitle: {
-    fontSize: '14px',
-    color: '#6b7280',
-    marginTop: 0,
-    marginBottom: '12px'
-  },
-  dayButtons: {
+  daySelectionGrid: {
     display: 'grid',
     gridTemplateColumns: 'repeat(4, 1fr)',
     gap: '8px',
-    marginBottom: '16px'
+    marginBottom: '24px'
   },
-  dayButton: {
-    padding: '10px',
+  dayChip: {
+    height: '48px',
+    borderRadius: '16px',
+    border: '2px solid #f1f5f9',
+    backgroundColor: 'white',
+    color: '#64748b',
+    fontWeight: '700',
     fontSize: '14px',
-    fontWeight: '600',
-    color: '#374151',
-    background: 'white',
-    borderStyle: 'solid',
-    borderWidth: '2px',
-    borderColor: '#e5e7eb',
-    borderRadius: '8px',
     cursor: 'pointer',
-    transition: 'all 0.3s'
+    transition: 'all 0.2s'
   },
-  dayButtonActive: {
-    background: '#0066CC',
+  dayChipActive: {
+    backgroundColor: '#2563eb',
+    borderColor: '#2563eb',
     color: 'white',
-    borderColor: '#0066CC'
+    boxShadow: '0 10px 15px -3px rgba(37, 99, 235, 0.2)'
   },
-  applyRecurringButton: {
+  saveRoutineBtn: {
+    width: '100%',
+    padding: '16px',
+    borderRadius: '16px',
+    backgroundColor: '#0f172a',
+    color: 'white',
+    fontWeight: '700',
+    border: 'none',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '8px',
+    transition: 'all 0.2s'
+  },
+  clearRoutineBtn: {
     width: '100%',
     padding: '12px',
-    fontSize: '15px',
+    borderRadius: '16px',
+    backgroundColor: 'transparent',
+    color: '#ef4444',
     fontWeight: '700',
-    color: 'white',
-    background: '#0066CC',
     border: 'none',
-    borderRadius: '8px',
     cursor: 'pointer',
-    boxShadow: '0 4px 12px rgba(0, 102, 204, 0.4)',
-    transition: 'all 0.3s',
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    transition: 'all 0.2s'
   },
-  footer: {
-    marginTop: '32px',
+  infoBox: {
+    marginTop: '24px',
+    padding: '16px',
+    backgroundColor: '#fffbeb',
+    borderRadius: '16px',
+    border: '1px solid #fef3c7',
     display: 'flex',
-    justifyContent: 'flex-end',
-    paddingBottom: '20px'
-  },
-  backButton: {
-    padding: '10px 24px',
-    border: 'none',
-    borderRadius: '6px',
-    background: '#0066CC',
-    color: 'white',
-    fontWeight: '600',
-    cursor: 'pointer',
-    boxShadow: '0 2px 4px rgba(0, 102, 204, 0.2)',
-    transition: 'all 0.2s',
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    gap: '12px',
+    fontSize: '13px',
+    color: '#92400e',
+    lineHeight: 1.5
   }
 };
 
 export default DoctorAvailability;
-

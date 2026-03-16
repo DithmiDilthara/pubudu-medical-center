@@ -199,7 +199,8 @@ export const createDoctor = async (req, res) => {
       specialization,
       license_no,
       doctor_fee,
-      center_fee
+      center_fee,
+      gender
     } = req.body;
 
     // Validation
@@ -265,7 +266,8 @@ export const createDoctor = async (req, res) => {
       specialization,
       license_no,
       doctor_fee,
-      center_fee
+      center_fee,
+      gender
     });
 
     res.status(201).json({
@@ -279,7 +281,8 @@ export const createDoctor = async (req, res) => {
         specialization: doctor.specialization,
         license_no: doctor.license_no,
         doctor_fee: doctor.doctor_fee,
-        center_fee: doctor.center_fee
+        center_fee: doctor.center_fee,
+        gender: doctor.gender
       }
     });
 
@@ -329,7 +332,7 @@ export const getDoctors = async (req, res) => {
 export const updateDoctor = async (req, res) => {
   try {
     const { id } = req.params;
-    const { full_name, specialization, email, contact_number, doctor_fee, center_fee } = req.body;
+    const { full_name, specialization, email, contact_number, doctor_fee, center_fee, gender } = req.body;
 
     const doctor = await Doctor.findByPk(id);
     if (!doctor) {
@@ -344,6 +347,7 @@ export const updateDoctor = async (req, res) => {
     if (specialization) doctor.specialization = specialization;
     if (doctor_fee !== undefined) doctor.doctor_fee = doctor_fee;
     if (center_fee !== undefined) doctor.center_fee = center_fee;
+    if (gender) doctor.gender = gender;
     await doctor.save();
 
     // Update user info
@@ -417,7 +421,8 @@ export const createReceptionist = async (req, res) => {
       email,
       contact_number,
       full_name,
-      nic
+      nic,
+      shift
     } = req.body;
 
     // Validation
@@ -480,7 +485,8 @@ export const createReceptionist = async (req, res) => {
       user_id: user.user_id,
       admin_id: adminRecord.admin_id,
       full_name,
-      nic
+      nic,
+      shift
     });
 
     res.status(201).json({
@@ -491,7 +497,8 @@ export const createReceptionist = async (req, res) => {
         username: user.username,
         receptionist_id: receptionist.receptionist_id,
         full_name: receptionist.full_name,
-        nic: receptionist.nic
+        nic: receptionist.nic,
+        shift: receptionist.shift
       }
     });
 
@@ -541,7 +548,7 @@ export const getReceptionists = async (req, res) => {
 export const updateReceptionist = async (req, res) => {
   try {
     const { id } = req.params;
-    const { full_name, email, contact_number } = req.body;
+    const { full_name, email, contact_number, shift } = req.body;
 
     const receptionist = await Receptionist.findByPk(id);
     if (!receptionist) {
@@ -553,6 +560,7 @@ export const updateReceptionist = async (req, res) => {
 
     // Update receptionist info
     if (full_name) receptionist.full_name = full_name;
+    if (shift) receptionist.shift = shift;
     await receptionist.save();
 
     // Update user info

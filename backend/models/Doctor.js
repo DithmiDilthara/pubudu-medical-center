@@ -24,6 +24,10 @@ const Doctor = sequelize.define('Doctor', {
         type: DataTypes.STRING(100),
         allowNull: true
     },
+    gender: {
+        type: DataTypes.ENUM('MALE', 'FEMALE', 'OTHER'),
+        allowNull: true
+    },
     license_no: {
         type: DataTypes.STRING(50),
         allowNull: true

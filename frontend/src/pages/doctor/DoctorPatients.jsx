@@ -1,17 +1,26 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { 
+  FiUser, 
+  FiActivity, 
+  FiSearch, 
+  FiCalendar, 
+  FiPhone, 
+  FiMapPin, 
+  FiChevronRight,
+  FiFilter
+} from 'react-icons/fi';
+import { motion, AnimatePresence } from 'framer-motion';
 import DoctorHeader from '../../components/DoctorHeader';
 import DoctorSidebar from '../../components/DoctorSidebar';
 
 function DoctorPatients() {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState('All');
-  const [selectedPatient, setSelectedPatient] = useState(null);
   const [patients, setPatients] = useState([]);
-  const [filterDate, setFilterDate] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [doctorName, setDoctorName] = useState('');
 
   // Fetch unique patients from backend
   useEffect(() => {
@@ -35,162 +44,140 @@ function DoctorPatients() {
     fetchPatients();
   }, []);
 
-  const handleViewDetails = (patientId) => {
-    navigate('/doctor/patient-details', { state: { patientId } });
-  };
-
-  const handlePatientSelect = (patient) => {
-    setSelectedPatient(patient);
-  };
-
-  const filteredPatients = patients.filter(patient => {
-    const name = patient.name || "";
-    const id = patient.patientId || "";
-    const search = searchTerm.toLowerCase();
-
-    const matchesSearch = name.toLowerCase().includes(search) ||
-                         id.toLowerCase().includes(search);
-    const matchesDate = !filterDate || patient.lastVisit === filterDate;
-    return matchesSearch && matchesDate;
-  });
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/auth/profile`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (response.data.success) {
+          setDoctorName(response.data.data.profile.full_name);
+        }
+      } catch (error) {
+        console.error("Profile fetch error:", error);
+      }
+    };
+    fetchProfile();
+  }, []);
 
   const handleLogout = () => {
     localStorage.clear();
     navigate('/');
   };
 
+  const filteredPatients = patients.filter(patient => {
+    const name = patient.name || "";
+    const id = patient.patientId?.toString() || "";
+    const search = searchTerm.toLowerCase();
+    return name.toLowerCase().includes(search) || id.toLowerCase().includes(search);
+  });
+
+  const cardVariants = {
+    hidden: { opacity: 0, scale: 0.95 },
+    visible: { opacity: 1, scale: 1 }
+  };
+
   return (
     <div style={styles.pageContainer}>
       <DoctorSidebar onLogout={handleLogout} />
 
-      <div className="main-wrapper">
-        <DoctorHeader />
+      <div className="main-wrapper" style={styles.mainWrapper}>
+        <DoctorHeader doctorName={doctorName} />
 
-        <main className="content-padding">
-          {/* Header */}
+        <motion.main 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          style={styles.contentPadding}
+        >
+          {/* Header Section */}
           <div style={styles.header}>
-            <div>
-              <h1 style={styles.pageTitle}>Patients</h1>
-              <p style={styles.pageSubtitle}>Manage your patient records</p>
+            <div style={styles.headerContent}>
+              <h1 style={styles.pageTitle}>Patient Directory</h1>
+              <p style={styles.pageSubtitle}>
+                Manage your {filteredPatients.length} registered patients
+              </p>
+            </div>
+
+            <div style={styles.searchWrapper}>
+              <FiSearch style={styles.searchIcon} />
+              <input
+                type="text"
+                placeholder="Search patient name or ID..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                style={styles.searchInput}
+              />
             </div>
           </div>
 
-          {/* Search and Filters */}
-          <div style={styles.searchSection}>
-            <input
-              type="text"
-              placeholder="Search patients by name or ID..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              style={styles.searchInput}
-            />
-            <div style={styles.filterButtons}>
-              <div style={styles.dateFilterContainer}>
-                <span style={styles.dateFilterLabel}>Filter by Date:</span>
-                <input
-                  type="date"
-                  value={filterDate}
-                  onChange={(e) => setFilterDate(e.target.value)}
-                  style={styles.dateInput}
-                />
-                {filterDate && (
-                  <button onClick={() => setFilterDate('')} style={styles.clearDateBtn}>✕</button>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Patients Table */}
-          <section style={styles.tableSection}>
-            <div style={styles.tableContainer}>
-              <table style={styles.table}>
-                <thead>
-                  <tr style={styles.tableHeader}>
-                    <th style={styles.th}>Patient Name</th>
-                    <th style={styles.th}>Primary Reason</th>
-                    <th style={styles.th}>Contact</th>
-                    <th style={styles.th}>Last Visit</th>
-                    <th style={styles.th}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredPatients.map((patient) => (
-                    <tr
-                      key={patient.id}
-                      onClick={() => handlePatientSelect(patient)}
-                      style={{
-                        ...styles.tableRow,
-                        ...(selectedPatient?.id === patient.id ? styles.tableRowSelected : {})
-                      }}
+          {/* Patient Cards Grid */}
+          <div style={styles.gridContainer}>
+            <AnimatePresence mode='wait'>
+              {filteredPatients.length > 0 ? (
+                <div style={styles.patientGrid}>
+                  {filteredPatients.map((patient, index) => (
+                    <motion.div
+                      key={patient.patientId || index}
+                      variants={cardVariants}
+                      initial="hidden"
+                      animate="visible"
+                      transition={{ delay: index * 0.05 }}
+                      whileHover={{ y: -4, boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)' }}
+                      onClick={() => navigate('/doctor/patient-details', { state: { patientId: patient.patientId } })}
+                      style={styles.patientCard}
                     >
-                      <td style={styles.td}>
-                        <div style={styles.patientCell}>
-                          <div style={styles.patientName}>{patient.name}</div>
-                          <div style={styles.patientId}>{patient.patientId}</div>
+                      <div className="avatar-group" style={styles.cardHeader}>
+                        <div className="avatar-circle" style={styles.avatarCircle}>
+                          {patient.name?.charAt(0)}
                         </div>
-                      </td>
-                      <td style={styles.td}>{patient.primaryReason}</td>
-                      <td style={styles.td}>{patient.contact}</td>
-                      <td style={styles.td}>{patient.lastVisit}</td>
-                      <td style={styles.td}>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleViewDetails(patient.patientId);
-                          }}
-                          style={styles.viewButton}
-                        >
-                          View Details
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
+                        <div style={styles.headerText}>
+                          <h3 style={styles.patientName}>{patient.name}</h3>
+                          <p style={styles.patientMeta}>
+                            {patient.gender || 'N/A'} • {patient.age || 'N/A'} yrs
+                          </p>
+                        </div>
+                      </div>
 
-          {/* Selected Patient Summary */}
-          {selectedPatient && (
-            <section style={styles.selectedSection}>
-              <h2 style={styles.selectedTitle}>Selected Patient: {selectedPatient.name}</h2>
-              <div style={styles.selectedContent}>
-                <div style={styles.selectedGrid}>
-                  <div style={styles.selectedItem}>
-                    <span style={styles.selectedLabel}>Patient Name</span>
-                    <span style={styles.selectedValue}>{selectedPatient.name}</span>
-                  </div>
-                  <div style={styles.selectedItem}>
-                    <span style={styles.selectedLabel}>Primary Reason</span>
-                    <span style={styles.selectedValue}>{selectedPatient.primaryReason}</span>
-                  </div>
-                  <div style={styles.selectedItem}>
-                    <span style={styles.selectedLabel}>Contact</span>
-                    <span style={styles.selectedValue}>{selectedPatient.contact}</span>
-                  </div>
-                  <div style={styles.selectedItem}>
-                    <span style={styles.selectedLabel}>Medical History Summary</span>
-                    <span style={styles.selectedValue}>No significant medical history. Regular checkups recommended.</span>
-                  </div>
+                      <div style={styles.cardBadges}>
+                        <div style={styles.badge}>
+                          <FiActivity style={styles.badgeIcon} />
+                          <span style={styles.badgeText}>
+                            {patient.primaryReason || 'No active conditions'}
+                          </span>
+                        </div>
+                        <div style={styles.badge}>
+                          <FiUser style={styles.badgeIcon} />
+                          <span style={styles.badgeText}>PHE-{patient.patientId}</span>
+                        </div>
+                      </div>
+
+                      <div style={styles.cardFooter}>
+                        <div style={styles.footerItem}>
+                          <FiCalendar style={styles.footerIcon} />
+                          <span>Last seen: {patient.lastVisit || 'Never'}</span>
+                        </div>
+                        <FiChevronRight style={styles.arrowIcon} />
+                      </div>
+                    </motion.div>
+                  ))}
                 </div>
-                <div style={styles.actionButtons}>
-                  <button onClick={() => handleViewDetails(selectedPatient.patientId)} style={styles.actionButton}>
-                    View Full Medical Record
-                  </button>
-                  <button style={styles.actionButtonSecondary}>
-                    Add New Consultation Note
-                  </button>
-                  <button style={styles.actionButtonSecondary}>
-                    Prescribe Medication
-                  </button>
-                  <button style={styles.actionButtonSecondary}>
-                    Schedule Follow-up
-                  </button>
-                </div>
-              </div>
-            </section>
-          )}
-        </main>
+              ) : (
+                <motion.div 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  style={styles.emptyState}
+                >
+                  <div style={styles.emptyIconWrapper}>
+                    <FiUser style={styles.emptyIcon} />
+                  </div>
+                  <h3 style={styles.emptyTitle}>No patients found</h3>
+                  <p style={styles.emptySubtitle}>Try adjusting your search query.</p>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </motion.main>
       </div>
     </div>
   );
@@ -200,234 +187,199 @@ const styles = {
   pageContainer: {
     display: "flex",
     minHeight: "100vh",
-    backgroundColor: "#f9fafb",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    backgroundColor: "#f8fafc",
+    fontFamily: "'Inter', sans-serif"
   },
-  mainContainer: {
-    // Handled by .main-wrapper
+  mainWrapper: {
+    flex: 1,
+    marginLeft: "280px",
+    minHeight: "100vh"
   },
-  mainContent: {
-    // Handled by .content-padding
+  contentPadding: {
+    padding: "40px",
+    maxWidth: "1600px",
+    margin: "0 auto"
   },
   header: {
-    marginBottom: '24px'
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "flex-end",
+    marginBottom: "48px"
   },
   pageTitle: {
-    fontSize: '28px',
-    fontWeight: '700',
-    color: '#1f2937',
-    margin: '0 0 8px 0',
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    fontSize: "36px",
+    fontWeight: "800",
+    color: "#0f172a",
+    margin: 0,
+    letterSpacing: "-0.025em"
   },
   pageSubtitle: {
-    fontSize: '14px',
-    color: '#6b7280',
-    margin: 0,
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    fontSize: "16px",
+    color: "#64748b",
+    marginTop: "8px",
+    fontWeight: "500"
   },
-  searchSection: {
-    marginBottom: '24px',
-    display: 'flex',
-    gap: '16px',
-    alignItems: 'center'
+  searchWrapper: {
+    position: "relative",
+    width: "320px"
+  },
+  searchIcon: {
+    position: "absolute",
+    left: "16px",
+    top: "50%",
+    transform: "translateY(-50%)",
+    color: "#94a3b8",
+    fontSize: "18px"
   },
   searchInput: {
-    flex: 1,
-    maxWidth: '500px',
-    padding: '12px 16px',
-    fontSize: '15px',
-    border: '2px solid #e5e7eb',
-    borderRadius: '10px',
-    outline: 'none',
-    transition: 'all 0.3s',
-    boxSizing: 'border-box'
+    width: "100%",
+    padding: "14px 16px 14px 48px",
+    fontSize: "15px",
+    border: "1px solid #e2e8f0",
+    borderRadius: "16px",
+    outline: "none",
+    transition: "all 0.2s",
+    backgroundColor: "white",
+    boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+    '&:focus': {
+      borderColor: "#2563eb",
+      boxShadow: "0 0 0 4px rgba(37, 99, 235, 0.1)"
+    }
   },
-  filterButtons: {
-    display: 'flex',
-    gap: '12px'
+  gridContainer: {
+    minHeight: "400px"
   },
-  filterButton: {
-    padding: '10px 20px',
-    fontSize: '14px',
-    fontWeight: '600',
-    color: '#374151',
-    background: 'white',
-    border: '2px solid #e5e7eb',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    transition: 'all 0.3s'
+  patientGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
+    gap: "24px"
   },
-  filterButtonActive: {
-    background: '#0066CC',
-    color: 'white',
-    border: '2px solid #0066CC'
+  patientCard: {
+    backgroundColor: "white",
+    borderRadius: "28px",
+    padding: "24px",
+    border: "1px solid #f1f5f9",
+    cursor: "pointer",
+    transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+    display: "flex",
+    flexDirection: "column",
+    gap: "24px"
   },
-  dateFilterContainer: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    backgroundColor: 'white',
-    padding: '8px 16px',
-    borderRadius: '10px',
-    border: '2px solid #e5e7eb'
+  cardHeader: {
+    display: "flex",
+    alignItems: "center",
+    gap: "16px"
   },
-  dateFilterLabel: {
-    fontSize: '13px',
-    fontWeight: '700',
-    color: '#4b5563',
-    textTransform: 'uppercase'
+  avatarCircle: {
+    width: "60px",
+    height: "60px",
+    borderRadius: "20px",
+    backgroundColor: "#eff6ff",
+    color: "#2563eb",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "24px",
+    fontWeight: "700",
+    transition: "all 0.3s ease"
   },
-  dateInput: {
-    border: 'none',
-    outline: 'none',
-    fontSize: '14px',
-    color: '#374151',
-    cursor: 'pointer'
-  },
-  clearDateBtn: {
-    background: 'none',
-    border: 'none',
-    color: '#ef4444',
-    cursor: 'pointer',
-    fontWeight: 'bold',
-    fontSize: '16px'
-  },
-  tableSection: {
-    marginBottom: '32px'
-  },
-  tableContainer: {
-    background: 'white',
-    borderRadius: '16px',
-    boxShadow: '0 12px 30px rgba(0, 102, 204, 0.15)',
-    border: '2px solid #0066CC',
-    overflow: 'hidden'
-  },
-  table: {
-    width: '100%',
-    borderCollapse: 'collapse'
-  },
-  tableHeader: {
-    background: '#f9fafb',
-    borderBottom: '2px solid #e5e7eb'
-  },
-  th: {
-    padding: '20px',
-    textAlign: 'left',
-    fontSize: '13px',
-    fontWeight: '800',
-    color: '#4b5563',
-    textTransform: 'uppercase',
-    letterSpacing: '1px'
-  },
-  tableRow: {
-    borderBottom: '1px solid #f3f4f6',
-    transition: 'all 0.2s',
-    cursor: 'pointer'
-  },
-  tableRowSelected: {
-    background: '#e6f2ff'
-  },
-  td: {
-    padding: '20px',
-    fontSize: '15px',
-    color: '#111827'
-  },
-  patientCell: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '2px'
+  headerText: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "2px"
   },
   patientName: {
-    fontWeight: '700',
-    color: '#111827',
-    fontSize: '16px'
+    fontSize: "18px",
+    fontWeight: "700",
+    color: "#0f172a",
+    margin: 0
   },
-  patientId: {
-    fontSize: '12px',
-    fontWeight: '600',
-    color: '#0066CC'
+  patientMeta: {
+    fontSize: "14px",
+    color: "#64748b",
+    fontWeight: "500",
+    margin: 0
   },
-  viewButton: {
-    padding: '10px 20px',
-    fontSize: '14px',
-    fontWeight: '700',
-    color: 'white',
-    background: 'linear-gradient(135deg, #0066CC 0%, #0052A3 100%)',
-    border: 'none',
-    borderRadius: '10px',
-    cursor: 'pointer',
-    transition: 'all 0.2s',
-    boxShadow: '0 4px 10px rgba(0, 102, 204, 0.2)'
+  cardBadges: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "10px"
   },
-  selectedSection: {
-    background: 'white',
-    borderRadius: '16px',
-    padding: '32px',
-    boxShadow: '0 12px 30px rgba(0, 102, 204, 0.15)',
-    border: '2px solid #0066CC',
-    marginTop: '32px'
+  badge: {
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
+    backgroundColor: "#f8fafc",
+    padding: "12px 16px",
+    borderRadius: "16px",
+    border: "1px solid #f1f5f9"
   },
-  selectedTitle: {
-    fontSize: '24px',
-    fontWeight: '800',
-    color: '#111827',
-    marginBottom: '24px',
-    marginTop: 0,
-    letterSpacing: '-0.5px'
+  badgeIcon: {
+    fontSize: "16px",
+    color: "#64748b"
   },
-  selectedContent: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '32px'
+  badgeText: {
+    fontSize: "13px",
+    fontWeight: "600",
+    color: "#334155",
+    whiteSpace: "nowrap",
+    overflow: "hidden",
+    textOverflow: "ellipsis"
   },
-  selectedGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(2, 1fr)',
-    gap: '20px'
+  cardFooter: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingTop: "16px",
+    borderTop: "1px solid #f1f5f9"
   },
-  selectedItem: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '8px'
+  footerItem: {
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    fontSize: "13px",
+    color: "#94a3b8",
+    fontWeight: "500"
   },
-  selectedLabel: {
-    fontSize: '13px',
-    fontWeight: '600',
-    color: '#6b7280'
+  footerIcon: {
+    fontSize: "14px"
   },
-  selectedValue: {
-    fontSize: '15px',
-    color: '#1f2937'
+  arrowIcon: {
+    fontSize: "18px",
+    color: "#cbd5e1"
   },
-  actionButtons: {
-    display: 'flex',
-    gap: '12px',
-    flexWrap: 'wrap'
+  emptyState: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "100px 0",
+    textAlign: "center"
   },
-  actionButton: {
-    padding: '12px 24px',
-    fontSize: '15px',
-    fontWeight: '700',
-    color: 'white',
-    background: '#0066CC',
-    border: 'none',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    boxShadow: '0 4px 12px rgba(0, 102, 204, 0.4)',
-    transition: 'all 0.3s',
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+  emptyIconWrapper: {
+    width: "80px",
+    height: "80px",
+    borderRadius: "30px",
+    backgroundColor: "#f1f5f9",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: "24px"
   },
-  actionButtonSecondary: {
-    padding: '12px 24px',
-    fontSize: '15px',
-    fontWeight: '600',
-    color: '#0066CC',
-    background: 'white',
-    border: '2px solid #0066CC',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    transition: 'all 0.3s',
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+  emptyIcon: {
+    fontSize: "32px",
+    color: "#94a3b8"
+  },
+  emptyTitle: {
+    fontSize: "20px",
+    fontWeight: "700",
+    color: "#0f172a",
+    margin: "0 0 8px 0"
+  },
+  emptySubtitle: {
+    fontSize: "15px",
+    color: "#64748b",
+    margin: 0
   }
 };
 

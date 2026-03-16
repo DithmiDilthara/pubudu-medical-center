@@ -1,31 +1,41 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiPlus, FiEdit2, FiTrash2, FiX, FiUser, FiAlertCircle, FiCheck, FiXCircle } from 'react-icons/fi';
+import { 
+  FiPlus, 
+  FiEdit2, 
+  FiTrash2, 
+  FiSearch, 
+  FiFilter, 
+  FiUser, 
+  FiActivity,
+  FiMail,
+  FiPhone,
+  FiClock
+} from 'react-icons/fi';
+import { motion, AnimatePresence } from 'framer-motion';
 import AdminHeader from '../../components/AdminHeader';
 import AdminSidebar from '../../components/AdminSidebar';
+import AddReceptionistModal from '../../components/AddReceptionistModal';
+import ConfirmDialog from '../../components/ConfirmDialog';
 import { useAuth } from '../../context/AuthContext';
+import { toast } from 'react-hot-toast';
 
 const ManageReceptionist = () => {
   const { api } = useAuth();
   const navigate = useNavigate();
+  
+  // State
   const [receptionists, setReceptionists] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterShift, setFilterShift] = useState('All');
+  
+  // Modal States
   const [showModal, setShowModal] = useState(false);
   const [editingReceptionist, setEditingReceptionist] = useState(null);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-  const [focusedField, setFocusedField] = useState(null);
-
-  const [formData, setFormData] = useState({
-    username: '',
-    password: '',
-    email: '',
-    contact_number: '',
-    full_name: '',
-    nic: ''
-  });
-
-  const [formErrors, setFormErrors] = useState({});
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [receptionistToDelete, setReceptionistToDelete] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     fetchReceptionists();
@@ -36,225 +46,82 @@ const ManageReceptionist = () => {
       setLoading(true);
       const response = await api.get('/admin/receptionists');
       if (response.data.success) {
-        setReceptionists(response.data.data);
+        let docs = response.data.data;
+        
+        // Add mock receptionists if list is empty for demonstration as requested
+        if (docs.length === 0) {
+          docs = [
+            { receptionist_id: 'm1', full_name: 'Kumara Perera', shift: 'Morning', user: { email: 'kumara@pubudu.lk', contact_number: '0771234567', is_active: true } },
+            { receptionist_id: 'm2', full_name: 'Dileepa Silva', shift: 'Afternoon', user: { email: 'dileepa@pubudu.lk', contact_number: '0772345678', is_active: true } },
+            { receptionist_id: 'm3', full_name: 'Anula Wijesinghe', shift: 'Night', user: { email: 'anula@pubudu.lk', contact_number: '0773456789', is_active: true } },
+            { receptionist_id: 'm4', full_name: 'Sunil Rathnayake', shift: 'Full Day', user: { email: 'sunil@pubudu.lk', contact_number: '0774567890', is_active: false } },
+            { receptionist_id: 'm5', full_name: 'Manel Gunawardena', shift: 'Morning', user: { email: 'manel@pubudu.lk', contact_number: '0775678901', is_active: true } }
+          ];
+        }
+        setReceptionists(docs);
       }
     } catch (error) {
-      setError('Failed to fetch receptionists');
+      toast.error('Failed to load receptionists');
       console.error('Error fetching receptionists:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-    if (formErrors[name]) {
-      setFormErrors(prev => ({ ...prev, [name]: '' }));
-    }
-  };
-
-  const validateField = (name, value) => {
-    let error = '';
-    switch (name) {
-      case 'username':
-        if (!value) error = 'Username is required';
-        else if (value.length < 4 || value.length > 15) error = 'Username 4-15 characters';
-        else if (!value.startsWith('Rep_')) error = 'Must start with Rep_';
-        else if (!/^[A-Z]/.test(value.slice(4))) error = 'Letter after Rep_ must be Capital';
-        else if (!/^Rep_[A-Z][a-zA-Z0-9_]*$/.test(value)) error = 'Invalid characters';
-        break;
-      case 'password':
-        if (!value) error = 'Password is required';
-        else if (value.length < 8) error = 'At least 8 characters';
-        else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%^&*(),.?":{}|<>])/.test(value)) error = 'Include mixed case, number & special char';
-        break;
-      case 'full_name':
-        if (!value) error = 'Full name is required';
-        else if (value.length < 3) error = 'At least 3 characters';
-        else if (!/^[a-zA-Z\s]+$/.test(value)) error = 'Letters only';
-        break;
-      case 'nic':
-        if (!value) error = 'NIC is required';
-        else if (!/^(?:\d{9}[vVxX]|\d{12})$/.test(value)) error = 'Invalid NIC format';
-        break;
-      case 'email':
-        if (!value) error = 'Email is required';
-        else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) error = 'Invalid email format';
-        break;
-      case 'contact_number':
-        if (!value) error = 'Contact number is required';
-        else if (!/^0[0-9]{9}$/.test(value)) error = '10 digits starting with 0';
-        break;
-      default:
-        break;
-    }
-    setFormErrors(prev => ({ ...prev, [name]: error }));
-    return !error;
-  };
-
-  const checkUsernameReq = (val) => ({
-    length: val.length >= 4 && val.length <= 15,
-    prefix: val.startsWith('Rep_'),
-    capital: /^[A-Z]/.test(val.slice(4))
-  });
-
-  const checkPasswordReq = (val) => ({
-    length: val.length >= 8,
-    mixed: /(?=.*[a-z])(?=.*[A-Z])/.test(val),
-    number: /(?=.*[0-9])/.test(val),
-    special: /(?=.*[!@#$%^&*(),.?":{}|<>])/.test(val)
-  });
-
-  const validateForm = () => {
-    const errors = {};
-
-    // Username and Password validation (only when creating new)
-    if (!editingReceptionist) {
-      if (!formData.username) {
-        errors.username = 'Username is required';
-      } else if (formData.username.length < 4 || formData.username.length > 15) {
-        errors.username = 'Username must be between 4 and 15 characters';
-      } else if (!formData.username.startsWith('Rep_')) {
-        errors.username = 'Username must start with Rep_';
-      } else if (!/^[A-Z]/.test(formData.username.slice(4))) {
-        errors.username = 'The character after Rep_ must be a capital letter';
-      } else if (!/^Rep_[A-Z][a-zA-Z0-9_]*$/.test(formData.username)) {
-        errors.username = 'Username can only contain letters, numbers, and underscores';
-      }
-
-      if (!formData.password) {
-        errors.password = 'Password is required';
-      } else if (formData.password.length < 8) {
-        errors.password = 'Password must be at least 8 characters';
-      } else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%^&*(),.?":{}|<>])/.test(formData.password)) {
-        errors.password = 'Password must include uppercase, lowercase, a number, and a special character';
-      }
-
-      if (!formData.nic) {
-        errors.nic = 'NIC is required';
-      } else if (!/^(?:\d{9}[vVxX]|\d{12})$/.test(formData.nic)) {
-        errors.nic = 'Invalid NIC format (e.g., 123456789V or 12 digits)';
-      }
-    }
-
-    // Common fields
-    if (!formData.full_name) {
-      errors.full_name = 'Full name is required';
-    } else if (formData.full_name.length < 3) {
-      errors.full_name = 'Full name must be at least 3 characters';
-    } else if (!/^[a-zA-Z\s]+$/.test(formData.full_name)) {
-      errors.full_name = 'Full name can only contain letters';
-    }
-
-    if (!formData.email) {
-      errors.email = 'Email is required';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      errors.email = 'Invalid email format';
-    }
-
-    if (!formData.contact_number) {
-      errors.contact_number = 'Contact number is required';
-    } else if (!/^0[0-9]{9}$/.test(formData.contact_number)) {
-      errors.contact_number = 'Contact number must start with 0 and be 10 digits';
-    }
-
-    setFormErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
-    setSuccess('');
-
-    if (!validateForm()) {
-      setError('Please fix all errors before submitting');
-      return;
-    }
-
+  const handleCreateOrUpdate = async (formData) => {
     try {
-      if (editingReceptionist) {
-        // Update existing receptionist
-        const response = await api.put(`/admin/receptionists/${editingReceptionist.receptionist_id}`, {
-          full_name: formData.full_name,
-          email: formData.email,
-          contact_number: formData.contact_number
-        });
+      setIsSubmitting(true);
+      const response = editingReceptionist 
+        ? await api.put(`/admin/receptionists/${editingReceptionist.receptionist_id}`, formData)
+        : await api.post('/admin/receptionists', formData);
 
-        if (response.data.success) {
-          setSuccess('Receptionist updated successfully');
-          fetchReceptionists();
-          closeModal();
-        }
-      } else {
-        // Create new receptionist
-        const response = await api.post('/admin/receptionists', formData);
-
-        if (response.data.success) {
-          setSuccess('Receptionist created successfully');
-          fetchReceptionists();
-          closeModal();
-        }
-      }
-    } catch (error) {
-      setError(error.response?.data?.message || 'Failed to save receptionist');
-    }
-  };
-
-  const handleEdit = (receptionist) => {
-    setEditingReceptionist(receptionist);
-    setFormData({
-      username: receptionist.user.username,
-      password: '',
-      email: receptionist.user.email || '',
-      contact_number: receptionist.user.contact_number || '',
-      full_name: receptionist.full_name,
-      nic: receptionist.nic
-    });
-    setShowModal(true);
-  };
-
-  const handleDelete = async (receptionistId) => {
-    if (!window.confirm('Are you sure you want to delete this receptionist?')) return;
-
-    try {
-      const response = await api.delete(`/admin/receptionists/${receptionistId}`);
       if (response.data.success) {
-        setSuccess('Receptionist deleted successfully');
+        toast.success(editingReceptionist ? 'Receptionist updated successfully' : 'Receptionist added successfully');
         fetchReceptionists();
+        setShowModal(false);
       }
     } catch (error) {
-      setError(error.response?.data?.message || 'Failed to delete receptionist');
+      toast.error(error.response?.data?.message || 'Failed to save receptionist');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const openAddModal = () => {
-    setEditingReceptionist(null);
-    setFormData({
-      username: '',
-      password: '',
-      email: '',
-      contact_number: '',
-      full_name: '',
-      nic: ''
-    });
-    setFormErrors({});
-    setShowModal(true);
+  const handleDelete = async () => {
+    if (!receptionistToDelete) return;
+    try {
+      const response = await api.delete(`/admin/receptionists/${receptionistToDelete.receptionist_id}`);
+      if (response.data.success) {
+        toast.success('Receptionist removed successfully');
+        fetchReceptionists();
+        setShowDeleteConfirm(false);
+      }
+    } catch (error) {
+      toast.error('Failed to delete receptionist');
+    }
   };
 
-  const closeModal = () => {
-    setShowModal(false);
-    setEditingReceptionist(null);
-    setFormData({
-      username: '',
-      password: '',
-      email: '',
-      contact_number: '',
-      full_name: '',
-      nic: ''
+  // Filter & Search Logic
+  const filteredReceptionists = useMemo(() => {
+    return receptionists.filter(rec => {
+      const matchesSearch = rec.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                           rec.user?.email?.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesFilter = filterShift === 'All' || rec.shift === filterShift;
+      return matchesSearch && matchesFilter;
     });
-    setFormErrors({});
+  }, [receptionists, searchQuery, filterShift]);
+
+  const getInitials = (name) => {
+    return name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'RP';
+  };
+
+  const containerVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { 
+      opacity: 1, 
+      y: 0,
+      transition: { duration: 0.5, staggerChildren: 0.05 }
+    }
   };
 
   return (
@@ -263,423 +130,452 @@ const ManageReceptionist = () => {
       <div className="main-wrapper">
         <AdminHeader title="Manage Receptionists" />
 
-        <div className="content-padding">
-          {/* Alert Messages */}
-          {error && (
-            <div style={styles.errorAlert}>
-              {error}
-              <button onClick={() => setError('')} style={styles.closeBtn}>×</button>
+        <motion.main 
+          className="content-padding"
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
+        >
+          {/* Toolbar */}
+          <div style={styles.toolbar}>
+            <div style={styles.toolbarContent}>
+              <div style={styles.searchBox}>
+                <FiSearch style={styles.searchIcon} />
+                <input 
+                  type="text" 
+                  placeholder="Search receptionists by name or email..." 
+                  style={styles.searchInput}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+              <div style={styles.filterBox}>
+                <FiFilter style={styles.filterIcon} />
+                <select 
+                  style={styles.filterSelect}
+                  value={filterShift}
+                  onChange={(e) => setFilterShift(e.target.value)}
+                >
+                  <option value="All">All Shifts</option>
+                  <option value="Morning">Morning</option>
+                  <option value="Afternoon">Afternoon</option>
+                  <option value="Night">Night</option>
+                  <option value="Full Day">Full Day</option>
+                </select>
+              </div>
             </div>
-          )}
-
-          {success && (
-            <div style={styles.successAlert}>
-              {success}
-              <button onClick={() => setSuccess('')} style={styles.closeBtn}>×</button>
-            </div>
-          )}
-
-          {/* Header with Add Button */}
-          <div style={styles.header}>
-            <h2 style={styles.title}>Receptionist List</h2>
-            <button onClick={openAddModal} style={styles.addButton}>
-              <FiPlus style={styles.buttonIcon} />
-              Add New Receptionist
-            </button>
-          </div>
-
-          {/* Receptionists Table */}
-          {loading ? (
-            <div style={styles.loading}>Loading receptionists...</div>
-          ) : receptionists.length === 0 ? (
-            <div style={styles.emptyState}>
-              <FiUser style={styles.emptyIcon} />
-              <p>No receptionists found. Add your first receptionist!</p>
-            </div>
-          ) : (
-            <div style={styles.tableContainer}>
-              <table style={styles.table}>
-                <thead>
-                  <tr>
-                    <th style={styles.th}>Name</th>
-                    <th style={styles.th}>Username</th>
-                    <th style={styles.th}>NIC</th>
-                    <th style={styles.th}>Email</th>
-                    <th style={styles.th}>Contact</th>
-                    <th style={styles.th}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {receptionists.map((receptionist) => (
-                    <tr key={receptionist.receptionist_id} style={styles.tr}>
-                      <td style={styles.td}>{receptionist.full_name}</td>
-                      <td style={styles.td}>{receptionist.user.username}</td>
-                      <td style={styles.td}>{receptionist.nic}</td>
-                      <td style={styles.td}>{receptionist.user.email || 'N/A'}</td>
-                      <td style={styles.td}>{receptionist.user.contact_number || 'N/A'}</td>
-                      <td style={styles.td}>
-                        <div style={styles.actionButtons}>
-                          <button
-                            onClick={() => handleEdit(receptionist)}
-                            style={styles.editButton}
-                            title="Edit"
-                          >
-                            <FiEdit2 />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(receptionist.receptionist_id)}
-                            style={styles.deleteButton}
-                            title="Delete"
-                          >
-                            <FiTrash2 />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          <div style={styles.footer}>
-            <button
-              onClick={() => navigate("/admin/dashboard")}
-              style={styles.backButton}
+            <button 
+                onClick={() => {
+                    setEditingReceptionist(null);
+                    setShowModal(true);
+                }} 
+                style={styles.addButton}
             >
-              Back
+              <FiPlus />
+              <span>Add Receptionist</span>
             </button>
           </div>
-        </div>
+
+          {/* Data Table */}
+          <div style={styles.tableCard}>
+            {loading ? (
+              <div style={styles.loadingContainer}>
+                <motion.div 
+                  animate={{ rotate: 360 }}
+                  transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
+                  style={styles.spinner}
+                />
+                <p>Syncing staff database...</p>
+              </div>
+            ) : filteredReceptionists.length === 0 ? (
+              <div style={styles.emptyState}>
+                <FiActivity style={styles.emptyIcon} />
+                <h3>No Receptionists Found</h3>
+                <p>We couldn't find any staff matching your current criteria.</p>
+                <button onClick={() => {setSearchQuery(''); setFilterShift('All');}} style={styles.resetBtn}>
+                  Clear all filters
+                </button>
+              </div>
+            ) : (
+              <div style={styles.tableWrapper}>
+                <table style={styles.table}>
+                  <thead>
+                    <tr>
+                      <th style={styles.th}>Receptionist</th>
+                      <th style={styles.th}>Contact</th>
+                      <th style={styles.th}>Shift</th>
+                      <th style={styles.th}>Status</th>
+                      <th style={styles.th}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredReceptionists.map((rec, idx) => (
+                      <motion.tr 
+                        key={rec.receptionist_id} 
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: idx * 0.05 }}
+                        style={styles.tr}
+                      >
+                        <td style={styles.td}>
+                          <div style={styles.personInfo}>
+                            <div style={styles.avatar}>
+                              {getInitials(rec.full_name)}
+                            </div>
+                            <div>
+                              <p style={styles.personName}>{rec.full_name}</p>
+                              <p style={styles.joinDate}>Staff Registry</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td style={styles.td}>
+                          <div style={styles.contactInfo}>
+                            <p style={styles.email}><FiMail size={12} /> {rec.user?.email || 'No email'}</p>
+                            <p style={styles.phone}><FiPhone size={12} /> {rec.user?.contact_number || 'No contact'}</p>
+                          </div>
+                        </td>
+                        <td style={styles.td}>
+                          <span style={styles.shiftBadge}>
+                            <FiClock size={12} style={{marginRight: '6px'}} />
+                            {rec.shift || 'Morning'}
+                          </span>
+                        </td>
+                        <td style={styles.td}>
+                          <div style={{
+                            ...styles.statusBadge,
+                            backgroundColor: rec.user?.is_active !== false ? '#ecfdf5' : '#fff1f2',
+                            color: rec.user?.is_active !== false ? '#10b981' : '#e11d48'
+                          }}>
+                            {rec.user?.is_active !== false ? 'Active' : 'Inactive'}
+                          </div>
+                        </td>
+                        <td style={styles.td}>
+                          <div style={styles.actions}>
+                            <button 
+                                onClick={() => {
+                                    setEditingReceptionist(rec);
+                                    setShowModal(true);
+                                }} 
+                                style={styles.actionBtnEdit}
+                            >
+                              <FiEdit2 />
+                            </button>
+                            <button 
+                                onClick={() => {
+                                    setReceptionistToDelete(rec);
+                                    setShowDeleteConfirm(true);
+                                }} 
+                                style={styles.actionBtnDelete}
+                            >
+                              <FiTrash2 />
+                            </button>
+                          </div>
+                        </td>
+                      </motion.tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          <div style={styles.footer_container}>
+             <button onClick={() => navigate('/admin/dashboard')} style={styles.backBtn}>Back to Dashboard</button>
+          </div>
+        </motion.main>
       </div>
 
-      {/* Add/Edit Modal */}
-      {showModal && (
-        <div style={styles.modalOverlay}>
-          <div style={styles.modal}>
-            <div style={styles.modalHeader}>
-              <h3 style={styles.modalTitle}>
-                {editingReceptionist ? 'Edit Receptionist' : 'Add New Receptionist'}
-              </h3>
-              <button onClick={closeModal} style={styles.modalCloseBtn}>
-                <FiX />
-              </button>
-            </div>
+      {/* Components */}
+      <AddReceptionistModal 
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        onSubmit={handleCreateOrUpdate}
+        editingReceptionist={editingReceptionist}
+        isLoading={isSubmitting}
+      />
 
-            <form onSubmit={handleSubmit} style={styles.form}>
-              <div style={styles.formGrid}>
-                {!editingReceptionist && (
-                  <>
-                    <style>
-                      {`
-                        @keyframes slideDown {
-                          from { opacity: 0; transform: translateY(-10px); }
-                          to { opacity: 1; transform: translateY(0); }
-                        }
-                      `}
-                    </style>
-                    <div style={styles.formGroup}>
-                      <label style={styles.label}>
-                        Username <span style={styles.required}>*</span>
-                      </label>
-                      <input
-                        type="text"
-                        name="username"
-                        value={formData.username}
-                        onChange={handleInputChange}
-                        onFocus={() => setFocusedField('username')}
-                        onBlur={() => {
-                          setFocusedField(null);
-                          validateField('username', formData.username);
-                        }}
-                        style={{
-                          ...styles.input,
-                          ...(formErrors.username ? styles.inputError : {})
-                        }}
-                        placeholder="Enter username"
-                      />
-                      {focusedField === 'username' && (
-                        <div style={styles.hintsBox}>
-                          <p style={styles.hintsTitle}>Requirements:</p>
-                          <ul style={styles.hintsList}>
-                            <li style={checkUsernameReq(formData.username).length ? styles.hintMet : styles.hintUnmet}>
-                              {checkUsernameReq(formData.username).length ? <FiCheck /> : <FiXCircle />} 4-15 characters long
-                            </li>
-                            <li style={checkUsernameReq(formData.username).prefix ? styles.hintMet : styles.hintUnmet}>
-                              {checkUsernameReq(formData.username).prefix ? <FiCheck /> : <FiXCircle />} Must start with <strong>Rep_</strong>
-                            </li>
-                            <li style={checkUsernameReq(formData.username).capital ? styles.hintMet : styles.hintUnmet}>
-                              {checkUsernameReq(formData.username).capital ? <FiCheck /> : <FiXCircle />} Next letter must be <strong>Capital</strong>
-                            </li>
-                          </ul>
-                        </div>
-                      )}
-                      {formErrors.username && (
-                        <span style={styles.errorText}>
-                          <FiAlertCircle style={{ marginRight: '4px' }} />
-                          {formErrors.username}
-                        </span>
-                      )}
-                    </div>
-
-                    <div style={styles.formGroup}>
-                      <label style={styles.label}>
-                        Password <span style={styles.required}>*</span>
-                      </label>
-                      <input
-                        type="password"
-                        name="password"
-                        value={formData.password}
-                        onChange={handleInputChange}
-                        onFocus={() => setFocusedField('password')}
-                        onBlur={() => {
-                          setFocusedField(null);
-                          validateField('password', formData.password);
-                        }}
-                        style={{
-                          ...styles.input,
-                          ...(formErrors.password ? styles.inputError : {})
-                        }}
-                        placeholder="Enter password"
-                      />
-                      {focusedField === 'password' && (
-                        <div style={styles.hintsBox}>
-                          <p style={styles.hintsTitle}>Requirements:</p>
-                          <ul style={styles.hintsList}>
-                            <li style={checkPasswordReq(formData.password).length ? styles.hintMet : styles.hintUnmet}>
-                              {checkPasswordReq(formData.password).length ? <FiCheck /> : <FiXCircle />} Minimum 8 characters
-                            </li>
-                            <li style={checkPasswordReq(formData.password).mixed ? styles.hintMet : styles.hintUnmet}>
-                              {checkPasswordReq(formData.password).mixed ? <FiCheck /> : <FiXCircle />} Include uppercase & lowercase
-                            </li>
-                            <li style={checkPasswordReq(formData.password).number ? styles.hintMet : styles.hintUnmet}>
-                              {checkPasswordReq(formData.password).number ? <FiCheck /> : <FiXCircle />} Include at least one number
-                            </li>
-                            <li style={checkPasswordReq(formData.password).special ? styles.hintMet : styles.hintUnmet}>
-                              {checkPasswordReq(formData.password).special ? <FiCheck /> : <FiXCircle />} Include at least one special character
-                            </li>
-                          </ul>
-                        </div>
-                      )}
-                      {formErrors.password && (
-                        <span style={styles.errorText}>
-                          <FiAlertCircle style={{ marginRight: '4px' }} />
-                          {formErrors.password}
-                        </span>
-                      )}
-                    </div>
-                  </>
-                )}
-
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>
-                    Full Name <span style={styles.required}>*</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="full_name"
-                    value={formData.full_name}
-                    onChange={handleInputChange}
-                    onBlur={() => validateField('full_name', formData.full_name)}
-                    style={{
-                      ...styles.input,
-                      ...(formErrors.full_name ? styles.inputError : {})
-                    }}
-                    placeholder="sayumi manujana"
-                  />
-                  {formErrors.full_name && (
-                    <span style={styles.errorText}>
-                      <FiAlertCircle style={{ marginRight: '4px' }} />
-                      {formErrors.full_name}
-                    </span>
-                  )}
-                </div>
-
-                {!editingReceptionist && (
-                  <div style={styles.formGroup}>
-                    <label style={styles.label}>
-                      NIC <span style={styles.required}>*</span>
-                    </label>
-                    <input
-                      type="text"
-                      name="nic"
-                      value={formData.nic}
-                      onChange={handleInputChange}
-                      onBlur={() => validateField('nic', formData.nic)}
-                      style={{
-                        ...styles.input,
-                        ...(formErrors.nic ? styles.inputError : {})
-                      }}
-                      placeholder="123456789V"
-                    />
-                    {formErrors.nic && (
-                      <span style={styles.errorText}>
-                        <FiAlertCircle style={{ marginRight: '4px' }} />
-                        {formErrors.nic}
-                      </span>
-                    )}
-                  </div>
-                )}
-
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>
-                    Email <span style={styles.required}>*</span>
-                  </label>
-                  <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleInputChange}
-                    onBlur={() => validateField('email', formData.email)}
-                    style={{
-                      ...styles.input,
-                      ...(formErrors.email ? styles.inputError : {})
-                    }}
-                    placeholder="receptionist@example.com"
-                  />
-                  {formErrors.email && (
-                    <span style={styles.errorText}>
-                      <FiAlertCircle style={{ marginRight: '4px' }} />
-                      {formErrors.email}
-                    </span>
-                  )}
-                </div>
-
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>
-                    Contact Number <span style={styles.required}>*</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="contact_number"
-                    value={formData.contact_number}
-                    onChange={handleInputChange}
-                    onBlur={() => validateField('contact_number', formData.contact_number)}
-                    style={{
-                      ...styles.input,
-                      ...(formErrors.contact_number ? styles.inputError : {})
-                    }}
-                    placeholder="0771234567"
-                  />
-                  {formErrors.contact_number && (
-                    <span style={styles.errorText}>
-                      <FiAlertCircle style={{ marginRight: '4px' }} />
-                      {formErrors.contact_number}
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              <div style={styles.modalActions}>
-                <button type="button" onClick={closeModal} style={styles.cancelButton}>
-                  Cancel
-                </button>
-                <button type="submit" style={styles.submitButton}>
-                  {editingReceptionist ? 'Update Receptionist' : 'Add Receptionist'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog 
+        isOpen={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={handleDelete}
+        title="Delete Receptionist"
+        message={`Are you sure you want to delete ${receptionistToDelete?.full_name}? This action will permanently remove their access.`}
+        confirmLabel="Remove Staff"
+        type="danger"
+      />
     </div>
   );
 };
 
 const styles = {
-  container: { display: 'flex', minHeight: '100vh', backgroundColor: '#f3f4f6' },
-  mainContent: {
-    // Handled by .main-wrapper
+  container: {
+    display: 'flex',
+    minHeight: '100vh',
+    backgroundColor: '#f8fafc'
   },
-  content: {
-    // Handled by .content-padding
+  toolbar: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: '20px',
+    marginBottom: '32px',
+    backgroundColor: 'white',
+    padding: '20px 24px',
+    borderRadius: '20px',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+    flexWrap: 'wrap'
   },
-
-  errorAlert: { padding: '12px 16px', backgroundColor: '#fee', color: '#c33', borderRadius: '8px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
-  successAlert: { padding: '12px 16px', backgroundColor: '#d4edda', color: '#155724', borderRadius: '8px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
-  closeBtn: { background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer', color: 'inherit' },
-
-  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' },
-  title: { fontSize: '24px', fontWeight: '600', color: '#333' },
-  addButton: { display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', backgroundColor: '#0066CC', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '14px', fontWeight: '600' },
-  buttonIcon: { fontSize: '18px' },
-
-  loading: { textAlign: 'center', padding: '40px', color: '#666' },
-  emptyState: { textAlign: 'center', padding: '60px 20px', color: '#999' },
-  emptyIcon: { fontSize: '64px', marginBottom: '16px' },
-
-  tableContainer: { backgroundColor: 'white', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' },
-  table: { width: '100%', borderCollapse: 'collapse' },
-  th: { padding: '16px', textAlign: 'left', backgroundColor: '#f8f9fa', fontWeight: '600', color: '#333', borderBottom: '2px solid #dee2e6' },
-  tr: { borderBottom: '1px solid #dee2e6' },
-  td: { padding: '16px', color: '#666' },
-
-  actionButtons: { display: 'flex', gap: '8px' },
-  editButton: { padding: '6px 12px', backgroundColor: '#0066CC', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '14px' },
-  deleteButton: { padding: '6px 12px', backgroundColor: '#dc3545', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '14px' },
-
-  modalOverlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 },
-  modal: { backgroundColor: 'white', borderRadius: '12px', width: '90%', maxWidth: '600px', maxHeight: '90vh', overflow: 'auto' },
-  modalHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px', borderBottom: '1px solid #dee2e6' },
-  modalTitle: { fontSize: '20px', fontWeight: '600', margin: 0 },
-  modalCloseBtn: { background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer', color: '#999' },
-
-  form: { padding: '20px' },
-  formGrid: { display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px', marginBottom: '24px' },
-  formGroup: { marginBottom: '16px' },
-  label: { display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '600', color: '#333' },
-  required: { color: '#dc3545' },
-  input: { width: '100%', padding: '10px 12px', border: '2px solid #dee2e6', borderRadius: '6px', fontSize: '14px', boxSizing: 'border-box', transition: 'all 0.2s' },
-  inputError: { borderColor: '#dc3545', backgroundColor: '#fff5f5' },
-  errorText: { display: 'flex', alignItems: 'center', color: '#dc3545', fontSize: '12px', marginTop: '4px' },
-
-  modalActions: { display: 'flex', justifyContent: 'flex-end', gap: '12px', paddingTop: '16px', borderTop: '1px solid #dee2e6' },
-  cancelButton: { padding: '10px 20px', backgroundColor: '#6c757d', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '14px', fontWeight: '600' },
-  submitButton: { padding: '10px 20px', backgroundColor: '#0066CC', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '14px', fontWeight: '600' },
-  hintsBox: {
-    marginTop: '8px',
-    padding: '12px',
-    backgroundColor: '#FFFFFF',
-    borderRadius: '8px',
-    border: '1px solid #E5E7EB',
-    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-    animation: 'slideDown 0.2s ease-out'
+  toolbarContent: {
+    display: 'flex',
+    gap: '16px',
+    flex: 1,
+    minWidth: '300px'
   },
-  hintsTitle: {
-    fontSize: '12px',
-    color: '#4B5563',
+  searchBox: {
+    position: 'relative',
+    flex: 1,
+    display: 'flex',
+    alignItems: 'center'
+  },
+  searchIcon: {
+    position: 'absolute',
+    left: '16px',
+    color: '#94a3b8',
+    fontSize: '18px'
+  },
+  searchInput: {
+    width: '100%',
+    padding: '12px 16px 12px 48px',
+    borderRadius: '12px',
+    border: '1px solid #e2e8f0',
+    fontSize: '14px',
+    color: '#0f172a',
+    outline: 'none',
+    transition: 'all 0.2s'
+  },
+  filterBox: {
+    position: 'relative',
+    display: 'flex',
+    alignItems: 'center'
+  },
+  filterIcon: {
+    position: 'absolute',
+    left: '16px',
+    color: '#94a3b8'
+  },
+  filterSelect: {
+    padding: '12px 16px 12px 42px',
+    borderRadius: '12px',
+    border: '1px solid #e2e8f0',
+    backgroundColor: 'white',
+    fontSize: '14px',
+    color: '#64748b',
     fontWeight: '600',
-    marginBottom: '6px',
+    cursor: 'pointer',
+    outline: 'none'
+  },
+  addButton: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    padding: '12px 24px',
+    backgroundColor: '#2563eb',
+    color: 'white',
+    border: 'none',
+    borderRadius: '14px',
+    fontSize: '14px',
+    fontWeight: '700',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+    boxShadow: '0 10px 15px -3px rgba(37, 99, 235, 0.2)'
+  },
+  tableCard: {
+    backgroundColor: 'white',
+    borderRadius: '24px',
+    border: '1px solid #f1f5f9',
+    overflow: 'hidden',
+    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)'
+  },
+  tableWrapper: {
+    overflowX: 'auto'
+  },
+  table: {
+    width: '100%',
+    borderCollapse: 'collapse',
+    textAlign: 'left'
+  },
+  th: {
+    padding: '20px 24px',
+    backgroundColor: '#f8fafc',
+    fontSize: '12px',
+    fontWeight: '700',
+    color: '#64748b',
+    textTransform: 'uppercase',
+    letterSpacing: '1px',
+    borderBottom: '1px solid #f1f5f9'
+  },
+  tr: {
+    borderBottom: '1px solid #f1f5f9',
+    transition: 'background-color 0.2s'
+  },
+  td: {
+    padding: '20px 24px',
+    verticalAlign: 'middle'
+  },
+  personInfo: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '16px'
+  },
+  avatar: {
+    width: '44px',
+    height: '44px',
+    borderRadius: '14px',
+    backgroundColor: '#f5f3ff', // purple bg for receptionists
+    color: '#7c3aed', // purple text
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: '14px',
+    fontWeight: '800',
+    border: '2px solid white',
+    boxShadow: '0 4px 6px -1px rgba(124, 58, 237, 0.1)'
+  },
+  personName: {
+    fontSize: '15px',
+    fontWeight: '700',
+    color: '#1e293b',
     margin: 0
   },
-  hintsList: {
-    margin: 0,
-    paddingLeft: '18px',
+  joinDate: {
     fontSize: '12px',
-    color: '#6B7280',
-    listStyleType: 'none',
+    color: '#94a3b8',
+    margin: 0,
+    marginTop: '2px'
+  },
+  shiftBadge: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    padding: '6px 14px',
+    borderRadius: '10px',
+    fontSize: '13px',
+    fontWeight: '600',
+    backgroundColor: '#f1f5f9',
+    color: '#475569'
+  },
+  contactInfo: {
     display: 'flex',
     flexDirection: 'column',
     gap: '4px'
   },
-  hintMet: { color: '#059669', display: 'flex', alignItems: 'center', gap: '6px' },
-  hintUnmet: { color: '#DC2626', display: 'flex', alignItems: 'center', gap: '6px' },
-  footer: {
-    marginTop: '32px',
+  email: {
+    fontSize: '13px',
+    color: '#64748b',
+    margin: 0,
     display: 'flex',
-    justifyContent: 'flex-end'
+    alignItems: 'center',
+    gap: '6px'
   },
-  backButton: {
-    padding: '10px 24px',
+  phone: {
+    fontSize: '13px',
+    color: '#64748b',
+    margin: 0,
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px'
+  },
+  statusBadge: {
+    display: 'inline-flex',
+    padding: '6px 12px',
+    borderRadius: '8px',
+    fontSize: '12px',
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: '0.05em'
+  },
+  actions: {
+    display: 'flex',
+    gap: '8px'
+  },
+  actionBtnEdit: {
+    width: '36px',
+    height: '36px',
+    borderRadius: '10px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#eff6ff',
+    color: '#2563eb',
     border: 'none',
-    borderRadius: '6px',
-    background: '#0066CC',
-    color: 'white',
-    fontWeight: '600',
     cursor: 'pointer',
-    boxShadow: '0 2px 4px rgba(0, 102, 204, 0.2)',
-    transition: 'all 0.2s',
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    transition: 'all 0.2s'
+  },
+  actionBtnDelete: {
+    width: '36px',
+    height: '36px',
+    borderRadius: '10px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fff1f2',
+    color: '#e11d48',
+    border: 'none',
+    cursor: 'pointer',
+    transition: 'all 0.2s'
+  },
+  loadingContainer: {
+    padding: '80px 0',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '16px',
+    color: '#64748b'
+  },
+  spinner: {
+    width: '40px',
+    height: '40px',
+    border: '4px solid #f1f5f9',
+    borderTopColor: '#2563eb',
+    borderRadius: '50%'
+  },
+  emptyState: {
+    padding: '80px 24px',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    textAlign: 'center'
+  },
+  emptyIcon: {
+    fontSize: '48px',
+    color: '#cbd5e1',
+    marginBottom: '16px'
+  },
+  resetBtn: {
+    marginTop: '20px',
+    padding: '10px 20px',
+    backgroundColor: 'white',
+    border: '1px solid #e2e8f0',
+    borderRadius: '10px',
+    fontSize: '14px',
+    fontWeight: '600',
+    color: '#64748b',
+    cursor: 'pointer'
+  },
+  footer_container: {
+    display: 'flex',
+    justifyContent: 'flex-end',
+    marginTop: '32px'
+  },
+  backBtn: {
+    padding: '12px 24px',
+    backgroundColor: 'white',
+    border: '1px solid #e2e8f0',
+    borderRadius: '12px',
+    fontSize: '14px',
+    fontWeight: '600',
+    color: '#64748b',
+    cursor: 'pointer',
+    transition: 'all 0.2s'
   }
 };
 

@@ -1,12 +1,26 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { 
+  FiCalendar, 
+  FiClock, 
+  FiSearch, 
+  FiUser, 
+  FiActivity, 
+  FiCheckCircle, 
+  FiXCircle, 
+  FiChevronRight,
+  FiArrowLeft
+} from 'react-icons/fi';
+import { motion, AnimatePresence } from 'framer-motion';
 import DoctorHeader from '../../components/DoctorHeader';
 import DoctorSidebar from '../../components/DoctorSidebar';
+import AppointmentCard from '../../components/AppointmentCard';
 
 function DoctorAppointments() {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
+  const [activeTab, setActiveTab] = useState('Today');
   const [appointments, setAppointments] = useState([]);
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [recordForm, setRecordForm] = useState({
@@ -90,214 +104,254 @@ function DoctorAppointments() {
     }
   };
 
-  const filterAppointments = (apts) => {
-    return apts.filter(apt =>
-      apt.patient?.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      apt.patient?.nic?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  };
-
   const handleLogout = () => {
     localStorage.clear();
     navigate('/');
   };
 
   const getLocalDateString = (date) => {
-    // Adjust logic to get YYYY-MM-DD in local time instead of UTC to fix off-by-one errors
     const offset = date.getTimezoneOffset() * 60000;
     const localISOTime = (new Date(date.getTime() - offset)).toISOString().slice(0, -1);
     return localISOTime.split('T')[0];
   };
 
   const todayDate = getLocalDateString(new Date());
-  const todayAppointments = appointments.filter(apt => apt.appointment_date === todayDate);
-  const upcomingAppointments = appointments.filter(apt => apt.appointment_date > todayDate && apt.status !== 'CANCELLED');
+
+  const handleUpdateStatus = async (apptId, newStatus) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/appointments/${apptId}/status`, {
+        status: newStatus
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (response.data.success) {
+        // Update local state
+        setAppointments(prev => prev.map(a => a.appointment_id === apptId ? { ...a, status: newStatus } : a));
+        if (selectedAppointment?.appointment_id === apptId) {
+          setSelectedAppointment(prev => ({ ...prev, status: newStatus }));
+        }
+      }
+    } catch (error) {
+      console.error("Status update error:", error);
+    }
+  };
+
+  const getFilteredAppointments = () => {
+    let filtered = appointments.filter(apt => {
+        const nameMatch = apt.patient?.full_name?.toLowerCase().includes(searchTerm.toLowerCase());
+        const idMatch = apt.patient_id?.toString().includes(searchTerm);
+        return nameMatch || idMatch;
+    });
+
+    if (activeTab === 'Today') {
+        return filtered.filter(apt => apt.appointment_date === todayDate);
+    } else if (activeTab === 'Upcoming') {
+        return filtered.filter(apt => apt.appointment_date > todayDate && apt.status !== 'CANCELLED');
+    } else if (activeTab === 'Past') {
+        return filtered.filter(apt => apt.appointment_date < todayDate || apt.status === 'COMPLETED' || apt.status === 'CANCELLED');
+    }
+    return filtered;
+  };
+
+  const filteredList = getFilteredAppointments();
 
   return (
     <div style={styles.pageContainer}>
       <DoctorSidebar onLogout={handleLogout} />
 
-      <div className="main-wrapper">
+      <div className="main-wrapper" style={styles.mainWrapper}>
         <DoctorHeader doctorName={doctorName} />
 
-        <main className="content-padding">
-          {/* Header */}
-          <div style={styles.header}>
-            <div>
+        <motion.main 
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          style={styles.contentPadding}
+        >
+          {/* Header & Search */}
+          <div style={styles.topSection}>
+            <div style={styles.headerTitle}>
               <h1 style={styles.pageTitle}>Appointments</h1>
-              <p style={styles.pageSubtitle}>Manage your patient appointments</p>
+              <p style={styles.pageSubtitle}>Precision Scheduling & Patient Flow</p>
+            </div>
+            
+            <div style={styles.searchWrapper}>
+              <FiSearch style={styles.searchIcon} />
+              <input
+                type="text"
+                placeholder="Search patient name or ID..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                style={styles.searchInput}
+              />
             </div>
           </div>
 
-          {/* Search Bar */}
-          <div style={styles.searchSection}>
-            <input
-              type="text"
-              placeholder="Search by patient name or ID..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              style={styles.searchInput}
-            />
-          </div>
-
-          {/* Today's Appointments */}
-          <section style={styles.section}>
-            <h2 style={styles.sectionTitle}>Today's Appointments</h2>
-
-            <div style={styles.tableContainer}>
-              <table style={styles.table}>
-                <thead>
-                  <tr style={styles.tableHeader}>
-                    <th style={styles.th}>Time</th>
-                    <th style={styles.th}>Patient</th>
-                    <th style={styles.th}>Status</th>
-                    <th style={styles.th}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filterAppointments(todayAppointments)
-                    .map((apt) => (
-                      <tr key={apt.appointment_id} style={styles.tableRow}>
-                        <td style={styles.td}>{apt.time_slot}</td>
-                        <td style={styles.td}>
-                          <div style={styles.patientCell}>
-                            <div style={styles.patientName}>{apt.patient?.full_name}</div>
-                            <div style={styles.patientId}>PHE-{apt.patient_id}</div>
-                          </div>
-                        </td>
-                        <td style={styles.td}>
-                          <span style={{
-                            ...styles.statusBadge,
-                            background: apt.status === 'COMPLETED' ? '#dcfce7' : '#fef9c3',
-                            color: apt.status === 'COMPLETED' ? '#166534' : '#854d0e'
-                          }}>{apt.status}</span>
-                        </td>
-                        <td style={styles.td}>
-                          <div style={{ display: 'flex', gap: '8px' }}>
-                            <button
-                              onClick={() => navigate('/doctor/patient-details', { state: { patient: apt.patient } })}
-                              style={styles.viewButton}
-                            >
-                              History
-                            </button>
-                            {apt.status !== 'COMPLETED' && apt.status !== 'CANCELLED' && (
-                              <button
-                                onClick={() => handleOpenRecord(apt)}
-                                style={{ ...styles.viewButton, background: '#0066CC', color: 'white', border: 'none' }}
-                              >
-                                Precribe Record
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
-
-          {/* Upcoming Appointments */}
-          <section style={styles.section}>
-            <h2 style={styles.sectionTitle}>Upcoming Appointments</h2>
-
-            <div style={styles.tableContainer}>
-              <table style={styles.table}>
-                <thead>
-                  <tr style={styles.tableHeader}>
-                    <th style={styles.th}>Time</th>
-                    <th style={styles.th}>Patient</th>
-                    <th style={styles.th}>Status</th>
-                    <th style={styles.th}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filterAppointments(upcomingAppointments).map((apt) => (
-                    <tr key={apt.appointment_id} style={styles.tableRow}>
-                      <td style={styles.td}>{apt.time_slot}</td>
-                      <td style={styles.td}>
-                        <div style={styles.patientCell}>
-                          <div style={styles.patientName}>{apt.patient?.full_name}</div>
-                          <div style={styles.patientId}>PHE-{apt.patient_id}</div>
-                        </div>
-                      </td>
-                      <td style={styles.td}>
-                        <span style={{
-                          ...styles.statusBadge,
-                          background: apt.status === 'COMPLETED' ? '#dcfce7' : '#fef9c3',
-                          color: apt.status === 'COMPLETED' ? '#166534' : '#854d0e'
-                        }}>{apt.status}</span>
-                      </td>
-                      <td style={styles.td}>
-                        <div style={styles.actionButtons}>
-                          {/* Upcoming appointments usually only allow viewing history, no prescription yet */}
-                          <div style={{ color: '#6b7280', fontSize: '13px' }}>Scheduled</div>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
-
-          {/* Medical Record Modal */}
-          {showRecordModal && (
-            <div style={{
-              position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-              backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
-            }}>
-              <div style={{ background: 'white', padding: '32px', borderRadius: '12px', width: '500px', maxWidth: '90%', maxHeight: '90vh', overflowY: 'auto' }}>
-                <h2 style={{ marginBottom: '24px' }}>Add Medical Record</h2>
-                <div style={{ marginBottom: '16px' }}>
-                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>Diagnosis</label>
-                  <input
-                    type="text"
-                    value={recordForm.diagnosis}
-                    onChange={(e) => setRecordForm({ ...recordForm, diagnosis: e.target.value })}
-                    style={styles.searchInput}
-                  />
-                </div>
-                <div style={{ marginBottom: '16px' }}>
-                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>Clinical Notes</label>
-                  <textarea
-                    value={recordForm.notes}
-                    onChange={(e) => setRecordForm({ ...recordForm, notes: e.target.value })}
-                    style={{ ...styles.searchInput, height: '100px', resize: 'none' }}
-                  />
-                </div>
-                <div style={{ marginBottom: '16px' }}>
-                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>Prescription</label>
-                  <textarea
-                    value={recordForm.prescription}
-                    onChange={(e) => setRecordForm({ ...recordForm, prescription: e.target.value })}
-                    style={{ ...styles.searchInput, height: '80px', resize: 'none' }}
-                    placeholder="Amoxicillin 500mg - 3 times a day"
-                  />
-                </div>
-                <div style={{ marginBottom: '24px' }}>
-                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>Follow-up Date (Optional)</label>
-                  <input
-                    type="date"
-                    value={recordForm.follow_up_date}
-                    onChange={(e) => setRecordForm({ ...recordForm, follow_up_date: e.target.value })}
-                    style={styles.searchInput}
-                  />
-                </div>
-                <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-                  <button onClick={() => setShowRecordModal(false)} style={styles.viewButton}>Cancel</button>
+          <div style={styles.splitLayout}>
+            {/* Left Panel: Appointment List */}
+            <div style={styles.listPanel}>
+              <div style={styles.tabsContainer}>
+                {['Today', 'Upcoming', 'Past'].map((tab) => (
                   <button
-                    onClick={handleAddRecord}
-                    disabled={isLoading}
-                    style={{ ...styles.viewButton, background: '#0066CC', color: 'white', border: 'none' }}
+                    key={tab}
+                    onClick={() => setActiveTab(tab)}
+                    style={{
+                      ...styles.tabBtn,
+                      color: activeTab === tab ? '#2563eb' : '#64748b'
+                    }}
                   >
-                    {isLoading ? 'Saving...' : 'Save Record'}
+                    {tab}
+                    {activeTab === tab && (
+                      <motion.div 
+                        layoutId="apt-tab"
+                        style={styles.tabUnderline}
+                      />
+                    )}
                   </button>
-                </div>
+                ))}
+              </div>
+
+              <div style={styles.scrollArea}>
+                <AnimatePresence mode='wait'>
+                    {filteredList.length > 0 ? (
+                        <motion.div 
+                            key={activeTab}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -10 }}
+                            style={styles.aptList}
+                        >
+                            {filteredList.map((apt) => (
+                                <div 
+                                    key={apt.appointment_id} 
+                                    onClick={() => setSelectedAppointment(apt)}
+                                    style={{
+                                        ...styles.listItemWrapper,
+                                        borderLeft: selectedAppointment?.appointment_id === apt.appointment_id ? '4px solid #2563eb' : 'none',
+                                        backgroundColor: selectedAppointment?.appointment_id === apt.appointment_id ? '#eff6ff' : 'transparent'
+                                    }}
+                                >
+                                    <AppointmentCard 
+                                        appt={apt} 
+                                        variant="grid" 
+                                        role="doctor"
+                                        onViewDetails={(a) => setSelectedAppointment(a)}
+                                    />
+                                </div>
+                            ))}
+                        </motion.div>
+                    ) : (
+                        <div style={styles.emptyState}>
+                            <FiCalendar style={styles.emptyIcon} />
+                            <p style={styles.emptyText}>No appointments found for this period.</p>
+                        </div>
+                    )}
+                </AnimatePresence>
               </div>
             </div>
-          )}
-        </main>
+
+            {/* Right Panel: Detail View */}
+            <div style={styles.detailPanel}>
+              {selectedAppointment ? (
+                <motion.div 
+                    key={selectedAppointment.appointment_id}
+                    initial={{ opacity: 0, scale: 0.98 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    style={styles.detailContent}
+                >
+                    <div style={styles.patientHero}>
+                        <div style={styles.patientAvatar}>
+                            {selectedAppointment.patient?.full_name?.charAt(0)}
+                        </div>
+                        <div style={styles.heroText}>
+                            <h2 style={styles.detailName}>{selectedAppointment.patient?.full_name}</h2>
+                            <p style={styles.detailId}>PHE-{selectedAppointment.patient_id}</p>
+                            <span style={{
+                                ...styles.statusBadge,
+                                ...getStatusStyle(selectedAppointment.status)
+                            }}>
+                                {selectedAppointment.status}
+                            </span>
+                        </div>
+                    </div>
+
+                    <div style={styles.infoGrid}>
+                        <div style={styles.infoCard}>
+                            <FiCalendar style={styles.cardIcon} />
+                            <div>
+                                <p style={styles.cardLabel}>Date</p>
+                                <p style={styles.cardValue}>
+                                    {new Date(selectedAppointment.appointment_date).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+                                </p>
+                            </div>
+                        </div>
+                        <div style={styles.infoCard}>
+                            <FiClock style={styles.cardIcon} />
+                            <div>
+                                <p style={styles.cardLabel}>Time Slot</p>
+                                <p style={styles.cardValue}>{selectedAppointment.time_slot}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style={styles.detailSection}>
+                        <h4 style={styles.sectionHeading}>Actions & Care</h4>
+                        <div style={styles.actionStack}>
+                            <button 
+                                onClick={() => navigate('/doctor/patient-details', { 
+                                    state: { 
+                                        patient: selectedAppointment.patient,
+                                        appointment_id: selectedAppointment.appointment_id 
+                                    } 
+                                })}
+                                style={styles.primaryAction}
+                            >
+                                <FiActivity />
+                                Start Consultation / View Records
+                                <FiChevronRight />
+                            </button>
+
+                            <div style={styles.secondaryActions}>
+                                <button 
+                                    onClick={() => handleUpdateStatus(selectedAppointment.appointment_id, 'COMPLETED')}
+                                    disabled={selectedAppointment.status === 'COMPLETED'}
+                                    style={{
+                                        ...styles.outlineBtn,
+                                        borderColor: '#10b981',
+                                        color: '#10b981',
+                                        opacity: selectedAppointment.status === 'COMPLETED' ? 0.5 : 1
+                                    }}
+                                >
+                                    <FiCheckCircle />
+                                    Mark Completed
+                                </button>
+                                <button 
+                                    onClick={() => handleUpdateStatus(selectedAppointment.appointment_id, 'CANCELLED')}
+                                    disabled={selectedAppointment.status === 'CANCELLED'}
+                                    style={{
+                                        ...styles.outlineBtn,
+                                        borderColor: '#e11d48',
+                                        color: '#e11d48',
+                                        opacity: selectedAppointment.status === 'CANCELLED' ? 0.5 : 1
+                                    }}
+                                >
+                                    <FiXCircle />
+                                    Cancel
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </motion.div>
+              ) : (
+                <div style={styles.detailPlaceholder}>
+                    <FiCalendar style={styles.placeholderIcon} />
+                    <p style={styles.placeholderText}>Select an appointment to view details</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </motion.main>
       </div>
     </div>
   );
@@ -307,127 +361,320 @@ const styles = {
   pageContainer: {
     display: "flex",
     minHeight: "100vh",
-    backgroundColor: "#f9fafb",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    backgroundColor: "#f8fafc",
+    fontFamily: "'Inter', sans-serif"
   },
-  mainContainer: {
-    // Handled by .main-wrapper
+  mainWrapper: {
+    flex: 1,
+    marginLeft: "280px",
+    minHeight: "100vh",
+    display: "flex",
+    flexDirection: "column"
   },
-  mainContent: {
-    // Handled by .content-padding
+  contentPadding: {
+    padding: "32px",
+    flex: 1,
+    maxWidth: "1600px",
+    margin: "0 auto",
+    width: "100%",
+    display: "flex",
+    flexDirection: "column"
   },
-  header: {
-    marginBottom: "24px"
+  topSection: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: "40px"
   },
   pageTitle: {
-    fontSize: "28px",
-    fontWeight: "700",
-    color: "#1f2937",
-    margin: "0 0 8px 0",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    fontSize: "32px",
+    fontWeight: "800",
+    color: "#0f172a",
+    margin: 0,
+    letterSpacing: "-0.025em"
   },
   pageSubtitle: {
-    fontSize: "14px",
-    color: "#6b7280",
-    margin: 0,
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    fontSize: "15px",
+    color: "#64748b",
+    marginTop: "4px",
+    fontWeight: "500"
   },
-  searchSection: {
-    marginBottom: "32px"
+  searchWrapper: {
+    position: "relative",
+    width: "400px"
+  },
+  searchIcon: {
+    position: "absolute",
+    left: "16px",
+    top: "50%",
+    transform: "translateY(-50%)",
+    color: "#94a3b8",
+    fontSize: "18px"
   },
   searchInput: {
     width: "100%",
-    maxWidth: "500px",
-    padding: "12px 16px",
+    padding: "14px 16px 14px 48px",
     fontSize: "15px",
-    border: "2px solid #e5e7eb",
-    borderRadius: "10px",
+    border: "1px solid #e2e8f0",
+    borderRadius: "20px",
     outline: "none",
-    transition: "all 0.3s",
-    boxSizing: "border-box",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    transition: "all 0.2s",
+    backgroundColor: "white",
+    boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+    ':focus': {
+        borderColor: "#2563eb",
+        boxShadow: "0 0 0 3px rgba(37, 99, 235, 0.1)"
+    }
   },
-  section: {
-    marginBottom: "32px"
+  splitLayout: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: "32px",
+    flex: 1,
+    minHeight: 0
   },
-  sectionTitle: {
-    fontSize: "18px",
-    fontWeight: "700",
-    color: "#1f2937",
-    marginBottom: "16px",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
-  },
-  tableContainer: {
-    background: "white",
-    borderRadius: "12px",
-    boxShadow: "0 4px 20px rgba(0, 0, 0, 0.08)",
-    border: "1px solid #e5e7eb",
+  listPanel: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "24px",
     overflow: "hidden"
   },
-  table: {
-    width: "100%",
-    borderCollapse: "collapse"
+  tabsContainer: {
+    display: "flex",
+    gap: "32px",
+    borderBottom: "1px solid #e2e8f0",
+    paddingBottom: "2px"
   },
-  tableHeader: {
-    background: "rgba(0, 102, 204, 0.08)",
-    borderBottom: "2px solid rgba(0, 102, 204, 0.2)"
-  },
-  th: {
-    padding: "16px",
-    textAlign: "left",
-    fontSize: "14px",
-    fontWeight: "700",
-    color: "#374151",
-    textTransform: "uppercase",
-    letterSpacing: "0.5px",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
-  },
-  tableRow: {
-    borderBottom: "1px solid #f3f4f6",
-    transition: "background-color 0.2s"
-  },
-  td: {
-    padding: "16px",
+  tabBtn: {
+    background: "none",
+    border: "none",
+    padding: "12px 4px",
     fontSize: "15px",
-    color: "#1f2937",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    fontWeight: "700",
+    cursor: "pointer",
+    position: "relative",
+    transition: "color 0.2s"
   },
-  patientCell: {
+  tabUnderline: {
+    position: "absolute",
+    bottom: "-1px",
+    left: 0,
+    right: 0,
+    height: "2px",
+    backgroundColor: "#2563eb",
+    borderRadius: "2px"
+  },
+  scrollArea: {
+    flex: 1,
+    overflowY: "auto",
+    paddingRight: "8px"
+  },
+  aptList: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "16px"
+  },
+  listItemWrapper: {
+    borderRadius: "24px",
+    overflow: "hidden",
+    cursor: "pointer",
+    transition: "all 0.2s",
+    border: "1px solid transparent",
+    ':hover': {
+        borderColor: "#e2e8f0",
+        boxShadow: "0 4px 6px rgba(0,0,0,0.02)"
+    }
+  },
+  detailPanel: {
+    backgroundColor: "white",
+    borderRadius: "32px",
+    border: "1px solid #f1f5f9",
+    boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
+    overflow: "hidden",
+    display: "flex",
+    flexDirection: "column"
+  },
+  detailContent: {
+    padding: "40px",
+    display: "flex",
+    flexDirection: "column",
+    gap: "40px"
+  },
+  patientHero: {
+    display: "flex",
+    alignItems: "center",
+    gap: "24px"
+  },
+  patientAvatar: {
+    width: "72px",
+    height: "72px",
+    borderRadius: "50%",
+    backgroundColor: "#eff6ff",
+    color: "#2563eb",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "32px",
+    fontWeight: "800"
+  },
+  heroText: {
     display: "flex",
     flexDirection: "column",
     gap: "4px"
   },
-  patientName: {
-    fontWeight: "600",
-    color: "#1f2937",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+  detailName: {
+    fontSize: "28px",
+    fontWeight: "800",
+    color: "#0f172a",
+    margin: 0,
+    letterSpacing: "-0.025em"
   },
-  patientId: {
-    fontSize: "13px",
-    color: "#6b7280",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+  detailId: {
+    fontSize: "16px",
+    color: "#64748b",
+    fontWeight: "600",
+    margin: 0
   },
   statusBadge: {
-    padding: "6px 12px",
+    display: "inline-flex",
+    padding: "6px 16px",
+    borderRadius: "100px",
     fontSize: "13px",
-    fontWeight: "600",
-    color: "#047857",
-    background: "#d1fae5",
-    borderRadius: "6px",
-    display: "inline-block",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    fontWeight: "800",
+    textTransform: "uppercase",
+    letterSpacing: "0.05em",
+    marginTop: "8px",
+    width: "fit-content"
   },
-  viewButton: {
-    padding: "8px 16px",
-    fontSize: "14px",
-    fontWeight: "600",
-    color: "#0066CC",
-    background: "white",
-    border: "2px solid #0066CC",
-    borderRadius: "8px",
+  infoGrid: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: "24px"
+  },
+  infoCard: {
+    backgroundColor: "#f8fafc",
+    padding: "24px",
+    borderRadius: "24px",
+    display: "flex",
+    alignItems: "center",
+    gap: "16px",
+    border: "1px solid #f1f5f9"
+  },
+  cardIcon: {
+    fontSize: "24px",
+    color: "#94a3b8"
+  },
+  cardLabel: {
+    fontSize: "12px",
+    fontWeight: "700",
+    color: "#94a3b8",
+    textTransform: "uppercase",
+    margin: 0
+  },
+  cardValue: {
+    fontSize: "16px",
+    fontWeight: "700",
+    color: "#1e293b",
+    margin: "2px 0 0 0"
+  },
+  detailSection: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "20px"
+  },
+  sectionHeading: {
+    fontSize: "15px",
+    fontWeight: "700",
+    color: "#0f172a",
+    margin: 0,
+    textTransform: "uppercase",
+    letterSpacing: "0.05em"
+  },
+  actionStack: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "16px"
+  },
+  primaryAction: {
+    width: "100%",
+    padding: "18px",
+    borderRadius: "20px",
+    border: "none",
+    backgroundColor: "#2563eb",
+    color: "white",
+    fontSize: "16px",
+    fontWeight: "700",
     cursor: "pointer",
-    transition: "all 0.3s",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "12px",
+    transition: "all 0.2s",
+    boxShadow: "0 10px 15px -3px rgba(37, 99, 235, 0.2)",
+    ':hover': {
+        backgroundColor: "#1d4ed8",
+        transform: "translateY(-1px)"
+    }
+  },
+  secondaryActions: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: "12px"
+  },
+  outlineBtn: {
+    padding: "14px",
+    borderRadius: "16px",
+    border: "2px solid",
+    backgroundColor: "transparent",
+    fontSize: "14px",
+    fontWeight: "700",
+    cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "10px",
+    transition: "all 0.2s",
+    ':hover': {
+        backgroundColor: "#f8fafc"
+    }
+  },
+  detailPlaceholder: {
+    flex: 1,
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "60px",
+    textAlign: "center"
+  },
+  placeholderIcon: {
+    fontSize: "80px",
+    color: "#f1f5f9",
+    marginBottom: "24px"
+  },
+  placeholderText: {
+    fontSize: "18px",
+    fontWeight: "600",
+    color: "#94a3b8",
+    maxWidth: "240px"
+  },
+  emptyState: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "80px 0",
+    textAlign: "center"
+  },
+  emptyIcon: {
+    fontSize: "64px",
+    color: "#f1f5f9",
+    marginBottom: "20px"
+  },
+  emptyText: {
+    fontSize: "16px",
+    fontWeight: "600",
+    color: "#94a3b8"
   }
 };
 

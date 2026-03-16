@@ -1,34 +1,40 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiPlus, FiEdit2, FiTrash2, FiX, FiUser, FiAlertCircle, FiCheck, FiXCircle } from 'react-icons/fi';
+import { 
+  FiPlus, 
+  FiEdit2, 
+  FiTrash2, 
+  FiSearch, 
+  FiFilter, 
+  FiUser, 
+  FiActivity,
+  FiMail,
+  FiPhone
+} from 'react-icons/fi';
+import { motion } from 'framer-motion';
 import AdminHeader from '../../components/AdminHeader';
 import AdminSidebar from '../../components/AdminSidebar';
+import AddDoctorModal from '../../components/AddDoctorModal';
+import ConfirmDialog from '../../components/ConfirmDialog';
 import { useAuth } from '../../context/AuthContext';
+import { toast } from 'react-hot-toast';
 
 const ManageDoctors = () => {
   const { api } = useAuth();
   const navigate = useNavigate();
+  
+  // State
   const [doctors, setDoctors] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterSpecialization, setFilterSpecialization] = useState('All');
+  
+  // Modal States
   const [showModal, setShowModal] = useState(false);
   const [editingDoctor, setEditingDoctor] = useState(null);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-  const [focusedField, setFocusedField] = useState(null);
-
-  const [formData, setFormData] = useState({
-    username: '',
-    password: '',
-    email: '',
-    contact_number: '',
-    full_name: '',
-    specialization: '',
-    license_no: '',
-    doctor_fee: '',
-    center_fee: ''
-  });
-
-  const [formErrors, setFormErrors] = useState({});
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [doctorToDelete, setDoctorToDelete] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     fetchDoctors();
@@ -42,252 +48,87 @@ const ManageDoctors = () => {
         setDoctors(response.data.data);
       }
     } catch (error) {
-      setError('Failed to fetch doctors');
+      toast.error('Failed to load doctors');
       console.error('Error fetching doctors:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-    if (formErrors[name]) {
-      setFormErrors(prev => ({ ...prev, [name]: '' }));
-    }
-  };
-
-  const validateField = (name, value) => {
-    let error = '';
-    switch (name) {
-      case 'username':
-        if (!value) error = 'Username is required';
-        else if (value.length < 4 || value.length > 15) error = 'Username 4-15 characters';
-        else if (!value.startsWith('Doc_')) error = 'Must start with Doc_';
-        else if (!/^[A-Z]/.test(value.slice(4))) error = 'Letter after Doc_ must be Capital';
-        else if (!/^Doc_[A-Z][a-zA-Z0-9_]*$/.test(value)) error = 'Invalid characters';
-        break;
-      case 'password':
-        if (!value) error = 'Password is required';
-        else if (value.length < 8) error = 'At least 8 characters';
-        else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%^&*(),.?":{}|<>])/.test(value)) error = 'Include mixed case, number & special char';
-        break;
-      case 'full_name':
-        if (!value) error = 'Full name is required';
-        else if (value.length < 3) error = 'At least 3 characters';
-        else if (!/^[a-zA-Z\s.]+$/.test(value)) error = 'Alphanumeric and periods only';
-        break;
-      case 'specialization':
-        if (!value) error = 'Specialization is required';
-        break;
-      case 'license_no':
-        if (!value) error = 'License is required';
-        else if (value.length !== 8) error = 'Must be exactly 8 characters';
-        else if (!/^[a-zA-Z0-9]+$/.test(value)) error = 'Alphanumeric only';
-        break;
-      case 'email':
-        if (!value) error = 'Email is required';
-        else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) error = 'Invalid email format';
-        break;
-      case 'contact_number':
-        if (!value) error = 'Contact number is required';
-        else if (!/^0[0-9]{9}$/.test(value)) error = '10 digits starting with 0';
-        break;
-      default:
-        break;
-    }
-    setFormErrors(prev => ({ ...prev, [name]: error }));
-    return !error;
-  };
-
-  const checkUsernameReq = (val) => ({
-    length: val.length >= 4 && val.length <= 15,
-    prefix: val.startsWith('Doc_'),
-    capital: /^[A-Z]/.test(val.slice(4))
-  });
-
-  const checkPasswordReq = (val) => ({
-    length: val.length >= 8,
-    mixed: /(?=.*[a-z])(?=.*[A-Z])/.test(val),
-    number: /(?=.*[0-9])/.test(val),
-    special: /(?=.*[!@#$%^&*(),.?":{}|<>])/.test(val)
-  });
-
-  const validateForm = () => {
-    const errors = {};
-
-    // Username and Password validation (only when creating new)
-    if (!editingDoctor) {
-      if (!formData.username) {
-        errors.username = 'Username is required';
-      } else if (formData.username.length < 4 || formData.username.length > 15) {
-        errors.username = 'Username must be between 4 and 15 characters';
-      } else if (!formData.username.startsWith('Doc_')) {
-        errors.username = 'Username must start with Doc_';
-      } else if (!/^[A-Z]/.test(formData.username.slice(4))) {
-        errors.username = 'The character after Doc_ must be a capital letter';
-      } else if (!/^Doc_[A-Z][a-zA-Z0-9_]*$/.test(formData.username)) {
-        errors.username = 'Username can only contain letters, numbers, and underscores';
-      }
-
-      if (!formData.password) {
-        errors.password = 'Password is required';
-      } else if (formData.password.length < 8) {
-        errors.password = 'Password must be at least 8 characters';
-      } else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%^&*(),.?":{}|<>])/.test(formData.password)) {
-        errors.password = 'Password must include uppercase, lowercase, a number, and a special character';
-      }
-
-      if (!formData.license_no) {
-        errors.license_no = 'License number is required';
-      } else if (formData.license_no.length !== 8) {
-        errors.license_no = 'License number must be exactly 8 characters';
-      } else if (!/^[a-zA-Z0-9]+$/.test(formData.license_no)) {
-        errors.license_no = 'License number must be alphanumeric';
-      }
-    }
-
-    // Common fields
-    if (!formData.full_name) {
-      errors.full_name = 'Full name is required';
-    } else if (formData.full_name.length < 3) {
-      errors.full_name = 'Full name must be at least 3 characters';
-    } else if (!/^[a-zA-Z\s.]+$/.test(formData.full_name)) {
-      errors.full_name = 'Full name can only contain letters, spaces and periods';
-    }
-
-    if (!formData.specialization) {
-      errors.specialization = 'Specialization is required';
-    }
-
-    if (!formData.doctor_fee || isNaN(formData.doctor_fee) || Number(formData.doctor_fee) <= 0) {
-      errors.doctor_fee = 'Valid Doctor Fee is required';
-    }
-
-    if (!formData.center_fee || isNaN(formData.center_fee) || Number(formData.center_fee) <= 0) {
-      errors.center_fee = 'Valid Center Fee is required';
-    }
-
-    if (!formData.email) {
-      errors.email = 'Email is required';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      errors.email = 'Invalid email format';
-    }
-
-    if (!formData.contact_number) {
-      errors.contact_number = 'Contact number is required';
-    } else if (!/^0[0-9]{9}$/.test(formData.contact_number)) {
-      errors.contact_number = 'Contact number must start with 0 and be 10 digits';
-    }
-
-    setFormErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
-    setSuccess('');
-
-    if (!validateForm()) {
-      setError('Please fix all errors before submitting');
-      return;
-    }
+  const handleCreateOrUpdate = async (formData) => {
+    const dataToSend = {
+      username: formData.username,
+      password: formData.password,
+      full_name: formData.full_name,
+      gender: formData.gender,
+      specialization: formData.specialization,
+      doctor_fee: formData.doctor_fee,
+      center_fee: formData.center_fee,
+      license_no: formData.license_no,
+      email: formData.email,
+      contact_number: formData.contact_number
+    };
 
     try {
-      if (editingDoctor) {
-        // Update existing doctor
-        const response = await api.put(`/admin/doctors/${editingDoctor.doctor_id}`, {
-          full_name: formData.full_name,
-          specialization: formData.specialization,
-          email: formData.email,
-          contact_number: formData.contact_number,
-          doctor_fee: formData.doctor_fee,
-          center_fee: formData.center_fee
-        });
+      setIsSubmitting(true);
+      const response = editingDoctor 
+        ? await api.put(`/admin/doctors/${editingDoctor.doctor_id}`, dataToSend)
+        : await api.post('/admin/doctors', dataToSend);
 
-        if (response.data.success) {
-          setSuccess('Doctor updated successfully');
-          fetchDoctors();
-          closeModal();
-        }
-      } else {
-        // Create new doctor
-        const response = await api.post('/admin/doctors', formData);
-
-        if (response.data.success) {
-          setSuccess('Doctor created successfully');
-          fetchDoctors();
-          closeModal();
-        }
+      if (response.data.success) {
+        toast.success(editingDoctor ? 'Doctor updated successfully' : 'Doctor added successfully');
+        fetchDoctors();
+        setShowModal(false);
       }
     } catch (error) {
-      setError(error.response?.data?.message || 'Failed to save doctor');
+      toast.error(error.response?.data?.message || 'Failed to save doctor');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const handleEdit = (doctor) => {
-    setEditingDoctor(doctor);
-    setFormData({
-      username: doctor.user.username,
-      password: '',
-      email: doctor.user.email || '',
-      contact_number: doctor.user.contact_number || '',
-      full_name: doctor.full_name,
-      specialization: doctor.specialization,
-      license_no: doctor.license_no,
-      doctor_fee: doctor.doctor_fee || 2500,
-      center_fee: doctor.center_fee || 600
-    });
-    setShowModal(true);
-  };
-
-  const handleDelete = async (doctorId) => {
-    if (!window.confirm('Are you sure you want to delete this doctor?')) return;
-
+  const handleDelete = async () => {
+    if (!doctorToDelete) return;
     try {
-      const response = await api.delete(`/admin/doctors/${doctorId}`);
+      const response = await api.delete(`/admin/doctors/${doctorToDelete.doctor_id}`);
       if (response.data.success) {
-        setSuccess('Doctor deleted successfully');
+        toast.success('Doctor removed successfully');
         fetchDoctors();
       }
     } catch (error) {
-      setError(error.response?.data?.message || 'Failed to delete doctor');
+      toast.error('Failed to delete doctor');
     }
   };
 
-  const openAddModal = () => {
-    setEditingDoctor(null);
-    setFormData({
-      username: '',
-      password: '',
-      email: '',
-      contact_number: '',
-      full_name: '',
-      specialization: '',
-      license_no: '',
-      doctor_fee: '',
-      center_fee: ''
+  // Filter & Search Logic
+  const filteredDoctors = useMemo(() => {
+    return doctors.filter(doctor => {
+      const matchesSearch = doctor.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                           doctor.user?.email?.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesFilter = filterSpecialization === 'All' || doctor.specialization === filterSpecialization;
+      return matchesSearch && matchesFilter;
     });
-    setFormErrors({});
-    setShowModal(true);
+  }, [doctors, searchQuery, filterSpecialization]);
+
+  const getInitials = (name) => {
+    return name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'DR';
   };
 
-  const closeModal = () => {
-    setShowModal(false);
-    setEditingDoctor(null);
-    setFormData({
-      username: '',
-      password: '',
-      email: '',
-      contact_number: '',
-      full_name: '',
-      specialization: '',
-      license_no: '',
-      doctor_fee: '',
-      center_fee: ''
-    });
-    setFormErrors({});
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('en-LK', {
+      style: 'currency',
+      currency: 'LKR',
+      minimumFractionDigits: 0
+    }).format(amount);
+  };
+
+  const containerVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { 
+      opacity: 1, 
+      y: 0,
+      transition: { duration: 0.5, staggerChildren: 0.05 }
+    }
   };
 
   return (
@@ -296,523 +137,458 @@ const ManageDoctors = () => {
       <div className="main-wrapper">
         <AdminHeader title="Manage Doctors" />
 
-        <div className="content-padding">
-          {/* Alert Messages */}
-          {error && (
-            <div style={styles.errorAlert}>
-              {error}
-              <button onClick={() => setError('')} style={styles.closeBtn}>×</button>
+        <motion.main 
+          className="content-padding"
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
+        >
+          {/* Toolbar */}
+          <div style={styles.toolbar}>
+            <div style={styles.toolbarContent}>
+              <div style={styles.searchBox}>
+                <FiSearch style={styles.searchIcon} />
+                <input 
+                  type="text" 
+                  placeholder="Search doctors by name or email..." 
+                  style={styles.searchInput}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+              <div style={styles.filterBox}>
+                <FiFilter style={styles.filterIcon} />
+                <select 
+                  style={styles.filterSelect}
+                  value={filterSpecialization}
+                  onChange={(e) => setFilterSpecialization(e.target.value)}
+                >
+                  <option value="All">All Specializations</option>
+                  <option value="General Physician">General Physician</option>
+                  <option value="Cardiology">Cardiology</option>
+                  <option value="Neurology">Neurology</option>
+                  <option value="Pediatrics">Pediatrics</option>
+                  <option value="Dermatology">Dermatology</option>
+                </select>
+              </div>
             </div>
-          )}
-
-          {success && (
-            <div style={styles.successAlert}>
-              {success}
-              <button onClick={() => setSuccess('')} style={styles.closeBtn}>×</button>
-            </div>
-          )}
-
-          {/* Header with Add Button */}
-          <div style={styles.header}>
-            <h2 style={styles.title}>Doctor List</h2>
-            <button onClick={openAddModal} style={styles.addButton}>
-              <FiPlus style={styles.buttonIcon} />
-              Add New Doctor
-            </button>
-          </div>
-
-          {/* Doctors Table */}
-          {loading ? (
-            <div style={styles.loading}>Loading doctors...</div>
-          ) : doctors.length === 0 ? (
-            <div style={styles.emptyState}>
-              <FiUser style={styles.emptyIcon} />
-              <p>No doctors found. Add your first doctor!</p>
-            </div>
-          ) : (
-            <div style={styles.tableContainer}>
-              <table style={styles.table}>
-                <thead>
-                  <tr>
-                    <th style={styles.th}>Name</th>
-                    <th style={styles.th}>Username</th>
-                    <th style={styles.th}>Specialization</th>
-                    <th style={styles.th}>License No.</th>
-                    <th style={styles.th}>Email</th>
-                    <th style={styles.th}>Contact</th>
-                    <th style={styles.th}>Doctor Fee</th>
-                    <th style={styles.th}>Center Fee</th>
-                    <th style={styles.th}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {doctors.map((doctor) => (
-                    <tr key={doctor.doctor_id} style={styles.tr}>
-                      <td style={styles.td}>{doctor.full_name}</td>
-                      <td style={styles.td}>{doctor.user?.username || 'N/A'}</td>
-                      <td style={styles.td}>{doctor.specialization}</td>
-                      <td style={styles.td}>{doctor.license_no}</td>
-                      <td style={styles.td}>{doctor.user?.email || 'N/A'}</td>
-                      <td style={styles.td}>{doctor.user?.contact_number || 'N/A'}</td>
-                      <td style={styles.td}>LKR {doctor.doctor_fee || 2500}</td>
-                      <td style={styles.td}>LKR {doctor.center_fee || 600}</td>
-                      <td style={styles.td}>
-                        <div style={styles.actionButtons}>
-                          <button
-                            onClick={() => handleEdit(doctor)}
-                            style={styles.editButton}
-                            title="Edit"
-                          >
-                            <FiEdit2 />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(doctor.doctor_id)}
-                            style={styles.deleteButton}
-                            title="Delete"
-                          >
-                            <FiTrash2 />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          <div style={styles.footer}>
-            <button
-              onClick={() => navigate("/admin/dashboard")}
-              style={styles.backButton}
+            <button 
+                onClick={() => {
+                    setEditingDoctor(null);
+                    setShowModal(true);
+                }} 
+                style={styles.addButton}
             >
-              Back
+              <FiPlus />
+              <span>Add Doctor</span>
             </button>
           </div>
-        </div>
+
+          {/* Data Table */}
+          <div style={styles.tableCard}>
+            {loading ? (
+              <div style={styles.loadingContainer}>
+                <motion.div 
+                  animate={{ rotate: 360 }}
+                  transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
+                  style={styles.spinner}
+                />
+                <p>Syncing doctor database...</p>
+              </div>
+            ) : filteredDoctors.length === 0 ? (
+              <div style={styles.emptyState}>
+                <FiActivity style={styles.emptyIcon} />
+                <h3>No Doctors Found</h3>
+                <p>We couldn't find any doctors matching your current criteria.</p>
+                <button onClick={() => {setSearchQuery(''); setFilterSpecialization('All');}} style={styles.resetBtn}>
+                  Clear all filters
+                </button>
+              </div>
+            ) : (
+              <div style={styles.tableWrapper}>
+                <table style={styles.table}>
+                  <thead>
+                    <tr>
+                      <th style={styles.th}>Doctor</th>
+                      <th style={styles.th}>Specialization</th>
+                      <th style={styles.th}>Contact</th>
+                      <th style={styles.th}>Fee</th>
+                      <th style={styles.th}>Status</th>
+                      <th style={styles.th}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredDoctors.map((doctor, idx) => (
+                      <motion.tr 
+                        key={doctor.doctor_id} 
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: idx * 0.05 }}
+                        style={styles.tr}
+                      >
+                        <td style={styles.td}>
+                          <div style={styles.doctorInfo}>
+                            <div style={styles.avatar}>
+                              {getInitials(doctor.full_name)}
+                            </div>
+                            <div>
+                              <p style={styles.doctorName}>{doctor.full_name}</p>
+                              <p style={styles.joinDate}>Joined Mar 2024</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td style={styles.td}>
+                          <span style={styles.specBadge}>{doctor.specialization}</span>
+                        </td>
+                        <td style={styles.td}>
+                          <div style={styles.contactInfo}>
+                            <p style={styles.email}><FiMail size={12} /> {doctor.user?.email || 'No email'}</p>
+                            <p style={styles.phone}><FiPhone size={12} /> {doctor.user?.contact_number || 'No contact'}</p>
+                          </div>
+                        </td>
+                        <td style={styles.td}>
+                          <span style={styles.feeText}>{formatCurrency(doctor.doctor_fee || 0)}</span>
+                        </td>
+                        <td style={styles.td}>
+                          <div style={{
+                            ...styles.statusBadge,
+                            backgroundColor: doctor.user?.is_active ? '#ecfdf5' : '#fff1f2',
+                            color: doctor.user?.is_active ? '#10b981' : '#e11d48'
+                          }}>
+                            {doctor.user?.is_active ? 'Active' : 'Inactive'}
+                          </div>
+                        </td>
+                        <td style={styles.td}>
+                          <div style={styles.actions}>
+                            <button 
+                                onClick={() => {
+                                    setEditingDoctor(doctor);
+                                    setShowModal(true);
+                                }} 
+                                style={styles.actionBtnEdit}
+                            >
+                              <FiEdit2 />
+                            </button>
+                            <button 
+                                onClick={() => {
+                                    setDoctorToDelete(doctor);
+                                    setShowDeleteConfirm(true);
+                                }} 
+                                style={styles.actionBtnDelete}
+                            >
+                              <FiTrash2 />
+                            </button>
+                          </div>
+                        </td>
+                      </motion.tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          <div style={styles.footer_container}>
+             <button onClick={() => navigate('/admin/dashboard')} style={styles.backBtn}>Back to Dashboard</button>
+          </div>
+        </motion.main>
       </div>
 
-      {/* Add/Edit Modal */}
-      {showModal && (
-        <div style={styles.modalOverlay}>
-          <div style={styles.modal}>
-            <div style={styles.modalHeader}>
-              <h3 style={styles.modalTitle}>
-                {editingDoctor ? 'Edit Doctor' : 'Add New Doctor'}
-              </h3>
-              <button onClick={closeModal} style={styles.modalCloseBtn}>
-                <FiX />
-              </button>
-            </div>
+      {/* Components */}
+      <AddDoctorModal 
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        onSubmit={handleCreateOrUpdate}
+        editingDoctor={editingDoctor}
+        isLoading={isSubmitting}
+      />
 
-            <form onSubmit={handleSubmit} style={styles.form}>
-              <div style={styles.formGrid}>
-                {!editingDoctor && (
-                  <>
-                    <style>
-                      {`
-                        @keyframes slideDown {
-                          from { opacity: 0; transform: translateY(-10px); }
-                          to { opacity: 1; transform: translateY(0); }
-                        }
-                      `}
-                    </style>
-                    <div style={styles.formGroup}>
-                      <label style={styles.label}>
-                        Username <span style={styles.required}>*</span>
-                      </label>
-                      <input
-                        type="text"
-                        name="username"
-                        value={formData.username}
-                        onChange={handleInputChange}
-                        onFocus={() => setFocusedField('username')}
-                        onBlur={() => {
-                          setFocusedField(null);
-                          validateField('username', formData.username);
-                        }}
-                        style={{
-                          ...styles.input,
-                          ...(formErrors.username ? styles.inputError : {})
-                        }}
-                        placeholder="Enter username"
-                      />
-                      {focusedField === 'username' && (
-                        <div style={styles.hintsBox}>
-                          <p style={styles.hintsTitle}>Requirements:</p>
-                          <ul style={styles.hintsList}>
-                            <li style={checkUsernameReq(formData.username).length ? styles.hintMet : styles.hintUnmet}>
-                              {checkUsernameReq(formData.username).length ? <FiCheck /> : <FiXCircle />} 4-15 characters long
-                            </li>
-                            <li style={checkUsernameReq(formData.username).prefix ? styles.hintMet : styles.hintUnmet}>
-                              {checkUsernameReq(formData.username).prefix ? <FiCheck /> : <FiXCircle />} Must start with <strong>Doc_</strong>
-                            </li>
-                            <li style={checkUsernameReq(formData.username).capital ? styles.hintMet : styles.hintUnmet}>
-                              {checkUsernameReq(formData.username).capital ? <FiCheck /> : <FiXCircle />} Next letter must be <strong>Capital</strong>
-                            </li>
-                          </ul>
-                        </div>
-                      )}
-                      {formErrors.username && (
-                        <span style={styles.errorText}>
-                          <FiAlertCircle style={{ marginRight: '4px' }} />
-                          {formErrors.username}
-                        </span>
-                      )}
-                    </div>
-
-                    <div style={styles.formGroup}>
-                      <label style={styles.label}>
-                        Password <span style={styles.required}>*</span>
-                      </label>
-                      <input
-                        type="password"
-                        name="password"
-                        value={formData.password}
-                        onChange={handleInputChange}
-                        onFocus={() => setFocusedField('password')}
-                        onBlur={() => {
-                          setFocusedField(null);
-                          validateField('password', formData.password);
-                        }}
-                        style={{
-                          ...styles.input,
-                          ...(formErrors.password ? styles.inputError : {})
-                        }}
-                        placeholder="Enter password"
-                      />
-                      {focusedField === 'password' && (
-                        <div style={styles.hintsBox}>
-                          <p style={styles.hintsTitle}>Requirements:</p>
-                          <ul style={styles.hintsList}>
-                            <li style={checkPasswordReq(formData.password).length ? styles.hintMet : styles.hintUnmet}>
-                              {checkPasswordReq(formData.password).length ? <FiCheck /> : <FiXCircle />} Minimum 8 characters
-                            </li>
-                            <li style={checkPasswordReq(formData.password).mixed ? styles.hintMet : styles.hintUnmet}>
-                              {checkPasswordReq(formData.password).mixed ? <FiCheck /> : <FiXCircle />} Include uppercase & lowercase
-                            </li>
-                            <li style={checkPasswordReq(formData.password).number ? styles.hintMet : styles.hintUnmet}>
-                              {checkPasswordReq(formData.password).number ? <FiCheck /> : <FiXCircle />} Include at least one number
-                            </li>
-                            <li style={checkPasswordReq(formData.password).special ? styles.hintMet : styles.hintUnmet}>
-                              {checkPasswordReq(formData.password).special ? <FiCheck /> : <FiXCircle />} Include at least one special character
-                            </li>
-                          </ul>
-                        </div>
-                      )}
-                      {formErrors.password && (
-                        <span style={styles.errorText}>
-                          <FiAlertCircle style={{ marginRight: '4px' }} />
-                          {formErrors.password}
-                        </span>
-                      )}
-                    </div>
-                  </>
-                )}
-
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>
-                    Full Name <span style={styles.required}>*</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="full_name"
-                    value={formData.full_name}
-                    onChange={handleInputChange}
-                    onBlur={() => validateField('full_name', formData.full_name)}
-                    style={{
-                      ...styles.input,
-                      ...(formErrors.full_name ? styles.inputError : {})
-                    }}
-                    placeholder="Dr. Tachini Thaweesha"
-                  />
-                  {formErrors.full_name && (
-                    <span style={styles.errorText}>
-                      <FiAlertCircle style={{ marginRight: '4px' }} />
-                      {formErrors.full_name}
-                    </span>
-                  )}
-                </div>
-
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>
-                    Specialization <span style={styles.required}>*</span>
-                  </label>
-                  <select
-                    name="specialization"
-                    value={formData.specialization}
-                    onChange={handleInputChange}
-                    onBlur={() => validateField('specialization', formData.specialization)}
-                    style={{
-                      ...styles.input,
-                      ...(formErrors.specialization ? styles.inputError : {})
-                    }}
-                  >
-                    <option value="">Select Specialization</option>
-                    <option value="General Physician">General Physician</option>
-                    <option value="Dermatology">Dermatology</option>
-                    <option value="Nephrology">Nephrology</option>
-                    <option value="Ophthalmology">Ophthalmology</option>
-                    <option value="Cardiology">Cardiology</option>
-                    <option value="Neurology">Neurology</option>
-                    <option value="Pediatrics">Pediatrics</option>
-                    <option value="Orthopedics">Orthopedics</option>
-                  </select>
-                  {formErrors.specialization && (
-                    <span style={styles.errorText}>
-                      <FiAlertCircle style={{ marginRight: '4px' }} />
-                      {formErrors.specialization}
-                    </span>
-                  )}
-                </div>
-
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>
-                    Doctor Fee (LKR) <span style={styles.required}>*</span>
-                  </label>
-                  <input
-                    type="number"
-                    name="doctor_fee"
-                    value={formData.doctor_fee}
-                    onChange={handleInputChange}
-                    style={{
-                      ...styles.input,
-                      ...(formErrors.doctor_fee ? styles.inputError : {})
-                    }}
-                    placeholder="2500"
-                  />
-                  {formErrors.doctor_fee && (
-                    <span style={styles.errorText}>
-                      <FiAlertCircle style={{ marginRight: '4px' }} />
-                      {formErrors.doctor_fee}
-                    </span>
-                  )}
-                </div>
-
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>
-                    Center Fee (LKR) <span style={styles.required}>*</span>
-                  </label>
-                  <input
-                    type="number"
-                    name="center_fee"
-                    value={formData.center_fee}
-                    onChange={handleInputChange}
-                    style={{
-                      ...styles.input,
-                      ...(formErrors.center_fee ? styles.inputError : {})
-                    }}
-                    placeholder="600"
-                  />
-                  {formErrors.center_fee && (
-                    <span style={styles.errorText}>
-                      <FiAlertCircle style={{ marginRight: '4px' }} />
-                      {formErrors.center_fee}
-                    </span>
-                  )}
-                </div>
-
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>
-                    Total Fee (LKR)
-                  </label>
-                  <input
-                    type="number"
-                    value={(Number(formData.doctor_fee) || 0) + (Number(formData.center_fee) || 0)}
-                    disabled
-                    style={{
-                      ...styles.input,
-                      backgroundColor: '#e9ecef',
-                      color: '#495057'
-                    }}
-                  />
-                </div>
-
-                {!editingDoctor && (
-                  <div style={styles.formGroup}>
-                    <label style={styles.label}>
-                      License Number <span style={styles.required}>*</span>
-                    </label>
-                    <input
-                      type="text"
-                      name="license_no"
-                      value={formData.license_no}
-                      onChange={handleInputChange}
-                      onBlur={() => validateField('license_no', formData.license_no)}
-                      style={{
-                        ...styles.input,
-                        ...(formErrors.license_no ? styles.inputError : {})
-                      }}
-                      placeholder="SLMC1234"
-                    />
-                    {formErrors.license_no && (
-                      <span style={styles.errorText}>
-                        <FiAlertCircle style={{ marginRight: '4px' }} />
-                        {formErrors.license_no}
-                      </span>
-                    )}
-                  </div>
-                )}
-
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>
-                    Email <span style={styles.required}>*</span>
-                  </label>
-                  <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleInputChange}
-                    onBlur={() => validateField('email', formData.email)}
-                    style={{
-                      ...styles.input,
-                      ...(formErrors.email ? styles.inputError : {})
-                    }}
-                    placeholder="doctor@example.com"
-                  />
-                  {formErrors.email && (
-                    <span style={styles.errorText}>
-                      <FiAlertCircle style={{ marginRight: '4px' }} />
-                      {formErrors.email}
-                    </span>
-                  )}
-                </div>
-
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>
-                    Contact Number <span style={styles.required}>*</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="contact_number"
-                    value={formData.contact_number}
-                    onChange={handleInputChange}
-                    onBlur={() => validateField('contact_number', formData.contact_number)}
-                    style={{
-                      ...styles.input,
-                      ...(formErrors.contact_number ? styles.inputError : {})
-                    }}
-                    placeholder="0771234567"
-                  />
-                  {formErrors.contact_number && (
-                    <span style={styles.errorText}>
-                      <FiAlertCircle style={{ marginRight: '4px' }} />
-                      {formErrors.contact_number}
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              <div style={styles.modalActions}>
-                <button type="button" onClick={closeModal} style={styles.cancelButton}>
-                  Cancel
-                </button>
-                <button type="submit" style={styles.submitButton}>
-                  {editingDoctor ? 'Update Doctor' : 'Add Doctor'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog 
+        isOpen={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={handleDelete}
+        title="Delete Doctor"
+        message={`Are you sure you want to delete Dr. ${doctorToDelete?.full_name}? This action will permanently remove their account.`}
+        confirmLabel="Remove Doctor"
+        type="danger"
+      />
     </div>
   );
 };
 
 const styles = {
-  container: { display: 'flex', minHeight: '100vh', backgroundColor: '#f3f4f6' },
-  mainContent: {
-    // Handled by .main-wrapper
+  container: {
+    display: 'flex',
+    minHeight: '100vh',
+    backgroundColor: '#f8fafc'
   },
-  content: {
-    // Handled by .content-padding
+  toolbar: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: '20px',
+    marginBottom: '32px',
+    backgroundColor: 'white',
+    padding: '20px 24px',
+    borderRadius: '20px',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+    flexWrap: 'wrap'
   },
-
-  errorAlert: { padding: '12px 16px', backgroundColor: '#fee', color: '#c33', borderRadius: '8px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
-  successAlert: { padding: '12px 16px', backgroundColor: '#d4edda', color: '#155724', borderRadius: '8px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
-  closeBtn: { background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer', color: 'inherit' },
-
-  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' },
-  title: { fontSize: '24px', fontWeight: '600', color: '#333' },
-  addButton: { display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', backgroundColor: '#0066CC', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '14px', fontWeight: '600' },
-  buttonIcon: { fontSize: '18px' },
-
-  loading: { textAlign: 'center', padding: '40px', color: '#666' },
-  emptyState: { textAlign: 'center', padding: '60px 20px', color: '#999' },
-  emptyIcon: { fontSize: '64px', marginBottom: '16px' },
-
-  tableContainer: { backgroundColor: 'white', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' },
-  table: { width: '100%', borderCollapse: 'collapse' },
-  th: { padding: '16px', textAlign: 'left', backgroundColor: '#f8f9fa', fontWeight: '600', color: '#333', borderBottom: '2px solid #dee2e6' },
-  tr: { borderBottom: '1px solid #dee2e6' },
-  td: { padding: '16px', color: '#666' },
-
-  actionButtons: { display: 'flex', gap: '8px' },
-  editButton: { padding: '6px 12px', backgroundColor: '#0066CC', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '14px' },
-  deleteButton: { padding: '6px 12px', backgroundColor: '#dc3545', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '14px' },
-
-  modalOverlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 },
-  modal: { backgroundColor: 'white', borderRadius: '12px', width: '90%', maxWidth: '600px', maxHeight: '90vh', overflow: 'auto' },
-  modalHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px', borderBottom: '1px solid #dee2e6' },
-  modalTitle: { fontSize: '20px', fontWeight: '600', margin: 0 },
-  modalCloseBtn: { background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer', color: '#999' },
-
-  form: { padding: '20px' },
-  formGrid: { display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px', marginBottom: '24px' },
-  formGroup: { marginBottom: '16px' },
-  label: { display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '600', color: '#333' },
-  required: { color: '#dc3545' },
-  input: { width: '100%', padding: '10px 12px', border: '2px solid #dee2e6', borderRadius: '6px', fontSize: '14px', boxSizing: 'border-box', transition: 'all 0.2s' },
-  inputError: { borderColor: '#dc3545', backgroundColor: '#fff5f5' },
-  errorText: { display: 'flex', alignItems: 'center', color: '#dc3545', fontSize: '12px', marginTop: '4px' },
-
-  modalActions: { display: 'flex', justifyContent: 'flex-end', gap: '12px', paddingTop: '16px', borderTop: '1px solid #dee2e6' },
-  cancelButton: { padding: '10px 20px', backgroundColor: '#6c757d', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '14px', fontWeight: '600' },
-  submitButton: { padding: '10px 20px', backgroundColor: '#0066CC', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '14px', fontWeight: '600' },
-  hintsBox: {
-    marginTop: '8px',
-    padding: '12px',
-    backgroundColor: '#FFFFFF',
-    borderRadius: '8px',
-    border: '1px solid #E5E7EB',
-    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-    animation: 'slideDown 0.2s ease-out'
+  toolbarContent: {
+    display: 'flex',
+    gap: '16px',
+    flex: 1,
+    minWidth: '300px'
   },
-  hintsTitle: {
-    fontSize: '12px',
-    color: '#4B5563',
+  searchBox: {
+    position: 'relative',
+    flex: 1,
+    display: 'flex',
+    alignItems: 'center'
+  },
+  searchIcon: {
+    position: 'absolute',
+    left: '16px',
+    color: '#94a3b8',
+    fontSize: '18px'
+  },
+  searchInput: {
+    width: '100%',
+    padding: '12px 16px 12px 48px',
+    borderRadius: '12px',
+    border: '1px solid #e2e8f0',
+    fontSize: '14px',
+    color: '#0f172a',
+    outline: 'none',
+    transition: 'all 0.2s'
+  },
+  filterBox: {
+    position: 'relative',
+    display: 'flex',
+    alignItems: 'center'
+  },
+  filterIcon: {
+    position: 'absolute',
+    left: '16px',
+    color: '#94a3b8'
+  },
+  filterSelect: {
+    padding: '12px 16px 12px 42px',
+    borderRadius: '12px',
+    border: '1px solid #e2e8f0',
+    backgroundColor: 'white',
+    fontSize: '14px',
+    color: '#64748b',
     fontWeight: '600',
-    marginBottom: '6px',
+    cursor: 'pointer',
+    outline: 'none'
+  },
+  addButton: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    padding: '12px 24px',
+    backgroundColor: '#2563eb',
+    color: 'white',
+    border: 'none',
+    borderRadius: '14px',
+    fontSize: '14px',
+    fontWeight: '700',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+    boxShadow: '0 10px 15px -3px rgba(37, 99, 235, 0.2)'
+  },
+  tableCard: {
+    backgroundColor: 'white',
+    borderRadius: '24px',
+    border: '1px solid #f1f5f9',
+    overflow: 'hidden',
+    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)'
+  },
+  tableWrapper: {
+    overflowX: 'auto'
+  },
+  table: {
+    width: '100%',
+    borderCollapse: 'collapse',
+    textAlign: 'left'
+  },
+  th: {
+    padding: '20px 24px',
+    backgroundColor: '#f8fafc',
+    fontSize: '12px',
+    fontWeight: '700',
+    color: '#64748b',
+    textTransform: 'uppercase',
+    letterSpacing: '1px',
+    borderBottom: '1px solid #f1f5f9'
+  },
+  tr: {
+    borderBottom: '1px solid #f1f5f9',
+    transition: 'background-color 0.2s'
+  },
+  td: {
+    padding: '20px 24px',
+    verticalAlign: 'middle'
+  },
+  doctorInfo: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '16px'
+  },
+  avatar: {
+    width: '44px',
+    height: '44px',
+    borderRadius: '14px',
+    backgroundColor: '#eff6ff',
+    color: '#2563eb',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: '14px',
+    fontWeight: '800',
+    border: '2px solid white',
+    boxShadow: '0 4px 6px -1px rgba(37, 99, 235, 0.1)'
+  },
+  doctorName: {
+    fontSize: '15px',
+    fontWeight: '700',
+    color: '#1e293b',
     margin: 0
   },
-  hintsList: {
-    margin: 0,
-    paddingLeft: '18px',
+  joinDate: {
     fontSize: '12px',
-    color: '#6B7280',
-    listStyleType: 'none',
+    color: '#94a3b8',
+    margin: 0,
+    marginTop: '2px'
+  },
+  specBadge: {
+    display: 'inline-flex',
+    padding: '6px 14px',
+    borderRadius: '10px',
+    fontSize: '13px',
+    fontWeight: '600',
+    backgroundColor: '#f1f5f9',
+    color: '#475569'
+  },
+  contactInfo: {
     display: 'flex',
     flexDirection: 'column',
     gap: '4px'
   },
-  hintMet: { color: '#059669', display: 'flex', alignItems: 'center', gap: '6px' },
-  hintUnmet: { color: '#DC2626', display: 'flex', alignItems: 'center', gap: '6px' },
-  footer: {
-    marginTop: '32px',
+  email: {
+    fontSize: '13px',
+    color: '#64748b',
+    margin: 0,
     display: 'flex',
-    justifyContent: 'flex-end'
+    alignItems: 'center',
+    gap: '6px'
   },
-  backButton: {
-    padding: '10px 24px',
+  phone: {
+    fontSize: '13px',
+    color: '#64748b',
+    margin: 0,
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px'
+  },
+  feeText: {
+    fontSize: '15px',
+    fontWeight: '700',
+    color: '#0f172a'
+  },
+  statusBadge: {
+    display: 'inline-flex',
+    padding: '6px 12px',
+    borderRadius: '8px',
+    fontSize: '12px',
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: '0.05em'
+  },
+  actions: {
+    display: 'flex',
+    gap: '8px'
+  },
+  actionBtnEdit: {
+    width: '36px',
+    height: '36px',
+    borderRadius: '10px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#eff6ff',
+    color: '#2563eb',
     border: 'none',
-    borderRadius: '6px',
-    background: '#0066CC',
-    color: 'white',
-    fontWeight: '600',
     cursor: 'pointer',
-    boxShadow: '0 2px 4px rgba(0, 102, 204, 0.2)',
-    transition: 'all 0.2s',
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    transition: 'all 0.2s'
+  },
+  actionBtnDelete: {
+    width: '36px',
+    height: '36px',
+    borderRadius: '10px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fff1f2',
+    color: '#e11d48',
+    border: 'none',
+    cursor: 'pointer',
+    transition: 'all 0.2s'
+  },
+  loadingContainer: {
+    padding: '80px 0',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '16px',
+    color: '#64748b'
+  },
+  spinner: {
+    width: '40px',
+    height: '40px',
+    border: '4px solid #f1f5f9',
+    borderTopColor: '#2563eb',
+    borderRadius: '50%'
+  },
+  emptyState: {
+    padding: '80px 24px',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    textAlign: 'center'
+  },
+  emptyIcon: {
+    fontSize: '48px',
+    color: '#cbd5e1',
+    marginBottom: '16px'
+  },
+  resetBtn: {
+    marginTop: '20px',
+    padding: '10px 20px',
+    backgroundColor: 'white',
+    border: '1px solid #e2e8f0',
+    borderRadius: '10px',
+    fontSize: '14px',
+    fontWeight: '600',
+    color: '#64748b',
+    cursor: 'pointer'
+  },
+  footer_container: {
+    display: 'flex',
+    justifyContent: 'flex-end',
+    marginTop: '32px'
+  },
+  backBtn: {
+    padding: '12px 24px',
+    backgroundColor: 'white',
+    border: '1px solid #e2e8f0',
+    borderRadius: '12px',
+    fontSize: '14px',
+    fontWeight: '600',
+    color: '#64748b',
+    cursor: 'pointer',
+    transition: 'all 0.2s'
   }
 };
 

@@ -1,14 +1,52 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { FiCalendar, FiUsers, FiClock, FiClipboard, FiFileText, FiBarChart2, FiPhone } from 'react-icons/fi';
+import { 
+  FiCalendar, 
+  FiUsers, 
+  FiClock, 
+  FiClipboard, 
+  FiFileText, 
+  FiBarChart2, 
+  FiPhone,
+  FiCheckCircle, 
+  FiChevronRight,
+  FiActivity
+} from 'react-icons/fi';
+import { motion, AnimatePresence } from 'framer-motion';
 import DoctorHeader from '../../components/DoctorHeader';
 import DoctorSidebar from '../../components/DoctorSidebar';
+import AppointmentCard from '../../components/AppointmentCard';
+import AppointmentCalendar from '../../components/AppointmentCalendar';
+import RevenueChart from '../../components/RevenueChart';
 
 function DoctorDashboard() {
   const navigate = useNavigate();
   const [doctorName, setDoctorName] = useState('Doctor');
   const [isLoading, setIsLoading] = useState(true);
+  const [allAppointments, setAllAppointments] = useState([]);
+  const [appointments, setAppointments] = useState([]);
+  const [stats, setStats] = useState({
+    todayAppointments: 0,
+    totalPatients: 0,
+    upcomingAppointments: 0,
+    completedToday: 0
+  });
+
+  const [revenueData, setRevenueData] = useState({
+    daily: 0,
+    weekly: 0,
+    monthly: 0,
+    total: 0
+  });
+
+  const getLocalDateString = (date) => {
+    const offset = date.getTimezoneOffset() * 60000;
+    const localISOTime = (new Date(date.getTime() - offset)).toISOString().slice(0, -1);
+    return localISOTime.split('T')[0];
+  };
+
+  const [selectedDate, setSelectedDate] = useState(getLocalDateString(new Date()));
 
   // Fetch profile on mount
   useEffect(() => {
@@ -31,19 +69,6 @@ function DoctorDashboard() {
     fetchProfile();
   }, []);
 
-  const [appointments, setAppointments] = useState([]);
-  const [stats, setStats] = useState({
-    todayAppointments: 0,
-    totalPatients: 0,
-    upcomingAppointments: 0
-  });
-
-  const getLocalDateString = (date) => {
-    const offset = date.getTimezoneOffset() * 60000;
-    const localISOTime = (new Date(date.getTime() - offset)).toISOString().slice(0, -1);
-    return localISOTime.split('T')[0];
-  };
-
   // Fetch appointments and stats
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -61,36 +86,57 @@ function DoctorDashboard() {
         });
 
         if (apptRes.data.success && patientRes.data.success) {
-          const allAppointments = apptRes.data.data;
+          const appts = apptRes.data.data;
           const patientsList = patientRes.data.data;
 
+          setAllAppointments(appts);
           const todayDate = getLocalDateString(new Date());
 
           // Calculate stats
-          const todayAppts = allAppointments.filter(apt => apt.appointment_date === todayDate);
-
-          // Count upcoming as any appointment strictly starting from today or future
-          // Alternatively, just count today + future
-          const upcomingAppts = allAppointments.filter(apt => apt.appointment_date >= todayDate && apt.status !== 'CANCELLED' && apt.status !== 'COMPLETED');
+          const todayAppts = appts.filter(apt => apt.appointment_date === todayDate);
+          const upcomingAppts = appts.filter(apt => apt.appointment_date >= todayDate && apt.status !== 'CANCELLED' && apt.status !== 'COMPLETED');
+          const completedTodayCnt = todayAppts.filter(apt => apt.status === 'COMPLETED').length;
 
           setStats({
             todayAppointments: todayAppts.length,
             totalPatients: patientsList.length,
-            upcomingAppointments: upcomingAppts.length
+            upcomingAppointments: upcomingAppts.length,
+            completedToday: completedTodayCnt
           });
 
-          // Format today's appointments for rendering
-          const formattedToday = todayAppts.map(apt => ({
-            id: apt.appointment_id,
-            patientId: apt.patient_id,
-            time: apt.time_slot, 
-            patientName: apt.patient?.full_name || 'Unknown Patient',
-            phone: apt.patient?.user?.contact_number || apt.patient?.nic || 'N/A', 
-            type: apt.status === 'COMPLETED' ? 'Follow-up' : 'Consultation',
-            status: apt.status
-          }));
+          // Calculate Real Revenue
+          const paidAppts = appts.filter(appt => appt.payment_status === 'PAID');
+          
+          const getPastDate = (days) => {
+            const d = new Date();
+            d.setDate(d.getDate() - days);
+            return getLocalDateString(d);
+          };
 
-          setAppointments(formattedToday);
+          const weekStart = getPastDate(7);
+          const monthStart = getPastDate(30);
+
+          const dailyRev = paidAppts
+            .filter(a => a.appointment_date === todayDate)
+            .reduce((sum, a) => sum + Number(a.doctor?.doctor_fee || 0), 0);
+
+          const weeklyRev = paidAppts
+            .filter(a => a.appointment_date >= weekStart && a.appointment_date <= todayDate)
+            .reduce((sum, a) => sum + Number(a.doctor?.doctor_fee || 0), 0);
+
+          const monthlyRev = paidAppts
+            .filter(a => a.appointment_date >= monthStart && a.appointment_date <= todayDate)
+            .reduce((sum, a) => sum + Number(a.doctor?.doctor_fee || 0), 0);
+
+          const totalRev = paidAppts
+            .reduce((sum, a) => sum + Number(a.doctor?.doctor_fee || 0), 0);
+
+          setRevenueData({
+            daily: dailyRev,
+            weekly: weeklyRev,
+            monthly: monthlyRev,
+            total: totalRev
+          });
         }
       } catch (error) {
         console.error("Error fetching dashboard data:", error);
@@ -100,516 +146,351 @@ function DoctorDashboard() {
     fetchDashboardData();
   }, []);
 
-  const [showAvailabilityModal, setShowAvailabilityModal] = useState(false);
+  useEffect(() => {
+    const filtered = allAppointments.filter(apt => apt.appointment_date === selectedDate);
+    setAppointments(filtered);
+  }, [selectedDate, allAppointments]);
 
   const handleLogout = () => {
     localStorage.clear();
     navigate('/');
   };
 
+  const StatCard = ({ title, value, icon: Icon, iconBg, iconColor, index }) => (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.1 }}
+      whileHover={{ y: -4 }}
+      style={styles.statCard}
+    >
+      <div style={{ ...styles.statIconWrapper, backgroundColor: iconBg }}>
+        <Icon style={{ ...styles.statIcon, color: iconColor }} />
+      </div>
+      <div style={styles.statInfo}>
+        <p style={styles.statLabel}>{title}</p>
+        <h3 style={styles.statValue}>{value}</h3>
+      </div>
+    </motion.div>
+  );
+
   return (
     <div style={styles.pageContainer}>
       <DoctorSidebar onLogout={handleLogout} />
 
-      <div className="main-wrapper">
+      <div className="main-wrapper" style={styles.mainWrapper}>
         <DoctorHeader doctorName={doctorName} />
 
-        {/* Main Content */}
-        <main className="content-padding">
+        <motion.main 
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.4 }}
+          style={styles.contentPadding}
+        >
+          {/* Welcome Header ... skipped ... */}
           <div style={styles.pageHeader}>
-            <h1 style={styles.pageTitle}>Dashboard</h1>
-            <p style={styles.pageSubtitle}>Welcome back, {doctorName}</p>
+            <div style={styles.headerLeft}>
+              <h1 style={styles.pageTitle}>Dashboard</h1>
+              <p style={styles.pageSubtitle}>Precision Care & Management Dashboard</p>
+            </div>
+            <div style={styles.headerRight}>
+               <div style={styles.dateBadge}>
+                  <FiCalendar />
+                  {new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+               </div>
+            </div>
           </div>
 
-
-
-          {/* Statistics Cards */}
+          {/* Statistics Grid */}
           <div style={styles.statsGrid}>
-            <div style={styles.statCard}>
-              <div style={styles.statIcon}>
-                <FiCalendar style={styles.statIconSvg} />
-              </div>
-              <div style={styles.statInfo}>
-                <div style={styles.statValue}>{stats.todayAppointments}</div>
-                <div style={styles.statLabel}>Today's Appointments</div>
-              </div>
-            </div>
-
-            <div style={styles.statCard}>
-              <div style={styles.statIcon}>
-                <FiUsers style={styles.statIconSvg} />
-              </div>
-              <div style={styles.statInfo}>
-                <div style={styles.statValue}>{stats.totalPatients}</div>
-                <div style={styles.statLabel}>Total Patients</div>
-              </div>
-            </div>
-
-            <div style={styles.statCard}>
-              <div style={styles.statIcon}>
-                <FiClock style={styles.statIconSvg} />
-              </div>
-              <div style={styles.statInfo}>
-                <div style={styles.statValue}>{stats.upcomingAppointments}</div>
-                <div style={styles.statLabel}>Upcoming Appointments</div>
-              </div>
-            </div>
+            <StatCard 
+              index={0}
+              title="Today's Appointments" 
+              value={stats.todayAppointments} 
+              icon={FiCalendar} 
+              iconBg="#eff6ff" 
+              iconColor="#2563eb" 
+            />
+            <StatCard 
+              index={1}
+              title="Total Patients" 
+              value={stats.totalPatients} 
+              icon={FiUsers} 
+              iconBg="#ecfdf5" 
+              iconColor="#059669" 
+            />
+            <StatCard 
+              index={2}
+              title="Upcoming Appointments" 
+              value={stats.upcomingAppointments} 
+              icon={FiClock} 
+              iconBg="#f5f3ff" 
+              iconColor="#7c3aed" 
+            />
+            <StatCard 
+              index={3}
+              title="Completed Today" 
+              value={stats.completedToday} 
+              icon={FiCheckCircle} 
+              iconBg="#fffbeb" 
+              iconColor="#d97706" 
+            />
           </div>
 
-          {/* Today's Appointments Section */}
-          <section style={styles.appointmentsSection}>
-            <div style={styles.sectionHeader}>
-              <h2 style={styles.sectionTitle}>Today's Appointments</h2>
-              <span style={styles.appointmentCount}>{appointments.length}</span>
-            </div>
+          <div style={styles.dashboardGrid}>
+            {/* Left Column: Calendar Focus & Selected Schedule */}
+            <div style={styles.scheduleColumn}>
+              <div style={styles.sectionHeader}>
+                <h2 style={styles.sectionTitle}>Appointment Calendar</h2>
+              </div>
+              
+              <div style={styles.calendarContainer}>
+                <AppointmentCalendar 
+                  appointments={allAppointments} 
+                  selectedDate={selectedDate}
+                  onDateSelect={setSelectedDate}
+                />
+              </div>
 
-            <div style={styles.appointmentsList}>
-              {appointments.length > 0 ? (
-                appointments.map(appt => (
-                  <div key={appt.id} style={styles.appointmentItem}>
-                    <div style={styles.appointmentTime}>
-                      <span style={styles.time}>{appt.time}</span>
-                    </div>
+              <div style={styles.sectionHeader}>
+                <h2 style={styles.sectionTitle}>
+                  Schedule for: {new Date(selectedDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                </h2>
+                <button 
+                  style={styles.viewAllLink} 
+                  onClick={() => navigate('/doctor/appointments')}
+                >
+                  View All
+                </button>
+              </div>
 
-                    <div style={styles.appointmentDetails}>
-                      <h4 style={styles.patientName}>{appt.patientName}</h4>
-                      <p style={styles.appointmentType}>{appt.type}</p>
-                      <p style={styles.contactInfo}>
-                        <FiPhone style={styles.phoneIcon} /> {appt.phone}
-                      </p>
-                    </div>
-
-                    <div style={styles.appointmentStatus}>
-                      <span style={styles.statusBadge}>{appt.status}</span>
-                    </div>
-
-                    <div style={styles.appointmentActions}>
-                      <button
-                        style={styles.viewBtn}
-                        onClick={() => navigate('/doctor/patient-details', { 
-                          state: { 
-                            patientId: appt.patientId,
-                            appointment_id: appt.id 
-                          } 
-                        })}
+              <div style={styles.scheduleCard}>
+                <div style={styles.appointmentsList}>
+                  {appointments.length > 0 ? (
+                    appointments.map((appt, idx) => (
+                      <motion.div 
+                        key={appt.id || appt.appointment_id} 
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.1 * idx, duration: 0.3 }}
+                        style={styles.cardWrapper}
                       >
-                        View Details
-                      </button>
-                      <button style={styles.completeBtn}>Mark Complete</button>
+                        <AppointmentCard 
+                          appt={appt} 
+                          role="doctor"
+                          variant="grid"
+                          onViewDetails={() => navigate('/doctor/patient-details', { 
+                            state: { 
+                              patientId: appt.patient_id,
+                              appointment_id: appt.appointment_id 
+                            } 
+                          })}
+                        />
+                      </motion.div>
+                    ))
+                  ) : (
+                    <div style={styles.emptyState}>
+                      <FiCalendar style={styles.emptyIcon} />
+                      <p style={styles.emptyText}>No appointments scheduled for this date.</p>
                     </div>
-                  </div>
-                ))
-              ) : (
-                <p style={styles.noAppointments}>No appointments scheduled for today</p>
-              )}
+                  )}
+                </div>
+              </div>
             </div>
-          </section>
-        </main>
 
-        {/* Update Availability Modal */}
-        {showAvailabilityModal && (
-          <div style={styles.modalOverlay} onClick={() => setShowAvailabilityModal(false)}>
-            <div style={styles.modal} onClick={e => e.stopPropagation()}>
-              <div style={styles.modalHeader}>
-                <h3 style={styles.modalTitle}>Update Availability</h3>
-                <button
-                  style={styles.closeBtn}
-                  onClick={() => setShowAvailabilityModal(false)}
-                >
-                  ✕
-                </button>
-              </div>
-
-              <div style={styles.modalBody}>
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>Select Day</label>
-                  <select style={styles.select}>
-                    <option>Monday</option>
-                    <option>Tuesday</option>
-                    <option>Wednesday</option>
-                    <option>Thursday</option>
-                    <option>Friday</option>
-                    <option>Saturday</option>
-                  </select>
-                </div>
-
-                <div style={styles.formRow}>
-                  <div style={styles.formGroup}>
-                    <label style={styles.label}>Start Time</label>
-                    <input type="time" style={styles.input} defaultValue="09:00" />
-                  </div>
-                  <div style={styles.formGroup}>
-                    <label style={styles.label}>End Time</label>
-                    <input type="time" style={styles.input} defaultValue="17:00" />
-                  </div>
-                </div>
-
-                <div style={styles.formGroup}>
-                  <label style={styles.checkboxLabel}>
-                    <input type="checkbox" style={styles.checkbox} defaultChecked />
-                    Available
-                  </label>
-                </div>
-              </div>
-
-              <div style={styles.modalFooter}>
-                <button
-                  style={styles.cancelBtn}
-                  onClick={() => setShowAvailabilityModal(false)}
-                >
-                  Cancel
-                </button>
-                <button
-                  style={styles.submitBtn}
-                  onClick={() => setShowAvailabilityModal(false)}
-                >
-                  Save Changes
-                </button>
+            {/* Right Column: Revenue Breakdown */}
+            <div style={styles.calendarColumn}>
+              <div style={styles.chartSection}>
+                 <RevenueChart revenueData={revenueData} />
               </div>
             </div>
           </div>
-        )}
+        </motion.main>
       </div>
     </div>
   );
 }
 
 const styles = {
+  // ... existing styles ...
   pageContainer: {
     display: "flex",
     minHeight: "100vh",
-    backgroundColor: "#f9fafb",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    backgroundColor: "#f8fafc",
+    fontFamily: "'Inter', sans-serif"
   },
-  mainContainer: {
-    // Handled by .main-wrapper in CSS
-    background: "linear-gradient(135deg, #f0f8ff 0%, #e6f2ff 100%)"
-  },
-  mainContent: {
-    // Handled by .content-padding in CSS
+  mainWrapper: {
     flex: 1,
-    overflowY: "auto"
+    marginLeft: "280px",
+    minHeight: "100vh",
+    display: "flex",
+    flexDirection: "column"
+  },
+  contentPadding: {
+    padding: "32px",
+    flex: 1,
+    maxWidth: "1400px",
+    margin: "0 auto",
+    width: "100%"
   },
   pageHeader: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "flex-end",
     marginBottom: "32px"
   },
   pageTitle: {
-    fontSize: "28px",
-    fontWeight: "700",
-    color: "#1f2937",
+    fontSize: "32px",
+    fontWeight: "800",
+    color: "#0f172a",
     margin: 0,
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    letterSpacing: "-0.025em"
   },
   pageSubtitle: {
+    fontSize: "15px",
+    color: "#64748b",
+    marginTop: "4px",
+    fontWeight: "500"
+  },
+  dateBadge: {
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    padding: "8px 16px",
+    backgroundColor: "white",
+    borderRadius: "12px",
+    border: "1px solid #e2e8f0",
+    color: "#475569",
     fontSize: "14px",
-    color: "#6b7280",
-    marginTop: "8px",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    fontWeight: "600",
+    boxShadow: "0 1px 2px rgba(0,0,0,0.05)"
   },
   statsGrid: {
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-    gap: "20px",
-    marginBottom: "32px"
+    gridTemplateColumns: "repeat(4, 1fr)",
+    gap: "24px",
+    marginBottom: "40px"
   },
   statCard: {
     backgroundColor: "#ffffff",
-    borderRadius: "16px",
+    borderRadius: "24px",
     padding: "24px",
     display: "flex",
     alignItems: "center",
     gap: "20px",
-    boxShadow: "0 10px 25px rgba(0, 102, 204, 0.1)",
-    border: "1px solid #e6f2ff",
-    transition: "all 0.3s ease"
+    boxShadow: "0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.02)",
+    border: "1px solid #f1f5f9",
+    cursor: "default"
   },
-  statIcon: {
-    width: "60px",
-    height: "60px",
+  statIconWrapper: {
+    width: "48px",
+    height: "48px",
+    borderRadius: "16px",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(0, 102, 204, 0.1)",
-    borderRadius: "10px"
+    flexShrink: 0
   },
-  statIconSvg: {
-    fontSize: "28px",
-    color: "#0066CC"
+  statIcon: {
+    fontSize: "24px"
   },
   statInfo: {
-    flex: 1
+    display: "flex",
+    flexDirection: "column",
+    gap: "2px"
+  },
+  statLabel: {
+    fontSize: "14px",
+    fontWeight: "600",
+    color: "#64748b",
+    margin: 0
   },
   statValue: {
     fontSize: "28px",
-    fontWeight: "700",
-    color: "#0066CC",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    fontWeight: "800",
+    color: "#1e293b",
+    margin: 0,
+    lineHeight: 1
   },
-  statLabel: {
-    fontSize: "13px",
-    color: "#6b7280",
-    marginTop: "4px",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+  dashboardGrid: {
+    display: "grid",
+    gridTemplateColumns: "2fr 1fr",
+    gap: "32px",
+    alignItems: "start"
   },
-  appointmentsSection: {
-    backgroundColor: "#ffffff",
-    borderRadius: "16px",
-    padding: "32px",
-    marginBottom: "32px",
-    boxShadow: "0 12px 30px rgba(0, 102, 204, 0.15)",
-    border: "2px solid #0066CC"
+  scheduleColumn: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "24px"
   },
   sectionHeader: {
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: "20px",
-    paddingBottom: "16px",
-    borderBottom: "2px solid #e5e7eb"
   },
   sectionTitle: {
-    fontSize: "18px",
-    fontWeight: "700",
-    color: "#1f2937",
-    margin: 0,
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    fontSize: "20px",
+    fontWeight: "800",
+    color: "#1e293b",
+    margin: 0
   },
-  appointmentCount: {
-    backgroundColor: "#0066CC",
-    color: "#fff",
-    padding: "4px 12px",
-    borderRadius: "20px",
-    fontSize: "13px",
-    fontWeight: "600",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+  viewAllLink: {
+    color: "#2563eb",
+    background: "none",
+    border: "none",
+    fontSize: "14px",
+    fontWeight: "700",
+    cursor: "pointer",
+    padding: 0,
+    textDecoration: "none",
+    ':hover': {
+      textDecoration: "underline"
+    }
+  },
+  scheduleCard: {
+    backgroundColor: "white",
+    borderRadius: "24px",
+    padding: "24px",
+    boxShadow: "0 2px 4px rgba(0,0,0,0.02)",
+    border: "1px solid #f1f5f9"
   },
   appointmentsList: {
     display: "flex",
     flexDirection: "column",
-    gap: "12px"
+    gap: "20px"
   },
-  appointmentItem: {
-    display: "grid",
-    gridTemplateColumns: "100px 1fr 120px 200px",
-    gap: "16px",
-    alignItems: "center",
-    padding: "16px",
-    backgroundColor: "#f9fafb",
-    borderRadius: "10px",
-    border: "1px solid #e5e7eb",
-    transition: "all 0.2s ease"
+  cardWrapper: {
+    width: "100%"
   },
-  appointmentTime: {
+  emptyState: {
     display: "flex",
     flexDirection: "column",
-    alignItems: "center"
-  },
-  time: {
-    fontSize: "14px",
-    fontWeight: "700",
-    color: "#0066CC",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
-  },
-  appointmentDetails: {
-    display: "flex",
-    flexDirection: "column"
-  },
-  patientName: {
-    fontSize: "14px",
-    fontWeight: "700",
-    color: "#1f2937",
-    margin: 0,
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
-  },
-  appointmentType: {
-    fontSize: "12px",
-    color: "#6b7280",
-    margin: "4px 0 0 0",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
-  },
-  contactInfo: {
-    fontSize: "12px",
-    color: "#4b5563",
-    margin: "2px 0 0 0",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif",
-    display: "flex",
-    alignItems: "center",
-    gap: "4px"
-  },
-  phoneIcon: {
-    fontSize: "12px"
-  },
-  appointmentStatus: {
-    textAlign: "center"
-  },
-  statusBadge: {
-    backgroundColor: "#d1e7dd",
-    color: "#0f5132",
-    padding: "6px 12px",
-    borderRadius: "6px",
-    fontSize: "12px",
-    fontWeight: "600",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
-  },
-  appointmentActions: {
-    display: "flex",
-    gap: "8px"
-  },
-  viewBtn: {
-    padding: "8px 12px",
-    borderRadius: "6px",
-    border: "1px solid #d1d5db",
-    backgroundColor: "#fff",
-    color: "#0066CC",
-    fontWeight: "600",
-    fontSize: "12px",
-    cursor: "pointer",
-    transition: "all 0.2s ease",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
-  },
-  completeBtn: {
-    padding: "8px 12px",
-    borderRadius: "6px",
-    border: "none",
-    backgroundColor: "#0066CC",
-    color: "#fff",
-    fontWeight: "600",
-    fontSize: "12px",
-    cursor: "pointer",
-    transition: "all 0.2s ease",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
-  },
-  noAppointments: {
-    textAlign: "center",
-    color: "#6b7280",
-    padding: "32px 16px",
-    fontSize: "14px",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
-  },
-
-  modalOverlay: {
-    position: "fixed",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    zIndex: 2000
+    padding: "60px 0",
+    color: "#94a3b8",
+    textAlign: "center"
   },
-  modal: {
-    backgroundColor: "#fff",
-    borderRadius: "12px",
-    boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
-    maxWidth: "500px",
-    width: "90%"
+  emptyIcon: {
+    fontSize: "48px",
+    marginBottom: "16px",
+    color: "#e2e8f0"
   },
-  modalHeader: {
+  emptyText: {
+    fontSize: "15px",
+    fontWeight: "500"
+  },
+  calendarColumn: {
     display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: "20px 24px",
-    borderBottom: "1px solid #e5e7eb"
+    flexDirection: "column",
+    gap: "24px"
   },
-  modalTitle: {
-    fontSize: "18px",
-    fontWeight: "700",
-    color: "#1f2937",
-    margin: 0,
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
-  },
-  closeBtn: {
-    background: "none",
-    border: "none",
-    fontSize: "24px",
-    color: "#6b7280",
-    cursor: "pointer",
-    padding: 0
-  },
-  modalBody: {
-    padding: "24px"
-  },
-  formGroup: {
-    marginBottom: "20px"
-  },
-  label: {
-    display: "block",
-    fontSize: "14px",
-    fontWeight: "600",
-    color: "#1f2937",
-    marginBottom: "8px",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
-  },
-  input: {
+  calendarContainer: {
     width: "100%",
-    padding: "10px 12px",
-    borderRadius: "8px",
-    border: "1px solid #d1d5db",
-    fontSize: "14px",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif",
-    boxSizing: "border-box",
-    transition: "all 0.2s ease"
+    marginBottom: "8px"
   },
-  select: {
-    width: "100%",
-    padding: "10px 12px",
-    borderRadius: "8px",
-    border: "1px solid #d1d5db",
-    fontSize: "14px",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif",
-    boxSizing: "border-box",
-    cursor: "pointer"
-  },
-  formRow: {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: "16px"
-  },
-  checkboxLabel: {
-    display: "flex",
-    alignItems: "center",
-    gap: "8px",
-    fontSize: "14px",
-    fontWeight: "500",
-    color: "#1f2937",
-    cursor: "pointer",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
-  },
-  checkbox: {
-    width: "18px",
-    height: "18px",
-    cursor: "pointer"
-  },
-  modalFooter: {
-    display: "flex",
-    gap: "12px",
-    justifyContent: "flex-end",
-    padding: "20px 24px",
-    borderTop: "1px solid #e5e7eb"
-  },
-  cancelBtn: {
-    padding: "10px 20px",
-    borderRadius: "8px",
-    border: "1px solid #d1d5db",
-    backgroundColor: "#fff",
-    color: "#4b5563",
-    fontWeight: "600",
-    cursor: "pointer",
-    transition: "all 0.2s ease",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
-  },
-  submitBtn: {
-    padding: "10px 20px",
-    borderRadius: "8px",
-    border: "none",
-    backgroundColor: "#0066CC",
-    color: "#fff",
-    fontWeight: "600",
-    cursor: "pointer",
-    transition: "all 0.2s ease",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+  chartSection: {
+     marginTop: "8px"
   }
 };
 

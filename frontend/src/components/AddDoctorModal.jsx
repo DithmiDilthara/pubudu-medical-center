@@ -1,0 +1,578 @@
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { FiX, FiCheck, FiUser, FiLock, FiCreditCard, FiMail, FiPhone, FiTarget, FiInfo, FiActivity } from 'react-icons/fi';
+
+const DAYS = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
+
+const AddDoctorModal = ({ 
+  isOpen, 
+  onClose, 
+  onSubmit, 
+  editingDoctor = null,
+  isLoading = false 
+}) => {
+  const [formData, setFormData] = useState({
+    username: '',
+    password: '',
+    full_name: '',
+    gender: 'MALE',
+    specialization: '',
+    doctor_fee: 2500,
+    center_fee: 600,
+    license_no: '',
+    email: '',
+    contact_number: '',
+    availability: []
+  });
+
+  const [formErrors, setFormErrors] = useState({});
+
+  useEffect(() => {
+    if (editingDoctor) {
+      setFormData({
+        username: editingDoctor.user?.username || '',
+        password: '', // Password not editable
+        full_name: editingDoctor.full_name || '',
+        gender: editingDoctor.gender || 'MALE',
+        specialization: editingDoctor.specialization || '',
+        doctor_fee: editingDoctor.doctor_fee || 2500,
+        center_fee: editingDoctor.center_fee || 600,
+        license_no: editingDoctor.license_no || '',
+        email: editingDoctor.user?.email || '',
+        contact_number: editingDoctor.user?.contact_number || '',
+        availability: editingDoctor.availability || [] // Assuming we fetch this later or it's passed
+      });
+    } else {
+      setFormData({
+        username: '',
+        password: '',
+        full_name: '',
+        gender: 'MALE',
+        specialization: '',
+        doctor_fee: 2500,
+        center_fee: 600,
+        license_no: '',
+        email: '',
+        contact_number: '',
+        availability: []
+      });
+    }
+  }, [editingDoctor, isOpen]);
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+    if (formErrors[name]) {
+      setFormErrors(prev => ({ ...prev, [name]: '' }));
+    }
+  };
+
+  const toggleDay = (day) => {
+    setFormData(prev => {
+      const isSelected = prev.availability.includes(day);
+      if (isSelected) {
+        return { ...prev, availability: prev.availability.filter(d => d !== day) };
+      } else {
+        return { ...prev, availability: [...prev.availability, day] };
+      }
+    });
+  };
+
+  const validateForm = () => {
+    const errors = {};
+    if (!formData.full_name) errors.full_name = 'Required';
+    if (!formData.specialization) errors.specialization = 'Required';
+    if (!editingDoctor) {
+        if (!formData.username) errors.username = 'Required';
+        if (!formData.password) errors.password = 'Required';
+        if (!formData.license_no) errors.license_no = 'Required';
+    }
+    if (!formData.email) errors.email = 'Required';
+    if (!formData.contact_number) errors.contact_number = 'Required';
+    
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!validateForm()) return;
+    onSubmit(formData);
+  };
+
+  const totalFee = (Number(formData.doctor_fee) || 0) + (Number(formData.center_fee) || 0);
+
+  if (!isOpen) return null;
+
+  return (
+    <AnimatePresence>
+      <div style={styles.overlay}>
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.9, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.9, y: 20 }}
+          style={styles.modal}
+        >
+          {/* Header */}
+          <div style={styles.header}>
+            <div>
+              <h2 style={styles.title}>{editingDoctor ? 'Edit Doctor' : 'Add New Doctor'}</h2>
+              <p style={styles.subtitle}>Enter professional details and account information</p>
+            </div>
+            <button onClick={onClose} style={styles.closeBtn}>
+              <FiX />
+            </button>
+          </div>
+
+          <form onSubmit={handleSubmit} style={styles.form}>
+            <div style={styles.scrollContent}>
+              <div style={styles.section}>
+                <h3 style={styles.sectionTitle}>Account Information</h3>
+                <div style={styles.grid}>
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>Username <span style={styles.req}>*</span></label>
+                    <div style={styles.inputWrapper}>
+                      <FiUser style={styles.inputIcon} />
+                      <input 
+                        type="text" 
+                        name="username" 
+                        value={formData.username} 
+                        onChange={handleInputChange}
+                        disabled={!!editingDoctor}
+                        style={{...styles.input, ...(editingDoctor ? styles.disabledInput : {})}}
+                        placeholder="Doc_Admin"
+                      />
+                    </div>
+                    {formErrors.username && <span style={styles.error}>{formErrors.username}</span>}
+                  </div>
+
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>Password <span style={styles.req}>*</span></label>
+                    <div style={styles.inputWrapper}>
+                      <FiLock style={styles.inputIcon} />
+                      <input 
+                        type="password" 
+                        name="password" 
+                        value={formData.password} 
+                        onChange={handleInputChange}
+                        disabled={!!editingDoctor}
+                        style={{...styles.input, ...(editingDoctor ? styles.disabledInput : {})}}
+                        placeholder="••••••••"
+                      />
+                    </div>
+                    {formErrors.password && <span style={styles.error}>{formErrors.password}</span>}
+                  </div>
+                </div>
+              </div>
+
+              <div style={styles.section}>
+                <h3 style={styles.sectionTitle}>Professional Details</h3>
+                <div style={styles.grid}>
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>Full Name <span style={styles.req}>*</span></label>
+                    <input 
+                      type="text" 
+                      name="full_name" 
+                      value={formData.full_name} 
+                      onChange={handleInputChange}
+                      style={styles.input}
+                      placeholder="Dr. Tachini Thaweesha"
+                    />
+                    {formErrors.full_name && <span style={styles.error}>{formErrors.full_name}</span>}
+                  </div>
+
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>Gender <span style={styles.req}>*</span></label>
+                    <select 
+                      name="gender" 
+                      value={formData.gender} 
+                      onChange={handleInputChange}
+                      style={styles.input}
+                    >
+                      <option value="MALE">Male</option>
+                      <option value="FEMALE">Female</option>
+                      <option value="OTHER">Other</option>
+                    </select>
+                  </div>
+
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>Specialization <span style={styles.req}>*</span></label>
+                    <select 
+                      name="specialization" 
+                      value={formData.specialization} 
+                      onChange={handleInputChange}
+                      style={styles.input}
+                    >
+                      <option value="">Select Specialization</option>
+                      <option value="General Physician">General Physician</option>
+                      <option value="Cardiology">Cardiology</option>
+                      <option value="Neurology">Neurology</option>
+                      <option value="Pediatrics">Pediatrics</option>
+                      <option value="Dermatology">Dermatology</option>
+                    </select>
+                    {formErrors.specialization && <span style={styles.error}>{formErrors.specialization}</span>}
+                  </div>
+
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>License Number <span style={styles.req}>*</span></label>
+                    <div style={styles.inputWrapper}>
+                      <FiTarget style={styles.inputIcon} />
+                      <input 
+                        type="text" 
+                        name="license_no" 
+                        value={formData.license_no} 
+                        onChange={handleInputChange}
+                        disabled={!!editingDoctor}
+                        style={{...styles.input, ...(editingDoctor ? styles.disabledInput : {})}}
+                        placeholder="SLMC1234"
+                      />
+                    </div>
+                    {formErrors.license_no && <span style={styles.error}>{formErrors.license_no}</span>}
+                  </div>
+                </div>
+              </div>
+
+              <div style={styles.section}>
+                <h3 style={styles.sectionTitle}>Consultation Fees</h3>
+                <div style={styles.grid}>
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>Doctor Fee (LKR) <span style={styles.req}>*</span></label>
+                    <input 
+                      type="number" 
+                      name="doctor_fee" 
+                      value={formData.doctor_fee} 
+                      onChange={handleInputChange}
+                      style={styles.input}
+                      placeholder="2500"
+                    />
+                  </div>
+
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>Center Fee (LKR) <span style={styles.req}>*</span></label>
+                    <input 
+                      type="number" 
+                      name="center_fee" 
+                      value={formData.center_fee} 
+                      onChange={handleInputChange}
+                      style={styles.input}
+                      placeholder="600"
+                    />
+                  </div>
+
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>Total Fee (LKR)</label>
+                    <input 
+                      type="text" 
+                      value={totalFee.toLocaleString()} 
+                      disabled
+                      style={styles.readOnlyInput}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div style={styles.section}>
+                <h3 style={styles.sectionTitle}>Contact Info</h3>
+                <div style={styles.grid}>
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>Email Address <span style={styles.req}>*</span></label>
+                    <div style={styles.inputWrapper}>
+                      <FiMail style={styles.inputIcon} />
+                      <input 
+                        type="email" 
+                        name="email" 
+                        value={formData.email} 
+                        onChange={handleInputChange}
+                        style={styles.input}
+                        placeholder="doctor@example.com"
+                      />
+                    </div>
+                    {formErrors.email && <span style={styles.error}>{formErrors.email}</span>}
+                  </div>
+
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>Contact Number <span style={styles.req}>*</span></label>
+                    <div style={styles.inputWrapper}>
+                      <FiPhone style={styles.inputIcon} />
+                      <input 
+                        type="text" 
+                        name="contact_number" 
+                        value={formData.contact_number} 
+                        onChange={handleInputChange}
+                        style={styles.input}
+                        placeholder="0771234567"
+                      />
+                    </div>
+                    {formErrors.contact_number && <span style={styles.error}>{formErrors.contact_number}</span>}
+                  </div>
+                </div>
+              </div>
+
+              <div style={styles.section}>
+                <h3 style={styles.sectionTitle}>Weekly Availability</h3>
+                <div style={styles.daysGrid}>
+                  {DAYS.map(day => {
+                    const isSelected = formData.availability.includes(day);
+                    return (
+                      <button
+                        key={day}
+                        type="button"
+                        onClick={() => toggleDay(day)}
+                        style={{
+                          ...styles.dayPill,
+                          ...(isSelected ? styles.dayPillActive : {})
+                        }}
+                      >
+                        {isSelected && <FiCheck style={{ marginRight: '4px' }} />}
+                        {day.charAt(0) + day.slice(1).toLowerCase()}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            <div style={styles.footer}>
+              <button type="button" onClick={onClose} style={styles.cancelBtn}>
+                Cancel
+              </button>
+              <button 
+                type="submit" 
+                style={styles.submitBtn}
+                disabled={isLoading}
+              >
+                {isLoading ? 'Processing...' : (editingDoctor ? 'Update Doctor' : 'Add Doctor')}
+              </button>
+            </div>
+          </form>
+        </motion.div>
+      </div>
+    </AnimatePresence>
+  );
+};
+
+const styles = {
+  overlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(15, 23, 42, 0.4)',
+    backdropFilter: 'blur(8px)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 2000,
+    padding: '20px'
+  },
+  modal: {
+    backgroundColor: 'white',
+    borderRadius: '24px',
+    width: '100%',
+    maxWidth: '720px',
+    height: '90vh',
+    display: 'flex',
+    flexDirection: 'column',
+    overflow: 'hidden',
+    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+  },
+  header: {
+    padding: '24px 32px',
+    borderBottom: '1px solid #f1f5f9',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    flexShrink: 0
+  },
+  title: {
+    fontSize: '24px',
+    fontWeight: '800',
+    color: '#0f172a',
+    margin: '0 0 4px 0',
+    letterSpacing: '-0.5px'
+  },
+  subtitle: {
+    fontSize: '14px',
+    color: '#64748b',
+    margin: 0,
+    fontWeight: '500'
+  },
+  closeBtn: {
+    background: '#f8fafc',
+    border: 'none',
+    color: '#64748b',
+    width: '40px',
+    height: '40px',
+    borderRadius: '12px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer',
+    fontSize: '20px',
+    transition: 'all 0.2s'
+  },
+  form: {
+    display: 'flex',
+    flexDirection: 'column',
+    height: '100%',
+    overflow: 'hidden'
+  },
+  scrollContent: {
+    padding: '32px',
+    overflowY: 'auto',
+    flex: 1
+  },
+  section: {
+    marginBottom: '32px'
+  },
+  sectionTitle: {
+    fontSize: '14px',
+    fontWeight: '700',
+    color: '#2563eb',
+    textTransform: 'uppercase',
+    letterSpacing: '1px',
+    marginBottom: '20px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px'
+  },
+  grid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(2, 1fr)',
+    gap: '20px'
+  },
+  formGroup: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px'
+  },
+  label: {
+    fontSize: '14px',
+    fontWeight: '600',
+    color: '#334155'
+  },
+  req: {
+    color: '#ef4444'
+  },
+  inputWrapper: {
+    position: 'relative',
+    display: 'flex',
+    alignItems: 'center'
+  },
+  inputIcon: {
+    position: 'absolute',
+    left: '14px',
+    color: '#94a3b8',
+    fontSize: '18px'
+  },
+  input: {
+    width: '100%',
+    padding: '12px 14px 12px 42px',
+    borderRadius: '12px',
+    border: '1px solid #e2e8f0',
+    backgroundColor: '#fff',
+    fontSize: '15px',
+    color: '#0f172a',
+    outline: 'none',
+    transition: 'all 0.2s',
+    '&:focus': {
+      borderColor: '#2563eb',
+      boxShadow: '0 0 0 4px rgba(37, 99, 235, 0.1)'
+    }
+  },
+  disabledInput: {
+    backgroundColor: '#f8fafc',
+    color: '#94a3b8',
+    cursor: 'not-allowed'
+  },
+  readOnlyInput: {
+    width: '100%',
+    padding: '12px 14px',
+    borderRadius: '12px',
+    border: '1px solid #f1f5f9',
+    backgroundColor: '#f8fafc',
+    fontSize: '15px',
+    fontWeight: '700',
+    color: '#2563eb',
+    cursor: 'default'
+  },
+  error: {
+    fontSize: '12px',
+    color: '#ef4444',
+    marginTop: '4px'
+  },
+  daysGrid: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '10px'
+  },
+  dayPill: {
+    display: 'flex',
+    alignItems: 'center',
+    padding: '10px 18px',
+    borderRadius: '12px',
+    border: '1px solid #e2e8f0',
+    backgroundColor: 'white',
+    color: '#64748b',
+    fontSize: '14px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.2s'
+  },
+  dayPillActive: {
+    backgroundColor: '#eff6ff',
+    color: '#2563eb',
+    borderColor: '#2563eb',
+    boxShadow: '0 2px 4px rgba(37, 99, 235, 0.06)'
+  },
+  footer: {
+    padding: '24px 32px',
+    backgroundColor: '#f8fafc',
+    borderTop: '1px solid #f1f5f9',
+    display: 'flex',
+    justifyContent: 'flex-end',
+    gap: '12px',
+    flexShrink: 0
+  },
+  cancelBtn: {
+    padding: '12px 24px',
+    borderRadius: '12px',
+    fontSize: '15px',
+    fontWeight: '600',
+    color: '#64748b',
+    backgroundColor: 'white',
+    border: '1px solid #e2e8f0',
+    cursor: 'pointer',
+    transition: 'all 0.2s'
+  },
+  submitBtn: {
+    padding: '12px 32px',
+    borderRadius: '12px',
+    fontSize: '15px',
+    fontWeight: '700',
+    color: 'white',
+    backgroundColor: '#2563eb',
+    border: 'none',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+    boxShadow: '0 4px 6px -1px rgba(37, 99, 235, 0.2)'
+  }
+};
+
+// Add default input icon logic for specialization
+const iconStyles = {
+    ...styles.inputIcon,
+    left: '14px'
+};
+
+// Adjust select padding manually since it doesn't have an icon in my current structure
+styles.input = {
+    ...styles.input,
+    '&:focus': {
+        borderColor: '#2563eb',
+        boxShadow: '0 0 0 4px rgba(37, 99, 235, 0.1)'
+    }
+};
+
+export default AddDoctorModal;

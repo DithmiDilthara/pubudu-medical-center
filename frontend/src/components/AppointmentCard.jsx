@@ -6,6 +6,7 @@ import doctor_m1 from '../assets/doctor_m1.png';
 const AppointmentCard = ({ 
   appt, 
   variant = 'carousel', // 'carousel' or 'grid'
+  role = 'patient', // 'patient' or 'doctor'
   onCancel, 
   onReschedule, 
   onViewDetails 
@@ -26,6 +27,17 @@ const AppointmentCard = ({
   const status = getStatusStyle(appt.status);
   const isUpcoming = ['PENDING', 'CONFIRMED', 'RESCHEDULED'].includes(appt.status?.toUpperCase());
 
+  // Determine which info to show based on role
+  const displayInfo = role === 'doctor' ? {
+    name: appt.patient?.full_name || 'Patient',
+    subtext: appt.patient?.nic || appt.patient?.gender || 'Patient Details',
+    image: null // Can add patient image later if available
+  } : {
+    name: appt.doctor?.full_name || 'Doctor',
+    subtext: appt.doctor?.specialization,
+    image: appt.doctor?.image || doctor_m1
+  };
+
   return (
     <motion.div 
       whileHover={{ y: -6, transition: { duration: 0.2 } }}
@@ -36,16 +48,22 @@ const AppointmentCard = ({
     >
       <div style={styles.cardHeader}>
         <div style={styles.avatarWrapper}>
-          <img 
-            src={appt.doctor?.image || doctor_m1} 
-            alt={appt.doctor?.full_name} 
-            style={styles.avatar}
-          />
+          {displayInfo.image ? (
+            <img 
+              src={displayInfo.image} 
+              alt={displayInfo.name} 
+              style={styles.avatar}
+            />
+          ) : (
+            <div style={styles.initialsAvatar}>
+              {displayInfo.name.charAt(0)}
+            </div>
+          )}
           <div style={{...styles.statusPing, backgroundColor: status.text}} />
         </div>
         <div style={styles.doctorInfo}>
-          <h4 style={styles.doctorName}>{appt.doctor?.full_name || 'Doctor'}</h4>
-          <p style={styles.specialty}>{appt.doctor?.specialization}</p>
+          <h4 style={styles.doctorName}>{displayInfo.name}</h4>
+          <p style={styles.specialty}>{displayInfo.subtext}</p>
         </div>
         
         {variant === 'carousel' ? (
@@ -179,6 +197,18 @@ const styles = {
     height: '12px',
     borderRadius: '50%',
     border: '3px solid white',
+  },
+  initialsAvatar: {
+    width: '100%',
+    height: '100%',
+    borderRadius: '16px',
+    backgroundColor: '#eff6ff',
+    color: '#2563eb',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: '20px',
+    fontWeight: '800'
   },
   doctorInfo: {
     flex: 1,

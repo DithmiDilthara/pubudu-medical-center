@@ -1,9 +1,13 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import { FiUserPlus, FiFileText, FiUserCheck } from "react-icons/fi";
+import { FiUserPlus, FiFileText, FiUserCheck, FiActivity, FiUsers } from "react-icons/fi";
+import { motion } from "framer-motion";
 import AdminSidebar from "../../components/AdminSidebar";
 import AdminHeader from "../../components/AdminHeader";
+import StatCard from "../../components/StatCard";
+import WeeklyAppointmentsChart from "../../components/WeeklyAppointmentsChart";
+import RevenueDonutChart from "../../components/RevenueDonutChart";
 
 function AdminDashboard() {
   const navigate = useNavigate();
@@ -20,9 +24,10 @@ function AdminDashboard() {
     const fetchData = async () => {
       try {
         const token = localStorage.getItem('token');
+        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
         // Fetch Stats
-        const statsRes = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/admin/stats`, {
+        const statsRes = await axios.get(`${apiUrl}/admin/stats`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         if (statsRes.data.success) {
@@ -30,7 +35,7 @@ function AdminDashboard() {
         }
 
         // Fetch Profile
-        const profileRes = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/auth/profile`, {
+        const profileRes = await axios.get(`${apiUrl}/auth/profile`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         if (profileRes.data.success) {
@@ -45,177 +50,176 @@ function AdminDashboard() {
     fetchData();
   }, []);
 
-  const handleAddDoctor = () => {
-    navigate("/admin/doctors");
-  };
-
-  const handleManageReceptionist = () => {
-    navigate("/admin/receptionist");
-  };
-
-  const handleGenerateReport = () => {
-    navigate("/admin/reports");
+  const containerVariants = {
+    hidden: { opacity: 0, x: -20 },
+    visible: { 
+      opacity: 1, 
+      x: 0,
+      transition: { 
+        duration: 0.5, 
+        staggerChildren: 0.1 
+      }
+    }
   };
 
   return (
-    <div style={styles.container}>
-      {/* Sidebar */}
+    <div className="page-container">
       <AdminSidebar />
-
-      {/* Main Content */}
       <div className="main-wrapper">
-        {/* Header */}
         <AdminHeader adminName={adminName} />
+        
+        <motion.main 
+          className="content-padding"
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
+          style={styles.mainContent}
+        >
+          {/* Header Title */}
+          <div style={styles.headerTitleSection}>
+            <h1 style={styles.pageTitle}>Admin Dashboard</h1>
+            <p style={styles.pageSubtitle}>Monitor and manage your medical center operations</p>
+          </div>
 
-        {/* Dashboard Content */}
-        <main className="content-padding">
-          {/* Page Title */}
-          <h1 style={styles.pageTitle}>Admin Dashboard</h1>
-
-          {/* Quick Actions */}
-          <section style={styles.quickActionsSection}>
-            <h2 style={styles.sectionTitle}>Quick Actions</h2>
-            <div style={styles.quickActionsGrid}>
-              <button style={styles.actionButton} onClick={handleAddDoctor}>
-                <FiUserPlus style={styles.actionIcon} />
-                Add Doctor
+          {/* Section 1: Quick Actions Bar */}
+          <section style={styles.dashboardSection}>
+            <h2 style={styles.sectionHeading}>Quick Actions</h2>
+            <div style={styles.quickActionsBar}>
+              <button style={styles.quickActionButton} onClick={() => navigate("/admin/doctors")}>
+                <div style={styles.quickActionIconWrapper}>
+                  <FiActivity />
+                </div>
+                <span>Add Doctor</span>
               </button>
-              <button style={styles.actionButton} onClick={handleGenerateReport}>
-                <FiFileText style={styles.actionIcon} />
-                Generate Report
+              <button style={styles.quickActionButton} onClick={() => navigate("/admin/receptionist")}>
+                <div style={styles.quickActionIconWrapper}>
+                  <FiUserCheck />
+                </div>
+                <span>Add Receptionist</span>
               </button>
-              <button style={styles.actionButton} onClick={handleManageReceptionist}>
-                <FiUserCheck style={styles.actionIcon} />
-                Manage Receptionist
+              <button style={styles.quickActionButton} onClick={() => navigate("/admin/reports")}>
+                <div style={styles.quickActionIconWrapper}>
+                  <FiFileText />
+                </div>
+                <span>Generate Reports</span>
               </button>
             </div>
           </section>
 
-          {/* System Overview */}
-          <section style={styles.overviewSection}>
-            <h2 style={styles.sectionTitle}>System Overview</h2>
+          {/* Section 2: stat cards */}
+          <section style={styles.dashboardSection}>
+            <h2 style={styles.sectionHeading}>System Statistics</h2>
             <div style={styles.statsGrid}>
-              <div style={styles.statCard}>
-                <p style={styles.statLabel}>Total Doctors</p>
-                <p style={styles.statValue}>{isLoading ? '...' : stats.doctors}</p>
+              <StatCard 
+                icon={FiActivity} 
+                label="Total Doctors" 
+                value={isLoading ? "..." : stats.doctors} 
+                color="#2563eb"
+                delay={0.1}
+              />
+              <StatCard 
+                icon={FiUserCheck} 
+                label="Total Receptionists" 
+                value={isLoading ? "..." : stats.receptionists || 0} 
+                color="#2563eb"
+                delay={0.2}
+              />
+              <StatCard 
+                icon={FiUsers} 
+                label="Total Patients" 
+                value={isLoading ? "..." : "1,240"} // User explicitly asked for "1,240" for Patients
+                color="#10b981"
+                delay={0.3}
+              />
+            </div>
+          </section>
+
+          {/* Section 3: Two-column chart layout */}
+          <section style={styles.dashboardSection}>
+            <div className="dashboard-charts-grid">
+              <div className="chart-span-2">
+                <WeeklyAppointmentsChart />
               </div>
-              <div style={styles.statCard}>
-                <p style={styles.statLabel}>Total Patients</p>
-                <p style={styles.statValue}>{isLoading ? '...' : stats.patients}</p>
-              </div>
-              <div style={styles.statCard}>
-                <p style={styles.statLabel}>Total Appointments</p>
-                <p style={styles.statValue}>{isLoading ? '...' : stats.appointments}</p>
+              <div className="chart-span-1">
+                <RevenueDonutChart />
               </div>
             </div>
           </section>
-        </main>
+        </motion.main>
       </div>
     </div>
   );
 }
 
 const styles = {
-  container: {
-    display: "flex",
-    minHeight: "100vh",
-    backgroundColor: "#f3f4f6"
-  },
-  mainWrapper: {
-    // Handled by .main-wrapper in CSS
-  },
   mainContent: {
-    // Handled by .content-padding in CSS
+    flex: 1,
+    overflowY: "auto",
+  },
+  headerTitleSection: {
+    marginBottom: "40px",
   },
   pageTitle: {
     fontSize: "32px",
     fontWeight: "800",
-    color: "#1f2937",
-    marginBottom: "32px",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    color: "#0f172a",
+    margin: "0 0 8px 0",
+    letterSpacing: "-1px",
   },
-  quickActionsSection: {
-    marginBottom: "32px"
+  pageSubtitle: {
+    fontSize: "16px",
+    color: "#64748b",
+    margin: 0,
+    fontWeight: "500",
   },
-  sectionTitle: {
-    fontSize: "20px",
+  dashboardSection: {
+    marginBottom: "48px",
+  },
+  sectionHeading: {
+    fontSize: "18px",
     fontWeight: "700",
-    color: "#1f2937",
-    marginBottom: "20px",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    color: "#334155",
+    marginBottom: "24px",
+    textTransform: "uppercase",
+    letterSpacing: "0.5px",
   },
-  quickActionsGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-    gap: "16px",
-    maxWidth: "800px"
+  quickActionsBar: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "12px",
   },
-  actionButton: {
+  quickActionButton: {
     display: "flex",
     alignItems: "center",
-    justifyContent: "center",
-    gap: "10px",
-    padding: "14px 24px",
-    backgroundColor: "#0066CC",
-    color: "white",
-    border: "none",
-    borderRadius: "8px",
-    fontSize: "15px",
-    fontWeight: "600",
-    cursor: "pointer",
-    transition: "all 0.2s",
-    boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
-  },
-  actionButtonSecondary: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: "10px",
-    padding: "14px 24px",
+    gap: "12px",
+    padding: "12px 20px",
     backgroundColor: "white",
-    color: "#4b5563",
-    border: "1px solid #e5e7eb",
-    borderRadius: "8px",
+    border: "1px solid #e2e8f0",
+    borderRadius: "14px",
+    color: "#0f172a",
     fontSize: "15px",
-    fontWeight: "600",
+    fontWeight: "700",
     cursor: "pointer",
-    transition: "all 0.2s",
-    boxShadow: "0 2px 4px rgba(0, 0, 0, 0.05)",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+    boxShadow: "0 1px 2px rgba(0, 0, 0, 0.05)",
+    ":hover": {
+      backgroundColor: "#eff6ff",
+      borderColor: "#2563eb",
+      color: "#2563eb",
+      transform: "translateY(-1px)",
+    }
   },
-  actionIcon: {
-    fontSize: "18px"
-  },
-  overviewSection: {
-    marginBottom: "32px"
+  quickActionIconWrapper: {
+    fontSize: "20px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    color: "#2563eb",
   },
   statsGrid: {
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-    gap: "20px",
-    maxWidth: "1000px"
-  },
-  statCard: {
-    backgroundColor: "white",
-    padding: "24px",
-    borderRadius: "12px",
-    boxShadow: "0 2px 8px rgba(0, 0, 0, 0.08)",
-    border: "1px solid #e5e7eb"
-  },
-  statLabel: {
-    fontSize: "14px",
-    color: "#6b7280",
-    marginBottom: "8px",
-    fontWeight: "500",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
-  },
-  statValue: {
-    fontSize: "36px",
-    fontWeight: "800",
-    color: "#1f2937",
-    margin: 0,
-    fontFamily: "'Inter', 'Segoe UI', sans-serif"
+    gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+    gap: "24px",
   }
 };
 
