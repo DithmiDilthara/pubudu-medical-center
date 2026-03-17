@@ -49,7 +49,7 @@ function ConfirmPayment() {
   if (!appointment) return null;
 
   const doctorFee = Number(appointment.doctor?.doctor_fee || 0);
-  const centerFee = Number(appointment.doctor?.center_fee || 0);
+  const centerFee = Number(appointment.doctor?.center_fee || 600);
   const totalAmount = doctorFee + centerFee;
 
   const handleConfirmPayment = async () => {

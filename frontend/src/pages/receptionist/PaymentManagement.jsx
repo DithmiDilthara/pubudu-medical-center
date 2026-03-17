@@ -60,7 +60,7 @@ function PaymentManagement() {
     const stats = useMemo(() => {
         const pendingCount = appointments.length;
         const totalAmount = appointments.reduce((sum, apt) => 
-            sum + (Number(apt.doctor?.doctor_fee || 0) + Number(apt.doctor?.center_fee || 0)), 0);
+            sum + (Number(apt.doctor?.doctor_fee || 0) + Number(apt.doctor?.center_fee || 600)), 0);
         return { pendingCount, totalAmount };
     }, [appointments]);
 
@@ -189,7 +189,7 @@ function PaymentManagement() {
                                                         </div>
                                                     </td>
                                                     <td style={{ ...styles.tableCell, fontWeight: "700" }}>
-                                                        {(Number(apt.doctor?.doctor_fee || 0) + Number(apt.doctor?.center_fee || 0)).toLocaleString()}
+                                                        {(Number(apt.doctor?.doctor_fee || 0) + Number(apt.doctor?.center_fee || 600)).toLocaleString()}
                                                     </td>
                                                     <td style={styles.tableCell}>
                                                         <button

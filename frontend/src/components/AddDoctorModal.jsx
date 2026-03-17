@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiX, FiCheck, FiUser, FiLock, FiCreditCard, FiMail, FiPhone, FiTarget, FiInfo, FiActivity } from 'react-icons/fi';
 
-const DAYS = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
+
 
 const AddDoctorModal = ({ 
   isOpen, 
@@ -21,8 +21,7 @@ const AddDoctorModal = ({
     center_fee: 600,
     license_no: '',
     email: '',
-    contact_number: '',
-    availability: []
+    contact_number: ''
   });
 
   const [formErrors, setFormErrors] = useState({});
@@ -39,8 +38,7 @@ const AddDoctorModal = ({
         center_fee: editingDoctor.center_fee || 600,
         license_no: editingDoctor.license_no || '',
         email: editingDoctor.user?.email || '',
-        contact_number: editingDoctor.user?.contact_number || '',
-        availability: editingDoctor.availability || [] // Assuming we fetch this later or it's passed
+        contact_number: editingDoctor.user?.contact_number || ''
       });
     } else {
       setFormData({
@@ -53,8 +51,7 @@ const AddDoctorModal = ({
         center_fee: 600,
         license_no: '',
         email: '',
-        contact_number: '',
-        availability: []
+        contact_number: ''
       });
     }
   }, [editingDoctor, isOpen]);
@@ -67,16 +64,7 @@ const AddDoctorModal = ({
     }
   };
 
-  const toggleDay = (day) => {
-    setFormData(prev => {
-      const isSelected = prev.availability.includes(day);
-      if (isSelected) {
-        return { ...prev, availability: prev.availability.filter(d => d !== day) };
-      } else {
-        return { ...prev, availability: [...prev.availability, day] };
-      }
-    });
-  };
+
 
   const validateForm = () => {
     const errors = {};
@@ -308,28 +296,7 @@ const AddDoctorModal = ({
                 </div>
               </div>
 
-              <div style={styles.section}>
-                <h3 style={styles.sectionTitle}>Weekly Availability</h3>
-                <div style={styles.daysGrid}>
-                  {DAYS.map(day => {
-                    const isSelected = formData.availability.includes(day);
-                    return (
-                      <button
-                        key={day}
-                        type="button"
-                        onClick={() => toggleDay(day)}
-                        style={{
-                          ...styles.dayPill,
-                          ...(isSelected ? styles.dayPillActive : {})
-                        }}
-                      >
-                        {isSelected && <FiCheck style={{ marginRight: '4px' }} />}
-                        {day.charAt(0) + day.slice(1).toLowerCase()}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+
             </div>
 
             <div style={styles.footer}>

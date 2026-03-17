@@ -38,8 +38,8 @@ class ReceiptGenerator {
                    .text('Pubudu Medical Center', { align: 'center' })
                    .fontSize(10)
                    .fillColor('#333')
-                   .text('123 Main Road, Colombo, Sri Lanka', { align: 'center' })
-                   .text('Phone: +94 11 234 5678 | Email: info@pubudumc.lk', { align: 'center' })
+                   .text('No 46, Matara road , Hakmana', { align: 'center' })
+                   .text('Phone: 071-8050917 / 0769659767 / 0766880179', { align: 'center' })
                    .moveDown();
 
                 doc.moveTo(50, 110)

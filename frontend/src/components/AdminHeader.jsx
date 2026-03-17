@@ -13,10 +13,8 @@ function AdminHeader({ adminName = "Admin User" }) {
       animate={{ opacity: 1, y: 0 }}
       style={styles.header}
     >
-      {/* Page Info */}
+      {/* Page Info - Removed as requested */}
       <div style={styles.pageInfo}>
-        <h1 style={styles.pageTitle}>Pubudu Medical</h1>
-        <p style={styles.pageSubtitle}>Admin Control Center</p>
       </div>
 
       {/* Right Section: Actions & Profile */}
@@ -89,7 +87,8 @@ const styles = {
     fontWeight: "700",
     textTransform: "uppercase",
     letterSpacing: "0.5px",
-    border: "1px solid rgba(37, 99, 235, 0.1)"
+    border: "1px solid rgba(37, 99, 235, 0.1)",
+    fontFamily: "var(--font-accent)",
   },
   pulseDot: {
     width: "6px",
@@ -125,7 +124,8 @@ const styles = {
     color: "#94a3b8",
     margin: 0,
     textTransform: "uppercase",
-    letterSpacing: "0.5px"
+    letterSpacing: "0.5px",
+    fontFamily: "var(--font-main)",
   },
   avatar: {
     width: "44px",

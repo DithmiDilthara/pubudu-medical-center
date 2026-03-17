@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import AppointmentCard from './AppointmentCard';
 
-const AppointmentCarousel = ({ appointments = [], onManageClick }) => {
+const AppointmentCarousel = ({ appointments = [], onManageClick, onCancel }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [itemsPerPage, setItemsPerPage] = useState(3);
 
@@ -33,6 +33,12 @@ const AppointmentCarousel = ({ appointments = [], onManageClick }) => {
 
   const getVisibleAppointments = () => {
     if (appointments.length === 0) return [];
+    
+    // If we have fewer appointments than cards to show, don't duplicate
+    if (appointments.length <= itemsPerPage) {
+        return appointments.map(appt => ({ ...appt, uniqueKey: `${appt.appointment_id}` }));
+    }
+
     const visible = [];
     for (let i = 0; i < itemsPerPage; i++) {
         const index = (currentIndex + i) % appointments.length;
@@ -43,49 +49,59 @@ const AppointmentCarousel = ({ appointments = [], onManageClick }) => {
 
   if (appointments.length === 0) return null;
 
+  const currentVisible = getVisibleAppointments();
+
   return (
     <section style={styles.section}>
       <div style={styles.header}>
         <h2 style={styles.title}>Upcoming Appointments</h2>
-        <div style={styles.navControls}>
-          <button onClick={prevSlide} style={styles.navBtn}>
-            <FiChevronLeft size={20} />
-          </button>
-          <button onClick={nextSlide} style={styles.navBtn}>
-            <FiChevronRight size={20} />
-          </button>
-        </div>
+        {appointments.length > itemsPerPage && (
+          <div style={styles.navControls}>
+            <button onClick={prevSlide} style={styles.navBtn}>
+              <FiChevronLeft size={20} />
+            </button>
+            <button onClick={nextSlide} style={styles.navBtn}>
+              <FiChevronRight size={20} />
+            </button>
+          </div>
+        )}
       </div>
 
       <div style={styles.carouselContainer}>
         <div style={{
             ...styles.cardsWrapper,
-            gridTemplateColumns: `repeat(${itemsPerPage}, 1fr)`
+            gridTemplateColumns: currentVisible.length < itemsPerPage 
+                ? `repeat(${currentVisible.length}, 1fr)` 
+                : `repeat(${itemsPerPage}, 1fr)`,
+            maxWidth: currentVisible.length < itemsPerPage ? `${currentVisible.length * 360}px` : '100%',
         }}>
-          {getVisibleAppointments().map((appt) => (
+          {currentVisible.map((appt) => (
             <AppointmentCard 
               key={appt.uniqueKey} 
               appt={appt} 
               variant="carousel"
               onViewDetails={onManageClick}
+              onCancel={onCancel}
             />
           ))}
         </div>
       </div>
 
-      <div style={styles.indicators}>
-        {appointments.map((_, index) => (
-          <div 
-            key={index}
-            onClick={() => setCurrentIndex(index)}
-            style={{
-              ...styles.dot,
-              backgroundColor: currentIndex === index ? '#3B82F6' : '#D1D5DB',
-              width: currentIndex === index ? '20px' : '8px'
-            }}
-          />
-        ))}
-      </div>
+      {appointments.length > itemsPerPage && (
+        <div style={styles.indicators}>
+          {appointments.map((_, index) => (
+            <div 
+              key={index}
+              onClick={() => setCurrentIndex(index)}
+              style={{
+                ...styles.dot,
+                backgroundColor: currentIndex === index ? '#3B82F6' : '#D1D5DB',
+                width: currentIndex === index ? '20px' : '8px'
+              }}
+            />
+          ))}
+        </div>
+      )}
     </section>
   );
 };
@@ -103,9 +119,11 @@ const styles = {
   title: {
     fontSize: '22px',
     fontWeight: '800',
-    color: '#111827',
+    color: '#0f172a',
     margin: 0,
     paddingLeft: '4px',
+    fontFamily: 'var(--font-accent)',
+    letterSpacing: '-0.5px'
   },
   navControls: {
     display: 'flex',

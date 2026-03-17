@@ -215,7 +215,7 @@ function FindDoctor() {
                     <div style={styles.cardFooter}>
                       <div style={styles.feeSection}>
                         <p style={styles.feeLabel}>Total Channeling Fee</p>
-                        <p style={styles.feeValue}>LKR {(Number(doctor.doctor_fee) + Number(doctor.center_fee || 0)).toLocaleString()}</p>
+                        <p style={styles.feeValue}>LKR {(Number(doctor.doctor_fee) + Number(doctor.center_fee || 600)).toLocaleString()}</p>
                       </div>
                       <button
                         onClick={() => handleBookAppointment(doctor)}

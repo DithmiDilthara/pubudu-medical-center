@@ -2,13 +2,15 @@ import { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import AdminHeader from '../../components/AdminHeader';
 import AdminSidebar from '../../components/AdminSidebar';
+import { motion } from 'framer-motion';
 
 /**
  * AddStaff Component
  * Admin-only page to add new Doctor or Receptionist accounts
  */
 const AddStaff = () => {
-    const { addStaff } = useAuth();
+    const { addStaff, user } = useAuth();
+    const adminName = user?.username || 'Admin';
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
@@ -113,10 +115,19 @@ const AddStaff = () => {
             <AdminSidebar />
             
             <div className="main-wrapper">
-                <AdminHeader />
+                <AdminHeader adminName={adminName} />
                 
-                <div className="content-padding">
-                    <h1 style={{ marginBottom: '24px', color: '#2c3e50' }}>Add New Staff Member</h1>
+                <motion.div 
+                    className="content-padding"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5 }}
+                >
+                    {/* Header Title - Personalized Welcome */}
+                    <div style={styles.headerTitleSection}>
+                        <h1 style={styles.pageTitle}>Welcome back, {adminName}! 👋</h1>
+                        <p style={styles.pageSubtitle}>Expand your medical team by adding new professional accounts.</p>
+                    </div>
                     
                     {error && (
                         <div style={{
@@ -505,10 +516,31 @@ const AddStaff = () => {
                             </div>
                         </form>
                     </div>
-                </div>
+                </motion.div>
             </div>
         </div>
     );
+};
+
+const styles = {
+    headerTitleSection: {
+        marginBottom: "32px",
+    },
+    pageTitle: {
+        fontSize: "28px",
+        fontWeight: "800",
+        color: "#0f172a",
+        margin: "0 0 4px 0",
+        letterSpacing: "-0.5px",
+        fontFamily: "var(--font-accent)",
+    },
+    pageSubtitle: {
+        fontSize: "16px",
+        color: "#64748b",
+        margin: 0,
+        fontWeight: "500",
+        fontFamily: "var(--font-main)",
+    },
 };
 
 export default AddStaff;

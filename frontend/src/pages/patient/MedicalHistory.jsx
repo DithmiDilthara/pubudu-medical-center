@@ -153,7 +153,7 @@ const MedicalHistory = () => {
                                                             {record.doctor?.full_name?.charAt(0) || 'D'}
                                                         </div>
                                                         <div>
-                                                            <h3 className="doctor-name">Dr. {record.doctor?.full_name}</h3>
+                                                            <h3 className="doctor-name">{record.doctor?.full_name}</h3>
                                                             <p className="doctor-specialty">{record.doctor?.specialization}</p>
                                                         </div>
                                                     </div>

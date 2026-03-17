@@ -153,13 +153,15 @@ export const registerPatient = async (req, res) => {
             username,
             password,
             email,
-            contact_number,
             full_name,
             nic,
             gender,
             date_of_birth,
             address
         } = req.body;
+        
+        // Map phone from frontend to contact_number used in controller logic
+        const contact_number = req.body.phone || req.body.contact_number;
 
         // Validation
         if (!username || !password || !full_name || !nic) {

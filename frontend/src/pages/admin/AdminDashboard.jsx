@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import { FiUserPlus, FiFileText, FiUserCheck, FiActivity, FiUsers } from "react-icons/fi";
+import { FiFileText, FiUserCheck, FiActivity, FiUsers } from "react-icons/fi";
+import { FaStethoscope } from "react-icons/fa";
 import { motion } from "framer-motion";
 import AdminSidebar from "../../components/AdminSidebar";
 import AdminHeader from "../../components/AdminHeader";
@@ -75,19 +76,19 @@ function AdminDashboard() {
           animate="visible"
           style={styles.mainContent}
         >
-          {/* Header Title */}
+          {/* Header Title - Personalized Welcome */}
           <div style={styles.headerTitleSection}>
-            <h1 style={styles.pageTitle}>Admin Dashboard</h1>
-            <p style={styles.pageSubtitle}>Monitor and manage your medical center operations</p>
+            <h1 style={styles.pageTitle}>Welcome back, {adminName}! 👋</h1>
+            <p style={styles.pageSubtitle}>Monitor and manage medical center operations efficiently.</p>
           </div>
 
-          {/* Section 1: Quick Actions Bar */}
+          {/* Section 1: Quick Actions Bar - Blue Styling */}
           <section style={styles.dashboardSection}>
             <h2 style={styles.sectionHeading}>Quick Actions</h2>
             <div style={styles.quickActionsBar}>
               <button style={styles.quickActionButton} onClick={() => navigate("/admin/doctors")}>
                 <div style={styles.quickActionIconWrapper}>
-                  <FiActivity />
+                  <FaStethoscope />
                 </div>
                 <span>Add Doctor</span>
               </button>
@@ -111,7 +112,7 @@ function AdminDashboard() {
             <h2 style={styles.sectionHeading}>System Statistics</h2>
             <div style={styles.statsGrid}>
               <StatCard 
-                icon={FiActivity} 
+                icon={FaStethoscope} 
                 label="Total Doctors" 
                 value={isLoading ? "..." : stats.doctors} 
                 color="#2563eb"
@@ -121,14 +122,14 @@ function AdminDashboard() {
                 icon={FiUserCheck} 
                 label="Total Receptionists" 
                 value={isLoading ? "..." : stats.receptionists || 0} 
-                color="#2563eb"
+                color="#10b981"
                 delay={0.2}
               />
               <StatCard 
                 icon={FiUsers} 
                 label="Total Patients" 
-                value={isLoading ? "..." : "1,240"} // User explicitly asked for "1,240" for Patients
-                color="#10b981"
+                value={isLoading ? "..." : stats.patients}
+                color="#f59e0b"
                 delay={0.3}
               />
             </div>
@@ -160,17 +161,19 @@ const styles = {
     marginBottom: "40px",
   },
   pageTitle: {
-    fontSize: "32px",
+    fontSize: "28px",
     fontWeight: "800",
     color: "#0f172a",
-    margin: "0 0 8px 0",
-    letterSpacing: "-1px",
+    margin: "0 0 4px 0",
+    letterSpacing: "-0.5px",
+    fontFamily: "var(--font-accent)",
   },
   pageSubtitle: {
     fontSize: "16px",
     color: "#64748b",
     margin: 0,
     fontWeight: "500",
+    fontFamily: "var(--font-main)",
   },
   dashboardSection: {
     marginBottom: "48px",
@@ -178,8 +181,9 @@ const styles = {
   sectionHeading: {
     fontSize: "18px",
     fontWeight: "700",
-    color: "#334155",
-    marginBottom: "24px",
+    color: "#1e293b",
+    marginBottom: "20px",
+    fontFamily: "var(--font-accent)",
     textTransform: "uppercase",
     letterSpacing: "0.5px",
   },
@@ -193,20 +197,19 @@ const styles = {
     alignItems: "center",
     gap: "12px",
     padding: "12px 20px",
-    backgroundColor: "white",
-    border: "1px solid #e2e8f0",
+    backgroundColor: "#2563eb",
+    border: "none",
     borderRadius: "14px",
-    color: "#0f172a",
+    color: "white",
     fontSize: "15px",
     fontWeight: "700",
     cursor: "pointer",
     transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
-    boxShadow: "0 1px 2px rgba(0, 0, 0, 0.05)",
+    boxShadow: "0 4px 12px rgba(37, 99, 235, 0.2)",
     ":hover": {
-      backgroundColor: "#eff6ff",
-      borderColor: "#2563eb",
-      color: "#2563eb",
-      transform: "translateY(-1px)",
+      backgroundColor: "#1d4ed8",
+      transform: "translateY(-2px)",
+      boxShadow: "0 6px 16px rgba(37, 99, 235, 0.3)",
     }
   },
   quickActionIconWrapper: {
@@ -214,7 +217,7 @@ const styles = {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    color: "#2563eb",
+    color: "white",
   },
   statsGrid: {
     display: "grid",

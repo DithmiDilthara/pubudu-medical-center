@@ -31,7 +31,8 @@ import { toast } from "react-hot-toast";
 
 const Reports = () => {
   const navigate = useNavigate();
-  const { api } = useAuth();
+  const { api, user } = useAuth();
+  const adminName = user?.username || 'Admin';
   
   // State
   const [reportType, setReportType] = useState("revenue");
@@ -97,7 +98,7 @@ const Reports = () => {
     <div style={styles.container}>
       <AdminSidebar />
       <div className="main-wrapper">
-        <AdminHeader title="Business Intelligence" />
+        <AdminHeader adminName={adminName} />
 
         <motion.main 
           className="content-padding"
@@ -105,6 +106,11 @@ const Reports = () => {
           initial="hidden"
           animate="visible"
         >
+          {/* Header Title - Personalized Welcome */}
+          <div style={styles.headerTitleSection}>
+            <h1 style={styles.pageTitle}>Welcome back, {adminName}! 👋</h1>
+            <p style={styles.pageSubtitle}>Analyze healthcare performance and financial trends with data-driven insights.</p>
+          </div>
           {/* Report Generator Form */}
           <div style={styles.generatorCard}>
             <div style={styles.cardHeader}>
@@ -526,7 +532,25 @@ const styles = {
     cursor: 'pointer',
     transition: 'all 0.2s',
     boxShadow: '0 10px 15px -3px rgba(15, 23, 42, 0.2)'
-  }
+  },
+  headerTitleSection: {
+    marginBottom: "32px",
+  },
+  pageTitle: {
+    fontSize: "28px",
+    fontWeight: "800",
+    color: "#0f172a",
+    margin: "0 0 4px 0",
+    letterSpacing: "-0.5px",
+    fontFamily: "var(--font-accent)",
+  },
+  pageSubtitle: {
+    fontSize: "16px",
+    color: "#64748b",
+    margin: 0,
+    fontWeight: "500",
+    fontFamily: "var(--font-main)",
+  },
 };
 
 export default Reports;

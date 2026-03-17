@@ -1,6 +1,7 @@
 import { Appointment, Patient, Doctor, Payment, User } from '../models/index.js';
 import { generateHash, verifyNotifyHash } from '../utils/payhere.js';
 import NotificationService from '../utils/NotificationService.js';
+import ReceiptGenerator from '../utils/ReceiptGenerator.js';
 
 /**
  * @desc    Initiate a payment for an appointment
@@ -223,6 +224,66 @@ export const verifyPayment = async (req, res) => {
 
     } catch (error) {
         console.error('Verify payment error:', error);
+        res.status(500).json({ success: false, message: 'Server error', error: error.message });
+    }
+};
+
+/**
+ * @desc    Download a PDF receipt for an appointment
+ * @route   GET /api/payments/:appointmentId/receipt
+ * @access  Private (Patient, Receptionist, Admin)
+ */
+export const downloadReceipt = async (req, res) => {
+    try {
+        const { appointmentId } = req.params;
+        const currentUser = req.user;
+
+        // Fetch appointment with all necessary info
+        const appointment = await Appointment.findByPk(appointmentId, {
+            include: [
+                { model: Doctor, as: 'doctor' },
+                { model: Patient, as: 'patient' },
+                { model: Payment, as: 'payment' }
+            ]
+        });
+
+        if (!appointment) {
+            return res.status(404).json({ success: false, message: 'Appointment not found' });
+        }
+
+        // Authorization check
+        if (currentUser.role_id === 4) { // Patient
+            const patient = await Patient.findOne({ where: { user_id: currentUser.user_id } });
+            if (appointment.patient_id !== patient.patient_id) {
+                return res.status(403).json({ success: false, message: 'Unauthorized access to receipt' });
+            }
+        }
+
+        if (appointment.payment_status !== 'PAID' || !appointment.payment) {
+            return res.status(400).json({ success: false, message: 'No payment record found for this appointment' });
+        }
+
+        // Generate PDF Buffer
+        const pdfBuffer = await ReceiptGenerator.generateReceiptBuffer({
+            receiptNumber: `REC-${appointment.appointment_id}-${appointment.payment.payment_id}`,
+            date: appointment.payment.created_at.toLocaleDateString(),
+            patientName: appointment.patient.full_name,
+            doctorName: appointment.doctor.full_name,
+            appointmentDate: appointment.appointment_date,
+            timeSlot: appointment.time_slot,
+            appointmentNumber: appointment.appointment_number,
+            amount: appointment.payment.amount,
+            paymentMethod: appointment.payment.payment_method,
+            transactionId: appointment.payment.transaction_id
+        });
+
+        // Send PDF
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename=Receipt-APT${appointmentId}.pdf`);
+        res.send(pdfBuffer);
+
+    } catch (error) {
+        console.error('Download receipt error:', error);
         res.status(500).json({ success: false, message: 'Server error', error: error.message });
     }
 };

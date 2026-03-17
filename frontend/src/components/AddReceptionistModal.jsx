@@ -13,7 +13,6 @@ const AddReceptionistModal = ({
     username: '',
     password: '',
     full_name: '',
-    shift: 'Morning',
     email: '',
     contact_number: '',
     nic: ''
@@ -27,7 +26,6 @@ const AddReceptionistModal = ({
         username: editingReceptionist.user?.username || '',
         password: '', // Password not editable
         full_name: editingReceptionist.full_name || '',
-        shift: editingReceptionist.shift || 'Morning',
         email: editingReceptionist.user?.email || '',
         contact_number: editingReceptionist.user?.contact_number || '',
         nic: editingReceptionist.nic || ''
@@ -37,7 +35,6 @@ const AddReceptionistModal = ({
         username: '',
         password: '',
         full_name: '',
-        shift: 'Morning',
         email: '',
         contact_number: '',
         nic: ''
@@ -171,23 +168,7 @@ const AddReceptionistModal = ({
                     {formErrors.nic && <span style={styles.error}>{formErrors.nic}</span>}
                   </div>
 
-                  <div style={styles.formGroup}>
-                    <label style={styles.label}>Shift <span style={styles.req}>*</span></label>
-                    <div style={styles.inputWrapper}>
-                      <FiBriefcase style={styles.inputIcon} />
-                      <select 
-                        name="shift" 
-                        value={formData.shift} 
-                        onChange={handleInputChange}
-                        style={styles.input}
-                      >
-                        <option value="Morning">Morning</option>
-                        <option value="Afternoon">Afternoon</option>
-                        <option value="Night">Night</option>
-                        <option value="Full Day">Full Day</option>
-                      </select>
-                    </div>
-                  </div>
+
                 </div>
               </div>
 

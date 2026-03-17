@@ -35,6 +35,7 @@ const ChannelDoctor = () => {
 
     // Step 4: Confirmation State
     const [confirmedAppointment, setConfirmedAppointment] = useState(null);
+    const [paymentMethod, setPaymentMethod] = useState(null); // 'online' or 'clinic'
 
     useEffect(() => {
         if (!doctor) {
@@ -89,7 +90,9 @@ const ChannelDoctor = () => {
     };
 
     const handleDateClick = (day) => {
-        if (day && isDateAvailable(day)) {
+        if (!day) return;
+        const isPast = new Date(year, month, day) < new Date().setHours(0,0,0,0);
+        if (isDateAvailable(day) && !isPast) {
             setSelectedDate(day);
         }
     };
@@ -140,7 +143,7 @@ const ChannelDoctor = () => {
     };
 
     // --- Action Handlers ---
-    const handleConfirmBooking = async () => {
+    const handleConfirmBooking = async (payNow = false) => {
         setIsLoading(true);
         const toastId = toast.loading("Confirming your appointment...");
         try {
@@ -151,15 +154,33 @@ const ChannelDoctor = () => {
                 doctor_id: doctor.doctor_id,
                 appointment_date: appointmentDate,
                 time_slot: selectedTime,
-                notes: ""
+                notes: "",
+                skipNotification: payNow // Skip initial email/SMS if paying online (sent after success)
             }, {
                 headers: { Authorization: `Bearer ${token}` }
             });
 
             if (response.data.success) {
-                setConfirmedAppointment(response.data.data);
+                const newApt = response.data.data;
+                setConfirmedAppointment(newApt);
+                setPaymentMethod(payNow ? 'online' : 'clinic');
                 toast.success("Appointment Confirmed!", { id: toastId });
-                setStep(4);
+                
+                if (payNow) {
+                    navigate('/patient/payment', {
+                        state: {
+                            paymentData: {
+                                appointmentId: newApt.appointment_id,
+                                doctor: doctor,
+                                date: new Date(year, month, selectedDate),
+                                time: selectedTime,
+                                totalFee: Number(doctor.doctor_fee) + 200
+                            }
+                        }
+                    });
+                } else {
+                    setStep(4);
+                }
             }
         } catch (error) {
             toast.error("Failed to book appointment", { id: toastId });
@@ -176,7 +197,7 @@ const ChannelDoctor = () => {
                     doctor: doctor,
                     date: new Date(year, month, selectedDate),
                     time: selectedTime,
-                    totalFee: Number(doctor.doctor_fee) + 200
+                    totalFee: Number(doctor.doctor_fee) + Number(doctor.center_fee || 200)
                 }
             }
         });
@@ -279,18 +300,22 @@ const ChannelDoctor = () => {
                                                 {Array(firstDay).fill(null).map((_, i) => <div key={`empty-${i}`} />)}
                                                 {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(d => {
                                                     const available = isDateAvailable(d);
+                                                    const isPast = new Date(year, month, d) < new Date().setHours(0,0,0,0);
                                                     const selected = selectedDate === d;
+                                                    const canSelect = available && !isPast;
+
                                                     return (
                                                         <div
                                                             key={d}
-                                                            onClick={() => handleDateClick(d)}
+                                                            onClick={() => canSelect && handleDateClick(d)}
                                                             style={{
                                                                 ...styles.calDay,
-                                                                backgroundColor: selected ? '#2563eb' : (available ? '#eff6ff' : 'transparent'),
-                                                                color: selected ? 'white' : (available ? '#2563eb' : '#cbd5e1'),
-                                                                cursor: available ? 'pointer' : 'default',
-                                                                border: selected ? 'none' : (available ? '1px solid #dbeafe' : 'none'),
-                                                                fontWeight: available ? '700' : '500',
+                                                                backgroundColor: selected ? '#2563eb' : (canSelect ? '#eff6ff' : 'transparent'),
+                                                                color: selected ? 'white' : (canSelect ? '#2563eb' : '#cbd5e1'),
+                                                                cursor: canSelect ? 'pointer' : 'default',
+                                                                border: selected ? 'none' : (canSelect ? '1px solid #dbeafe' : 'none'),
+                                                                fontWeight: canSelect ? '700' : '500',
+                                                                opacity: isPast ? 0.4 : 1
                                                             }}
                                                         >
                                                             {d}
@@ -401,11 +426,11 @@ const ChannelDoctor = () => {
                                                 </div>
                                                 <div style={styles.billingRow}>
                                                     <span>Service Charge</span>
-                                                    <span>LKR 200</span>
+                                                    <span>LKR {Number(doctor.center_fee || 600).toLocaleString()}</span>
                                                 </div>
                                                 <div style={styles.billingTotal}>
                                                     <span>Total Payable</span>
-                                                    <span>LKR {(Number(doctor.doctor_fee) + 200).toLocaleString()}</span>
+                                                    <span>LKR {(Number(doctor.doctor_fee) + Number(doctor.center_fee || 600)).toLocaleString()}</span>
                                                 </div>
                                             </div>
 
@@ -422,13 +447,23 @@ const ChannelDoctor = () => {
 
                                         <div style={styles.cardFooter}>
                                             <button onClick={() => setStep(2)} style={styles.secondaryBtn}>Back</button>
-                                            <button 
-                                                onClick={handleConfirmBooking} 
-                                                disabled={!policyAgreed || isLoading} 
-                                                style={{...styles.primaryBtn, filter: !policyAgreed ? 'grayscale(1)' : 'none'}}
-                                            >
-                                                {isLoading ? 'Processing...' : 'Confirm Appointment'}
-                                            </button>
+                                            <div style={{ display: 'flex', gap: '12px' }}>
+                                                <button 
+                                                    onClick={() => handleConfirmBooking(true)} 
+                                                    disabled={!policyAgreed || isLoading} 
+                                                    style={{...styles.primaryBtn, filter: !policyAgreed ? 'grayscale(1)' : 'none'}}
+                                                >
+                                                    <FiCreditCard style={{ marginRight: '8px' }} />
+                                                    {isLoading ? 'Processing...' : 'Pay Online Now'}
+                                                </button>
+                                                <button 
+                                                    onClick={() => handleConfirmBooking(false)} 
+                                                    disabled={!policyAgreed || isLoading} 
+                                                    style={{...styles.secondaryBtn, border: '1px solid #2563eb', color: '#2563eb', filter: !policyAgreed ? 'grayscale(1)' : 'none'}}
+                                                >
+                                                    {isLoading ? 'Processing...' : 'Pay Later at Clinic'}
+                                                </button>
+                                            </div>
                                         </div>
                                     </motion.div>
                                 )}
@@ -444,7 +479,11 @@ const ChannelDoctor = () => {
                                                 <FiCheckCircle />
                                             </div>
                                             <h2 style={styles.successHeading}>Successfully Booked!</h2>
-                                            <p style={styles.successInfo}>Your appointment has been added to our schedule. We've sent the details to your email.</p>
+                                            <p style={styles.successInfo}>
+                                                {paymentMethod === 'clinic' 
+                                                    ? "Your appointment is confirmed. Please pay the fee at the clinic reception." 
+                                                    : "Your appointment is confirmed. We've sent a confirmation email to your inbox."}
+                                            </p>
                                         </div>
 
                                         <div style={styles.ticketCard}>
@@ -455,7 +494,7 @@ const ChannelDoctor = () => {
                                                 </div>
                                                 <div style={styles.tokenCircle}>
                                                     <p style={styles.tokenLabel}>Token</p>
-                                                    <h3 style={styles.tokenNum}>{confirmedAppointment?.token_number}</h3>
+                                                    <h3 style={styles.tokenNum}>{confirmedAppointment?.appointment_number}</h3>
                                                 </div>
                                             </div>
                                             <div style={styles.ticketBody}>
@@ -468,15 +507,36 @@ const ChannelDoctor = () => {
                                                 <div style={styles.ticketRow}>
                                                     <FiClock /> <span>{selectedTime}</span>
                                                 </div>
+                                                <div style={styles.ticketRow}>
+                                                    <FiCreditCard /> <span>Status: {paymentMethod === 'clinic' ? 'Pay at Clinic' : 'Online Payment'}</span>
+                                                </div>
                                             </div>
                                         </div>
 
                                         <div style={styles.paymentActions}>
-                                            <button onClick={handlePayNow} style={styles.payNowBtn}>
-                                                <FiCreditCard />
-                                                Pay Online Now
-                                            </button>
-                                            <button onClick={() => navigate('/patient/dashboard')} style={styles.payLaterBtn}>
+                                            {paymentMethod === 'online' && (
+                                                <button 
+                                                    onClick={() => navigate('/patient/payment', {
+                                                        state: {
+                                                            paymentData: {
+                                                                appointmentId: confirmedAppointment.appointment_id,
+                                                                doctor: doctor,
+                                                                date: new Date(year, month, selectedDate),
+                                                                time: selectedTime,
+                                                                totalFee: Number(doctor.doctor_fee) + Number(doctor.center_fee || 200)
+                                                            }
+                                                        }
+                                                    })} 
+                                                    style={styles.payNowBtn}
+                                                >
+                                                    <FiCreditCard />
+                                                    Pay Online Now
+                                                </button>
+                                            )}
+                                            <button 
+                                                onClick={() => navigate('/patient/dashboard')} 
+                                                style={paymentMethod === 'online' ? styles.payLaterBtn : styles.primaryBtn}
+                                            >
                                                 <FiHome />
                                                 Return to Dashboard
                                             </button>

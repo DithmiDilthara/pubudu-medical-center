@@ -32,7 +32,7 @@ function DoctorHeader({ doctorName }) {
 
         <div style={styles.profileSection} onClick={() => navigate('/profile')}>
           <div style={styles.profileDetails}>
-            <p style={styles.profileName}>Dr. {displayName}</p>
+            <p style={styles.profileName}>{displayName}</p>
             <p style={styles.doctorId}>ID: #PMC-DR-{doctorId}</p>
           </div>
           <div style={styles.avatar}>

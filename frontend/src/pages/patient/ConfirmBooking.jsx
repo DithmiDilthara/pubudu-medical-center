@@ -51,7 +51,7 @@ function ConfirmBooking() {
   const { doctor, date, time } = appointmentData;
   const doctorId = doctor.doctor_id || doctor.id;
 
-  const totalFee = Number(doctor?.doctor_fee || 0) + 200;
+  const totalFee = Number(doctor?.doctor_fee || 0) + Number(doctor?.center_fee || 600);
 
   const handlePayNow = async () => {
     setIsLoading(true);
@@ -64,7 +64,8 @@ function ConfirmBooking() {
         doctor_id: doctorId,
         appointment_date: localDate,
         time_slot: time,
-        notes: notes
+        notes: notes,
+        skipNotification: true
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -75,7 +76,8 @@ function ConfirmBooking() {
           state: {
             paymentData: {
               appointmentId: response.data.data.appointment_id,
-              doctor, date, time, totalFee, notes
+              doctor, date, time, totalFee, notes,
+              paymentStatus: response.data.data.payment_status
             }
           }
         });
@@ -192,7 +194,7 @@ function ConfirmBooking() {
                         </div>
                         <div style={styles.billRow}>
                             <span>Service Charge</span>
-                            <span>LKR 200.00</span>
+                            <span>LKR {Number(doctor?.center_fee || 600).toLocaleString()}.00</span>
                         </div>
                         <div style={styles.billDivider} />
                         <div style={styles.totalRow}>

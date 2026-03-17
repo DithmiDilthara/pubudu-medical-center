@@ -20,7 +20,8 @@ import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-hot-toast';
 
 const ManageDoctors = () => {
-  const { api } = useAuth();
+  const { api, user } = useAuth();
+  const adminName = user?.username || 'Admin';
   const navigate = useNavigate();
   
   // State
@@ -116,8 +117,6 @@ const ManageDoctors = () => {
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-LK', {
-      style: 'currency',
-      currency: 'LKR',
       minimumFractionDigits: 0
     }).format(amount);
   };
@@ -135,7 +134,7 @@ const ManageDoctors = () => {
     <div style={styles.container}>
       <AdminSidebar />
       <div className="main-wrapper">
-        <AdminHeader title="Manage Doctors" />
+        <AdminHeader adminName={adminName} />
 
         <motion.main 
           className="content-padding"
@@ -143,6 +142,11 @@ const ManageDoctors = () => {
           initial="hidden"
           animate="visible"
         >
+          {/* Header Title - Personalized Welcome */}
+          <div style={styles.headerTitleSection}>
+            <h1 style={styles.pageTitle}>Welcome back, {adminName}! 👋</h1>
+            <p style={styles.pageSubtitle}>Manage your medical professional team and specializations.</p>
+          </div>
           {/* Toolbar */}
           <div style={styles.toolbar}>
             <div style={styles.toolbarContent}>
@@ -212,8 +216,7 @@ const ManageDoctors = () => {
                       <th style={styles.th}>Doctor</th>
                       <th style={styles.th}>Specialization</th>
                       <th style={styles.th}>Contact</th>
-                      <th style={styles.th}>Fee</th>
-                      <th style={styles.th}>Status</th>
+                      <th style={styles.th}>Fee (LKR)</th>
                       <th style={styles.th}>Actions</th>
                     </tr>
                   </thead>
@@ -223,8 +226,15 @@ const ManageDoctors = () => {
                         key={doctor.doctor_id} 
                         initial={{ opacity: 0, x: -10 }}
                         animate={{ opacity: 1, x: 0 }}
+                        whileHover={{ 
+                          scale: 1.01,
+                          backgroundColor: '#f8fafc',
+                          boxShadow: '0 0 0 2px #2563eb, 0 12px 20px -5px rgba(37, 99, 235, 0.2)',
+                          zIndex: 10,
+                          borderRadius: '8px'
+                        }}
                         transition={{ delay: idx * 0.05 }}
-                        style={styles.tr}
+                        style={{...styles.tr, position: 'relative'}}
                       >
                         <td style={styles.td}>
                           <div style={styles.doctorInfo}>
@@ -233,7 +243,6 @@ const ManageDoctors = () => {
                             </div>
                             <div>
                               <p style={styles.doctorName}>{doctor.full_name}</p>
-                              <p style={styles.joinDate}>Joined Mar 2024</p>
                             </div>
                           </div>
                         </td>
@@ -247,16 +256,7 @@ const ManageDoctors = () => {
                           </div>
                         </td>
                         <td style={styles.td}>
-                          <span style={styles.feeText}>{formatCurrency(doctor.doctor_fee || 0)}</span>
-                        </td>
-                        <td style={styles.td}>
-                          <div style={{
-                            ...styles.statusBadge,
-                            backgroundColor: doctor.user?.is_active ? '#ecfdf5' : '#fff1f2',
-                            color: doctor.user?.is_active ? '#10b981' : '#e11d48'
-                          }}>
-                            {doctor.user?.is_active ? 'Active' : 'Inactive'}
-                          </div>
+                          <span style={styles.feeText}>{formatCurrency((Number(doctor.doctor_fee) || 0) + (Number(doctor.center_fee) || 0))}</span>
                         </td>
                         <td style={styles.td}>
                           <div style={styles.actions}>
@@ -308,7 +308,7 @@ const ManageDoctors = () => {
         onClose={() => setShowDeleteConfirm(false)}
         onConfirm={handleDelete}
         title="Delete Doctor"
-        message={`Are you sure you want to delete Dr. ${doctorToDelete?.full_name}? This action will permanently remove their account.`}
+        message={`Are you sure you want to delete ${doctorToDelete?.full_name}? This action will permanently remove their account.`}
         confirmLabel="Remove Doctor"
         type="danger"
       />
@@ -417,11 +417,11 @@ const styles = {
     padding: '20px 24px',
     backgroundColor: '#f8fafc',
     fontSize: '12px',
-    fontWeight: '700',
-    color: '#64748b',
+    fontWeight: '800', // Making it even bolder
+    color: '#0f172a', // Darker for more emphasis
     textTransform: 'uppercase',
-    letterSpacing: '1px',
-    borderBottom: '1px solid #f1f5f9'
+    letterSpacing: '1.2px',
+    borderBottom: '2px solid #e2e8f0'
   },
   tr: {
     borderBottom: '1px solid #f1f5f9',
@@ -468,8 +468,9 @@ const styles = {
     borderRadius: '10px',
     fontSize: '13px',
     fontWeight: '600',
-    backgroundColor: '#f1f5f9',
-    color: '#475569'
+    background: "linear-gradient(135deg, #10b981 0%, #059669 100%)",
+    color: 'white',
+    boxShadow: '0 2px 4px rgba(16, 185, 129, 0.1)'
   },
   contactInfo: {
     display: 'flex',
@@ -562,6 +563,24 @@ const styles = {
     fontSize: '48px',
     color: '#cbd5e1',
     marginBottom: '16px'
+  },
+  headerTitleSection: {
+    marginBottom: "32px",
+  },
+  pageTitle: {
+    fontSize: "28px",
+    fontWeight: "800",
+    color: "#0f172a",
+    margin: "0 0 4px 0",
+    letterSpacing: "-0.5px",
+    fontFamily: "var(--font-accent)",
+  },
+  pageSubtitle: {
+    fontSize: "16px",
+    color: "#64748b",
+    margin: 0,
+    fontWeight: "500",
+    fontFamily: "var(--font-main)",
   },
   resetBtn: {
     marginTop: '20px',

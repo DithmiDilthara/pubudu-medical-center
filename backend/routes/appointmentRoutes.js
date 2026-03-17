@@ -1,5 +1,5 @@
 import express from 'express';
-import { createAppointment, cancelAppointment, getAppointments, updateStatus, getNextNumber, cancelDoctorSession } from '../controllers/appointmentController.js';
+import { createAppointment, cancelAppointment, getAppointments, updateStatus, getNextNumber, cancelDoctorSession, rescheduleAppointment } from '../controllers/appointmentController.js';
 import { protect } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
@@ -11,6 +11,7 @@ router.get('/', getAppointments);
 router.get('/next-number', getNextNumber);
 router.put('/cancel-session', cancelDoctorSession);
 router.put('/:id/cancel', cancelAppointment);
+router.put('/:id/reschedule', rescheduleAppointment);
 router.put('/:id/status', updateStatus);
 
 export default router;

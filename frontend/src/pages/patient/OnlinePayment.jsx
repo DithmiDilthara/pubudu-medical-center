@@ -151,11 +151,11 @@ function OnlinePayment() {
                         <h3 style={styles.cardHeader}>Payment Breakdown</h3>
                         <div style={styles.billRow}>
                             <span>Consultation Fee</span>
-                            <span>LKR {Number(doctor.doctor_fee).toLocaleString()}</span>
+                            <span>LKR {Number(doctor.doctor_fee || 0).toLocaleString()}</span>
                         </div>
                         <div style={styles.billRow}>
                             <span>Center Service Charge</span>
-                            <span>LKR 200.00</span>
+                            <span>LKR {Number(doctor.center_fee || 600).toLocaleString()}</span>
                         </div>
                         <div style={styles.billDivider} />
                         <div style={styles.totalRow}>
@@ -198,7 +198,7 @@ function OnlinePayment() {
 
                     <div style={styles.noticeBox}>
                         <FiAlertTriangle style={styles.alertIcon} />
-                        <span>A non-refundable service fee of LKR 200 is applied to all online bookings.</span>
+                        <span>A non-refundable service fee of LKR 600 is applied to all online bookings.</span>
                     </div>
                 </div>
             </div>

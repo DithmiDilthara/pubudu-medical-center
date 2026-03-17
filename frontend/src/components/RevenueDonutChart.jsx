@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   PieChart, 
   Pie, 
@@ -7,18 +7,36 @@ import {
   Tooltip 
 } from 'recharts';
 
-const data = [
-  { name: 'Consultations', value: 245000 },
-  { name: 'Laboratories', value: 120000 },
-  { name: 'Pharmacy', value: 54000 },
-  { name: 'Emergencies', value: 22000 },
-];
 
 const COLORS = ['#2563eb', '#3b82f6', '#60a5fa', '#93c5fd'];
 
 function RevenueDonutChart() {
   const [activeTab, setActiveTab] = useState('Weekly');
-  const tabs = ['Daily', 'Weekly', 'Yearly'];
+  const [data, setData] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const tabs = ['Daily', 'Weekly', 'Monthly'];
+
+  useEffect(() => {
+    const fetchRevenue = async () => {
+      setIsLoading(true);
+      try {
+        const token = localStorage.getItem('token');
+        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+        const response = await fetch(`${apiUrl}/admin/dashboard-data?period=${activeTab}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const result = await response.json();
+        if (result.success && result.data.revenueByDoctor) {
+          setData(result.data.revenueByDoctor);
+        }
+      } catch (error) {
+        console.error("Error fetching revenue data:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchRevenue();
+  }, [activeTab]);
 
   const totalRevenue = data.reduce((acc, curr) => acc + curr.value, 0);
 
@@ -28,7 +46,7 @@ function RevenueDonutChart() {
 
   return (
     <div style={styles.chartCard}>
-      <h3 style={styles.cardTitle}>Revenue Overview</h3>
+      <h3 style={styles.cardTitle}>Revenue by Doctor</h3>
       
       <div style={styles.tabsContainer}>
         {tabs.map(tab => (
@@ -46,34 +64,45 @@ function RevenueDonutChart() {
       </div>
 
       <div style={styles.chartWrapper}>
-        <ResponsiveContainer width="100%" height={220}>
-          <PieChart>
-            <Pie
-              data={data}
-              cx="50%"
-              cy="50%"
-              innerRadius={55}
-              outerRadius={85}
-              paddingAngle={3}
-              dataKey="value"
-              animationDuration={1500}
-            >
-              {data.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} cornerRadius={4} />
-              ))}
-            </Pie>
-            <Tooltip 
-              formatter={(value) => formatCurrency(value)}
-              contentStyle={styles.tooltip}
-            />
-          </PieChart>
-        </ResponsiveContainer>
+        {isLoading ? (
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '220px', width: '100%', color: '#64748b', fontSize: '13px' }}>
+            Updating...
+          </div>
+        ) : data.length === 0 ? (
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '220px', width: '100%', color: '#64748b', fontSize: '13px', textAlign: 'center', padding: '0 20px' }}>
+            No revenue in this period
+          </div>
+        ) : (
+          <ResponsiveContainer width="100%" height={220}>
+            <PieChart>
+              <Pie
+                data={data}
+                cx="50%"
+                cy="50%"
+                innerRadius={55}
+                outerRadius={85}
+                paddingAngle={3}
+                dataKey="value"
+                animationDuration={1500}
+              >
+                {data.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} cornerRadius={4} />
+                ))}
+              </Pie>
+              <Tooltip 
+                formatter={(value) => formatCurrency(value)}
+                contentStyle={styles.tooltip}
+              />
+            </PieChart>
+          </ResponsiveContainer>
+        )}
         
-        {/* Center Label */}
-        <div style={styles.centerLabel}>
-          <p style={styles.centerLabelText}>Total</p>
-          <p style={styles.centerLabelValue}>{formatCurrency(totalRevenue)}</p>
-        </div>
+        {!isLoading && data.length > 0 && (
+          <div style={styles.centerLabel}>
+            <p style={styles.centerLabelText}>Total</p>
+            <p style={styles.centerLabelValue}>{formatCurrency(totalRevenue)}</p>
+          </div>
+        )}
       </div>
 
       <div style={styles.legendContainer}>
@@ -107,6 +136,7 @@ const styles = {
     fontWeight: "700",
     color: "#0f172a",
     margin: 0,
+    fontFamily: "var(--font-accent)",
   },
   tabsContainer: {
     display: "flex",
@@ -156,6 +186,7 @@ const styles = {
     fontWeight: "800",
     color: "#0f172a",
     margin: 0,
+    fontFamily: "var(--font-accent)",
   },
   legendContainer: {
     display: "flex",

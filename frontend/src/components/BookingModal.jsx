@@ -3,6 +3,7 @@ import axios from "axios";
 import { FiX, FiCalendar, FiClock, FiChevronLeft, FiChevronRight } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
+import ConfirmDialog from "./ConfirmDialog";
 
 const BookingModal = ({ isOpen, onClose, appointment, onUpdate }) => {
     const [selectedDate, setSelectedDate] = useState(null);
@@ -64,22 +65,26 @@ const BookingModal = ({ isOpen, onClose, appointment, onUpdate }) => {
         }
     };
 
+    const [showConfirm, setShowConfirm] = useState(false);
+
     const handleReschedule = async () => {
         if (!selectedDate || !selectedTime) {
             toast.error("Please select a date and time");
             return;
         }
+        setShowConfirm(true);
+    };
 
+    const confirmReschedule = async () => {
         setIsProcessing(true);
         const toastId = toast.loading("Rescheduling appointment...");
         try {
             const token = localStorage.getItem('token');
             const formattedDate = selectedDate.toISOString().split('T')[0];
             
-            const response = await axios.put(`${API_URL}/appointments/${appointment.appointment_id}/status`, {
+            const response = await axios.put(`${API_URL}/appointments/${appointment.appointment_id}/reschedule`, {
                 appointment_date: formattedDate,
-                time_slot: selectedTime,
-                status: 'CONFIRMED' // Auto confirm on reschedule by receptionist
+                time_slot: selectedTime
             }, {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -87,6 +92,7 @@ const BookingModal = ({ isOpen, onClose, appointment, onUpdate }) => {
             if (response.data.success) {
                 toast.success("Appointment rescheduled successfully!", { id: toastId });
                 onUpdate();
+                setShowConfirm(false);
                 onClose();
             }
         } catch (error) {
@@ -231,6 +237,17 @@ const BookingModal = ({ isOpen, onClose, appointment, onUpdate }) => {
                     </button>
                 </div>
             </motion.div>
+            
+            <ConfirmDialog 
+                isOpen={showConfirm}
+                onClose={() => setShowConfirm(false)}
+                onConfirm={confirmReschedule}
+                title="Confirm Reschedule"
+                message={`Are you sure you want to reschedule ${appointment?.patient?.full_name}'s appointment to ${selectedDate?.toLocaleDateString()} at ${selectedTime}?`}
+                confirmLabel="Confirm Reschedule"
+                cancelLabel="Go Back"
+                type="warning"
+            />
         </div>
     );
 };

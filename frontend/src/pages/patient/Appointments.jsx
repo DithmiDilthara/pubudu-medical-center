@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import PatientSidebar from "../../components/PatientSidebar";
 import PatientHeader from "../../components/PatientHeader";
 import AppointmentCard from "../../components/AppointmentCard";
+import CancelAppointmentModal from "../../components/CancelAppointmentModal";
 import axios from 'axios';
 import toast from 'react-hot-toast';
 
@@ -13,6 +14,11 @@ function Appointments() {
   const [appointments, setAppointments] = useState([]);
   const [activeTab, setActiveTab] = useState('Upcoming');
   const [loading, setLoading] = useState(true);
+
+  // Cancellation Modal State
+  const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+  const [apptToCancel, setApptToCancel] = useState(null);
+  const [isCancelling, setIsCancelling] = useState(false);
 
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
@@ -40,18 +46,29 @@ function Appointments() {
     navigate("/");
   };
 
-  const handleCancelAppointment = async (id) => {
+  const handleCancelClick = (appointmentId) => {
+    setApptToCancel(appointmentId);
+    setIsCancelModalOpen(true);
+  };
+
+  const confirmCancel = async () => {
+    if (!apptToCancel) return;
+    setIsCancelling(true);
     const toastId = toast.loading("Processing cancellation...");
     try {
       const token = localStorage.getItem('token');
-      await axios.put(`${API_URL}/appointments/${id}/status`,
+      await axios.put(`${API_URL}/appointments/${apptToCancel}/status`,
         { status: 'CANCELLED' },
         { headers: { Authorization: `Bearer ${token}` } });
 
-      setAppointments(prev => prev.map(a => a.appointment_id === id ? { ...a, status: 'CANCELLED' } : a));
+      setAppointments(prev => prev.map(a => a.appointment_id === apptToCancel ? { ...a, status: 'CANCELLED' } : a));
       toast.success("Appointment cancelled", { id: toastId });
     } catch (error) {
       toast.error("Cancellation failed", { id: toastId });
+    } finally {
+      setIsCancelling(false);
+      setIsCancelModalOpen(false);
+      setApptToCancel(null);
     }
   };
 
@@ -144,7 +161,7 @@ function Appointments() {
                         <AppointmentCard 
                             appt={apt} 
                             variant="grid"
-                            onCancel={handleCancelAppointment}
+                            onCancel={handleCancelClick}
                             onReschedule={() => navigate('/patient/find-doctor')}
                             onViewDetails={(a) => {
                                 if (a.status === 'COMPLETED') {
@@ -172,6 +189,14 @@ function Appointments() {
           </div>
         </main>
       </div>
+
+      <CancelAppointmentModal 
+        isOpen={isCancelModalOpen}
+        onClose={() => setIsCancelModalOpen(false)}
+        onConfirm={confirmCancel}
+        appointmentId={apptToCancel}
+        isLoading={isCancelling}
+      />
     </div>
   );
 }

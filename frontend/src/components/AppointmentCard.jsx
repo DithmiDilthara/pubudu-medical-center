@@ -218,12 +218,14 @@ const styles = {
     fontWeight: '700',
     color: '#0f172a',
     margin: 0,
+    fontFamily: 'var(--font-accent)',
   },
   specialty: {
     fontSize: '13px',
     color: '#2563eb',
     margin: '2px 0 0 0',
     fontWeight: '600',
+    fontFamily: 'var(--font-main)',
   },
   statusBadge: {
     padding: '4px 12px',
@@ -231,7 +233,8 @@ const styles = {
     fontSize: '11px',
     fontWeight: '800',
     textTransform: 'uppercase',
-    letterSpacing: '0.5px'
+    letterSpacing: '0.5px',
+    fontFamily: 'var(--font-accent)',
   },
   menuContainer: {
     position: 'relative'
@@ -301,13 +304,15 @@ const styles = {
     fontWeight: '700',
     color: '#94a3b8',
     textTransform: 'uppercase',
-    margin: 0
+    margin: 0,
+    fontFamily: 'var(--font-main)',
   },
   detVal: {
     fontSize: '14px',
     fontWeight: '700',
     color: '#1e293b',
-    margin: 0
+    margin: 0,
+    fontFamily: 'var(--font-accent)',
   },
   cardFooter: {
     display: 'flex',

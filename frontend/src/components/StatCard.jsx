@@ -1,14 +1,23 @@
 import { motion } from "framer-motion";
 
 function StatCard({ icon: Icon, label, value, color = "#2563eb", delay = 0 }) {
+  const gradients = {
+    "#2563eb": "linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)",
+    "#10b981": "linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)",
+    "#f59e0b": "linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)",
+    "#ef4444": "linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%)",
+  };
+
+  const bgGradient = gradients[color] || `linear-gradient(135deg, ${color}10 0%, ${color}20 100%)`;
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay: delay, ease: "easeOut" }}
-      style={styles.card}
+      style={{ ...styles.card, background: bgGradient }}
     >
-      <div style={{ ...styles.iconContainer, backgroundColor: `${color}10` }}>
+      <div style={{ ...styles.iconContainer, backgroundColor: "white", boxShadow: "0 4px 6px -1px rgba(0,0,0,0.05)" }}>
         <Icon style={{ ...styles.icon, color: color }} />
       </div>
       <div style={styles.content}>
@@ -53,6 +62,7 @@ const styles = {
     fontWeight: "600",
     color: "#64748b",
     margin: 0,
+    fontFamily: "var(--font-main)",
   },
   value: {
     fontSize: "28px",
@@ -60,6 +70,7 @@ const styles = {
     color: "#0f172a",
     margin: 0,
     letterSpacing: "-0.5px",
+    fontFamily: "var(--font-accent)",
   },
 };
 

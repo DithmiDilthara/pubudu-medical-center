@@ -11,7 +11,8 @@ import {
   getSystemStats,
   getRevenueReport,
   getPatientRegistrationReport,
-  getAppointmentReport
+  getAppointmentReport,
+  getDashboardData
 } from '../controllers/adminController.js';
 import { protect } from '../middleware/authMiddleware.js';
 import { isAdmin } from '../middleware/roleMiddleware.js';
@@ -39,5 +40,6 @@ router.get('/stats', getSystemStats);
 router.get('/reports/revenue', getRevenueReport);
 router.get('/reports/patients', getPatientRegistrationReport);
 router.get('/reports/appointments', getAppointmentReport);
+router.get('/dashboard-data', getDashboardData);
 
 export default router;

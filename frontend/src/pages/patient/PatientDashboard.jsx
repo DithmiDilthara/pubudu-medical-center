@@ -11,6 +11,9 @@ import PatientSidebar from "../../components/PatientSidebar";
 import PatientHeader from "../../components/PatientHeader";
 import HeroCarousel from "../../components/HeroCarousel";
 import AppointmentCarousel from "../../components/AppointmentCarousel";
+import CancelAppointmentModal from "../../components/CancelAppointmentModal";
+import { useAuth } from "../../context/AuthContext";
+import toast from 'react-hot-toast';
 
 function MiniCalendar({ highlightedDates, onDateClick }) {
   const today = new Date();
@@ -72,43 +75,113 @@ function MiniCalendar({ highlightedDates, onDateClick }) {
 
 function PatientDashboard() {
   const navigate = useNavigate();
+  const { user: authUser } = useAuth();
   const [upcomingAppointments, setUpcomingAppointments] = useState([]);
+  const [stats, setStats] = useState({ historyCount: 0, pendingPayments: 0 });
+  const [patientId, setPatientId] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+  const [apptToCancel, setApptToCancel] = useState(null);
+  const [isCancelling, setIsCancelling] = useState(false);
 
-  const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
-  const patientName = storedUser.full_name?.split(' ')[0] || storedUser.username || 'Patient';
+  const patientName = authUser?.profile?.full_name?.split(' ')[0] || authUser?.username || 'Patient';
 
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
   useEffect(() => {
-    const fetchAppointments = async () => {
+    const fetchDashboardData = async () => {
       try {
         const token = localStorage.getItem('token');
-        const response = await axios.get(`${API_URL}/appointments`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        if (response.data.success) {
-          const allApts = response.data.data;
+        const headers = { Authorization: `Bearer ${token}` };
 
-          const todayStr = new Date().toISOString().split('T')[0];
+        // 1. Fetch Appointments first to get payment status etc.
+        const aptResponse = await axios.get(`${API_URL}/appointments`, { headers });
+        let allApts = [];
+        if (aptResponse.data.success) {
+          allApts = aptResponse.data.data;
+          
+          const now = new Date();
+          const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
           const upcoming = allApts
             .filter(apt => ['PENDING', 'CONFIRMED'].includes(apt.status) && apt.appointment_date >= todayStr)
             .sort((a, b) => new Date(a.appointment_date) - new Date(b.appointment_date));
           setUpcomingAppointments(upcoming);
+
+          const pending = allApts.filter(a => a.payment_status === 'UNPAID' && a.status !== 'CANCELLED').length;
+          setStats(prev => ({ ...prev, pendingPayments: pending }));
         }
+
+        // 2. Resolve Patient ID
+        let pId = authUser?.profile?.patient_id;
+        
+        if (!pId) {
+            // Fallback: fetch profile from server if not in context
+            const pResponse = await axios.get(`${API_URL}/auth/profile`, { headers });
+            if (pResponse.data.success) {
+                pId = pResponse.data.data.profile?.patient_id;
+            }
+        }
+
+        if (pId) {
+            setPatientId(pId);
+            // 3. Fetch Medical Records Count
+            const historyResponse = await axios.get(`${API_URL}/clinical/history/${pId}`, { headers });
+            if (historyResponse.data.success) {
+                setStats(prev => ({ ...prev, historyCount: historyResponse.data.data.length }));
+            }
+        }
+
       } catch (error) {
-        console.error("Error fetching appointments:", error);
+        console.error("Error fetching dashboard data:", error);
       } finally {
         setLoading(false);
       }
     };
-    fetchAppointments();
-  }, [API_URL]);
+    fetchDashboardData();
+  }, [API_URL, authUser]);
 
   const handleLogout = () => {
     localStorage.clear();
     navigate('/');
+  };
+
+  const handleCancelClick = (appointmentId) => {
+    console.log("Cancelling appointment:", appointmentId);
+    setApptToCancel(appointmentId);
+    setIsCancelModalOpen(true);
+  };
+
+  const confirmCancel = async () => {
+    if (!apptToCancel) return;
+    setIsCancelling(true);
+    const toastId = toast.loading("Cancelling appointment...");
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.put(`${API_URL}/appointments/${apptToCancel}/cancel`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (response.data.success) {
+        toast.success("Appointment cancelled successfully!", { id: toastId });
+        
+        // Find if the cancelled appointment was unpaid to update stats
+        const cancelledApt = upcomingAppointments.find(a => a.appointment_id === apptToCancel);
+        const wasUnpaid = cancelledApt?.payment_status === 'UNPAID';
+
+        setUpcomingAppointments(prev => prev.filter(a => a.appointment_id !== apptToCancel));
+        setStats(prev => ({ 
+          ...prev, 
+          upcomingCount: Math.max(0, prev.upcomingCount - 1),
+          pendingPayments: wasUnpaid ? Math.max(0, prev.pendingPayments - 1) : prev.pendingPayments
+        }));
+      }
+    } catch (error) {
+      toast.error("Failed to cancel appointment", { id: toastId });
+    } finally {
+      setIsCancelling(false);
+      setIsCancelModalOpen(false);
+      setApptToCancel(null);
+    }
   };
 
   const containerVariants = {
@@ -164,7 +237,7 @@ function PatientDashboard() {
               <Link to="/patient/medical-history" style={{ ...styles.statsCard, backgroundColor: "#f0fdf4", border: "1px solid #dcfce7", textDecoration: 'none' }}>
                 <div style={styles.statsInfo}>
                   <p style={{ ...styles.statsLabel, color: "#10b981" }}>Medical History</p>
-                  <h3 style={{ ...styles.statsValue, color: "#064e3b" }}>0</h3>
+                  <h3 style={{ ...styles.statsValue, color: "#064e3b" }}>{stats.historyCount}</h3>
                 </div>
                 <div style={{ ...styles.statsIconBox, backgroundColor: "#dcfce7", color: "#10b981" }}>
                   <FiClipboard />
@@ -174,7 +247,7 @@ function PatientDashboard() {
               <Link to="/patient/payments" style={{ ...styles.statsCard, backgroundColor: "#fdf2f8", border: "1px solid #fce7f3", textDecoration: 'none' }}>
                 <div style={styles.statsInfo}>
                   <p style={{ ...styles.statsLabel, color: "#db2777" }}>Pending Payments</p>
-                  <h3 style={{ ...styles.statsValue, color: "#831843" }}>0</h3>
+                  <h3 style={{ ...styles.statsValue, color: "#831843" }}>{stats.pendingPayments}</h3>
                 </div>
                 <div style={{ ...styles.statsIconBox, backgroundColor: "#fce7f3", color: "#db2777" }}>
                   <FiCreditCard />
@@ -213,6 +286,7 @@ function PatientDashboard() {
                   <AppointmentCarousel 
                     appointments={upcomingAppointments} 
                     onManageClick={() => navigate('/patient/appointments')}
+                    onCancel={handleCancelClick}
                   />
                 </motion.div>
               </div>
@@ -239,6 +313,14 @@ function PatientDashboard() {
           </motion.div>
         </main>
       </div>
+
+      <CancelAppointmentModal 
+        isOpen={isCancelModalOpen}
+        onClose={() => setIsCancelModalOpen(false)}
+        onConfirm={confirmCancel}
+        appointmentId={apptToCancel}
+        isLoading={isCancelling}
+      />
     </div>
   );
 }

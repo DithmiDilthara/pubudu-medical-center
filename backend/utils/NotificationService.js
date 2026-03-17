@@ -75,7 +75,7 @@ class NotificationService {
     }
 
     static async sendAppointmentConfirmation(patientEmail, patientPhone, appointmentDetails) {
-        const { doctorName, date, time, patientName, appointmentNumber } = appointmentDetails;
+        const { doctorName, date, time, patientName, appointmentNumber, paymentStatus } = appointmentDetails;
 
         // 1. Send Email
         const mailOptions = {
@@ -92,6 +92,7 @@ class NotificationService {
             <p><strong>Date:</strong> ${date}</p>
             <p><strong>Time:</strong> ${time}</p>
             <p><strong>Appointment Number:</strong> ${appointmentNumber || 'N/A'}</p>
+            <p><strong>Payment Status:</strong> <span style="color: ${paymentStatus === 'PAID' ? '#059669' : '#DC2626'}; fontWeight: bold;">${paymentStatus || 'Pending'}</span></p>
           </div>
           <p>Please arrive 15 minutes early. If you need to cancel, please contact us at least 24 hours in advance.</p>
           <p>Regards,<br/>Team Pubudu Medical Center</p>
@@ -110,7 +111,7 @@ class NotificationService {
 
         // 2. Send SMS
         if (patientPhone) {
-            const smsMessage = `Pubudu MC: Dear ${patientName}, your appointment with ${doctorName} on ${date} at ${time} is confirmed. Appt No: ${appointmentNumber}. Please arrive 15 mins early.`;
+            const smsMessage = `Pubudu MC: Dear ${patientName}, your appointment with ${doctorName} on ${date} at ${time} is confirmed. Appt No: ${appointmentNumber}. Payment: ${paymentStatus || 'Pending'}. Please arrive 15 mins early.`;
             await this.sendSMS(patientPhone, smsMessage);
         }
     }
@@ -138,18 +139,23 @@ class NotificationService {
                 const mailOptions = {
                     from: `"Pubudu Medical Center" <${process.env.EMAIL_USER}>`,
                     to: patientEmail,
-                    subject: 'Payment Successful & Receipt - Pubudu Medical Center',
+                    subject: 'Payment Successful & Appointment Confirmed - Pubudu Medical Center',
                     html: `
                         <div style="font-family: sans-serif; padding: 20px; color: #333;">
-                            <h2 style="color: #0066CC;">Payment Received</h2>
+                            <h2 style="color: #059669;">Payment Successful & Appointment Confirmed</h2>
                             <p>Dear ${patientName},</p>
-                            <p>Thank you for your payment of <strong>LKR ${amount}</strong> for your appointment at Pubudu Medical Center.</p>
-                            <p>Your payment has been successfully processed. Please find your official receipt attached to this email as a PDF.</p>
+                            <p>Your payment of <strong>LKR ${amount}</strong> has been received, and your appointment with <strong>${doctorName}</strong> has been successfully confirmed.</p>
+                            
                             <div style="background: #f4f4f4; padding: 15px; border-radius: 8px; margin: 20px 0;">
-                                <p><strong>Appointment ID:</strong> #${appointmentId}</p>
+                                <p><strong>Doctor:</strong> ${doctorName}</p>
+                                <p><strong>Date:</strong> ${date}</p>
+                                <p><strong>Time:</strong> ${time}</p>
+                                <p><strong>Appointment Number:</strong> ${appointmentNumber || 'N/A'}</p>
                                 <p><strong>Transaction ID:</strong> ${transactionId || 'N/A'}</p>
                             </div>
-                            <p>We look forward to seeing you.</p>
+
+                            <p>Please find your official receipt attached to this email as a PDF.</p>
+                            <p>We look forward to seeing you. Please arrive 15 minutes before your scheduled time.</p>
                             <p>Regards,<br/>Team Pubudu Medical Center</p>
                         </div>
                     `,
@@ -163,7 +169,7 @@ class NotificationService {
 
                 if (transporter) {
                     await transporter.sendMail(mailOptions);
-                    console.log(`Payment success email with receipt sent to ${patientEmail}`);
+                    console.log(`Payment success & confirmation email sent to ${patientEmail}`);
                 }
             } catch (error) {
                 console.error('Error sending payment success email:', error);
@@ -172,7 +178,7 @@ class NotificationService {
 
         // 2. Send SMS
         if (patientPhone) {
-            const smsMessage = `Pubudu MC: Dear ${patientName}, your payment of LKR ${amount} for appointment #${appointmentId} was successful. We've emailed your receipt. Thank you!`;
+            const smsMessage = `Pubudu MC: Payment success! Your appt with ${doctorName} on ${date} at ${time} is CONFIRMED. Appt No: ${appointmentNumber}. Receipt emailed. Thank you!`;
             await this.sendSMS(patientPhone, smsMessage);
         }
     }
@@ -208,6 +214,44 @@ class NotificationService {
         // Send SMS
         if (patientPhone) {
             const smsMessage = `Pubudu MC: Dear ${patientName}, your appointment with ${doctorName} on ${date} at ${time} has been CANCELLED. Reason: ${reason || 'Schedule change'}. Please login to reschedule.`;
+            await this.sendSMS(patientPhone, smsMessage);
+        }
+    }
+
+    static async sendRescheduleNotice(patientEmail, patientPhone, appointmentDetails) {
+        const { doctorName, date, time, patientName, appointmentNumber } = appointmentDetails;
+
+        const mailOptions = {
+            from: `"Pubudu Medical Center" <${process.env.EMAIL_USER}>`,
+            to: patientEmail,
+            subject: 'Appointment Rescheduled - Pubudu Medical Center',
+            html: `
+        <div style="font-family: sans-serif; padding: 20px; color: #333;">
+          <h2 style="color: #2563eb;">Appointment Rescheduled</h2>
+          <p>Dear ${patientName},</p>
+          <p>Your appointment has been successfully rescheduled at Pubudu Medical Center.</p>
+          <div style="background: #f4f4f4; padding: 15px; border-radius: 8px; margin: 20px 0;">
+            <p><strong>Doctor:</strong> ${doctorName}</p>
+            <p><strong>New Date:</strong> ${date}</p>
+            <p><strong>New Time:</strong> ${time}</p>
+            <p><strong>Appointment Number:</strong> ${appointmentNumber || 'N/A'}</p>
+          </div>
+          <p>Please arrive 15 minutes before your new schedule. Regards,<br/>Team Pubudu Medical Center</p>
+        </div>
+      `
+        };
+
+        try {
+            if (transporter && patientEmail) {
+                await transporter.sendMail(mailOptions);
+                console.log(`Reschedule email sent to ${patientEmail}`);
+            }
+        } catch (error) {
+            console.warn('Email delivery failed:', error.message);
+        }
+
+        if (patientPhone) {
+            const smsMessage = `Pubudu MC: Dear ${patientName}, your appointment with ${doctorName} has been rescheduled to ${date} at ${time}. Appt No: ${appointmentNumber}. See you then!`;
             await this.sendSMS(patientPhone, smsMessage);
         }
     }

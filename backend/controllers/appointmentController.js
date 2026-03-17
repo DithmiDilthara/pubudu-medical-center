@@ -9,7 +9,7 @@ import { Op } from 'sequelize';
  */
 export const createAppointment = async (req, res) => {
     try {
-        const { doctor_id, appointment_date, time_slot, patient_id } = req.body;
+        const { doctor_id, appointment_date, time_slot, patient_id, notes, skipNotification } = req.body;
         const currentUser = req.user;
 
         let targetPatientId = patient_id;
@@ -58,24 +58,28 @@ export const createAppointment = async (req, res) => {
             time_slot,
             status: 'PENDING',
             payment_status: 'UNPAID',
-            appointment_number: nextNumber
+            appointment_number: nextNumber,
+            notes: notes || ""
         });
 
         // Send confirmation notification (Async)
-        try {
-            const patient = await Patient.findByPk(targetPatientId, { include: [{ model: User, as: 'user' }] });
-            const doctor = await Doctor.findByPk(doctor_id);
-            if (patient && (patient.user?.email || patient.user?.contact_number)) {
-                NotificationService.sendAppointmentConfirmation(patient.user?.email, patient.user?.contact_number, {
-                    patientName: patient.full_name,
-                    doctorName: doctor.full_name,
-                    date: appointment_date,
-                    time: time_slot,
-                    appointmentNumber: appointment.appointment_number
-                });
+        if (!skipNotification) {
+            try {
+                const patient = await Patient.findByPk(targetPatientId, { include: [{ model: User, as: 'user' }] });
+                const doctor = await Doctor.findByPk(doctor_id);
+                if (patient && (patient.user?.email || patient.user?.contact_number)) {
+                    NotificationService.sendAppointmentConfirmation(patient.user?.email, patient.user?.contact_number, {
+                        patientName: patient.full_name,
+                        doctorName: doctor.full_name,
+                        date: appointment_date,
+                        time: time_slot,
+                        appointmentNumber: appointment.appointment_number,
+                        paymentStatus: appointment.payment_status
+                    });
+                }
+            } catch (notifyError) {
+                console.error('Failed to trigger notification:', notifyError);
             }
-        } catch (notifyError) {
-            console.error('Failed to trigger notification:', notifyError);
         }
 
         res.status(201).json({
@@ -293,6 +297,87 @@ export const cancelDoctorSession = async (req, res) => {
         });
     } catch (error) {
         console.error('Cancel doctor session error:', error);
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+};
+
+/**
+ * @desc    Reschedule an appointment
+ * @route   PUT /api/appointments/:id/reschedule
+ * @access  Private (Receptionist)
+ */
+export const rescheduleAppointment = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { appointment_date, time_slot } = req.body;
+
+        if (!appointment_date || !time_slot) {
+            return res.status(400).json({ success: false, message: 'Date and time slot are required' });
+        }
+
+        const appointment = await Appointment.findByPk(id);
+        if (!appointment) {
+            return res.status(404).json({ success: false, message: 'Appointment not found' });
+        }
+
+        // Check if slot already taken (excluding current appointment)
+        const existingAppointment = await Appointment.findOne({
+            where: {
+                doctor_id: appointment.doctor_id,
+                appointment_date,
+                time_slot,
+                status: { [Op.in]: ['PENDING', 'CONFIRMED'] },
+                appointment_id: { [Op.ne]: id }
+            }
+        });
+
+        if (existingAppointment) {
+            return res.status(400).json({ success: false, message: 'This time slot is already booked' });
+        }
+
+        // Handle appointment number if date changed
+        if (appointment_date !== appointment.appointment_date) {
+            const lastAppointment = await Appointment.findOne({
+                where: {
+                    doctor_id: appointment.doctor_id,
+                    appointment_date,
+                    status: { [Op.ne]: 'CANCELLED' }
+                },
+                order: [['appointment_number', 'DESC']]
+            });
+            appointment.appointment_number = lastAppointment ? (lastAppointment.appointment_number || 0) + 1 : 1;
+        }
+
+        appointment.appointment_date = appointment_date;
+        appointment.time_slot = time_slot;
+        appointment.status = 'CONFIRMED'; // Auto-confirm when rescheduled by staff
+        await appointment.save();
+
+        // Send reschedule notification (Async)
+        try {
+            const patient = await Patient.findByPk(appointment.patient_id, { include: [{ model: User, as: 'user' }] });
+            const doctor = await Doctor.findByPk(appointment.doctor_id);
+            if (patient && (patient.user?.email || patient.user?.contact_number)) {
+                NotificationService.sendRescheduleNotice(patient.user?.email, patient.user?.contact_number, {
+                    patientName: patient.full_name,
+                    doctorName: doctor.full_name,
+                    date: appointment_date,
+                    time: time_slot,
+                    appointmentNumber: appointment.appointment_number
+                });
+            }
+        } catch (notifyError) {
+            console.error('Failed to trigger reschedule notification:', notifyError);
+        }
+
+        res.status(200).json({ 
+            success: true, 
+            message: 'Appointment rescheduled successfully', 
+            data: appointment 
+        });
+
+    } catch (error) {
+        console.error('Reschedule appointment error:', error);
         res.status(500).json({ success: false, message: 'Server error' });
     }
 };

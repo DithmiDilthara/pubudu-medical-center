@@ -138,6 +138,17 @@ function DoctorAppointments() {
     }
   };
 
+  const getStatusStyle = (status) => {
+    switch (status?.toUpperCase()) {
+      case 'CONFIRMED': return { backgroundColor: '#f0fdf4', color: '#10b981', border: '1px solid #dcfce7' };
+      case 'PENDING': return { backgroundColor: '#fffbeb', color: '#f59e0b', border: '1px solid #fef3c7' };
+      case 'RESCHEDULED': return { backgroundColor: '#fff7ed', color: '#f97316', border: '1px solid #ffedd5' };
+      case 'CANCELLED': return { backgroundColor: '#fff1f2', color: '#e11d48', border: '1px solid #ffe4e6' };
+      case 'COMPLETED': return { backgroundColor: '#eff6ff', color: '#2563eb', border: '1px solid #dbeafe' };
+      default: return { backgroundColor: '#f8fafc', color: '#64748b', border: '1px solid #f1f5f9' };
+    }
+  };
+
   const getFilteredAppointments = () => {
     let filtered = appointments.filter(apt => {
         const nameMatch = apt.patient?.full_name?.toLowerCase().includes(searchTerm.toLowerCase());

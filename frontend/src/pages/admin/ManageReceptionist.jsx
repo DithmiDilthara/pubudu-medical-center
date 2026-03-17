@@ -21,14 +21,14 @@ import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-hot-toast';
 
 const ManageReceptionist = () => {
-  const { api } = useAuth();
+  const { api, user } = useAuth();
+  const adminName = user?.username || 'Admin';
   const navigate = useNavigate();
   
   // State
   const [receptionists, setReceptionists] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterShift, setFilterShift] = useState('All');
   
   // Modal States
   const [showModal, setShowModal] = useState(false);
@@ -106,10 +106,9 @@ const ManageReceptionist = () => {
     return receptionists.filter(rec => {
       const matchesSearch = rec.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                            rec.user?.email?.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesFilter = filterShift === 'All' || rec.shift === filterShift;
-      return matchesSearch && matchesFilter;
+      return matchesSearch;
     });
-  }, [receptionists, searchQuery, filterShift]);
+  }, [receptionists, searchQuery]);
 
   const getInitials = (name) => {
     return name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'RP';
@@ -128,7 +127,7 @@ const ManageReceptionist = () => {
     <div style={styles.container}>
       <AdminSidebar />
       <div className="main-wrapper">
-        <AdminHeader title="Manage Receptionists" />
+        <AdminHeader adminName={adminName} />
 
         <motion.main 
           className="content-padding"
@@ -136,6 +135,11 @@ const ManageReceptionist = () => {
           initial="hidden"
           animate="visible"
         >
+          {/* Header Title - Personalized Welcome */}
+          <div style={styles.headerTitleSection}>
+            <h1 style={styles.pageTitle}>Welcome back, {adminName}! 👋</h1>
+            <p style={styles.pageSubtitle}>Coordinate frontline staff and streamline patient intake operations.</p>
+          </div>
           {/* Toolbar */}
           <div style={styles.toolbar}>
             <div style={styles.toolbarContent}>
@@ -149,20 +153,7 @@ const ManageReceptionist = () => {
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>
-              <div style={styles.filterBox}>
-                <FiFilter style={styles.filterIcon} />
-                <select 
-                  style={styles.filterSelect}
-                  value={filterShift}
-                  onChange={(e) => setFilterShift(e.target.value)}
-                >
-                  <option value="All">All Shifts</option>
-                  <option value="Morning">Morning</option>
-                  <option value="Afternoon">Afternoon</option>
-                  <option value="Night">Night</option>
-                  <option value="Full Day">Full Day</option>
-                </select>
-              </div>
+
             </div>
             <button 
                 onClick={() => {
@@ -192,7 +183,7 @@ const ManageReceptionist = () => {
                 <FiActivity style={styles.emptyIcon} />
                 <h3>No Receptionists Found</h3>
                 <p>We couldn't find any staff matching your current criteria.</p>
-                <button onClick={() => {setSearchQuery(''); setFilterShift('All');}} style={styles.resetBtn}>
+                <button onClick={() => {setSearchQuery('');}} style={styles.resetBtn}>
                   Clear all filters
                 </button>
               </div>
@@ -203,7 +194,6 @@ const ManageReceptionist = () => {
                     <tr>
                       <th style={styles.th}>Receptionist</th>
                       <th style={styles.th}>Contact</th>
-                      <th style={styles.th}>Shift</th>
                       <th style={styles.th}>Status</th>
                       <th style={styles.th}>Actions</th>
                     </tr>
@@ -234,12 +224,7 @@ const ManageReceptionist = () => {
                             <p style={styles.phone}><FiPhone size={12} /> {rec.user?.contact_number || 'No contact'}</p>
                           </div>
                         </td>
-                        <td style={styles.td}>
-                          <span style={styles.shiftBadge}>
-                            <FiClock size={12} style={{marginRight: '6px'}} />
-                            {rec.shift || 'Morning'}
-                          </span>
-                        </td>
+
                         <td style={styles.td}>
                           <div style={{
                             ...styles.statusBadge,
@@ -412,7 +397,8 @@ const styles = {
     color: '#64748b',
     textTransform: 'uppercase',
     letterSpacing: '1px',
-    borderBottom: '1px solid #f1f5f9'
+    borderBottom: '1px solid #f1f5f9',
+    fontFamily: 'var(--font-accent)',
   },
   tr: {
     borderBottom: '1px solid #f1f5f9',
@@ -549,6 +535,24 @@ const styles = {
     fontSize: '48px',
     color: '#cbd5e1',
     marginBottom: '16px'
+  },
+  headerTitleSection: {
+    marginBottom: "32px",
+  },
+  pageTitle: {
+    fontSize: "28px",
+    fontWeight: "800",
+    color: "#0f172a",
+    margin: "0 0 4px 0",
+    letterSpacing: "-0.5px",
+    fontFamily: "var(--font-accent)",
+  },
+  pageSubtitle: {
+    fontSize: "16px",
+    color: "#64748b",
+    margin: 0,
+    fontWeight: "500",
+    fontFamily: "var(--font-main)",
   },
   resetBtn: {
     marginTop: '20px',

@@ -131,6 +131,7 @@ const styles = {
   logoText: {
     fontSize: "20px",
     fontWeight: "800",
+    fontFamily: "var(--font-accent)",
     color: "#0f172a",
     margin: 0,
     letterSpacing: "-0.5px",
@@ -155,6 +156,7 @@ const styles = {
     padding: "0 16px 12px 16px",
     fontSize: "11px",
     fontWeight: "700",
+    fontFamily: "var(--font-main)",
     color: "#94a3b8",
     textTransform: "uppercase",
     letterSpacing: "0.05em"

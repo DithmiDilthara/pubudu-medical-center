@@ -1,14 +1,20 @@
 import React, { useState, useEffect } from "react";
-import { FiCreditCard, FiClock, FiCheckCircle, FiFileText, FiTrendingUp, FiAlertCircle, FiDownload, FiArrowRight } from "react-icons/fi";
+import { FiCreditCard, FiClock, FiCheckCircle, FiFileText, FiTrendingUp, FiAlertCircle, FiDownload, FiArrowRight, FiX } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 import PatientSidebar from "../../components/PatientSidebar";
 import PatientHeader from "../../components/PatientHeader";
 import axios from 'axios';
 import toast from 'react-hot-toast';
+import CancelAppointmentModal from "../../components/CancelAppointmentModal";
 
 function Payments() {
   const [appointments, setAppointments] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // Cancellation Modal State
+  const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+  const [apptToCancel, setApptToCancel] = useState(null);
+  const [isCancelling, setIsCancelling] = useState(false);
 
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
@@ -36,20 +42,78 @@ function Payments() {
     window.location.href = "/";
   };
 
+  const handleCancelClick = (appointmentId) => {
+    setApptToCancel(appointmentId);
+    setIsCancelModalOpen(true);
+  };
+
+  const confirmCancel = async () => {
+    if (!apptToCancel) return;
+    setIsCancelling(true);
+    const toastId = toast.loading("Cancelling appointment...");
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.put(`${API_URL}/appointments/${apptToCancel}/cancel`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (response.data.success) {
+        toast.success("Appointment cancelled successfully!", { id: toastId });
+        // Real-time update: marks the appointment as cancelled in local state
+        setAppointments(prev => prev.map(a => 
+          a.appointment_id === apptToCancel ? { ...a, status: 'CANCELLED' } : a
+        ));
+      }
+    } catch (error) {
+      toast.error("Failed to cancel appointment", { id: toastId });
+    } finally {
+      setIsCancelling(false);
+      setIsCancelModalOpen(false);
+      setApptToCancel(null);
+    }
+  };
+
+  const handleDownloadReceipt = async (appointmentId) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${API_URL}/payments/${appointmentId}/receipt`, {
+        headers: { Authorization: `Bearer ${token}` },
+        responseType: 'blob'
+      });
+
+      // Create a link to download the PDF
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `Receipt-APT${appointmentId}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      
+      toast.success("Receipt downloaded successfully");
+    } catch (error) {
+      console.error("Download Error:", error);
+      toast.error("Failed to download receipt");
+    }
+  };
+
   // Calculations
   const currentYear = new Date().getFullYear();
   const paidAppointments = appointments.filter(a => a.payment_status === 'PAID');
   const pendingAppointments = appointments.filter(a => a.payment_status === 'UNPAID' && a.status !== 'CANCELLED');
 
+  // Filter transaction list according to user request: "paid and to be paid" only
+  const displayAppointments = appointments.filter(a => (a.payment_status === 'PAID' || a.payment_status === 'UNPAID') && a.status !== 'CANCELLED');
+
   const totalSpentYTD = paidAppointments
     .filter(a => new Date(a.appointment_date).getFullYear() === currentYear)
-    .reduce((sum, a) => sum + (Number(a.doctor?.doctor_fee || 0) + Number(a.doctor?.center_fee || 0)), 0);
+    .reduce((sum, a) => sum + (Number(a.doctor?.doctor_fee || 0) + Number(a.doctor?.center_fee || 600)), 0);
 
   const pendingAmount = pendingAppointments
-    .reduce((sum, a) => sum + (Number(a.doctor?.doctor_fee || 0) + Number(a.doctor?.center_fee || 0)), 0);
+    .reduce((sum, a) => sum + (Number(a.doctor?.doctor_fee || 0) + Number(a.doctor?.center_fee || 600)), 0);
 
   const totalPaidAllTime = paidAppointments
-    .reduce((sum, a) => sum + (Number(a.doctor?.doctor_fee || 0) + Number(a.doctor?.center_fee || 0)), 0);
+    .reduce((sum, a) => sum + (Number(a.doctor?.doctor_fee || 0) + Number(a.doctor?.center_fee || 600)), 0);
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -143,33 +207,25 @@ function Payments() {
                         </tr>
                         </thead>
                         <tbody>
-                        {appointments.map((apt) => {
-                            const total = Number(apt.doctor?.doctor_fee || 0) + Number(apt.doctor?.center_fee || 0);
+                        {displayAppointments.map((apt) => {
+                            const total = Number(apt.doctor?.doctor_fee || 0) + Number(apt.doctor?.center_fee || 600);
                             const isPaid = apt.payment_status === 'PAID';
-                            const isCancelled = apt.status === 'CANCELLED';
+                            const isPending = apt.payment_status === 'UNPAID';
 
-                            let statusLabel = isPaid ? 'PAID' : 'PENDING';
-                            let statusColor = isPaid ? '#10b981' : '#f59e0b';
-                            let statusBg = isPaid ? '#f0fdf4' : '#fffbeb';
+                            let statusLabel = isPaid ? 'PAID' : 'TO BE PAID';
+                            let statusColor = isPaid ? '#10b981' : '#dc2626';
+                            let statusBg = isPaid ? '#f0fdf4' : '#fef2f2';
 
-                            if (isCancelled && isPaid) {
-                                statusLabel = 'REFUNDED';
-                                statusColor = '#64748b';
-                                statusBg = '#f8fafc';
-                            } else if (isCancelled) {
-                                statusLabel = 'VOID';
-                                statusColor = '#94a3b8';
-                                statusBg = '#f1f5f9';
-                            }
+                            const rowStyle = isPending ? { ...styles.tr, backgroundColor: '#fff5f5', borderLeft: '4px solid #dc2626' } : styles.tr;
 
                             return (
-                                <tr key={apt.appointment_id} style={styles.tr}>
+                                <tr key={apt.appointment_id} style={rowStyle}>
                                     <td style={styles.td}>
                                         <div style={styles.txCell}>
                                             <div style={styles.txIcon}><FiFileText /></div>
                                             <div>
                                                 <p style={styles.txTitle}>Medical Consultation</p>
-                                                <p style={styles.txSub}>Dr. {apt.doctor?.full_name}</p>
+                                                <p style={styles.txSub}>{apt.doctor?.full_name}</p>
                                             </div>
                                         </div>
                                     </td>
@@ -188,19 +244,28 @@ function Payments() {
                                             ...styles.statusChip, 
                                             color: statusColor, 
                                             backgroundColor: statusBg,
-                                            border: `1px solid ${isPaid ? '#dcfce7' : '#fef3c7'}`
+                                            border: `1px solid ${isPaid ? '#dcfce7' : '#fee2e2'}`
                                         }}>
                                             {statusLabel}
                                         </span>
                                     </td>
                                     <td style={styles.td}>
                                         <div style={styles.actionsCell}>
-                                            {isPaid && !isCancelled ? (
+                                            {isPaid ? (
                                                 <button 
-                                                    onClick={() => toast.success("Opening Digital Receipt...")}
-                                                    style={styles.downloadBtn}
+                                                    style={styles.downloadBtn} 
+                                                    onClick={() => handleDownloadReceipt(apt.appointment_id)}
+                                                    title="Download Receipt"
                                                 >
                                                     <FiDownload />
+                                                </button>
+                                            ) : isPending ? (
+                                                <button 
+                                                    onClick={() => handleCancelClick(apt.appointment_id)}
+                                                    style={{...styles.downloadBtn, backgroundColor: '#fff1f2', color: '#e11d48'}}
+                                                    title="Cancel Appointment"
+                                                >
+                                                    <FiX />
                                                 </button>
                                             ) : (
                                                 <span style={{ color: '#cbd5e1' }}>N/A</span>
@@ -230,6 +295,14 @@ function Payments() {
           </div>
         </main>
       </div>
+
+      <CancelAppointmentModal 
+        isOpen={isCancelModalOpen}
+        onClose={() => setIsCancelModalOpen(false)}
+        onConfirm={confirmCancel}
+        appointmentId={apptToCancel}
+        isLoading={isCancelling}
+      />
     </div>
   );
 }

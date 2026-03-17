@@ -11,6 +11,7 @@ import toast from "react-hot-toast";
 import ReceptionistSidebar from "../../components/ReceptionistSidebar";
 import ReceptionistHeader from "../../components/ReceptionistHeader";
 import BookingModal from "../../components/BookingModal";
+import ConfirmDialog from "../../components/ConfirmDialog";
 
 function AppointmentsManagement() {
     const navigate = useNavigate();
@@ -28,6 +29,10 @@ function AppointmentsManagement() {
     const [selectedAptForReschedule, setSelectedAptForReschedule] = useState(null);
     const [isSessionCancelOpen, setIsSessionCancelOpen] = useState(false);
     const [sessionCancelData, setSessionCancelData] = useState({ doctorId: "", date: "" });
+    
+    // Cancellation Confirmation
+    const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
+    const [aptToCancel, setAptToCancel] = useState(null);
 
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
@@ -67,13 +72,19 @@ function AppointmentsManagement() {
         }).sort((a, b) => new Date(b.appointment_date) - new Date(a.appointment_date));
     }, [appointments, searchQuery, statusFilter]);
 
-    const handleCancelAppointment = async (appointmentId) => {
-        if (!window.confirm("Are you sure you want to cancel this appointment?")) return;
+    const handleCancelAppointment = (apt) => {
+        setAptToCancel(apt);
+        setIsCancelDialogOpen(true);
+    };
+
+    const confirmCancelAppointment = async () => {
+        if (!aptToCancel) return;
         
+        const appointmentId = aptToCancel.appointment_id;
         try {
             const token = localStorage.getItem('token');
-            await axios.put(`${API_URL}/appointments/${appointmentId}/status`,
-                { status: 'CANCELLED' },
+            await axios.put(`${API_URL}/appointments/${appointmentId}/cancel`,
+                { cancellation_reason: "Cancelled by Receptionist" },
                 { headers: { Authorization: `Bearer ${token}` } }
             );
             setAppointments(prev => prev.map(apt => 
@@ -82,6 +93,9 @@ function AppointmentsManagement() {
             toast.success("Appointment cancelled");
         } catch (error) {
             toast.error("Failed to cancel appointment");
+        } finally {
+            setIsCancelDialogOpen(false);
+            setAptToCancel(null);
         }
     };
 
@@ -248,7 +262,7 @@ function AppointmentsManagement() {
                                                         </div>
                                                     </td>
                                                     <td style={{ ...ui.td, fontWeight: "600" }}>
-                                                        {(Number(apt.doctor?.doctor_fee || 0) + Number(apt.doctor?.center_fee || 0)).toLocaleString()}
+                                                        {(Number(apt.doctor?.doctor_fee || 0) + Number(apt.doctor?.center_fee || 600)).toLocaleString()}
                                                     </td>
                                                     <td style={ui.td}>
                                                         {getStatusBadge(apt.status)}
@@ -267,7 +281,7 @@ function AppointmentsManagement() {
                                                                         Reschedule
                                                                     </button>
                                                                     <button 
-                                                                        onClick={() => handleCancelAppointment(apt.appointment_id)}
+                                                                        onClick={() => handleCancelAppointment(apt)}
                                                                         style={ui.cancelBtn}
                                                                     >
                                                                         Cancel
@@ -354,6 +368,17 @@ function AppointmentsManagement() {
                     </div>
                 )}
             </AnimatePresence>
+            
+            <ConfirmDialog 
+                isOpen={isCancelDialogOpen}
+                onClose={() => setIsCancelDialogOpen(false)}
+                onConfirm={confirmCancelAppointment}
+                title="Cancel Appointment"
+                message={`Are you sure you want to cancel the appointment for ${aptToCancel?.patient?.full_name}? This action will notify the patient.`}
+                confirmLabel="Yes, Cancel"
+                cancelLabel="Keep Appointment"
+                type="danger"
+            />
 
             <style>
                 {`

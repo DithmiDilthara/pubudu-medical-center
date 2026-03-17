@@ -8,10 +8,12 @@ import { Op } from 'sequelize';
  */
 export const getSystemStats = async (req, res) => {
   try {
-    const doctorCount = await Doctor.count();
-    const patientCount = await Patient.count();
-    const receptionistCount = await Receptionist.count();
-    const appointmentCount = await Appointment.count();
+    const [doctorCount, patientCount, receptionistCount, appointmentCount] = await Promise.all([
+      Doctor.count(),
+      Patient.count(),
+      Receptionist.count(),
+      Appointment.count()
+    ]);
 
     res.status(200).json({
       success: true,
@@ -620,5 +622,98 @@ export const deleteReceptionist = async (req, res) => {
       message: 'Server error while deleting receptionist',
       error: error.message
     });
+  }
+};
+// @desc    Get data specifically for the Admin Dashboard (Charts)
+// @route   GET /api/admin/dashboard-data
+// @access  Private/Admin
+export const getDashboardData = async (req, res) => {
+  try {
+    const { period } = req.query; // 'Daily', 'Weekly', 'Monthly' for revenue
+    
+    // 1. Weekly Appointment Trends (Last 7 Days)
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+    sevenDaysAgo.setHours(0, 0, 0, 0);
+
+    const appointments = await Appointment.findAll({
+      where: {
+        appointment_date: { [Op.gte]: sevenDaysAgo.toISOString().split('T')[0] }
+      },
+      attributes: ['appointment_date'],
+      raw: true
+    });
+
+    // Group by day name
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const weeklyTrendMap = {};
+    for (let i = 0; i < 7; i++) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      weeklyTrendMap[d.toISOString().split('T')[0]] = 0;
+    }
+
+    appointments.forEach(a => {
+      if (weeklyTrendMap[a.appointment_date] !== undefined) {
+        weeklyTrendMap[a.appointment_date]++;
+      }
+    });
+
+    const weeklyTrend = Object.entries(weeklyTrendMap)
+      .map(([date, count]) => ({
+        name: dayNames[new Date(date).getDay()],
+        value: count,
+        fullDate: date
+      }))
+      .sort((a, b) => new Date(a.fullDate) - new Date(b.fullDate));
+
+    // 2. Revenue Breakdown by Doctor (Based on Period)
+    let startDate = new Date();
+    if (period === 'Daily') {
+      startDate.setHours(0, 0, 0, 0);
+    } else if (period === 'Monthly') {
+      startDate.setDate(1);
+    } else { // Default Weekly
+      startDate.setDate(startDate.getDate() - 7);
+    }
+
+    const revenueData = await Appointment.findAll({
+      where: {
+        payment_status: 'PAID',
+        appointment_date: { [Op.gte]: startDate.toISOString().split('T')[0] }
+      },
+      include: [
+        {
+          model: Doctor,
+          as: 'doctor',
+          attributes: ['full_name', 'center_fee']
+        }
+      ]
+    });
+
+    // Group by Doctor
+    const doctorRevenueMap = {};
+    revenueData.forEach(appt => {
+      const docName = appt.doctor?.full_name || 'Unknown';
+      const fee = parseFloat(appt.doctor?.center_fee || 0);
+      doctorRevenueMap[docName] = (doctorRevenueMap[docName] || 0) + fee;
+    });
+
+    const revenueByDoctor = Object.entries(doctorRevenueMap).map(([name, value]) => ({
+      name,
+      value
+    }));
+
+    res.status(200).json({
+      success: true,
+      data: {
+        weeklyTrend,
+        revenueByDoctor
+      }
+    });
+
+  } catch (error) {
+    console.error('Get dashboard data error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 };
