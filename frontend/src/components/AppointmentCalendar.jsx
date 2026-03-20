@@ -45,8 +45,7 @@ const AppointmentCalendar = ({ appointments = [], selectedDate, onDateSelect }) 
   const hasAppointment = (day) => {
     const dateStr = getLocalDateString(year, month, day);
     // Include mock data if needed or just filter appointments
-    const mockApptDays = [5, 8, 12, 15, 18, 22, 25, 28];
-    if (mockApptDays.includes(day) && month === 2 && year === 2026) return true; // March 2026
+    // Use actual appointments data
 
     return appointments.some(appt => appt.appointment_date === dateStr);
   };
@@ -78,14 +77,12 @@ const AppointmentCalendar = ({ appointments = [], selectedDate, onDateSelect }) 
           style={{
             ...styles.dayCell,
             ...(activeStatus ? styles.selectedCell : todayStatus ? styles.todayCell : styles.regularDay),
+            ...(apptStatus && !activeStatus && !todayStatus ? styles.apptHighlight : {}),
           }}
         >
           <span style={(activeStatus || todayStatus) ? styles.activeText : styles.dayText}>{day}</span>
-          {apptStatus && (
-            <div style={{
-              ...styles.apptDot,
-              backgroundColor: (activeStatus || todayStatus) ? 'white' : '#60a5fa'
-            }} />
+          {apptStatus && !activeStatus && (
+            <div style={styles.apptIndicator} />
           )}
         </div>
       );
@@ -214,12 +211,18 @@ const styles = {
   dayText: {
     color: 'inherit'
   },
-  apptDot: {
-    width: '6px',
-    height: '6px',
+  apptHighlight: {
+    backgroundColor: 'rgba(37, 99, 235, 0.08)',
+    color: '#2563eb',
+    border: '1px solid rgba(37, 99, 235, 0.2)',
+  },
+  apptIndicator: {
+    width: '4px',
+    height: '4px',
     borderRadius: '50%',
+    backgroundColor: '#3b82f6',
     position: 'absolute',
-    bottom: '4px'
+    bottom: '6px'
   },
   legend: {
     display: 'flex',

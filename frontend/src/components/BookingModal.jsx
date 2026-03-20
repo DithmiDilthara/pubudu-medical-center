@@ -138,11 +138,11 @@ const BookingModal = ({ isOpen, onClose, appointment, onUpdate }) => {
 
         const slots = [];
         avails.forEach(avail => {
-            let current = new Date(`2000-01-01 ${avail.start_time}`);
-            const end = new Date(`2000-01-01 ${avail.end_time}`);
-            while (current < end) {
-                slots.push(current.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }));
-                current.setMinutes(current.getMinutes() + 30);
+            if (avail.start_time && avail.end_time) {
+                // Return the full session range as a single slot
+                const start = new Date(`2000-01-01 ${avail.start_time}`).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+                const end = new Date(`2000-01-01 ${avail.end_time}`).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+                slots.push(`${start} - ${end}`);
             }
         });
         return slots;
@@ -206,16 +206,14 @@ const BookingModal = ({ isOpen, onClose, appointment, onUpdate }) => {
                         <h3 style={styles.sectionTitle}><FiClock style={{marginRight: '8px'}} /> Select Time</h3>
                         <div style={styles.timeGrid}>
                             {getTimeSlots().map(time => {
-                                const isBooked = bookedSlots.includes(time);
                                 return (
                                     <button
                                         key={time}
-                                        disabled={isBooked}
                                         onClick={() => setSelectedTime(time)}
                                         style={{
                                             ...styles.timeBtn,
                                             ...(selectedTime === time ? styles.timeSelected : {}),
-                                            ...(isBooked ? styles.timeBooked : {})
+                                            gridColumn: 'span 2' // Make it wider for range text
                                         }}
                                     >
                                         {time}

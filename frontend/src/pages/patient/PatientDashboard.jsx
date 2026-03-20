@@ -213,7 +213,7 @@ function PatientDashboard() {
           >
             {/* Integrated Header Section */}
             <motion.div variants={itemVariants} style={styles.headerSection}>
-              <h1 style={styles.welcomeTitle}>Welcome back, {patientName}! 👋</h1>
+              <h1 style={styles.welcomeTitle}>Welcome back, {patientName}!</h1>
               <p style={styles.welcomeSubtitle}>Check your health status and upcoming appointments.</p>
             </motion.div>
 

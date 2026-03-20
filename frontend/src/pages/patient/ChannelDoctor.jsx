@@ -114,31 +114,16 @@ const ChannelDoctor = () => {
 
         const slots = [];
         relevantAvails.forEach(avail => {
-            if (!avail.start_time || !avail.end_time) return;
-
-            const startParts = avail.start_time.split(':');
-            const endParts = avail.end_time.split(':');
-            
-            const startT = parseInt(startParts[0]) + (parseInt(startParts[1]) / 60);
-            const endT = parseInt(endParts[0]) + (parseInt(endParts[1]) / 60);
-
-            for (let t = startT; t < endT; t += 0.5) {
-                const hour = Math.floor(t);
-                const minutes = (t % 1 === 0.5) ? '30' : '00';
-                const ampm = hour >= 12 ? 'PM' : 'AM';
-                const hour12 = hour > 12 ? hour - 12 : (hour === 0 ? 12 : hour);
-                slots.push(`${hour12}:${minutes} ${ampm}`);
+            if (avail.start_time && avail.end_time) {
+                const start = new Date(`2000-01-01 ${avail.start_time}`).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+                const end = new Date(`2000-01-01 ${avail.end_time}`).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+                slots.push(`${start} - ${end}`);
             }
         });
 
-        const uniqueSlots = [...new Set(slots)];
-        const bookedForDay = bookedSlots
-            .filter(apt => apt.appointment_date === formattedDate && apt.status !== 'CANCELLED')
-            .map(apt => apt.time_slot);
-
-        return uniqueSlots.map(s => ({
+        return [...new Set(slots)].map(s => ({
             time: s,
-            isBooked: bookedForDay.includes(s)
+            isBooked: false // Sessions are never "fully booked" in this model
         }));
     };
 
@@ -352,18 +337,17 @@ const ChannelDoctor = () => {
                                             <p style={styles.cardSubtitle}>Available appointments for {monthNames[month]} {selectedDate}</p>
                                         </div>
 
-                                        <div style={styles.slotsGrid}>
+                                         <div style={styles.slotsGrid}>
                                             {getTimeSlots().map((slot, i) => (
                                                 <button
                                                     key={i}
-                                                    disabled={slot.isBooked}
                                                     onClick={() => setSelectedTime(slot.time)}
                                                     style={{
                                                         ...styles.slotBtn,
-                                                        backgroundColor: selectedTime === slot.time ? '#2563eb' : (slot.isBooked ? '#f8fafc' : 'white'),
-                                                        color: selectedTime === slot.time ? 'white' : (slot.isBooked ? '#cbd5e1' : '#1e293b'),
+                                                        backgroundColor: selectedTime === slot.time ? '#2563eb' : 'white',
+                                                        color: selectedTime === slot.time ? 'white' : '#1e293b',
                                                         borderColor: selectedTime === slot.time ? '#2563eb' : '#e2e8f0',
-                                                        opacity: slot.isBooked ? 0.6 : 1
+                                                        gridColumn: 'span 2' // Make it wider for range text
                                                     }}
                                                 >
                                                     <FiClock style={{ marginRight: '8px', opacity: 0.5 }} />

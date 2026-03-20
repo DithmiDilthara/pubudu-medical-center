@@ -1,4 +1,4 @@
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { 
   FiHome, 
   FiUsers, 
@@ -14,7 +14,13 @@ import { motion } from "framer-motion";
 
 function AdminSidebar() {
   const location = useLocation();
+  const navigate = useNavigate();
   const { logout } = useAuth();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/');
+  };
 
   const menuItems = [
     { path: "/admin/dashboard", label: "Dashboard", icon: FiHome },
@@ -70,7 +76,7 @@ function AdminSidebar() {
         {/* Logout Section */}
         <div style={styles.footer}>
           <div style={styles.divider}></div>
-          <button onClick={logout} style={styles.logoutButton}>
+          <button onClick={handleLogout} style={styles.logoutButton}>
             <div style={styles.logoutIconWrapper}>
               <FiLogOut style={styles.logoutIcon} />
             </div>

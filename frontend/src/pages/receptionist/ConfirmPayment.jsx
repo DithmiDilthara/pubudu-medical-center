@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FiUser, FiCreditCard, FiCalendar, FiClock, 
   FiArrowLeft, FiCheckCircle, FiInfo, FiActivity,
-  FiDollarSign, FiHash, FiPhone, FiMail
+  FiCheckCircle as FiCheck, FiHash, FiPhone, FiMail
 } from 'react-icons/fi';
 import ReceptionistSidebar from '../../components/ReceptionistSidebar';
 import ReceptionistHeader from '../../components/ReceptionistHeader';
@@ -207,7 +207,7 @@ function ConfirmPayment() {
                           ...(paymentMethod === 'Cash' ? styles.methodBtnActive : {})
                         }}
                       >
-                        <FiDollarSign /> Cash
+                        <FiCheck /> Cash
                       </button>
                       <button 
                         onClick={() => setPaymentMethod('Card')}

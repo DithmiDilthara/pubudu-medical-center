@@ -180,10 +180,7 @@ const Profile = () => {
                                  user?.role_id === 2 ? `Doctor - ${user.profile?.specialization || 'General'}` :
                                  user?.role_id === 3 ? 'Medical Receptionist' : 'Patient'}
                               </p>
-                              <div style={styles.badgeContainer}>
-                                <span style={styles.statusBadge}>Active Account</span>
-                                <span style={styles.idBadge}>ID: {user?.profile?.nic || 'N/A'}</span>
-                              </div>
+                              {/* Profile badges removed per request */}
                             </div>
                           </div>
                         </div>
@@ -454,20 +451,7 @@ const styles = {
       gap: '12px',
       marginTop: '12px'
     },
-    statusBadge: {
-      padding: '6px 14px',
-      borderRadius: '100px',
-      backgroundColor: 'rgba(255,255,255,0.2)',
-      fontSize: '12px',
-      fontWeight: '600'
-    },
-    idBadge: {
-      padding: '6px 14px',
-      borderRadius: '100px',
-      backgroundColor: 'rgba(0,0,0,0.1)',
-      fontSize: '12px',
-      fontWeight: '600'
-    },
+    // Unused badges removed
     formContainer: {
       padding: '48px'
     },

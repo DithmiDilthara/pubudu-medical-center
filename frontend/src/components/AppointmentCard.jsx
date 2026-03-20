@@ -46,7 +46,13 @@ const AppointmentCard = ({
         borderTop: variant === 'grid' ? `4px solid ${status.text}` : '1px solid #f1f5f9'
       }}
     >
-      <div style={styles.cardHeader}>
+      <div 
+        style={{
+          ...styles.cardHeader,
+          cursor: onViewDetails ? 'pointer' : 'default'
+        }}
+        onClick={() => onViewDetails && onViewDetails(appt)}
+      >
         <div style={styles.avatarWrapper}>
           {displayInfo.image ? (
             <img 

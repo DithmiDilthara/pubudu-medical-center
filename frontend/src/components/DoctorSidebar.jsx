@@ -149,7 +149,8 @@ const styles = {
     color: "#0f172a",
     margin: 0,
     letterSpacing: "-0.5px",
-    lineHeight: 1.1
+    lineHeight: 1.1,
+    fontFamily: "'Plus Jakarta Sans', sans-serif"
   },
   roleText: {
     fontSize: "12px",
@@ -157,7 +158,8 @@ const styles = {
     margin: 0,
     fontWeight: "600",
     textTransform: "uppercase",
-    letterSpacing: "1px"
+    letterSpacing: "1px",
+    fontFamily: "'Inter', sans-serif"
   },
   nav: {
     display: "flex",
@@ -172,7 +174,8 @@ const styles = {
     fontWeight: "700",
     color: "#94a3b8",
     textTransform: "uppercase",
-    letterSpacing: "0.05em"
+    letterSpacing: "0.05em",
+    fontFamily: "'Inter', sans-serif"
   },
   navItem: {
     display: "flex",
@@ -186,7 +189,8 @@ const styles = {
     fontWeight: "600",
     transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
     position: "relative",
-    marginBottom: "2px"
+    marginBottom: "2px",
+    fontFamily: "'Inter', sans-serif"
   },
   navItemActive: {
     backgroundColor: "#eff6ff",
@@ -251,7 +255,8 @@ const styles = {
     cursor: "pointer",
     transition: "all 0.2s",
     width: "100%",
-    textAlign: "left"
+    textAlign: "left",
+    fontFamily: "'Inter', sans-serif"
   },
   logoutIconWrapper: {
     width: "32px",

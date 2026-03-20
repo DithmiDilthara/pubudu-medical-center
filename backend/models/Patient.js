@@ -33,6 +33,14 @@ const Patient = sequelize.define('patient', {
     type: DataTypes.STRING(255),
     allowNull: true
   },
+  blood_group: {
+    type: DataTypes.STRING(10),
+    allowNull: true
+  },
+  allergies: {
+    type: DataTypes.TEXT,
+    allowNull: true
+  },
   registration_source: {
     type: DataTypes.ENUM('ONLINE', 'RECEPTIONIST'),
     allowNull: false,

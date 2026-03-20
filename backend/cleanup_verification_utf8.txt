@@ -1,0 +1,11 @@
+﻿[dotenv@17.2.3] injecting env (0) from .env -- tip: ≡ƒöÉ prevent committing .env to code: https://dotenvx.com/precommit
+[dotenv@17.2.3] injecting env (19) from config\.env -- tip: ≡ƒöä add secrets lifecycle management: https://dotenvx.com/ops
+Executing (default): SELECT COUNT(*) as count FROM users WHERE user_id IN (3, 4, 5)
+Executing (default): SELECT COUNT(*) as count FROM doctor_schedule WHERE schedule_id IN (20, 21, 22)
+Executing (default): SHOW TABLES LIKE "prescription"
+{
+  "usersCount": 0,
+  "scheduleCount": 0,
+  "tableExists": false,
+  "fileExists": false
+}

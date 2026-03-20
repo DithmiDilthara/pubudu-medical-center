@@ -22,7 +22,9 @@ function AddPatient() {
     nic: "",
     username: "",
     password: "",
-    confirmPassword: ""
+    confirmPassword: "",
+    bloodGroup: "",
+    allergies: ""
   });
 
   const [errors, setErrors] = useState({});
@@ -211,7 +213,9 @@ function AddPatient() {
         nic: formData.nic,
         gender: formData.gender.toUpperCase(),
         date_of_birth: formData.dateOfBirth || null,
-        address: formData.address || null
+        address: formData.address || null,
+        blood_group: formData.bloodGroup || null,
+        allergies: formData.allergies || null
       };
 
       const token = localStorage.getItem('token');
@@ -330,6 +334,56 @@ function AddPatient() {
                       </select>
                     </div>
                     {touched.gender && errors.gender && <div style={styles.errorText}><FiAlertCircle /> {errors.gender}</div>}
+                  </div>
+                </div>
+
+                <div style={styles.formRow}>
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>Blood Group</label>
+                    <div style={styles.inputWrapper}>
+                      <FiActivity style={{...styles.inputIcon, color: focusedField === 'bloodGroup' ? '#2563eb' : '#94a3b8'}} />
+                      <select
+                        name="bloodGroup"
+                        value={formData.bloodGroup}
+                        onChange={handleInputChange}
+                        onFocus={() => setFocusedField('bloodGroup')}
+                        onBlur={(e) => { handleBlur(e); setFocusedField(null); }}
+                        style={{
+                          ...styles.select,
+                          ...(focusedField === 'bloodGroup' ? styles.inputFocus : {})
+                        }}
+                      >
+                        <option value="">Select Blood Group</option>
+                        <option value="A+">A+</option>
+                        <option value="A-">A-</option>
+                        <option value="B+">B+</option>
+                        <option value="B-">B-</option>
+                        <option value="AB+">AB+</option>
+                        <option value="AB-">AB-</option>
+                        <option value="O+">O+</option>
+                        <option value="O-">O-</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>Known Allergies</label>
+                    <div style={styles.inputWrapper}>
+                      <FiAlertCircle style={{...styles.inputIcon, color: focusedField === 'allergies' ? '#2563eb' : '#94a3b8'}} />
+                      <input
+                        type="text"
+                        name="allergies"
+                        placeholder="e.g., Peanuts, Penicillin"
+                        value={formData.allergies}
+                        onChange={handleInputChange}
+                        onFocus={() => setFocusedField('allergies')}
+                        onBlur={(e) => { handleBlur(e); setFocusedField(null); }}
+                        style={{
+                          ...styles.input,
+                          ...(focusedField === 'allergies' ? styles.inputFocus : {})
+                        }}
+                      />
+                    </div>
                   </div>
                 </div>
               </motion.div>

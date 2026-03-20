@@ -27,7 +27,6 @@ function ReceptionistHeader({ receptionistName = "Receptionist" }) {
         <div style={styles.profileSection} onClick={() => navigate('/profile')}>
           <div style={styles.profileDetails}>
             <p style={styles.profileName}>{receptionistName}</p>
-            <p style={styles.receptionistId}>Role: Senior Receptionist</p>
           </div>
           <div style={styles.avatar}>
             {receptionistName.charAt(0).toUpperCase()}
@@ -114,14 +113,6 @@ const styles = {
     fontWeight: "700",
     color: "#1e293b",
     margin: 0,
-  },
-  receptionistId: {
-    fontSize: "12px",
-    fontWeight: "600",
-    color: "#94a3b8",
-    margin: 0,
-    textTransform: "uppercase",
-    letterSpacing: "0.5px"
   },
   avatar: {
     width: "44px",

@@ -9,7 +9,6 @@ function DoctorHeader({ doctorName }) {
 
   // Prefer name from prop if passed, otherwise from auth context
   const displayName = doctorName || user?.profile?.full_name || "Doctor";
-  const doctorId = user?.profile?.doctor_id || user?.profile?.staff_id || "0000";
 
   return (
     <motion.header 
@@ -33,7 +32,6 @@ function DoctorHeader({ doctorName }) {
         <div style={styles.profileSection} onClick={() => navigate('/profile')}>
           <div style={styles.profileDetails}>
             <p style={styles.profileName}>{displayName}</p>
-            <p style={styles.doctorId}>ID: #PMC-DR-{doctorId}</p>
           </div>
           <div style={styles.avatar}>
             {displayName.charAt(0).toUpperCase()}
@@ -69,12 +67,14 @@ const styles = {
     color: "#0f172a",
     margin: 0,
     letterSpacing: "-0.5px",
+    fontFamily: "'Plus Jakarta Sans', sans-serif"
   },
   pageSubtitle: {
     fontSize: "14px",
     color: "#64748b",
     margin: 0,
-    fontWeight: "500"
+    fontWeight: "500",
+    fontFamily: "'Inter', sans-serif"
   },
   rightSection: {
     display: "flex",
@@ -93,7 +93,8 @@ const styles = {
     fontWeight: "700",
     textTransform: "uppercase",
     letterSpacing: "0.5px",
-    border: "1px solid rgba(37, 99, 235, 0.1)"
+    border: "1px solid rgba(37, 99, 235, 0.1)",
+    fontFamily: "'Plus Jakarta Sans', sans-serif"
   },
   pulseDot: {
     width: "6px",
@@ -101,7 +102,6 @@ const styles = {
     borderRadius: "50%",
     backgroundColor: "#2563eb",
     boxShadow: "0 0 0 0 rgba(37, 99, 235, 0.4)",
-    animation: "pulse 2s infinite"
   },
   profileSection: {
     display: "flex",
@@ -125,14 +125,7 @@ const styles = {
     fontWeight: "700",
     color: "#1e293b",
     margin: 0,
-  },
-  doctorId: {
-    fontSize: "12px",
-    fontWeight: "600",
-    color: "#94a3b8",
-    margin: 0,
-    textTransform: "uppercase",
-    letterSpacing: "0.5px"
+    fontFamily: "'Plus Jakarta Sans', sans-serif"
   },
   avatar: {
     width: "44px",
@@ -146,7 +139,8 @@ const styles = {
     fontSize: "18px",
     fontWeight: "800",
     border: "2px solid #fff",
-    boxShadow: "0 4px 6px -1px rgba(37, 99, 235, 0.1)"
+    boxShadow: "0 4px 6px -1px rgba(37, 99, 235, 0.1)",
+    fontFamily: "'Plus Jakarta Sans', sans-serif"
   },
   avatarIcon: {
     fontSize: "20px",

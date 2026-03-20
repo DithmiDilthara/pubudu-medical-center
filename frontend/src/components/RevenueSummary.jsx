@@ -1,12 +1,12 @@
 import React from 'react';
-import { FiTrendingUp, FiTrendingDown, FiDollarSign } from 'react-icons/fi';
+import { FiTrendingUp, FiTrendingDown, FiActivity } from 'react-icons/fi';
 
 const RevenueSummary = () => {
   // Mock data for the summary
   const summary = [
     { 
       label: 'Today', 
-      amount: 'Rs. 12,450', 
+      amount: 'LKR 12,450', 
       trend: '+12%', 
       isUp: true,
       color: '#2563eb',
@@ -14,7 +14,7 @@ const RevenueSummary = () => {
     },
     { 
       label: 'Weekly', 
-      amount: 'Rs. 90,000', 
+      amount: 'LKR 90,000', 
       trend: '+8%', 
       isUp: true,
       color: '#7c3aed',
@@ -22,7 +22,7 @@ const RevenueSummary = () => {
     },
     { 
       label: 'Monthly', 
-      amount: 'Rs. 340,200', 
+      amount: 'LKR 340,200', 
       trend: '-2%', 
       isUp: false,
       color: '#059669',
@@ -35,7 +35,7 @@ const RevenueSummary = () => {
       <div style={styles.header}>
         <h3 style={styles.title}>Revenue Summary</h3>
         <div style={styles.iconBox}>
-          <FiDollarSign />
+          <FiActivity />
         </div>
       </div>
 

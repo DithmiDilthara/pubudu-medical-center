@@ -1,0 +1,405 @@
+﻿[dotenv@17.2.3] injecting env (0) from .env -- tip: ≡ƒ¢á∩╕Å  run anywhere with `dotenvx run -- yourcommand`
+[dotenv@17.2.3] injecting env (19) from config\.env -- tip: ≡ƒöÉ prevent committing .env to code: https://dotenvx.com/precommit
+[dotenv@17.2.3] injecting env (0) from .env -- tip: ≡ƒôí add observability to secrets: https://dotenvx.com/ops
+Finding a doctor user...
+Executing (default): SELECT `User`.`user_id`, `User`.`username`, `User`.`email`, `User`.`password_hash`, `User`.`role_id`, `User`.`is_active`, `User`.`last_login`, `User`.`contact_number`, `User`.`created_at`, `User`.`updated_at`, `role`.`role_id` AS `role.role_id`, `role`.`role_name` AS `role.role_name` FROM `users` AS `User` INNER JOIN `role` AS `role` ON `User`.`role_id` = `role`.`role_id` AND `role`.`role_name` = 'doctor' LIMIT 1;
+Testing with doctor user: drrpjayasinghe@gmail.com (ID: 10)
+Executing (default): SELECT `doctor_id`, `user_id`, `full_name`, `specialization`, `gender`, `license_no`, `doctor_fee`, `center_fee`, `consultation_fee`, `admin_id` FROM `doctor` AS `Doctor` WHERE `Doctor`.`user_id` = 10;
+Doctor ID: 2
+Executing (default): SELECT `appointment`.`appointment_id`, `appointment`.`patient_id`, `appointment`.`doctor_id`, `appointment`.`appointment_date`, `appointment`.`time_slot`, `appointment`.`status`, `appointment`.`payment_status`, `appointment`.`appointment_number`, `appointment`.`is_noshow`, `appointment`.`created_at`, `appointment`.`updated_at`, `patient`.`patient_id` AS `patient.patient_id`, `patient`.`user_id` AS `patient.user_id`, `patient`.`full_name` AS `patient.full_name`, `patient`.`nic` AS `patient.nic`, `patient`.`gender` AS `patient.gender`, `patient`.`date_of_birth` AS `patient.date_of_birth`, `patient`.`address` AS `patient.address`, `patient`.`blood_group` AS `patient.blood_group`, `patient`.`allergies` AS `patient.allergies`, `patient`.`registration_source` AS `patient.registration_source`, `patient`.`created_at` AS `patient.created_at`, `patient`.`updated_at` AS `patient.updated_at`, `patient->user`.`user_id` AS `patient.user.user_id`, `patient->user`.`email` AS `patient.user.email`, `patient->user`.`contact_number` AS `patient.user.contact_number` FROM `appointment` AS `appointment` LEFT OUTER JOIN `patient` AS `patient` ON `appointment`.`patient_id` = `patient`.`patient_id` LEFT OUTER JOIN `users` AS `patient->user` ON `patient`.`user_id` = `patient->user`.`user_id` WHERE `appointment`.`doctor_id` = 2 ORDER BY `appointment`.`appointment_date` DESC;
+node : DEBUG ERROR: 
+Error
+At line:1 char:1
++ node 
+debug_patients.js > 
+debug_output.txt 2>&1
++ ~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~
+~~
+    + CategoryInfo     
+         : NotSpecifi  
+  ed: (DEBUG ERROR:    
+ Error:String) [],     
+RemoteException
+    + FullyQualifiedEr 
+   rorId : NativeComm  
+  andError
+ 
+    at Query.run (C:\Us
+ers\user\Desktop\pubudu
+-medical-center\backend
+\node_modules\sequelize
+\lib\dialects\mysql\que
+ry.js:52:25)
+    at C:\Users\user\De
+sktop\pubudu-medical-ce
+nter\backend\node_modul
+es\sequelize\lib\sequel
+ize.js:315:28
+    at process.processT
+icksAndRejections (node
+:internal/process/task_
+queues:105:5)
+    at async MySQLQuery
+Interface.select (C:\Us
+ers\user\Desktop\pubudu
+-medical-center\backend
+\node_modules\sequelize
+\lib\dialects\abstract\
+query-interface.js:407:
+12)
+    at async 
+appointment.findAll (C:
+\Users\user\Desktop\pub
+udu-medical-center\back
+end\node_modules\sequel
+ize\lib\model.js:1140:2
+1)
+    at async debug (fil
+e:///C:/Users/user/Desk
+top/pubudu-medical-cent
+er/backend/debug_patien
+ts.js:34:30) {
+  name: 'SequelizeDatab
+aseError',
+  parent: Error: 
+Unknown column 
+'patient.blood_group' 
+in 'field list'
+      at 
+Packet.asError (C:\User
+s\user\Desktop\pubudu-m
+edical-center\backend\n
+ode_modules\mysql2\lib\
+packets\packet.js:740:1
+7)
+      at Query.execute 
+(C:\Users\user\Desktop\
+pubudu-medical-center\b
+ackend\node_modules\mys
+ql2\lib\commands\comman
+d.js:29:26)
+      at Connection.han
+dlePacket (C:\Users\use
+r\Desktop\pubudu-medica
+l-center\backend\node_m
+odules\mysql2\lib\base\
+connection.js:508:34)
+      at 
+PacketParser.onPacket (
+C:\Users\user\Desktop\p
+ubudu-medical-center\ba
+ckend\node_modules\mysq
+l2\lib\base\connection.
+js:93:12)
+      at PacketParser.e
+xecuteStart (C:\Users\u
+ser\Desktop\pubudu-medi
+cal-center\backend\node
+_modules\mysql2\lib\pac
+ket_parser.js:75:16)
+      at 
+Socket.<anonymous> (C:\
+Users\user\Desktop\pubu
+du-medical-center\backe
+nd\node_modules\mysql2\
+lib\base\connection.js:
+100:25)
+      at Socket.emit 
+(node:events:518:28)
+      at addChunk (node
+:internal/streams/reada
+ble:561:12)
+      at readableAddChu
+nkPushByteMode (node:in
+ternal/streams/readable
+:512:3)
+      at Readable.push 
+(node:internal/streams/
+readable:392:5) {
+    code: 
+'ER_BAD_FIELD_ERROR',
+    errno: 1054,
+    sqlState: '42S22',
+    sqlMessage: 
+"Unknown column 
+'patient.blood_group' 
+in 'field list'",
+    sql: 'SELECT `appoi
+ntment`.`appointment_id
+`, `appointment`.`patie
+nt_id`, `appointment`.`
+doctor_id`, `appointmen
+t`.`appointment_date`, 
+`appointment`.`time_slo
+t`, `appointment`.`stat
+us`, `appointment`.`pay
+ment_status`, `appointm
+ent`.`appointment_numbe
+r`, `appointment`.`is_n
+oshow`, `appointment`.`
+created_at`, `appointme
+nt`.`updated_at`, 
+`patient`.`patient_id` 
+AS 
+`patient.patient_id`, 
+`patient`.`user_id` AS 
+`patient.user_id`, 
+`patient`.`full_name` 
+AS 
+`patient.full_name`, 
+`patient`.`nic` AS 
+`patient.nic`, 
+`patient`.`gender` AS 
+`patient.gender`, `pati
+ent`.`date_of_birth` 
+AS `patient.date_of_bir
+th`, 
+`patient`.`address` AS 
+`patient.address`, `pat
+ient`.`blood_group` AS 
+`patient.blood_group`, 
+`patient`.`allergies` 
+AS 
+`patient.allergies`, `p
+atient`.`registration_s
+ource` AS `patient.regi
+stration_source`, 
+`patient`.`created_at` 
+AS 
+`patient.created_at`, 
+`patient`.`updated_at` 
+AS 
+`patient.updated_at`, `
+patient->user`.`user_id
+` AS `patient.user.user
+_id`, `patient->user`.`
+email` AS 
+`patient.user.email`, `
+patient->user`.`contact
+_number` AS `patient.us
+er.contact_number` 
+FROM `appointment` AS 
+`appointment` LEFT 
+OUTER JOIN `patient` 
+AS `patient` ON `appoin
+tment`.`patient_id` = 
+`patient`.`patient_id` 
+LEFT OUTER JOIN 
+`users` AS 
+`patient->user` ON 
+`patient`.`user_id` = `
+patient->user`.`user_id
+` WHERE `appointment`.`
+doctor_id` = 2 ORDER 
+BY `appointment`.`appoi
+ntment_date` DESC;',
+    parameters: 
+undefined
+  },
+  original: Error: 
+Unknown column 
+'patient.blood_group' 
+in 'field list'
+      at 
+Packet.asError (C:\User
+s\user\Desktop\pubudu-m
+edical-center\backend\n
+ode_modules\mysql2\lib\
+packets\packet.js:740:1
+7)
+      at Query.execute 
+(C:\Users\user\Desktop\
+pubudu-medical-center\b
+ackend\node_modules\mys
+ql2\lib\commands\comman
+d.js:29:26)
+      at Connection.han
+dlePacket (C:\Users\use
+r\Desktop\pubudu-medica
+l-center\backend\node_m
+odules\mysql2\lib\base\
+connection.js:508:34)
+      at 
+PacketParser.onPacket (
+C:\Users\user\Desktop\p
+ubudu-medical-center\ba
+ckend\node_modules\mysq
+l2\lib\base\connection.
+js:93:12)
+      at PacketParser.e
+xecuteStart (C:\Users\u
+ser\Desktop\pubudu-medi
+cal-center\backend\node
+_modules\mysql2\lib\pac
+ket_parser.js:75:16)
+      at 
+Socket.<anonymous> (C:\
+Users\user\Desktop\pubu
+du-medical-center\backe
+nd\node_modules\mysql2\
+lib\base\connection.js:
+100:25)
+      at Socket.emit 
+(node:events:518:28)
+      at addChunk (node
+:internal/streams/reada
+ble:561:12)
+      at readableAddChu
+nkPushByteMode (node:in
+ternal/streams/readable
+:512:3)
+      at Readable.push 
+(node:internal/streams/
+readable:392:5) {
+    code: 
+'ER_BAD_FIELD_ERROR',
+    errno: 1054,
+    sqlState: '42S22',
+    sqlMessage: 
+"Unknown column 
+'patient.blood_group' 
+in 'field list'",
+    sql: 'SELECT `appoi
+ntment`.`appointment_id
+`, `appointment`.`patie
+nt_id`, `appointment`.`
+doctor_id`, `appointmen
+t`.`appointment_date`, 
+`appointment`.`time_slo
+t`, `appointment`.`stat
+us`, `appointment`.`pay
+ment_status`, `appointm
+ent`.`appointment_numbe
+r`, `appointment`.`is_n
+oshow`, `appointment`.`
+created_at`, `appointme
+nt`.`updated_at`, 
+`patient`.`patient_id` 
+AS 
+`patient.patient_id`, 
+`patient`.`user_id` AS 
+`patient.user_id`, 
+`patient`.`full_name` 
+AS 
+`patient.full_name`, 
+`patient`.`nic` AS 
+`patient.nic`, 
+`patient`.`gender` AS 
+`patient.gender`, `pati
+ent`.`date_of_birth` 
+AS `patient.date_of_bir
+th`, 
+`patient`.`address` AS 
+`patient.address`, `pat
+ient`.`blood_group` AS 
+`patient.blood_group`, 
+`patient`.`allergies` 
+AS 
+`patient.allergies`, `p
+atient`.`registration_s
+ource` AS `patient.regi
+stration_source`, 
+`patient`.`created_at` 
+AS 
+`patient.created_at`, 
+`patient`.`updated_at` 
+AS 
+`patient.updated_at`, `
+patient->user`.`user_id
+` AS `patient.user.user
+_id`, `patient->user`.`
+email` AS 
+`patient.user.email`, `
+patient->user`.`contact
+_number` AS `patient.us
+er.contact_number` 
+FROM `appointment` AS 
+`appointment` LEFT 
+OUTER JOIN `patient` 
+AS `patient` ON `appoin
+tment`.`patient_id` = 
+`patient`.`patient_id` 
+LEFT OUTER JOIN 
+`users` AS 
+`patient->user` ON 
+`patient`.`user_id` = `
+patient->user`.`user_id
+` WHERE `appointment`.`
+doctor_id` = 2 ORDER 
+BY `appointment`.`appoi
+ntment_date` DESC;',
+    parameters: 
+undefined
+  },
+  sql: 'SELECT `appoint
+ment`.`appointment_id`,
+ `appointment`.`patient
+_id`, `appointment`.`do
+ctor_id`, `appointment`
+.`appointment_date`, `a
+ppointment`.`time_slot`
+, `appointment`.`status
+`, `appointment`.`payme
+nt_status`, `appointmen
+t`.`appointment_number`
+, `appointment`.`is_nos
+how`, `appointment`.`cr
+eated_at`, `appointment
+`.`updated_at`, 
+`patient`.`patient_id` 
+AS 
+`patient.patient_id`, 
+`patient`.`user_id` AS 
+`patient.user_id`, 
+`patient`.`full_name` 
+AS 
+`patient.full_name`, 
+`patient`.`nic` AS 
+`patient.nic`, 
+`patient`.`gender` AS 
+`patient.gender`, `pati
+ent`.`date_of_birth` 
+AS `patient.date_of_bir
+th`, 
+`patient`.`address` AS 
+`patient.address`, `pat
+ient`.`blood_group` AS 
+`patient.blood_group`, 
+`patient`.`allergies` 
+AS 
+`patient.allergies`, `p
+atient`.`registration_s
+ource` AS `patient.regi
+stration_source`, 
+`patient`.`created_at` 
+AS 
+`patient.created_at`, 
+`patient`.`updated_at` 
+AS 
+`patient.updated_at`, `
+patient->user`.`user_id
+` AS `patient.user.user
+_id`, `patient->user`.`
+email` AS 
+`patient.user.email`, `
+patient->user`.`contact
+_number` AS `patient.us
+er.contact_number` 
+FROM `appointment` AS 
+`appointment` LEFT 
+OUTER JOIN `patient` 
+AS `patient` ON `appoin
+tment`.`patient_id` = 
+`patient`.`patient_id` 
+LEFT OUTER JOIN 
+`users` AS 
+`patient->user` ON 
+`patient`.`user_id` = `
+patient->user`.`user_id
+` WHERE `appointment`.`
+doctor_id` = 2 ORDER 
+BY `appointment`.`appoi
+ntment_date` DESC;',
+  parameters: {}
+}

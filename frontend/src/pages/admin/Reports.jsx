@@ -108,7 +108,7 @@ const Reports = () => {
         >
           {/* Header Title - Personalized Welcome */}
           <div style={styles.headerTitleSection}>
-            <h1 style={styles.pageTitle}>Welcome back, {adminName}! 👋</h1>
+            <h1 style={styles.welcomeTitle}>Welcome back, {adminName}!</h1>
             <p style={styles.pageSubtitle}>Analyze healthcare performance and financial trends with data-driven insights.</p>
           </div>
           {/* Report Generator Form */}

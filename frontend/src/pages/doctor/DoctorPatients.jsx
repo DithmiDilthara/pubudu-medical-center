@@ -134,7 +134,7 @@ function DoctorPatients() {
                         <div style={styles.headerText}>
                           <h3 style={styles.patientName}>{patient.name}</h3>
                           <p style={styles.patientMeta}>
-                            {patient.gender || 'N/A'} • {patient.age || 'N/A'} yrs
+                            {patient.dob ? `${new Date().getFullYear() - new Date(patient.dob).getFullYear()} yrs` : 'N/A'} • {patient.gender || 'N/A'}
                           </p>
                         </div>
                       </div>
@@ -142,22 +142,12 @@ function DoctorPatients() {
                       <div style={styles.cardBadges}>
                         <div style={styles.badge}>
                           <FiActivity style={styles.badgeIcon} />
-                          <span style={styles.badgeText}>
-                            {patient.primaryReason || 'No active conditions'}
-                          </span>
+                          <span style={styles.badgeText}>No active conditions</span>
                         </div>
                         <div style={styles.badge}>
                           <FiUser style={styles.badgeIcon} />
-                          <span style={styles.badgeText}>PHE-{patient.patientId}</span>
+                          <span style={styles.badgeText}>ID: {patient.patientId}</span>
                         </div>
-                      </div>
-
-                      <div style={styles.cardFooter}>
-                        <div style={styles.footerItem}>
-                          <FiCalendar style={styles.footerIcon} />
-                          <span>Last seen: {patient.lastVisit || 'Never'}</span>
-                        </div>
-                        <FiChevronRight style={styles.arrowIcon} />
                       </div>
                     </motion.div>
                   ))}
@@ -196,28 +186,33 @@ const styles = {
     minHeight: "100vh"
   },
   contentPadding: {
-    padding: "40px",
-    maxWidth: "1600px",
-    margin: "0 auto"
+    padding: "32px 40px",
+    maxWidth: "1200px", // Reduced for tighter layout
+    margin: "0 auto" // Centered for better aesthetics
   },
   header: {
     display: "flex",
-    justifyContent: "space-between",
-    alignItems: "flex-end",
-    marginBottom: "48px"
+    justifyContent: "space-between", // Match image - search on the right
+    alignItems: "flex-end", // Align text baselines
+    marginBottom: "40px",
+    width: "100%",
+    gap: "32px",
+    textAlign: "left"
   },
   pageTitle: {
     fontSize: "36px",
     fontWeight: "800",
     color: "#0f172a",
     margin: 0,
-    letterSpacing: "-0.025em"
+    letterSpacing: "-0.025em",
+    fontFamily: "'Plus Jakarta Sans', sans-serif"
   },
   pageSubtitle: {
     fontSize: "16px",
     color: "#64748b",
     marginTop: "8px",
-    fontWeight: "500"
+    fontWeight: "500",
+    fontFamily: "'Inter', sans-serif"
   },
   searchWrapper: {
     position: "relative",
@@ -241,6 +236,7 @@ const styles = {
     transition: "all 0.2s",
     backgroundColor: "white",
     boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+    fontFamily: "'Inter', sans-serif",
     '&:focus': {
       borderColor: "#2563eb",
       boxShadow: "0 0 0 4px rgba(37, 99, 235, 0.1)"
@@ -256,14 +252,14 @@ const styles = {
   },
   patientCard: {
     backgroundColor: "white",
-    borderRadius: "28px",
+    borderRadius: "24px", // Matches image
     padding: "24px",
-    border: "1px solid #f1f5f9",
+    border: "1px solid #f1f5f9", // Light border
     cursor: "pointer",
     transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
     display: "flex",
     flexDirection: "column",
-    gap: "24px"
+    gap: "20px" // More gap between sections
   },
   cardHeader: {
     display: "flex",
@@ -271,17 +267,19 @@ const styles = {
     gap: "16px"
   },
   avatarCircle: {
-    width: "60px",
-    height: "60px",
-    borderRadius: "20px",
+    width: "64px",
+    height: "64px",
+    borderRadius: "50%", // Circular avatar as per image
     backgroundColor: "#eff6ff",
     color: "#2563eb",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     fontSize: "24px",
-    fontWeight: "700",
-    transition: "all 0.3s ease"
+    fontWeight: "800",
+    transition: "all 0.3s ease",
+    fontFamily: "'Plus Jakarta Sans', sans-serif",
+    boxShadow: "0 4px 6px -1px rgba(37, 99, 235, 0.1)"
   },
   headerText: {
     display: "flex",
@@ -292,13 +290,15 @@ const styles = {
     fontSize: "18px",
     fontWeight: "700",
     color: "#0f172a",
-    margin: 0
+    margin: 0,
+    fontFamily: "'Plus Jakarta Sans', sans-serif"
   },
   patientMeta: {
     fontSize: "14px",
     color: "#64748b",
     fontWeight: "500",
-    margin: 0
+    margin: 0,
+    fontFamily: "'Inter', sans-serif"
   },
   cardBadges: {
     display: "flex",
@@ -308,41 +308,28 @@ const styles = {
   badge: {
     display: "flex",
     alignItems: "center",
-    gap: "10px",
+    gap: "12px",
     backgroundColor: "#f8fafc",
-    padding: "12px 16px",
-    borderRadius: "16px",
-    border: "1px solid #f1f5f9"
+    padding: "10px 16px",
+    borderRadius: "14px",
+    border: "1px solid #f1f5f9",
+    width: "fit-content" // Avoid stretching to full width
   },
   badgeIcon: {
-    fontSize: "16px",
+    fontSize: "14px",
     color: "#64748b"
   },
   badgeText: {
-    fontSize: "13px",
-    fontWeight: "600",
-    color: "#334155",
-    whiteSpace: "nowrap",
-    overflow: "hidden",
-    textOverflow: "ellipsis"
+    fontSize: "14px",
+    fontWeight: "500",
+    color: "#475569",
+    whiteSpace: "nowrap"
   },
-  cardFooter: {
+  cardFooterSimple: {
     display: "flex",
-    justifyContent: "space-between",
+    justifyContent: "flex-end",
     alignItems: "center",
-    paddingTop: "16px",
-    borderTop: "1px solid #f1f5f9"
-  },
-  footerItem: {
-    display: "flex",
-    alignItems: "center",
-    gap: "8px",
-    fontSize: "13px",
-    color: "#94a3b8",
-    fontWeight: "500"
-  },
-  footerIcon: {
-    fontSize: "14px"
+    marginTop: "8px"
   },
   arrowIcon: {
     fontSize: "18px",
@@ -353,8 +340,14 @@ const styles = {
     flexDirection: "column",
     alignItems: "center",
     justifyContent: "center",
-    padding: "100px 0",
-    textAlign: "center"
+    padding: "60px 40px",
+    textAlign: "center",
+    backgroundColor: "white",
+    borderRadius: "24px",
+    border: "1px solid #E2E8F0",
+    boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.05)",
+    margin: "20px 0",
+    minHeight: "200px"
   },
   emptyIconWrapper: {
     width: "80px",

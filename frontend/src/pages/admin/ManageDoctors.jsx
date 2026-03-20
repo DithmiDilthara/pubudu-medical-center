@@ -144,7 +144,7 @@ const ManageDoctors = () => {
         >
           {/* Header Title - Personalized Welcome */}
           <div style={styles.headerTitleSection}>
-            <h1 style={styles.pageTitle}>Welcome back, {adminName}! 👋</h1>
+            <h1 style={styles.pageTitle}>Welcome back, {adminName}!</h1>
             <p style={styles.pageSubtitle}>Manage your medical professional team and specializations.</p>
           </div>
           {/* Toolbar */}

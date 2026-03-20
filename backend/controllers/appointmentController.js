@@ -25,19 +25,8 @@ export const createAppointment = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Patient ID is required' });
         }
 
-        // Check if slot already taken
-        const existingAppointment = await Appointment.findOne({
-            where: {
-                doctor_id,
-                appointment_date,
-                time_slot,
-                status: { [Op.in]: ['PENDING', 'CONFIRMED'] }
-            }
-        });
-
-        if (existingAppointment) {
-            return res.status(400).json({ success: false, message: 'This time slot is already booked' });
-        }
+        // In session-based booking, multiple people can book the same time range.
+        // We will no longer block bookings based on time_slot existence.
 
         // Calculate next appointment number for this doctor and date
         const lastAppointment = await Appointment.findOne({
@@ -320,20 +309,8 @@ export const rescheduleAppointment = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Appointment not found' });
         }
 
-        // Check if slot already taken (excluding current appointment)
-        const existingAppointment = await Appointment.findOne({
-            where: {
-                doctor_id: appointment.doctor_id,
-                appointment_date,
-                time_slot,
-                status: { [Op.in]: ['PENDING', 'CONFIRMED'] },
-                appointment_id: { [Op.ne]: id }
-            }
-        });
-
-        if (existingAppointment) {
-            return res.status(400).json({ success: false, message: 'This time slot is already booked' });
-        }
+        // In session-based booking, multiple people can book the same time range.
+        // We will no longer block rescheduling based on time_slot existence.
 
         // Handle appointment number if date changed
         if (appointment_date !== appointment.appointment_date) {

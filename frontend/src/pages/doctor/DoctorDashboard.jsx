@@ -344,13 +344,15 @@ const styles = {
     fontWeight: "800",
     color: "#0f172a",
     margin: 0,
-    letterSpacing: "-0.025em"
+    letterSpacing: "-0.025em",
+    fontFamily: "'Plus Jakarta Sans', sans-serif"
   },
   pageSubtitle: {
     fontSize: "15px",
     color: "#64748b",
     marginTop: "4px",
-    fontWeight: "500"
+    fontWeight: "500",
+    fontFamily: "'Inter', sans-serif"
   },
   dateBadge: {
     display: "flex",
@@ -403,14 +405,16 @@ const styles = {
     fontSize: "14px",
     fontWeight: "600",
     color: "#64748b",
-    margin: 0
+    margin: 0,
+    fontFamily: "'Inter', sans-serif"
   },
   statValue: {
     fontSize: "28px",
     fontWeight: "800",
     color: "#1e293b",
     margin: 0,
-    lineHeight: 1
+    lineHeight: 1,
+    fontFamily: "'Plus Jakarta Sans', sans-serif"
   },
   dashboardGrid: {
     display: "grid",
@@ -432,7 +436,8 @@ const styles = {
     fontSize: "20px",
     fontWeight: "800",
     color: "#1e293b",
-    margin: 0
+    margin: 0,
+    fontFamily: "'Plus Jakarta Sans', sans-serif"
   },
   viewAllLink: {
     color: "#2563eb",
@@ -478,7 +483,8 @@ const styles = {
   },
   emptyText: {
     fontSize: "15px",
-    fontWeight: "500"
+    fontWeight: "500",
+    fontFamily: "'Inter', sans-serif"
   },
   calendarColumn: {
     display: "flex",

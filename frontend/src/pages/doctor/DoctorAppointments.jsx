@@ -271,7 +271,16 @@ function DoctorAppointments() {
                     animate={{ opacity: 1, scale: 1 }}
                     style={styles.detailContent}
                 >
-                    <div style={styles.patientHero}>
+                    <motion.div 
+                        style={styles.patientHero}
+                        whileHover={{ backgroundColor: '#f8fafc', x: 4 }}
+                        onClick={() => navigate('/doctor/patient-details', { 
+                            state: { 
+                                patient: selectedAppointment.patient,
+                                appointment_id: selectedAppointment.appointment_id 
+                            } 
+                        })}
+                    >
                         <div style={styles.patientAvatar}>
                             {selectedAppointment.patient?.full_name?.charAt(0)}
                         </div>
@@ -285,7 +294,7 @@ function DoctorAppointments() {
                                 {selectedAppointment.status}
                             </span>
                         </div>
-                    </div>
+                    </motion.div>
 
                     <div style={styles.infoGrid}>
                         <div style={styles.infoCard}>
@@ -385,8 +394,8 @@ const styles = {
   contentPadding: {
     padding: "32px",
     flex: 1,
-    maxWidth: "1600px",
-    margin: "0 auto",
+    maxWidth: "1400px",
+    margin: "0 0",
     width: "100%",
     display: "flex",
     flexDirection: "column"
@@ -402,13 +411,15 @@ const styles = {
     fontWeight: "800",
     color: "#0f172a",
     margin: 0,
-    letterSpacing: "-0.025em"
+    letterSpacing: "-0.025em",
+    fontFamily: "'Plus Jakarta Sans', sans-serif"
   },
   pageSubtitle: {
     fontSize: "15px",
     color: "#64748b",
     marginTop: "4px",
-    fontWeight: "500"
+    fontWeight: "500",
+    fontFamily: "'Inter', sans-serif"
   },
   searchWrapper: {
     position: "relative",
@@ -435,7 +446,8 @@ const styles = {
     ':focus': {
         borderColor: "#2563eb",
         boxShadow: "0 0 0 3px rgba(37, 99, 235, 0.1)"
-    }
+    },
+    fontFamily: "'Inter', sans-serif"
   },
   splitLayout: {
     display: "grid",
@@ -514,7 +526,14 @@ const styles = {
   patientHero: {
     display: "flex",
     alignItems: "center",
-    gap: "24px"
+    gap: "24px",
+    cursor: "pointer",
+    padding: "12px",
+    borderRadius: "20px",
+    transition: "all 0.2s",
+    ':hover': {
+        backgroundColor: "#f8fafc"
+    }
   },
   patientAvatar: {
     width: "72px",
@@ -538,7 +557,8 @@ const styles = {
     fontWeight: "800",
     color: "#0f172a",
     margin: 0,
-    letterSpacing: "-0.025em"
+    letterSpacing: "-0.025em",
+    fontFamily: "'Plus Jakarta Sans', sans-serif"
   },
   detailId: {
     fontSize: "16px",
@@ -586,7 +606,8 @@ const styles = {
     fontSize: "16px",
     fontWeight: "700",
     color: "#1e293b",
-    margin: "2px 0 0 0"
+    margin: "2px 0 0 0",
+    fontFamily: "'Inter', sans-serif"
   },
   detailSection: {
     display: "flex",
@@ -674,8 +695,14 @@ const styles = {
     flexDirection: "column",
     alignItems: "center",
     justifyContent: "center",
-    padding: "80px 0",
-    textAlign: "center"
+    padding: "60px 40px",
+    textAlign: "center",
+    backgroundColor: "white",
+    borderRadius: "24px",
+    border: "1px solid #E2E8F0",
+    boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.05)",
+    margin: "20px 0",
+    minHeight: "200px"
   },
   emptyIcon: {
     fontSize: "64px",

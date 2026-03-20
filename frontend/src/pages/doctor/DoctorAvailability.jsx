@@ -16,6 +16,8 @@ import {
 } from 'react-icons/fi';
 import DoctorHeader from '../../components/DoctorHeader';
 import DoctorSidebar from '../../components/DoctorSidebar';
+import ClockTimePicker from '../../components/ClockTimePicker';
+import ConfirmationModal from '../../components/ConfirmationModal';
 
 function DoctorAvailability() {
   const navigate = useNavigate();
@@ -29,6 +31,7 @@ function DoctorAvailability() {
   const [availability, setAvailability] = useState({});
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
   const fetchAvailability = async () => {
     try {
@@ -144,6 +147,16 @@ function DoctorAvailability() {
 
   const handleSetAvailability = async (status) => {
     if (!selectedDate) return;
+    
+    if (status === 'DELETED') {
+      setIsDeleteModalOpen(true);
+      return;
+    }
+
+    await proceedWithAvailability(status);
+  };
+
+  const proceedWithAvailability = async (status) => {
     setIsLoading(true);
     setErrorMessage(null);
 
@@ -154,7 +167,7 @@ function DoctorAvailability() {
         day_of_week: null,
         start_time: startTime,
         end_time: endTime,
-        session_name: status === 'available' ? 'Available' : 'Unavailable'
+        session_name: status === 'available' ? 'Available' : status === 'DELETED' ? 'DELETED' : 'Unavailable'
       }];
 
       const response = await axios.post(
@@ -164,10 +177,16 @@ function DoctorAvailability() {
       );
 
       if (response.data.success) {
-        setAvailability(prev => ({
-          ...prev,
-          [selectedDate]: { status, startTime, endTime }
-        }));
+        if (status === 'DELETED') {
+          const newAvail = { ...availability };
+          delete newAvail[selectedDate];
+          setAvailability(newAvail);
+        } else {
+          setAvailability(prev => ({
+            ...prev,
+            [selectedDate]: { status, startTime, endTime }
+          }));
+        }
         await fetchAvailability();
       }
     } catch (error) {
@@ -330,26 +349,19 @@ function DoctorAvailability() {
                       style={{
                         ...styles.dayCell,
                         ...(item.isPast ? styles.pastCell : {}),
-                        ...(item.isSelected ? styles.selectedCell : {})
+                        ...(item.isSelected ? styles.selectedCell : {}),
+                        ...(item.availability && !item.isSelected ? (
+                          item.availability.startTime === 'Recurring' ? styles.recurringDay : styles.availableDay
+                        ) : {})
                       }}
                     >
                       <span style={{ 
-                        fontSize: '14px', 
+                        fontSize: '13px', 
                         fontWeight: '700',
-                        color: item.isSelected ? '#1d4ed8' : (item.isPast ? '#94a3b8' : '#334155')
+                        color: item.isSelected ? '#1d4ed8' : (item.isPast ? '#94a3b8' : '#1e293b')
                       }}>
                         {item.day}
                       </span>
-                      
-                      {item.availability && (
-                        <div style={{
-                          marginTop: '4px',
-                          width: '6px',
-                          height: '6px',
-                          borderRadius: '50%',
-                          background: item.availability.startTime === 'Recurring' ? '#fbbf24' : '#2563eb'
-                        }} />
-                      )}
                       
                       {item.dateKey === new Date().toISOString().split('T')[0] && (
                         <div style={styles.todayIndicator} />
@@ -417,21 +429,17 @@ function DoctorAvailability() {
 
                 <div style={styles.inputStack}>
                   <div style={styles.inputGroup}>
-                    <label style={styles.label}>Start Time</label>
-                    <input 
-                      type="time" 
+                    <ClockTimePicker 
+                      label="Start Time"
                       value={startTime}
-                      onChange={e => setStartTime(e.target.value)}
-                      style={styles.timeInput}
+                      onChange={setStartTime}
                     />
                   </div>
                   <div style={styles.inputGroup}>
-                    <label style={styles.label}>End Time</label>
-                    <input 
-                      type="time" 
+                    <ClockTimePicker 
+                      label="End Time"
                       value={endTime}
-                      onChange={e => setEndTime(e.target.value)}
-                      style={styles.timeInput}
+                      onChange={setEndTime}
                     />
                   </div>
                 </div>
@@ -494,6 +502,19 @@ function DoctorAvailability() {
           </div>
         </main>
       </div>
+
+      <ConfirmationModal 
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={() => {
+          setIsDeleteModalOpen(false);
+          proceedWithAvailability('DELETED');
+        }}
+        title="Remove Availability"
+        message={`Are you sure you want to remove the availability for ${selectedDate ? new Date(selectedDate).toLocaleDateString() : ''}? It will revert to your standard routine.`}
+        confirmText="Remove Schedule"
+        type="danger"
+      />
     </div>
   );
 }
@@ -512,9 +533,9 @@ const styles = {
     minWidth: 0
   },
   contentPadding: {
-    padding: '32px',
+    padding: '24px', // Reduced
     maxWidth: '1200px',
-    margin: '0 auto',
+    margin: '0 0',
     width: '100%'
   },
   headerRow: {
@@ -527,13 +548,15 @@ const styles = {
     fontSize: '30px',
     fontWeight: '800',
     color: '#0f172a',
-    marginBottom: '8px'
+    marginBottom: '8px',
+    fontFamily: "'Plus Jakarta Sans', sans-serif"
   },
   pageSubtitle: {
     fontSize: '16px',
     color: '#64748b',
     display: 'flex',
-    alignItems: 'center'
+    alignItems: 'center',
+    fontFamily: "'Inter', sans-serif"
   },
   errorBadge: {
     backgroundColor: '#fef2f2',
@@ -559,7 +582,7 @@ const styles = {
     overflow: 'hidden'
   },
   calendarHeader: {
-    padding: '24px',
+    padding: '16px 24px', // Reduced
     borderBottom: '1px solid #f1f5f9',
     display: 'flex',
     justifyContent: 'space-between',
@@ -569,7 +592,8 @@ const styles = {
   monthTitle: {
     fontSize: '20px',
     fontWeight: '700',
-    color: '#1e293b'
+    color: '#1e293b',
+    fontFamily: "'Plus Jakarta Sans', sans-serif"
   },
   calendarNav: {
     display: 'flex',
@@ -616,10 +640,10 @@ const styles = {
     borderRadius: '50%'
   },
   calendarGrid: {
-    padding: '24px',
-    display: 'grid',
-    gridTemplateColumns: 'repeat(7, 1fr)',
-    gap: '12px'
+    padding: "8px 12px 12px 12px",
+    display: "grid",
+    gridTemplateColumns: "repeat(7, 1fr)",
+    gap: "4px" // Reduced gap
   },
   dayHeaderCell: {
     textAlign: 'center',
@@ -632,8 +656,8 @@ const styles = {
   },
   dayCell: {
     aspectRatio: '1',
-    borderRadius: '16px',
-    border: '2px solid #f8fafc',
+    borderRadius: '8px',
+    border: '1px solid #000000', // Black outline for all dates
     backgroundColor: 'white',
     display: 'flex',
     flexDirection: 'column',
@@ -641,12 +665,14 @@ const styles = {
     justifyContent: 'center',
     cursor: 'pointer',
     transition: 'all 0.2s',
-    position: 'relative'
+    position: 'relative',
+    outline: 'none',
+    boxShadow: 'none'
   },
   emptyCell: {
     aspectRatio: '1',
     backgroundColor: 'rgba(248, 250, 252, 0.5)',
-    borderRadius: '16px'
+    borderRadius: '8px'
   },
   pastCell: {
     backgroundColor: '#f8fafc',
@@ -656,17 +682,27 @@ const styles = {
   },
   selectedCell: {
     borderColor: '#2563eb',
+    borderWidth: '2.5px', // Make selection more prominent
     backgroundColor: '#eff6ff',
-    boxShadow: '0 10px 15px -3px rgba(37, 99, 235, 0.1)'
+    zIndex: 10,
+    outline: 'none'
   },
   todayIndicator: {
     position: 'absolute',
-    top: '8px',
-    right: '8px',
-    width: '6px',
-    height: '6px',
+    top: '4px',
+    right: '4px',
+    width: '5px',
+    height: '5px',
     backgroundColor: '#2563eb',
     borderRadius: '50%'
+  },
+  availableDay: {
+    backgroundColor: '#eff6ff',
+    borderColor: 'rgba(37, 99, 235, 0.2)',
+  },
+  recurringDay: {
+    backgroundColor: '#fffbeb',
+    borderColor: 'rgba(251, 191, 36, 0.4)',
   },
   selectedFooter: {
     padding: '24px',
@@ -698,15 +734,16 @@ const styles = {
   },
   footerDate: {
     fontSize: '18px',
-    fontWeight: '700'
+    fontWeight: '700',
+    fontFamily: "'Plus Jakarta Sans', sans-serif"
   },
   footerRight: {
     display: 'flex',
     gap: '12px'
   },
   markAvailableBtn: {
-    backgroundColor: 'white',
-    color: '#2563eb',
+    backgroundColor: '#22c55e',
+    color: 'white',
     padding: '10px 20px',
     borderRadius: '12px',
     fontWeight: '700',
@@ -716,10 +753,11 @@ const styles = {
     alignItems: 'center',
     gap: '8px',
     fontSize: '14px',
-    boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
+    boxShadow: '0 4px 12px rgba(34, 197, 94, 0.3)',
+    transition: 'all 0.2s'
   },
   deleteBtn: {
-    backgroundColor: 'rgba(239, 68, 68, 0.2)',
+    backgroundColor: '#ef4444',
     color: 'white',
     padding: '10px',
     borderRadius: '12px',
@@ -727,7 +765,9 @@ const styles = {
     cursor: 'pointer',
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
+    boxShadow: '0 4px 12px rgba(239, 68, 68, 0.3)',
+    transition: 'all 0.2s'
   },
   settingsColumn: {
     display: 'flex',
@@ -758,7 +798,8 @@ const styles = {
   cardTitle: {
     fontSize: '18px',
     fontWeight: '700',
-    color: '#1e293b'
+    color: '#1e293b',
+    fontFamily: "'Plus Jakarta Sans', sans-serif"
   },
   cardSubtitle: {
     fontSize: '14px',
@@ -792,7 +833,8 @@ const styles = {
     fontWeight: '700',
     color: '#334155',
     outline: 'none',
-    transition: 'all 0.2s'
+    transition: 'all 0.2s',
+    fontFamily: "'Inter', sans-serif"
   },
   daySelectionGrid: {
     display: 'grid',

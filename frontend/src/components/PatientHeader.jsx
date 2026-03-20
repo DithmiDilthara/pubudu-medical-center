@@ -54,7 +54,6 @@ function PatientHeader() {
         <div style={styles.profileSection} onClick={() => navigate('/profile')}>
           <div style={styles.profileDetails}>
             <p style={styles.profileName}>{user?.profile?.full_name || "Patient"}</p>
-            <p style={styles.patientId}>ID: #PMC-{user?.profile?.patient_id || "0000"}</p>
           </div>
           <div style={styles.avatar}>
             {(user?.profile?.full_name || user?.username)?.charAt(0).toUpperCase() || <FiUser style={styles.avatarIcon} />}
@@ -146,14 +145,6 @@ const styles = {
     fontWeight: "700",
     color: "#1e293b",
     margin: 0,
-  },
-  patientId: {
-    fontSize: "12px",
-    fontWeight: "600",
-    color: "#94a3b8",
-    margin: 0,
-    textTransform: "uppercase",
-    letterSpacing: "0.5px"
   },
   avatar: {
     width: "44px",

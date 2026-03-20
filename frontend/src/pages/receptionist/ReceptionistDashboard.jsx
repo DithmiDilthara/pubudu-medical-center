@@ -150,7 +150,7 @@ function ReceptionistDashboard() {
           {/* Section 1: Page Header */}
           <header style={styles.headerSection}>
             <div style={styles.headerLeft}>
-              <h1 style={styles.welcomeTitle}>Welcome back, {receptionistName}! 👋</h1>
+              <h1 style={styles.welcomeTitle}>Welcome back, {receptionistName}!</h1>
               <p style={styles.welcomeSubtitle}>Check your health status and upcoming appointments.</p>
             </div>
             <div style={styles.headerRight}>

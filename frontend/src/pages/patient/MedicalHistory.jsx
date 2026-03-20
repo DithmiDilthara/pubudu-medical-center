@@ -110,12 +110,9 @@ const MedicalHistory = () => {
                                     placeholder="Search by diagnosis or doctor name..."
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
-                                    style={styles.searchInput}
+                                    style={{...styles.searchInput, width: '100%'}}
                                 />
                             </div>
-                            <button style={styles.filterBtn}>
-                                <FiFilter /> Filter
-                            </button>
                         </div>
 
                         {isLoading ? (
@@ -275,38 +272,10 @@ const styles = {
         backgroundColor: "white",
         borderRadius: "14px",
         padding: "12px 16px",
-        flex: 1,
-        maxWidth: "400px",
+        width: "100%",
+        maxWidth: "500px",
         border: "1px solid #e2e8f0",
         boxShadow: "0 2px 4px rgba(0,0,0,0.02)"
-    },
-    searchIcon: {
-        color: "#94a3b8",
-        fontSize: "18px",
-        marginRight: "12px"
-    },
-    searchInput: {
-        border: "none",
-        outline: "none",
-        width: "100%",
-        fontSize: "14px",
-        color: "#334155",
-        background: "transparent"
-    },
-    filterBtn: {
-        display: "flex",
-        alignItems: "center",
-        gap: "8px",
-        padding: "12px 20px",
-        backgroundColor: "white",
-        border: "1px solid #e2e8f0",
-        borderRadius: "14px",
-        fontSize: "14px",
-        fontWeight: "600",
-        color: "#475569",
-        cursor: "pointer",
-        boxShadow: "0 2px 4px rgba(0,0,0,0.02)",
-        transition: "all 0.2s"
     },
     recordsGrid: {
         display: "grid",

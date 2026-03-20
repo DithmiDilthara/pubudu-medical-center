@@ -91,7 +91,7 @@ const RevenueChart = ({ revenueData = { daily: 0, weekly: 0, monthly: 0, total: 
       <div style={styles.header}>
         <div>
           <h3 style={styles.title}>Consultation Revenue</h3>
-          <p style={styles.amount}>Rs. {getDisplayTotal().toLocaleString()}</p>
+          <p style={styles.amount}>LKR {getDisplayTotal().toLocaleString()}</p>
         </div>
         <div style={styles.tabs}>
           {['Daily', 'Weekly', 'Monthly'].map((p) => (
@@ -135,7 +135,7 @@ const RevenueChart = ({ revenueData = { daily: 0, weekly: 0, monthly: 0, total: 
               <Tooltip 
                 formatter={(value, name, props) => {
                     const segment = segments.find(s => s.name === name);
-                    return [`Rs. ${value.toLocaleString()}`, 'Source'];
+                    return [`LKR ${value.toLocaleString()}`, 'Source'];
                 }}
                 contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
               />
@@ -174,7 +174,7 @@ const RevenueChart = ({ revenueData = { daily: 0, weekly: 0, monthly: 0, total: 
             <div style={{ ...styles.dot, backgroundColor: item.color }} />
             <div style={styles.legendInfo}>
               <p style={styles.legendName}>{item.name}</p>
-              <p style={styles.legendValue}>Rs. {item.displayTotal.toLocaleString()}</p>
+              <p style={styles.legendValue}>LKR {item.displayTotal.toLocaleString()}</p>
             </div>
           </div>
         ))}

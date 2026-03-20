@@ -94,6 +94,8 @@ export const getMyPatients = async (req, res) => {
                     name: apt.patient.full_name,
                     contact: apt.patient.user ? apt.patient.user.contact_number : '',
                     email: apt.patient.user ? apt.patient.user.email : '',
+                    dob: apt.patient.date_of_birth,
+                    gender: apt.patient.gender,
                     lastVisit: apt.status === 'COMPLETED' ? apt.appointment_date : 'N/A', // First encountered is most recent due to DESC order
                     primaryReason: apt.status === 'COMPLETED' ? 'Follow-up' : 'Consultation', // Dummy, can fetch from prescriptions if needed
                     nic: apt.patient.nic
@@ -144,10 +146,11 @@ export const getPatientDetails = async (req, res) => {
             contact: patient.user ? patient.user.contact_number : 'N/A',
             email: patient.user ? patient.user.email : 'N/A',
             address: patient.address || 'N/A',
+            blood_group: patient.blood_group || 'N/A',
+            allergies: patient.allergies || 'None record',
             pastDiagnoses: 'Available in medical history', // Placeholder
             medications: 'Available in medical history',
-            labResults: 'Pending',
-            allergies: 'None recorded'
+            labResults: 'Pending'
         };
 
         res.status(200).json({ success: true, data: patientData });

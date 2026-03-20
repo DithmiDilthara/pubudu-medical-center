@@ -125,7 +125,7 @@ const AddStaff = () => {
                 >
                     {/* Header Title - Personalized Welcome */}
                     <div style={styles.headerTitleSection}>
-                        <h1 style={styles.pageTitle}>Welcome back, {adminName}! 👋</h1>
+                        <h1 style={styles.welcomeTitle}>Welcome back, Administrator!</h1>
                         <p style={styles.pageSubtitle}>Expand your medical team by adding new professional accounts.</p>
                     </div>
                     

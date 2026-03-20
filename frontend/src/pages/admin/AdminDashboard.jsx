@@ -78,7 +78,7 @@ function AdminDashboard() {
         >
           {/* Header Title - Personalized Welcome */}
           <div style={styles.headerTitleSection}>
-            <h1 style={styles.pageTitle}>Welcome back, {adminName}! 👋</h1>
+            <h1 style={styles.pageTitle}>Welcome back, {adminName}!</h1>
             <p style={styles.pageSubtitle}>Monitor and manage medical center operations efficiently.</p>
           </div>
 

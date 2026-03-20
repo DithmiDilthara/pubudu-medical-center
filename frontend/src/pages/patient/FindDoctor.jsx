@@ -63,7 +63,13 @@ function FindDoctor() {
     const search = searchTerm.toLowerCase();
 
     const matchesSearch = name.toLowerCase().includes(search) || specialty.toLowerCase().includes(search);
-    const matchesSpecialty = selectedSpecialty === "All" || specialty === selectedSpecialty;
+    
+    // Flexible matching for specialties
+    const matchesSpecialty = selectedSpecialty === "All" || 
+      specialty.toLowerCase() === selectedSpecialty.toLowerCase() ||
+      (selectedSpecialty === "Orthopedic" && (specialty.toLowerCase().includes("ortho") || specialty.toLowerCase().includes("bone"))) ||
+      (selectedSpecialty === "General" && (specialty.toLowerCase().includes("general") || specialty.toLowerCase().includes("physician") || specialty.toLowerCase().includes("opd")));
+    
     return matchesSearch && matchesSpecialty;
   });
 
@@ -417,6 +423,17 @@ const styles = {
     display: 'flex',
     flexDirection: 'column',
     gap: '4px',
+  },
+  searchWrapper: {
+      display: "flex",
+      alignItems: "center",
+      backgroundColor: "white",
+      borderRadius: "14px",
+      padding: "12px 16px",
+      width: "100%",
+      maxWidth: "500px",
+      border: "1px solid #e2e8f0",
+      boxShadow: "0 2px 4px rgba(0,0,0,0.02)"
   },
   verifiedBadge: {
     display: 'inline-flex',

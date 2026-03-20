@@ -155,9 +155,10 @@ export const registerPatient = async (req, res) => {
             email,
             full_name,
             nic,
-            gender,
             date_of_birth,
-            address
+            address,
+            blood_group,
+            allergies
         } = req.body;
         
         // Map phone from frontend to contact_number used in controller logic
@@ -206,6 +207,8 @@ export const registerPatient = async (req, res) => {
             gender: gender.toUpperCase(),
             date_of_birth,
             address,
+            blood_group,
+            allergies,
             registration_source: 'RECEPTIONIST'
         });
 

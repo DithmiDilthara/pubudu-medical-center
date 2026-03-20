@@ -137,7 +137,7 @@ const ManageReceptionist = () => {
         >
           {/* Header Title - Personalized Welcome */}
           <div style={styles.headerTitleSection}>
-            <h1 style={styles.pageTitle}>Welcome back, {adminName}! 👋</h1>
+            <h1 style={styles.pageTitle}>Welcome back, {adminName}!</h1>
             <p style={styles.pageSubtitle}>Coordinate frontline staff and streamline patient intake operations.</p>
           </div>
           {/* Toolbar */}

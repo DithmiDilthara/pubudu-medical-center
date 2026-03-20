@@ -29,19 +29,43 @@ export const setAvailability = async (req, res) => {
             });
         }
 
-        // Create specific availability records
+        // Handle specific availability records
         if (specific.length > 0) {
-            await Availability.bulkCreate(
-                specific.map(slot => ({
-                    ...slot,
-                    doctor_id: doctor.doctor_id
-                }))
-            );
+            // Separate actual updates from deletions
+            const toDelete = specific.filter(slot => slot.session_name === 'DELETED');
+            const toUpsert = specific.filter(slot => slot.session_name !== 'DELETED');
 
-            // Handle cancellations for specific 'Unavailable' dates
-            const unavailableDates = specific.filter(s => s.session_name === 'Unavailable').map(s => s.specific_date);
-            if (unavailableDates.length > 0) {
-                await cancelAffectedAppointments(doctor.doctor_id, { specific_date: unavailableDates });
+            // Process deletions
+            if (toDelete.length > 0) {
+                await Availability.destroy({
+                    where: {
+                        doctor_id: doctor.doctor_id,
+                        specific_date: { [Op.in]: toDelete.map(s => s.specific_date) }
+                    }
+                });
+            }
+
+            // Process upserts (delete then create to ensure clean slate for those dates)
+            if (toUpsert.length > 0) {
+                await Availability.destroy({
+                    where: {
+                        doctor_id: doctor.doctor_id,
+                        specific_date: { [Op.in]: toUpsert.map(s => s.specific_date) }
+                    }
+                });
+
+                await Availability.bulkCreate(
+                    toUpsert.map(slot => ({
+                        ...slot,
+                        doctor_id: doctor.doctor_id
+                    }))
+                );
+
+                // Handle cancellations for specific 'Unavailable' dates
+                const unavailableDates = toUpsert.filter(s => s.session_name === 'Unavailable').map(s => s.specific_date);
+                if (unavailableDates.length > 0) {
+                    await cancelAffectedAppointments(doctor.doctor_id, { specific_date: unavailableDates });
+                }
             }
         }
 
