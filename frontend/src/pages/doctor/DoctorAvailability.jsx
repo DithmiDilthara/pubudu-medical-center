@@ -268,7 +268,6 @@ function DoctorAvailability() {
             >
               <h1 style={styles.pageTitle}>Schedule & Availability</h1>
               <p style={styles.pageSubtitle}>
-                <FiClock style={{ color: '#2563eb', marginRight: '8px' }} />
                 Manage your working hours and weekly routine
               </p>
             </motion.div>
@@ -319,7 +318,7 @@ function DoctorAvailability() {
               {/* Legend */}
               <div style={styles.legend}>
                 <div style={styles.legendItem}>
-                  <div style={{ ...styles.legendDot, background: '#2563eb' }} />
+                  <div style={{ ...styles.legendDot, background: '#3b82f6' }} />
                   <span>Available</span>
                 </div>
                 <div style={styles.legendItem}>
@@ -327,7 +326,7 @@ function DoctorAvailability() {
                   <span style={{ color: '#94a3b8' }}>Not Set</span>
                 </div>
                 <div style={styles.legendItem}>
-                  <div style={{ ...styles.legendDot, background: '#fbbf24' }} />
+                  <div style={{ ...styles.legendDot, background: '#f59e0b' }} />
                   <span>Recurring Only</span>
                 </div>
               </div>
@@ -533,9 +532,9 @@ const styles = {
     minWidth: 0
   },
   contentPadding: {
-    padding: '24px', // Reduced
-    maxWidth: '1200px',
-    margin: '0 0',
+    padding: '24px',
+    maxWidth: '1400px',
+    margin: '0 auto',
     width: '100%'
   },
   headerRow: {
@@ -545,17 +544,18 @@ const styles = {
     marginBottom: '32px'
   },
   pageTitle: {
-    fontSize: '30px',
+    fontSize: '32px',
     fontWeight: '800',
     color: '#0f172a',
-    marginBottom: '8px',
+    margin: 0,
+    letterSpacing: '-0.025em',
     fontFamily: "'Plus Jakarta Sans', sans-serif"
   },
   pageSubtitle: {
-    fontSize: '16px',
+    fontSize: '15px',
     color: '#64748b',
-    display: 'flex',
-    alignItems: 'center',
+    marginTop: '4px',
+    fontWeight: '500',
     fontFamily: "'Inter', sans-serif"
   },
   errorBadge: {
@@ -571,28 +571,27 @@ const styles = {
   },
   gridContainer: {
     display: 'grid',
-    gridTemplateColumns: '1.8fr 1fr',
+    gridTemplateColumns: '2.2fr 1fr',
     gap: '32px'
   },
   calendarCard: {
     backgroundColor: 'white',
     borderRadius: '24px',
-    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)',
-    border: '1px solid #e2e8f0',
+    boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.04)',
+    border: '1px solid #cbd5e1',
     overflow: 'hidden'
   },
   calendarHeader: {
-    padding: '16px 24px', // Reduced
-    borderBottom: '1px solid #f1f5f9',
+    padding: '20px 24px',
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#f8fafc'
+    backgroundColor: '#2563eb'
   },
   monthTitle: {
     fontSize: '20px',
     fontWeight: '700',
-    color: '#1e293b',
+    color: 'white',
     fontFamily: "'Plus Jakarta Sans', sans-serif"
   },
   calendarNav: {
@@ -605,7 +604,7 @@ const styles = {
     borderRadius: '12px',
     border: '1px solid transparent',
     backgroundColor: 'transparent',
-    color: '#64748b',
+    color: 'white',
     cursor: 'pointer',
     transition: 'all 0.2s'
   },
@@ -697,12 +696,12 @@ const styles = {
     borderRadius: '50%'
   },
   availableDay: {
-    backgroundColor: '#eff6ff',
-    borderColor: 'rgba(37, 99, 235, 0.2)',
+    backgroundColor: '#dbeafe',
+    borderColor: '#3b82f6',
   },
   recurringDay: {
-    backgroundColor: '#fffbeb',
-    borderColor: 'rgba(251, 191, 36, 0.4)',
+    backgroundColor: '#fef3c7',
+    borderColor: '#f59e0b',
   },
   selectedFooter: {
     padding: '24px',
@@ -838,7 +837,7 @@ const styles = {
   },
   daySelectionGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(4, 1fr)',
+    gridTemplateColumns: 'repeat(7, 1fr)',
     gap: '8px',
     marginBottom: '24px'
   },

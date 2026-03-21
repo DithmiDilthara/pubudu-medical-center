@@ -13,37 +13,82 @@ const RevenueChart = ({ revenueData = { daily: 0, weekly: 0, monthly: 0, total: 
   const [period, setPeriod] = useState('Weekly');
   const [activeIndex, setActiveIndex] = useState(null);
 
-  // Derive non-overlapping segments for the pie chart to fill the circle
-  // Segment order: Daily, Rest of Week, Rest of Month, Previous
-  const segments = [
-    { 
-      name: 'Today', 
-      value: revenueData.daily, 
-      displayTotal: revenueData.daily,
-      color: '#2563eb' 
-    },
-    { 
-      name: 'This Week', 
-      value: Math.max(0, revenueData.weekly - revenueData.daily), 
-      displayTotal: revenueData.weekly,
-      color: '#7c3aed' 
-    },
-    { 
-      name: 'This Month', 
-      value: Math.max(0, revenueData.monthly - revenueData.weekly), 
-      displayTotal: revenueData.monthly,
-      color: '#059669' 
-    },
-    { 
-      name: 'Previous', 
-      value: Math.max(0, revenueData.total - revenueData.monthly), 
-      displayTotal: revenueData.total,
-      color: '#f59e0b' 
-    },
-  ];
+  const getSegments = () => {
+    const appts = revenueData.appointments || [];
+    const paidAppts = appts.filter(a => a.payment_status === 'PAID');
+    const todayStr = new Date().toISOString().split('T')[0];
 
-  // Filter out segments with 0 value for the pie chart itself
-  const chartData = segments.filter(s => s.value > 0);
+    if (period === 'Daily') {
+      const todayPaid = paidAppts.filter(a => a.appointment_date === todayStr);
+      if (todayPaid.length === 0) return [{ name: 'No Revenue', value: 1, color: '#f1f5f9', isPlaceholder: true }];
+      
+      return todayPaid.map((a, i) => ({
+        name: a.patient_name || `Appt #${i+1}`,
+        value: Number(a.doctor?.doctor_fee || 0),
+        color: ['#3b82f6', '#2563eb', '#1d4ed8', '#1e40af'][i % 4]
+      }));
+    }
+
+    if (period === 'Weekly') {
+      const last7Days = [...Array(7)].map((_, i) => {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        return d.toISOString().split('T')[0];
+      }).reverse();
+
+      return last7Days.map((date, i) => {
+        const dayTotal = paidAppts
+          .filter(a => a.appointment_date === date)
+          .reduce((sum, a) => sum + Number(a.doctor?.doctor_fee || 0), 0);
+        
+        return {
+          name: new Date(date).toLocaleDateString('en-US', { weekday: 'short' }),
+          value: dayTotal,
+          color: ['#8b5cf6', '#7c3aed', '#6d28d9', '#5b21b6', '#4c1d95', '#3b82f6', '#2563eb'][i % 7]
+        };
+      }).filter(s => s.value > 0);
+    }
+
+    if (period === 'Monthly') {
+      // Group by weeks
+      const categories = [
+        { name: 'Week 1', start: 0, end: 7 },
+        { name: 'Week 2', start: 8, end: 14 },
+        { name: 'Week 3', start: 15, end: 21 },
+        { name: 'Week 4', start: 22, end: 31 },
+      ];
+
+      return categories.map((cat, i) => {
+        const dStart = new Date(); dStart.setDate(dStart.getDate() - cat.end);
+        const dEnd = new Date(); dEnd.setDate(dEnd.getDate() - cat.start);
+        
+        const weekTotal = paidAppts
+          .filter(a => {
+            const ad = new Date(a.appointment_date);
+            return ad >= dStart && ad <= dEnd;
+          })
+          .reduce((sum, a) => sum + Number(a.doctor?.doctor_fee || 0), 0);
+        
+        return {
+          name: cat.name,
+          value: weekTotal,
+          color: ['#10b981', '#059669', '#047857', '#065f46'][i]
+        };
+      }).filter(s => s.value > 0);
+    }
+
+    // Default: Total breakdown
+    return [
+      { name: 'Today', value: revenueData.daily, color: '#0f172a' },
+      { name: 'This Week', value: Math.max(0, revenueData.weekly - revenueData.daily), color: '#3b82f6' },
+      { name: 'This Month', value: Math.max(0, revenueData.monthly - revenueData.weekly), color: '#8b5cf6' },
+      { name: 'Previous', value: Math.max(0, revenueData.total - revenueData.monthly), color: '#10b981' },
+    ].filter(s => s.value > 0);
+  };
+
+  const segments = getSegments();
+
+  const chartData = segments.length > 0 ? segments : [{ name: 'No Revenue', value: 1, color: '#f1f5f9', isPlaceholder: true }];
   
   // If no revenue at all, show a placeholder segment to keep the circle
   if (chartData.length === 0) {
@@ -161,7 +206,7 @@ const RevenueChart = ({ revenueData = { daily: 0, weekly: 0, monthly: 0, total: 
       </div>
 
       <div style={styles.legendGrid}>
-        {segments.map((item, index) => (
+        {segments.filter(s => !s.isPlaceholder).map((item, index) => (
           <div 
             key={item.name} 
             style={styles.legendItem}
@@ -174,7 +219,7 @@ const RevenueChart = ({ revenueData = { daily: 0, weekly: 0, monthly: 0, total: 
             <div style={{ ...styles.dot, backgroundColor: item.color }} />
             <div style={styles.legendInfo}>
               <p style={styles.legendName}>{item.name}</p>
-              <p style={styles.legendValue}>LKR {item.displayTotal.toLocaleString()}</p>
+              <p style={styles.legendValue}>LKR {item.value.toLocaleString()}</p>
             </div>
           </div>
         ))}

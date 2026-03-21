@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
-import { FiChevronLeft, FiChevronRight } from 'react-icons/fi';
+import { FiChevronLeft, FiChevronRight, FiClock, FiX } from 'react-icons/fi';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const AppointmentCalendar = ({ appointments = [], selectedDate, onDateSelect }) => {
   const [viewDate, setViewDate] = useState(new Date());
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalData, setModalData] = useState({ date: '', appts: [] });
 
   const daysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();
   const firstDayOfMonth = (year, month) => new Date(year, month, 1).getDay();
@@ -51,8 +54,19 @@ const AppointmentCalendar = ({ appointments = [], selectedDate, onDateSelect }) 
   };
 
   const handleDateClick = (day) => {
+    const dateStr = getLocalDateString(year, month, day);
+    const dayAppts = appointments.filter(appt => appt.appointment_date === dateStr);
+    
     if (onDateSelect) {
-      onDateSelect(getLocalDateString(year, month, day));
+      onDateSelect(dateStr);
+    }
+
+    if (dayAppts.length > 0) {
+      setModalData({
+        date: new Date(dateStr).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }),
+        appts: dayAppts
+      });
+      setModalOpen(true);
     }
   };
 
@@ -110,14 +124,58 @@ const AppointmentCalendar = ({ appointments = [], selectedDate, onDateSelect }) 
         {renderDays()}
       </div>
 
+      <AnimatePresence>
+        {modalOpen && (
+          <>
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setModalOpen(false)}
+              style={styles.modalOverlay}
+            />
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              style={styles.modalContent}
+            >
+              <div style={styles.modalHeader}>
+                <h4 style={styles.modalTitle}>Daily Appointments</h4>
+                <button onClick={() => setModalOpen(false)} style={styles.closeBtn}><FiX /></button>
+              </div>
+              <div style={styles.modalSubHeader}>
+                <span style={styles.modalDate}>{modalData.date}</span>
+                <span style={styles.modalBadge}>{modalData.appts.length} total</span>
+              </div>
+              
+              <div style={styles.apptDetailsList}>
+                {modalData.appts.sort((a, b) => a.appointment_time?.localeCompare(b.appointment_time)).map((appt, idx) => (
+                  <div key={idx} style={styles.apptDetailRow}>
+                    <div style={styles.timeWrapper}>
+                      <FiClock style={styles.clockIcon} />
+                      <span style={styles.apptTime}>{appt.appointment_time || 'No time'}</span>
+                    </div>
+                    <div style={styles.patientInfo}>
+                      <span style={styles.patientName}>{appt.patient_name || 'Anonymous Patient'}</span>
+                      <span style={styles.apptStatusBadge(appt.status)}>{appt.status}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
       <div style={styles.legend}>
         <div style={styles.legendItem}>
-          <div style={{...styles.dotPreview, backgroundColor: '#60a5fa'}}></div>
+          <div style={{...styles.dotPreview, backgroundColor: '#3b82f6'}}></div>
           <span>Has Appointments</span>
         </div>
         <div style={styles.legendItem}>
-          <div style={{...styles.dotPreview, backgroundColor: '#2563eb'}}></div>
-          <span>Selection</span>
+          <div style={{...styles.dotPreview, backgroundColor: '#0f172a'}}></div>
+          <span>Today</span>
         </div>
       </div>
     </div>
@@ -197,13 +255,14 @@ const styles = {
     color: '#334155',
   },
   todayCell: {
-    border: '2px solid #2563eb',
-    color: '#2563eb',
+    backgroundColor: '#0f172a',
+    color: '#ffffff',
+    boxShadow: '0 4px 6px -1px rgba(15, 23, 42, 0.2)'
   },
   selectedCell: {
-    backgroundColor: '#2563eb',
-    color: '#ffffff',
-    boxShadow: '0 4px 6px -1px rgba(37, 99, 235, 0.2)'
+    border: '2px solid #0f172a',
+    backgroundColor: 'rgba(15, 23, 42, 0.05)',
+    color: '#0f172a',
   },
   activeText: {
     color: 'inherit'
@@ -212,18 +271,148 @@ const styles = {
     color: 'inherit'
   },
   apptHighlight: {
-    backgroundColor: 'rgba(37, 99, 235, 0.08)',
-    color: '#2563eb',
-    border: '1px solid rgba(37, 99, 235, 0.2)',
+    backgroundColor: '#3b82f6',
+    color: '#ffffff',
+    boxShadow: '0 4px 6px -1px rgba(59, 130, 246, 0.2)'
   },
   apptIndicator: {
     width: '4px',
     height: '4px',
     borderRadius: '50%',
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#ffffff',
     position: 'absolute',
     bottom: '6px'
   },
+  modalOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(15, 23, 42, 0.4)',
+    backdropFilter: 'blur(4px)',
+    zIndex: 1000,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  modalContent: {
+    position: 'fixed',
+    top: '50%',
+    left: '50%',
+    transform: 'translate(-50%, -50%)',
+    backgroundColor: 'white',
+    borderRadius: '24px',
+    padding: '24px',
+    width: '90%',
+    maxWidth: '400px',
+    boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+    zIndex: 1001,
+  },
+  modalHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '16px'
+  },
+  modalTitle: {
+    fontSize: '20px',
+    fontWeight: '800',
+    color: '#0f172a',
+    margin: 0,
+    letterSpacing: '-0.025em'
+  },
+  closeBtn: {
+    background: '#f1f5f9',
+    border: 'none',
+    padding: '8px',
+    borderRadius: '12px',
+    cursor: 'pointer',
+    color: '#64748b',
+    display: 'flex',
+    transition: 'all 0.2s',
+    ':hover': {
+      backgroundColor: '#e2e8f0',
+      color: '#0f172a'
+    }
+  },
+  modalSubHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '20px',
+    padding: '12px',
+    backgroundColor: '#f8fafc',
+    borderRadius: '16px'
+  },
+  modalDate: {
+    fontSize: '13px',
+    fontWeight: '700',
+    color: '#64748b'
+  },
+  modalBadge: {
+    backgroundColor: '#0f172a',
+    color: 'white',
+    padding: '4px 10px',
+    borderRadius: '8px',
+    fontSize: '11px',
+    fontWeight: '800',
+    textTransform: 'uppercase'
+  },
+  apptDetailsList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '12px',
+    maxHeight: '300px',
+    overflowY: 'auto',
+    paddingRight: '4px'
+  },
+  apptDetailRow: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '4px',
+    padding: '12px',
+    backgroundColor: 'white',
+    border: '1px solid #f1f5f9',
+    borderRadius: '14px',
+    transition: 'all 0.2s',
+    ':hover': {
+      borderColor: '#3b82f6',
+      backgroundColor: '#f0f9ff'
+    }
+  },
+  timeWrapper: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    color: '#3b82f6'
+  },
+  clockIcon: {
+    fontSize: '14px'
+  },
+  apptTime: {
+    fontSize: '14px',
+    fontWeight: '800',
+  },
+  patientInfo: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  },
+  patientName: {
+    fontSize: '13px',
+    fontWeight: '600',
+    color: '#334155'
+  },
+  apptStatusBadge: (status) => ({
+    fontSize: '10px',
+    fontWeight: '700',
+    padding: '2px 8px',
+    borderRadius: '6px',
+    textTransform: 'uppercase',
+    backgroundColor: status === 'CONFIRMED' ? '#dcfce7' : status === 'PENDING' ? '#fef9c3' : '#f1f5f9',
+    color: status === 'CONFIRMED' ? '#15803d' : status === 'PENDING' ? '#854d0e' : '#64748b'
+  }),
   legend: {
     display: 'flex',
     justifyContent: 'center',

@@ -136,7 +136,8 @@ function DoctorDashboard() {
             daily: dailyRev,
             weekly: weeklyRev,
             monthly: monthlyRev,
-            total: totalRev
+            total: totalRev,
+            appointments: appts // Pass all appointments for detailed chart calculation
           });
         }
       } catch (error) {
@@ -185,9 +186,9 @@ function DoctorDashboard() {
 
         <main style={styles.contentPadding}>
           <motion.div variants={itemVariants} style={styles.pageHeader}>
-            <div style={styles.headerLeft}>
-              <h1 style={styles.pageTitle}>Dashboard</h1>
-              <p style={styles.pageSubtitle}>Precision Care & Management Dashboard</p>
+            <div style={styles.headerSection}>
+              <h1 style={styles.welcomeTitle}>Welcome back, {doctorName}!</h1>
+              <p style={styles.welcomeSubtitle}>Precision Care & Management Dashboard</p>
             </div>
             <div style={styles.headerRight}>
                <div style={styles.dateBadge}>
@@ -333,20 +334,23 @@ const styles = {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "flex-end",
-    marginBottom: "32px"
+    marginBottom: "32px",
   },
-  pageTitle: {
+  headerSection: {
+    marginBottom: 0,
+  },
+  welcomeTitle: {
     fontSize: "32px",
     fontWeight: "800",
     color: "#0f172a",
-    margin: 0,
-    letterSpacing: "-0.025em",
+    margin: "0 0 4px 0",
+    letterSpacing: "-1px",
     fontFamily: "'Plus Jakarta Sans', sans-serif"
   },
-  pageSubtitle: {
-    fontSize: "15px",
+  welcomeSubtitle: {
+    fontSize: "16px",
     color: "#64748b",
-    marginTop: "4px",
+    margin: 0,
     fontWeight: "500",
     fontFamily: "'Inter', sans-serif"
   },

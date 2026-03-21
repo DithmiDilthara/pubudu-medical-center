@@ -186,21 +186,22 @@ const styles = {
     minHeight: "100vh"
   },
   contentPadding: {
-    padding: "32px 40px",
-    maxWidth: "1200px", // Reduced for tighter layout
-    margin: "0 auto" // Centered for better aesthetics
+    padding: "32px",
+    flex: 1,
+    maxWidth: "1400px",
+    margin: "0 auto",
+    width: "100%",
+    display: "flex",
+    flexDirection: "column"
   },
   header: {
     display: "flex",
-    justifyContent: "space-between", // Match image - search on the right
-    alignItems: "flex-end", // Align text baselines
-    marginBottom: "40px",
-    width: "100%",
-    gap: "32px",
-    textAlign: "left"
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: "40px"
   },
   pageTitle: {
-    fontSize: "36px",
+    fontSize: "32px",
     fontWeight: "800",
     color: "#0f172a",
     margin: 0,
@@ -208,9 +209,9 @@ const styles = {
     fontFamily: "'Plus Jakarta Sans', sans-serif"
   },
   pageSubtitle: {
-    fontSize: "16px",
+    fontSize: "15px",
     color: "#64748b",
-    marginTop: "8px",
+    marginTop: "4px",
     fontWeight: "500",
     fontFamily: "'Inter', sans-serif"
   },
@@ -255,6 +256,7 @@ const styles = {
     borderRadius: "24px", // Matches image
     padding: "24px",
     border: "1px solid #f1f5f9", // Light border
+    borderLeft: "6px solid #2563eb",
     cursor: "pointer",
     transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
     display: "flex",

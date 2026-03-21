@@ -276,6 +276,7 @@ function DoctorAppointments() {
                         whileHover={{ backgroundColor: '#f8fafc', x: 4 }}
                         onClick={() => navigate('/doctor/patient-details', { 
                             state: { 
+                                patientId: selectedAppointment.patient_id,
                                 patient: selectedAppointment.patient,
                                 appointment_id: selectedAppointment.appointment_id 
                             } 
@@ -321,6 +322,7 @@ function DoctorAppointments() {
                             <button 
                                 onClick={() => navigate('/doctor/patient-details', { 
                                     state: { 
+                                        patientId: selectedAppointment.patient_id,
                                         patient: selectedAppointment.patient,
                                         appointment_id: selectedAppointment.appointment_id 
                                     } 
@@ -476,7 +478,8 @@ const styles = {
     fontWeight: "700",
     cursor: "pointer",
     position: "relative",
-    transition: "color 0.2s"
+    transition: "color 0.2s",
+    outline: "none"
   },
   tabUnderline: {
     position: "absolute",
