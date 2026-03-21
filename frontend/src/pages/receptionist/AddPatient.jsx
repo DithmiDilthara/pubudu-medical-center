@@ -236,22 +236,40 @@ function AddPatient() {
     }
   };
 
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: { 
+      opacity: 1,
+      transition: { staggerChildren: 0.1 }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.5 } }
+  };
+
   return (
     <div style={styles.container}>
       <ReceptionistSidebar onLogout={handleLogout} />
 
-      <div className="main-wrapper" style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: '#f8fafc' }}>
+      <motion.div 
+        className="main-wrapper" 
+        style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: '#f8fafc' }}
+        initial="hidden"
+        animate="visible"
+        variants={containerVariants}
+      >
         <ReceptionistHeader receptionistName={receptionistName} />
 
-        <main className="content-padding" style={{ flex: 1, overflowY: 'auto', padding: '40px 20px' }}>
-          <div style={styles.pageHeaderWrapper}>
+        <main className="content-padding" style={{ flex: 1, overflowY: 'auto', padding: '40px 32px' }}>
+          <motion.div variants={itemVariants} style={styles.pageHeaderWrapper}>
             <h1 style={styles.welcomeTitle}>Patient Registration</h1>
             <p style={styles.welcomeSubtitle}>Enter the patient's information to register them in the system securely.</p>
-          </div>
+          </motion.div>
 
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
+            variants={itemVariants}
             style={styles.contentCard}
           >
             <form onSubmit={handleSubmit}>
@@ -615,7 +633,7 @@ function AddPatient() {
             </form>
           </motion.div>
         </main>
-      </div>
+      </motion.div>
     </div>
   );
 }
@@ -628,28 +646,21 @@ const styles = {
     fontFamily: "'Inter', sans-serif"
   },
   contentCard: {
-    maxWidth: "1000px",
-    width: "95%",
+    maxWidth: "1400px",
+    width: "100%",
     margin: "0 auto 40px auto",
-    backgroundColor: "white",
-    borderRadius: "28px",
-    padding: "32px 48px",
-    boxShadow: "0 10px 30px -10px rgba(0, 0, 0, 0.05)",
-    border: "2px solid #3b82f6"
+    backgroundColor: "transparent",
+    padding: "0",
+    boxShadow: "none",
+    border: "none"
   },
   pageHeaderWrapper: {
-    maxWidth: "1000px",
-    width: "95%",
+    maxWidth: "1400px",
+    width: "100%",
     margin: "0 auto 32px auto",
     display: "flex",
     flexDirection: "column",
     gap: "4px"
-  },
-  headerTitleSection: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "4px",
-    marginBottom: "40px"
   },
   welcomeTitle: {
     fontSize: "32px",
@@ -666,11 +677,14 @@ const styles = {
   },
   section: {
     marginBottom: "32px",
-    padding: "32px",
-    backgroundColor: "#f8fafc",
+    padding: "40px",
+    backgroundColor: "white",
     borderRadius: "24px",
     border: "1px solid #e2e8f0",
-    boxShadow: "0 2px 10px rgba(0,0,0,0.01)"
+    boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.05)",
+    borderLeft: "6px solid #2563eb",
+    position: "relative",
+    overflow: "hidden"
   },
   sectionHeader: {
     display: "flex",

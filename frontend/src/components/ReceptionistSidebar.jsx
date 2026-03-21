@@ -8,6 +8,7 @@ function ReceptionistSidebar({ onLogout }) {
   const menuItems = [
     { path: "/receptionist/dashboard", label: "Dashboard", icon: FiHome },
     { path: "/receptionist/patients", label: "Patients", icon: FiUsers },
+    { path: "/receptionist/doctors", label: "Doctors", icon: FiActivity },
     { path: "/receptionist/appointments", label: "Appointments", icon: FiCalendar },
     { path: "/receptionist/payment", label: "Payments", icon: FiCreditCard },
     { path: "/profile", label: "My Profile", icon: FiUser }

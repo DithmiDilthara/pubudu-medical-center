@@ -191,7 +191,7 @@ textarea:focus {
 }
 
 .content-padding {
-  padding: 40px;
+  padding: 40px 32px;
 }
 
 @media (max-width: 640px) {

@@ -81,31 +81,34 @@ function ConfirmPayment() {
   };
 
   const containerVariants = {
-    hidden: { opacity: 0, y: 20 },
+    hidden: { opacity: 0 },
     visible: { 
       opacity: 1, 
-      y: 0,
       transition: { duration: 0.4, staggerChildren: 0.1 }
     }
   };
 
   const itemVariants = {
-    hidden: { opacity: 0, x: -10 },
-    visible: { opacity: 1, x: 0 }
+    hidden: { opacity: 0, y: 20 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.5 } }
   };
 
   return (
     <div style={styles.container}>
       <ReceptionistSidebar onLogout={() => { localStorage.clear(); navigate("/"); }} />
 
-      <div className="main-wrapper" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+      <motion.div 
+        className="main-wrapper" 
+        style={{ flex: 1, display: 'flex', flexDirection: 'column' }}
+        initial="hidden"
+        animate="visible"
+        variants={containerVariants}
+      >
         <ReceptionistHeader receptionistName={receptionistName} />
 
         <main style={styles.mainContent}>
           <motion.div 
-            initial="hidden"
-            animate="visible"
-            variants={containerVariants}
+            variants={itemVariants}
             style={styles.contentCard}
           >
             {/* Header with Back Button */}
@@ -241,7 +244,7 @@ function ConfirmPayment() {
             </div>
           </motion.div>
         </main>
-      </div>
+      </motion.div>
     </div>
   );
 }
@@ -255,7 +258,7 @@ const styles = {
   },
   mainContent: {
     flex: 1,
-    padding: "40px 24px",
+    padding: "40px 32px",
     display: "flex",
     justifyContent: "center",
     overflowY: "auto"

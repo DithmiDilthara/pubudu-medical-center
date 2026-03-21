@@ -31,6 +31,7 @@ import ManageDoctors from './pages/admin/ManageDoctors';
 import ManageReceptionist from './pages/admin/ManageReceptionist';
 import Reports from './pages/admin/Reports';
 import AddStaff from './pages/admin/AddStaff';
+import Doctors from './pages/receptionist/Doctors';
 
 function App() {
   return (
@@ -64,6 +65,7 @@ function App() {
           <Route path="/receptionist/appointments/new" element={<NewBooking />} />
           <Route path="/receptionist/payment" element={<PaymentManagement />} />
           <Route path="/receptionist/payment/confirm" element={<ConfirmPayment />} />
+          <Route path="/receptionist/doctors" element={<Doctors />} />
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
           <Route path="/admin/doctors" element={<ManageDoctors />} />
           <Route path="/admin/receptionist" element={<ManageReceptionist />} />

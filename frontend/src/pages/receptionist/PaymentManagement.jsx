@@ -5,6 +5,7 @@ import { FiCreditCard, FiAlertCircle, FiUser, FiCalendar, FiSearch, FiCheckCircl
 import { motion, AnimatePresence } from "framer-motion";
 import ReceptionistSidebar from "../../components/ReceptionistSidebar";
 import ReceptionistHeader from "../../components/ReceptionistHeader";
+import StatsCard from "../../components/StatsCard";
 
 function PaymentManagement() {
     const navigate = useNavigate();
@@ -76,58 +77,63 @@ function PaymentManagement() {
     };
 
 
+    const containerVariants = {
+        hidden: { opacity: 0 },
+        visible: { 
+            opacity: 1,
+            transition: { staggerChildren: 0.1 }
+        }
+    };
+
+    const itemVariants = {
+        hidden: { opacity: 0, y: 20 },
+        visible: { opacity: 1, y: 0, transition: { duration: 0.5 } }
+    };
+
     return (
         <div style={styles.container}>
             <ReceptionistSidebar onLogout={handleLogout} />
 
-            <div className="main-wrapper">
+            <motion.div 
+                className="main-wrapper"
+                initial="hidden"
+                animate="visible"
+                variants={containerVariants}
+            >
                 <ReceptionistHeader receptionistName={receptionistName} />
 
                 <main className="content-padding">
                     {/* Header */}
-                    <header style={styles.headerSection}>
+                    <motion.header variants={itemVariants} style={styles.headerSection}>
                         <div style={styles.headerTitleSection}>
                             <h1 style={styles.welcomeTitle}>Payment Processing</h1>
                             <p style={styles.welcomeSubtitle}>Manage and process pending consultation fees securely.</p>
                         </div>
-                    </header>
+                    </motion.header>
 
                     {/* Summary Cards Row */}
-                    <div style={styles.statsGrid}>
-                        <motion.div 
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            style={{ ...styles.statsCard, backgroundColor: "#fef2f2", border: "1px solid #fee2e2" }}
-                            whileHover={{ y: -5, boxShadow: "0 10px 20px -5px rgba(220, 38, 38, 0.1)" }}
-                        >
-                            <div style={styles.statsInfo}>
-                                <p style={{ ...styles.statsLabel, color: "#dc2626" }}>Pending Payments</p>
-                                <h3 style={{ ...styles.statsValue, color: "#7f1d1d" }}>{stats.pendingCount}</h3>
-                            </div>
-                            <div style={{ ...styles.statsIconBox, backgroundColor: "#fee2e2", color: "#dc2626" }}>
-                                <FiAlertCircle />
-                            </div>
-                        </motion.div>
+                    <motion.div variants={itemVariants} style={styles.statsGrid}>
+                        <StatsCard 
+                            title="Pending Payments"
+                            value={stats.pendingCount}
+                            icon={<FiAlertCircle style={{ fontSize: '20px' }} />}
+                            gradient="linear-gradient(135deg, #f43f5e 0%, #e11d48 100%)"
+                            shadow="rgba(244, 63, 94, 0.2)"
+                            delay={0.1}
+                        />
 
-                        <motion.div 
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.1 }}
-                            style={{ ...styles.statsCard, backgroundColor: "#eff6ff", border: "1px solid #dbeafe" }}
-                            whileHover={{ y: -5, boxShadow: "0 10px 20px -5px rgba(37, 99, 235, 0.1)" }}
-                        >
-                            <div style={styles.statsInfo}>
-                                <p style={{ ...styles.statsLabel, color: "#2563eb" }}>Outstanding Amount</p>
-                                <h3 style={{ ...styles.statsValue, color: "#1e3a8a" }}>LKR {stats.totalAmount.toLocaleString()}</h3>
-                            </div>
-                            <div style={{ ...styles.statsIconBox, backgroundColor: "#dbeafe", color: "#2563eb" }}>
-                                <FiCreditCard />
-                            </div>
-                        </motion.div>
-                    </div>
+                        <StatsCard 
+                            title="Outstanding Amount"
+                            value={`LKR ${stats.totalAmount.toLocaleString()}`}
+                            icon={<FiCreditCard style={{ fontSize: '20px' }} />}
+                            gradient="linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)"
+                            shadow="rgba(59, 130, 246, 0.2)"
+                            delay={0.2}
+                        />
+                    </motion.div>
 
                     {/* Table Section */}
-                    <section style={styles.tableCard}>
+                    <motion.section variants={itemVariants} style={styles.tableCard}>
                         <div style={styles.tableHeaderSection}>
                             <div>
                                 <h2 style={styles.tableTitle}>Unpaid Appointments List</h2>
@@ -173,6 +179,7 @@ function PaymentManagement() {
                                                     animate={{ opacity: 1 }}
                                                     exit={{ opacity: 0, x: -20 }}
                                                     style={styles.tableRow}
+                                                    className="payment-row"
                                                 >
                                                     <td style={styles.tableCell}>#{apt.appointment_id}</td>
                                                     <td style={styles.tableCell}>
@@ -216,9 +223,9 @@ function PaymentManagement() {
                                 </tbody>
                             </table>
                         </div>
-                    </section>
+                    </motion.section>
                 </main>
-            </div>
+            </motion.div>
 
             <style>
                 {`
@@ -228,6 +235,9 @@ function PaymentManagement() {
                     }
                     .animate-spin {
                         animation: spin 1s linear infinite;
+                    }
+                    .payment-row:hover {
+                        background-color: rgba(239, 246, 255, 0.5) !important;
                     }
                 `}
             </style>
@@ -271,15 +281,6 @@ const styles = {
         gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
         gap: "24px",
         marginBottom: "40px"
-    },
-    statsCard: {
-        borderRadius: "24px",
-        padding: "24px",
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        boxShadow: "0 1px 3px rgba(0,0,0,0.02)",
-        transition: "all 0.3s ease"
     },
     statsInfo: {
         display: "flex",
@@ -364,14 +365,14 @@ const styles = {
         borderCollapse: "collapse"
     },
     tableHeaderRow: {
-        backgroundColor: "#f8fafc"
+        background: "linear-gradient(to right, #2563eb, #4f46e5)",
     },
     tableHeader: {
         textAlign: "left",
         padding: "14px 20px",
         fontSize: "13px",
         fontWeight: "600",
-        color: "#64748b",
+        color: "white",
         textTransform: "uppercase",
         letterSpacing: "0.5px"
     },

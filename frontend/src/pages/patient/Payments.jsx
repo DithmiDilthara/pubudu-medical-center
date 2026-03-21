@@ -219,7 +219,14 @@ function Payments() {
                             const rowStyle = isPending ? { ...styles.tr, backgroundColor: '#fff5f5', borderLeft: '4px solid #dc2626' } : styles.tr;
 
                             return (
-                                <tr key={apt.appointment_id} style={rowStyle}>
+                                <motion.tr 
+                                    key={apt.appointment_id} 
+                                    style={rowStyle}
+                                    whileHover={{ 
+                                        backgroundColor: isPending ? '#fff1f1' : 'rgba(37, 99, 235, 0.03)',
+                                        transition: { duration: 0.2 }
+                                    }}
+                                >
                                     <td style={styles.td}>
                                         <div style={styles.txCell}>
                                             <div style={styles.txIcon}><FiFileText /></div>
@@ -272,7 +279,7 @@ function Payments() {
                                             )}
                                         </div>
                                     </td>
-                                </tr>
+                                </motion.tr>
                             );
                         })}
                         </tbody>
@@ -438,14 +445,14 @@ const styles = {
     textAlign: 'left',
   },
   theadRow: {
-    backgroundColor: '#f8fafc',
-    borderBottom: '1px solid #f1f5f9'
+    background: 'linear-gradient(135deg, #2563eb 0%, #3b82f6 100%)',
+    borderBottom: 'none'
   },
   th: {
     padding: '20px 32px',
     fontSize: '11px',
     fontWeight: '800',
-    color: '#94a3b8',
+    color: 'rgba(255, 255, 255, 0.9)',
     textTransform: 'uppercase',
     letterSpacing: '1px',
   },

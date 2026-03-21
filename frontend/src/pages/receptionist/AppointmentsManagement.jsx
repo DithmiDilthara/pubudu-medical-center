@@ -4,7 +4,7 @@ import axios from "axios";
 import { 
     FiChevronDown, FiSearch, FiPlus, FiCalendar, 
     FiClock, FiFilter, FiUser, FiMoreVertical,
-    FiX, FiAlertCircle 
+    FiX, FiAlertCircle, FiCheckCircle
 } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
@@ -155,39 +155,59 @@ function AppointmentsManagement() {
         return date.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
     };
 
+    const containerVariants = {
+        hidden: { opacity: 0 },
+        visible: { 
+            opacity: 1,
+            transition: { staggerChildren: 0.1 }
+        }
+    };
+
+    const itemVariants = {
+        hidden: { opacity: 0, y: 20 },
+        visible: { opacity: 1, y: 0, transition: { duration: 0.5 } }
+    };
+
     return (
         <div style={ui.container}>
             <ReceptionistSidebar />
-            <div className="main-wrapper">
+            <motion.div 
+                className="main-wrapper"
+                initial="hidden"
+                animate="visible"
+                variants={containerVariants}
+            >
                 <ReceptionistHeader receptionistName={receptionistName} />
                 
                 <main className="content-padding">
                     {/* Page Header */}
-                    <header style={ui.headerSection}>
+                    <motion.header variants={itemVariants} style={ui.headerSection}>
                         <div style={ui.headerTitleSection}>
                             <h1 style={ui.welcomeTitle}>Appointment Management</h1>
                             <p style={ui.welcomeSubtitle}>Manage all patient bookings and schedules efficiently.</p>
                         </div>
                         <div style={ui.headerRight}>
-                            <button 
+                            <motion.button 
+                                whileHover={{ y: -4 }}
                                 onClick={() => setIsSessionCancelOpen(true)}
                                 style={ui.btnOutline}
                             >
                                 <FiAlertCircle style={{marginRight: '8px'}} />
                                 Cancel Doctor Session
-                            </button>
-                            <button 
+                            </motion.button>
+                            <motion.button 
+                                whileHover={{ y: -4 }}
                                 onClick={() => navigate("/receptionist/appointments/new")}
                                 style={ui.btnPrimary}
                             >
                                 <FiPlus style={{marginRight: '8px'}} />
                                 New Booking
-                            </button>
+                            </motion.button>
                         </div>
-                    </header>
+                    </motion.header>
 
                     {/* Filter Bar */}
-                    <div style={ui.filterBar}>
+                    <motion.div variants={itemVariants} style={ui.filterBar}>
                         <div style={ui.searchWrapper}>
                             <FiSearch style={ui.searchIcon} />
                             <input 
@@ -214,14 +234,14 @@ function AppointmentsManagement() {
                                 <option value="CANCELLED">Cancelled</option>
                             </select>
                         </div>
-                    </div>
+                    </motion.div>
 
                     {/* Table Card */}
-                    <div style={ui.card}>
+                    <motion.div variants={itemVariants} style={ui.card}>
                         <div style={ui.tableWrapper}>
                             <table style={ui.table}>
                                 <thead>
-                                    <tr>
+                                    <tr style={ui.tableHeaderRow}>
                                         <th style={ui.th}>ID</th>
                                         <th style={ui.th}>Patient</th>
                                         <th style={ui.th}>Doctor</th>
@@ -240,6 +260,9 @@ function AppointmentsManagement() {
                                                 <motion.tr 
                                                     key={apt.appointment_id}
                                                     layout
+                                                    initial={{ opacity: 0 }}
+                                                    animate={{ opacity: 1 }}
+                                                    exit={{ opacity: 0 }}
                                                     style={ui.tr}
                                                     className="apt-row"
                                                 >
@@ -271,7 +294,8 @@ function AppointmentsManagement() {
                                                         <div style={ui.actionWrapper} className="action-btns">
                                                             {apt.status !== 'CANCELLED' && apt.status !== 'COMPLETED' && (
                                                                 <>
-                                                                    <button 
+                                                                    <motion.button 
+                                                                        whileHover={{ y: -2 }}
                                                                         onClick={() => {
                                                                             setSelectedAptForReschedule(apt);
                                                                             setIsBookingModalOpen(true);
@@ -279,13 +303,14 @@ function AppointmentsManagement() {
                                                                         style={ui.rescheduleBtn}
                                                                     >
                                                                         Reschedule
-                                                                    </button>
-                                                                    <button 
+                                                                    </motion.button>
+                                                                    <motion.button 
+                                                                        whileHover={{ y: -2 }}
                                                                         onClick={() => handleCancelAppointment(apt)}
                                                                         style={ui.cancelBtn}
                                                                     >
                                                                         Cancel
-                                                                    </button>
+                                                                    </motion.button>
                                                                 </>
                                                             )}
                                                         </div>
@@ -307,9 +332,9 @@ function AppointmentsManagement() {
                                 </tbody>
                             </table>
                         </div>
-                    </div>
+                    </motion.div>
                 </main>
-            </div>
+            </motion.div>
 
             {/* Reschedule Modal */}
             <BookingModal 
@@ -386,7 +411,7 @@ function AppointmentsManagement() {
                         transition: opacity 0.2s;
                     }
                     .apt-row:hover {
-                        background-color: #f8fafc;
+                        background-color: rgba(239, 246, 255, 0.5) !important;
                     }
                 `}
             </style>
@@ -525,15 +550,17 @@ const ui = {
         width: "100%",
         borderCollapse: "collapse"
     },
+    tableHeaderRow: {
+        background: "linear-gradient(to right, #2563eb, #4f46e5)",
+    },
     th: {
         textAlign: "left",
         padding: "16px 24px",
         fontSize: "13px",
         fontWeight: "600",
-        color: "#64748b",
+        color: "white",
         textTransform: "uppercase",
         letterSpacing: "0.5px",
-        backgroundColor: "#f8fafc/50"
     },
     tr: {
         borderBottom: "1px solid #f1f5f9"

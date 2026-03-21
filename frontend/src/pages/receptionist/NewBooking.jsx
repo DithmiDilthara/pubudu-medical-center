@@ -431,20 +431,39 @@ function NewBooking() {
     );
   };
 
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: { 
+      opacity: 1,
+      transition: { staggerChildren: 0.1 }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.5 } }
+  };
+
   return (
     <div style={styles.container}>
       <ReceptionistSidebar onLogout={handleLogout} />
 
-      <div className="main-wrapper" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+      <motion.div 
+        className="main-wrapper" 
+        style={{ flex: 1, display: 'flex', flexDirection: 'column' }}
+        initial="hidden"
+        animate="visible"
+        variants={containerVariants}
+      >
         <ReceptionistHeader receptionistName="Sarah Johnson" />
 
-        <main className="content-padding" style={{ flex: 1, overflowY: 'auto', padding: '40px 20px' }}>
-          <div style={styles.contentCard}>
+        <main className="content-padding" style={{ flex: 1, overflowY: 'auto' }}>
+          <motion.div variants={itemVariants} style={styles.contentCard}>
             {/* Header */}
-            <header style={styles.pageHeader}>
+            <motion.header variants={itemVariants} style={styles.pageHeader}>
               <h1 style={styles.welcomeTitle}>New Booking</h1>
               <p style={styles.welcomeSubtitle}>Follow the steps below to schedule a new patient appointment securely.</p>
-            </header>
+            </motion.header>
 
             {/* Stepper Wizard */}
             <div style={styles.stepperContainer}>
@@ -811,9 +830,9 @@ function NewBooking() {
                 </div>
               )}
             </div>
-          </div>
+          </motion.div>
         </main>
-      </div>
+      </motion.div>
     </div>
   );
 }
@@ -826,18 +845,23 @@ const styles = {
     fontFamily: "'Inter', system-ui, -apple-system, sans-serif"
   },
   contentCard: {
-    maxWidth: "800px",
-    margin: "0 auto",
-    backgroundColor: "white",
-    borderRadius: "28px",
-    padding: "40px",
-    boxShadow: "0 10px 30px -10px rgba(0, 0, 0, 0.05)",
-    border: "2px solid #3b82f6",
-    overflow: "hidden"
+    maxWidth: "1400px",
+    width: "100%",
+    margin: "0 auto 40px auto",
+    backgroundColor: "transparent",
+    padding: "0",
+    boxShadow: "none",
+    border: "none",
+    display: "flex",
+    flexDirection: "column",
+    gap: "32px"
   },
   pageHeader: {
-    marginBottom: "40px",
-    textAlign: "center"
+    width: "100%",
+    display: "flex",
+    flexDirection: "column",
+    gap: "4px",
+    marginBottom: "32px"
   },
   welcomeTitle: {
     fontSize: "32px",
@@ -929,7 +953,12 @@ const styles = {
     backgroundColor: "#10b981"
   },
   stepSection: {
-    minHeight: "360px"
+    backgroundColor: "white",
+    borderRadius: "24px",
+    padding: "40px",
+    boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.05)",
+    borderLeft: "6px solid #2563eb",
+    minHeight: "400px"
   },
   stepHeader: {
     marginBottom: "24px",

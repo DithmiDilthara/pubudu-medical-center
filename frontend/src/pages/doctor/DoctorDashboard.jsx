@@ -19,6 +19,7 @@ import DoctorSidebar from '../../components/DoctorSidebar';
 import AppointmentCard from '../../components/AppointmentCard';
 import AppointmentCalendar from '../../components/AppointmentCalendar';
 import RevenueChart from '../../components/RevenueChart';
+import StatsCard from '../../components/StatsCard';
 
 function DoctorDashboard() {
   const navigate = useNavigate();
@@ -156,39 +157,34 @@ function DoctorDashboard() {
     navigate('/');
   };
 
-  const StatCard = ({ title, value, icon: Icon, iconBg, iconColor, index }) => (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.1 }}
-      whileHover={{ y: -4 }}
-      style={styles.statCard}
-    >
-      <div style={{ ...styles.statIconWrapper, backgroundColor: iconBg }}>
-        <Icon style={{ ...styles.statIcon, color: iconColor }} />
-      </div>
-      <div style={styles.statInfo}>
-        <p style={styles.statLabel}>{title}</p>
-        <h3 style={styles.statValue}>{value}</h3>
-      </div>
-    </motion.div>
-  );
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: { 
+      opacity: 1,
+      transition: { staggerChildren: 0.1 }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.5 } }
+  };
 
   return (
     <div style={styles.pageContainer}>
       <DoctorSidebar onLogout={handleLogout} />
 
-      <div className="main-wrapper" style={styles.mainWrapper}>
+      <motion.div 
+        className="main-wrapper" 
+        style={styles.mainWrapper}
+        initial="hidden"
+        animate="visible"
+        variants={containerVariants}
+      >
         <DoctorHeader doctorName={doctorName} />
 
-        <motion.main 
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.4 }}
-          style={styles.contentPadding}
-        >
-          {/* Welcome Header ... skipped ... */}
-          <div style={styles.pageHeader}>
+        <main style={styles.contentPadding}>
+          <motion.div variants={itemVariants} style={styles.pageHeader}>
             <div style={styles.headerLeft}>
               <h1 style={styles.pageTitle}>Dashboard</h1>
               <p style={styles.pageSubtitle}>Precision Care & Management Dashboard</p>
@@ -199,45 +195,45 @@ function DoctorDashboard() {
                   {new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
                </div>
             </div>
-          </div>
+          </motion.div>
 
           {/* Statistics Grid */}
-          <div style={styles.statsGrid}>
-            <StatCard 
-              index={0}
+          <motion.div variants={itemVariants} style={styles.statsGrid}>
+            <StatsCard 
               title="Today's Appointments" 
               value={stats.todayAppointments} 
-              icon={FiCalendar} 
-              iconBg="#eff6ff" 
-              iconColor="#2563eb" 
+              icon={<FiCalendar style={{ fontSize: '20px' }} />} 
+              gradient="linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)" 
+              shadow="rgba(59, 130, 246, 0.25)"
+              delay={0.1}
             />
-            <StatCard 
-              index={1}
+            <StatsCard 
               title="Total Patients" 
               value={stats.totalPatients} 
-              icon={FiUsers} 
-              iconBg="#ecfdf5" 
-              iconColor="#059669" 
+              icon={<FiUsers style={{ fontSize: '20px' }} />} 
+              gradient="linear-gradient(135deg, #10b981 0%, #059669 100%)" 
+              shadow="rgba(16, 185, 129, 0.25)"
+              delay={0.2}
             />
-            <StatCard 
-              index={2}
+            <StatsCard 
               title="Upcoming Appointments" 
               value={stats.upcomingAppointments} 
-              icon={FiClock} 
-              iconBg="#f5f3ff" 
-              iconColor="#7c3aed" 
+              icon={<FiClock style={{ fontSize: '20px' }} />} 
+              gradient="linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)" 
+              shadow="rgba(139, 92, 246, 0.25)"
+              delay={0.3}
             />
-            <StatCard 
-              index={3}
+            <StatsCard 
               title="Completed Today" 
               value={stats.completedToday} 
-              icon={FiCheckCircle} 
-              iconBg="#fffbeb" 
-              iconColor="#d97706" 
+              icon={<FiCheckCircle style={{ fontSize: '20px' }} />} 
+              gradient="linear-gradient(135deg, #f59e0b 0%, #d97706 100%)" 
+              shadow="rgba(245, 158, 11, 0.25)"
+              delay={0.4}
             />
-          </div>
+          </motion.div>
 
-          <div style={styles.dashboardGrid}>
+          <motion.div variants={itemVariants} style={styles.dashboardGrid}>
             {/* Left Column: Calendar Focus & Selected Schedule */}
             <div style={styles.scheduleColumn}>
               <div style={styles.sectionHeader}>
@@ -304,9 +300,9 @@ function DoctorDashboard() {
                  <RevenueChart revenueData={revenueData} />
               </div>
             </div>
-          </div>
-        </motion.main>
-      </div>
+          </motion.div>
+        </main>
+      </motion.div>
     </div>
   );
 }
