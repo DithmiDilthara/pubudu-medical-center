@@ -14,6 +14,29 @@ export const setAvailability = async (req, res) => {
         const doctor = await Doctor.findOne({ where: { user_id: userId } });
         if (!doctor) return res.status(404).json({ success: false, message: 'Doctor profile not found' });
 
+        // Validate all slots
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const todayStr = today.toISOString().split('T')[0];
+
+        for (const slot of availability) {
+            // Check time logic
+            if (slot.start_time >= slot.end_time) {
+                return res.status(400).json({
+                    success: false,
+                    message: `Invalid time range: ${slot.start_time} - ${slot.end_time}. End time must be after start time.`
+                });
+            }
+
+            // Check specific date logic
+            if (slot.specific_date && slot.specific_date < todayStr) {
+                return res.status(400).json({
+                    success: false,
+                    message: `Cannot set availability for past date: ${slot.specific_date}`
+                });
+            }
+        }
+
         // Separate recurring and specific date availability
         const recurring = availability.filter(slot => slot.day_of_week && !slot.specific_date);
         const specific = availability.filter(slot => slot.specific_date);

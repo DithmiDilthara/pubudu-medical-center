@@ -153,6 +153,11 @@ function DoctorAvailability() {
       return;
     }
 
+    if (startTime >= endTime) {
+      setErrorMessage("End time must be after start time.");
+      return;
+    }
+
     await proceedWithAvailability(status);
   };
 
@@ -204,6 +209,12 @@ function DoctorAvailability() {
 
   const handleApplyRecurring = async () => {
     if (recurringDays.length === 0) return;
+    
+    if (startTime >= endTime) {
+      setErrorMessage("End time must be after start time.");
+      return;
+    }
+
     setIsLoading(true);
     const daysOrder = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
     const availabilityPayload = recurringDays.map(index => ({
