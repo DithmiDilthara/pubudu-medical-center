@@ -11,10 +11,25 @@ import docM2 from "../../assets/doctor_m2.png";
 import docF1 from "../../assets/doctor_f1.png";
 import docF2 from "../../assets/doctor_f2.png";
 
-const doctorImages = [docF1, docM1, docF2, docM2];
+const maleImages = [docM1, docM2];
+const femaleImages = [docF1, docF2];
 
-// Helper to get random image based on ID (deterministic)
-const getDoctorImage = (id) => doctorImages[id % doctorImages.length];
+// Helper to get image based on doctor gender (deterministic by ID)
+const getDoctorImage = (doctor) => {
+  if (!doctor) return maleImages[0];
+  const gender = doctor.gender ? doctor.gender.toUpperCase() : '';
+  const id = doctor.doctor_id || 0;
+  
+  if (gender === 'FEMALE') {
+    return femaleImages[id % femaleImages.length];
+  } else if (gender === 'MALE') {
+    return maleImages[id % maleImages.length];
+  } else {
+    // Fallback for OTHER or null
+    const allImages = [...femaleImages, ...maleImages];
+    return allImages[id % allImages.length];
+  }
+};
 
 function FindDoctor() {
   const navigate = useNavigate();
@@ -186,7 +201,7 @@ function FindDoctor() {
                     <div style={styles.cardInfo}>
                       <div style={styles.avatarWrapper}>
                         <img
-                          src={getDoctorImage(doctor.doctor_id)}
+                          src={getDoctorImage(doctor)}
                           alt={doctor.full_name}
                           style={styles.avatarImg}
                         />

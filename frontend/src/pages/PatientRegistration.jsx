@@ -209,6 +209,8 @@ function PatientRegistration() {
     gender: "",
     date_of_birth: "",
     address: "",
+    blood_group: "",
+    allergies: "",
     agreeTerms: false
   });
 
@@ -316,6 +318,14 @@ function PatientRegistration() {
         } else if (value.length < 5) {
           error = "Address must be at least 5 characters";
         }
+        break;
+
+      case "blood_group":
+        // Optional but if provided, it's already from select
+        break;
+
+      case "allergies":
+        // Optional
         break;
 
       case "agreeTerms":
@@ -428,7 +438,9 @@ function PatientRegistration() {
         nic: formData.nic,
         gender: formData.gender,
         date_of_birth: formData.date_of_birth || null,
-        address: formData.address || null
+        address: formData.address || null,
+        blood_group: formData.blood_group || null,
+        allergies: formData.allergies || null
       };
 
       // Call registration API directly without auto-login
@@ -578,6 +590,38 @@ function PatientRegistration() {
                 placeholder="123 Main St, Colombo"
                 required
               />
+
+              <FormSelect
+                label="Blood Group"
+                name="blood_group"
+                value={formData.blood_group}
+                onChange={handleChange}
+                onBlur={handleBlur}
+                touched={touched.blood_group}
+                error={errors.blood_group}
+                options={[
+                  { value: "", label: "Select Blood Group" },
+                  { value: "A+", label: "A+" },
+                  { value: "A-", label: "A-" },
+                  { value: "B+", label: "B+" },
+                  { value: "B-", label: "B-" },
+                  { value: "O+", label: "O+" },
+                  { value: "O-", label: "O-" },
+                  { value: "AB+", label: "AB+" },
+                  { value: "AB-", label: "AB-" }
+                ]}
+              />
+
+              <FormInput
+                label="Allergies / Medical Conditions"
+                name="allergies"
+                value={formData.allergies}
+                onChange={handleChange}
+                onBlur={handleBlur}
+                touched={touched.allergies}
+                error={errors.allergies}
+                placeholder="Peanuts, Penicillin, etc. (Optional)"
+              />
             </div>
 
 
@@ -718,7 +762,7 @@ const styles = {
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundImage: `linear-gradient(rgba(0, 102, 204, 0.4), rgba(0, 82, 163, 0.5)), url(${hospitalBg})`,
+    backgroundImage: `linear-gradient(rgba(37, 99, 235, 0.4), rgba(29, 78, 216, 0.5)), url(${hospitalBg})`,
     backgroundSize: 'cover',
     backgroundPosition: 'center',
     filter: 'blur(8px)',
@@ -726,7 +770,7 @@ const styles = {
   },
   rightSide: {
     flex: 3,
-    background: 'linear-gradient(135deg, #4DA6FF 0%, #0066CC 100%)',
+    background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
@@ -880,19 +924,18 @@ const styles = {
     gap: "12px 16px"
   },
   submitButton: {
-    width: '100%',
-    padding: '14px',
-    background: 'linear-gradient(135deg, #0066CC 0%, #0052A3 100%)',
-    color: 'white',
-    border: 'none',
-    borderRadius: '10px',
-    fontSize: '16px',
-    fontWeight: '700',
-    cursor: 'pointer',
-    transition: 'all 0.2s',
-    marginBottom: '24px',
-    fontFamily: "'Inter', sans-serif",
-    boxShadow: '0 4px 12px rgba(0, 102, 204, 0.3)'
+    width: "100%",
+    padding: "16px",
+    backgroundColor: "#2563eb",
+    color: "white",
+    borderRadius: "12px",
+    border: "none",
+    fontSize: "16px",
+    fontWeight: "700",
+    cursor: "pointer",
+    transition: "all 0.3s ease",
+    boxShadow: "0 10px 15px -3px rgba(37, 99, 235, 0.2)",
+    marginTop: "20px"
   },
   submitButtonDisabled: {
     background: '#9CA3AF',

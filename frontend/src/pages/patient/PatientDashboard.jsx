@@ -12,6 +12,7 @@ import PatientHeader from "../../components/PatientHeader";
 import HeroCarousel from "../../components/HeroCarousel";
 import AppointmentCarousel from "../../components/AppointmentCarousel";
 import CancelAppointmentModal from "../../components/CancelAppointmentModal";
+import StatsCard from "../../components/StatsCard";
 import { useAuth } from "../../context/AuthContext";
 import toast from 'react-hot-toast';
 
@@ -224,35 +225,46 @@ function PatientDashboard() {
 
             {/* Summary Row */}
             <motion.div variants={itemVariants} style={styles.statsGrid}>
-              <Link to="/patient/appointments" style={{ ...styles.statsCard, backgroundColor: "#eff6ff", border: "1px solid #dbeafe", textDecoration: 'none' }}>
-                <div style={styles.statsInfo}>
-                  <p style={{ ...styles.statsLabel, color: "#2563eb" }}>Upcoming Appointments</p>
-                  <h3 style={{ ...styles.statsValue, color: "#1e3a8a" }}>{upcomingAppointments.length}</h3>
-                </div>
-                <div style={{ ...styles.statsIconBox, backgroundColor: "#dbeafe", color: "#2563eb" }}>
-                  <FiCalendar />
-                </div>
-              </Link>
-
-              <Link to="/patient/medical-history" style={{ ...styles.statsCard, backgroundColor: "#f0fdf4", border: "1px solid #dcfce7", textDecoration: 'none' }}>
-                <div style={styles.statsInfo}>
-                  <p style={{ ...styles.statsLabel, color: "#10b981" }}>Medical History</p>
-                  <h3 style={{ ...styles.statsValue, color: "#064e3b" }}>{stats.historyCount}</h3>
-                </div>
-                <div style={{ ...styles.statsIconBox, backgroundColor: "#dcfce7", color: "#10b981" }}>
-                  <FiClipboard />
-                </div>
-              </Link>
-
-              <Link to="/patient/payments" style={{ ...styles.statsCard, backgroundColor: "#fdf2f8", border: "1px solid #fce7f3", textDecoration: 'none' }}>
-                <div style={styles.statsInfo}>
-                  <p style={{ ...styles.statsLabel, color: "#db2777" }}>Pending Payments</p>
-                  <h3 style={{ ...styles.statsValue, color: "#831843" }}>{stats.pendingPayments}</h3>
-                </div>
-                <div style={{ ...styles.statsIconBox, backgroundColor: "#fce7f3", color: "#db2777" }}>
-                  <FiCreditCard />
-                </div>
-              </Link>
+              {[
+                { 
+                  title: "Upcoming Appointments", 
+                  value: upcomingAppointments.length, 
+                  icon: <FiCalendar style={{ fontSize: '20px' }} />, 
+                  gradient: "linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)", 
+                  shadow: "rgba(59, 130, 246, 0.25)",
+                  delay: 0.1,
+                  onClick: () => navigate("/patient/appointments")
+                },
+                { 
+                  title: "Medical History", 
+                  value: stats.historyCount, 
+                  icon: <FiClipboard style={{ fontSize: '20px' }} />, 
+                  gradient: "linear-gradient(135deg, #10b981 0%, #059669 100%)", 
+                  shadow: "rgba(16, 185, 129, 0.25)",
+                  delay: 0.2,
+                  onClick: () => navigate("/patient/medical-history")
+                },
+                { 
+                  title: "Pending Payments", 
+                  value: stats.pendingPayments, 
+                  icon: <FiCreditCard style={{ fontSize: '20px' }} />, 
+                  gradient: "linear-gradient(135deg, #f43f5e 0%, #e11d48 100%)", 
+                  shadow: "rgba(244, 63, 94, 0.25)",
+                  delay: 0.3,
+                  onClick: () => navigate("/patient/payments")
+                },
+              ].map((card, index) => (
+                <StatsCard
+                  key={index}
+                  title={card.title}
+                  value={card.value}
+                  icon={card.icon}
+                  gradient={card.gradient}
+                  shadow={card.shadow}
+                  delay={card.delay}
+                  onClick={card.onClick}
+                />
+              ))}
             </motion.div>
 
             <div style={styles.layoutGrid}>
@@ -373,41 +385,8 @@ const styles = {
   statsGrid: {
     display: "grid",
     gridTemplateColumns: "repeat(3, 1fr)",
-    gap: "24px"
-  },
-  statsCard: {
-    borderRadius: "24px",
-    padding: "24px",
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    boxShadow: "0 1px 3px rgba(0,0,0,0.02)"
-  },
-  statsInfo: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "4px"
-  },
-  statsLabel: {
-    fontSize: "13px",
-    fontWeight: "600",
-    margin: 0,
-    textTransform: "uppercase",
-    letterSpacing: "0.025em"
-  },
-  statsValue: {
-    fontSize: "32px",
-    fontWeight: "800",
-    margin: 0
-  },
-  statsIconBox: {
-    width: "56px",
-    height: "56px",
-    borderRadius: "16px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontSize: "24px"
+    gap: "24px",
+    marginBottom: "8px"
   },
   layoutGrid: {
     display: "grid",
@@ -475,28 +454,32 @@ const styles = {
   calendarContainer: {
     backgroundColor: "white",
     borderRadius: "28px",
-    padding: "28px",
-    border: "1px solid #f1f5f9",
-    boxShadow: "0 4px 12px rgba(0, 0, 0, 0.02)"
+    padding: "0", // Removed padding to let header take full width
+    border: "2px solid #2563eb",
+    boxShadow: "0 10px 15px -3px rgba(37, 99, 235, 0.1)",
+    overflow: "hidden"
   },
   calendarHeader: {
-    marginBottom: "24px"
+    padding: "20px 28px",
+    backgroundColor: "#2563eb",
+    marginBottom: "16px"
   },
   calendarMonth: {
     fontSize: "18px",
     fontWeight: "800",
-    color: "#0f172a",
+    color: "#ffffff",
     margin: 0
   },
   calendarSubText: {
     fontSize: "12px",
-    color: "#94a3b8",
+    color: "rgba(255, 255, 255, 0.8)",
     marginTop: "4px"
   },
   calendarGrid: {
     display: "grid",
     gridTemplateColumns: "repeat(7, 1fr)",
-    gap: "6px"
+    gap: "6px",
+    padding: "0 28px 28px 28px"
   },
   dayLabel: {
     textAlign: "center",

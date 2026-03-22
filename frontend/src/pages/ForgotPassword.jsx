@@ -93,7 +93,7 @@ const styles = {
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'center',
-        background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
+        background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)',
         fontFamily: "'Inter', sans-serif"
     },
     card: {
@@ -168,14 +168,15 @@ const styles = {
     },
     button: {
         padding: '14px',
-        background: '#0056b3',
+        background: '#2563eb',
         color: 'white',
         border: 'none',
         borderRadius: '8px',
         fontSize: '16px',
         fontWeight: '600',
         cursor: 'pointer',
-        transition: 'background 0.2s'
+        transition: 'all 0.2s',
+        boxShadow: '0 4px 12px rgba(37, 99, 235, 0.2)'
     },
     buttonDisabled: {
         background: '#ccc',
@@ -188,7 +189,7 @@ const styles = {
         color: '#666'
     },
     link: {
-        color: '#0056b3',
+        color: '#2563eb',
         textDecoration: 'none',
         fontWeight: '600'
     },

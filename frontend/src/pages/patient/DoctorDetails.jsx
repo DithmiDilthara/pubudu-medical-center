@@ -458,8 +458,8 @@ const styles = {
     backgroundColor: "white",
     borderRadius: "28px",
     padding: "32px",
-    border: "1px solid #f1f5f9",
-    boxShadow: "0 4px 20px rgba(0, 0, 0, 0.02)"
+    border: "2px solid #2563eb", // Blue outline
+    boxShadow: "0 10px 25px -5px rgba(37, 99, 235, 0.1)"
   },
   sectionHeader: {
     display: "flex",
@@ -488,28 +488,30 @@ const styles = {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
-    backgroundColor: "#f8fafc",
+    backgroundColor: "#2563eb", // Blue header
     padding: "16px",
-    borderRadius: "16px"
+    borderRadius: "16px",
+    marginBottom: "16px",
+    border: "none"
   },
   navBtn: {
     width: "36px",
     height: "36px",
     borderRadius: "10px",
-    backgroundColor: "white",
-    border: "1px solid #e2e8f0",
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    border: "none",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     cursor: "pointer",
     fontSize: "18px",
-    color: "#64748b",
+    color: "#ffffff",
     transition: "all 0.2s"
   },
   monthLabel: {
     fontSize: "16px",
     fontWeight: "700",
-    color: "#0f172a",
+    color: "#ffffff",
     margin: 0
   },
   calendarGrid: {

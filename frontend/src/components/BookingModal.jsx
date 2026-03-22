@@ -269,7 +269,7 @@ const styles = {
         backgroundColor: "white",
         borderRadius: "28px",
         width: "100%",
-        maxWidth: "850px",
+        maxWidth: "750px", // Medium size (from 950px)
         boxShadow: "0 25px 50px -12px rgba(15, 23, 42, 0.15)",
         overflow: "hidden",
         border: "1px solid #e2e8f0"
@@ -319,7 +319,7 @@ const styles = {
         justifyContent: "space-between",
         alignItems: "center",
         marginBottom: "24px",
-        backgroundColor: "#0f172a",
+        backgroundColor: "#2563eb",
         padding: "16px",
         borderRadius: "16px"
     },
@@ -354,11 +354,11 @@ const styles = {
         textTransform: "uppercase"
     },
     dayBtn: {
-        aspectRatio: "1",
+        aspectRatio: "1.1", // Medium proportions
         border: "none",
         borderRadius: "10px",
         backgroundColor: "white",
-        fontSize: "14px",
+        fontSize: "15px", // Medium font
         fontWeight: "600",
         color: "#475569",
         cursor: "pointer",
@@ -374,7 +374,8 @@ const styles = {
         boxShadow: "0 4px 12px rgba(37, 99, 235, 0.3)"
     },
     dayDisabled: {
-        color: "#e2e8f0",
+        color: "#000000",
+        opacity: 0.2,
         cursor: "not-allowed",
         backgroundColor: "transparent"
     },

@@ -307,7 +307,7 @@ const styles = {
   sectionTitle: {
     fontSize: '14px',
     fontWeight: '700',
-    color: '#8b5cf6', // purple theme for receptionist
+    color: '#2563eb', // blue theme for receptionist (matches doctors)
     textTransform: 'uppercase',
     letterSpacing: '1px',
     marginBottom: '20px',

@@ -726,12 +726,6 @@ const styles = {
   btnIcon: {
     fontSize: "18px"
   },
-  statsGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(4, 1fr)",
-    gap: "20px",
-    marginBottom: "40px"
-  },
   searchSection: {
     marginBottom: "40px"
   },
@@ -807,13 +801,6 @@ const styles = {
     fontWeight: "700",
     color: "#0f172a",
     margin: "0 0 24px 0"
-  },
-  tableContainer: {
-    overflowX: "auto"
-  },
-  table: {
-    width: "100%",
-    borderCollapse: "collapse"
   },
   tableHeaderRow: {
     borderBottom: "1px solid #f1f5f9"

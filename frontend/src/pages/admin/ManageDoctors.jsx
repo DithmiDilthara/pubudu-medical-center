@@ -144,7 +144,7 @@ const ManageDoctors = () => {
         >
           {/* Header Title - Personalized Welcome */}
           <div style={styles.headerTitleSection}>
-            <h1 style={styles.pageTitle}>Welcome back, {adminName}!</h1>
+            <h1 style={styles.pageTitle}>Manage Doctors</h1>
             <p style={styles.pageSubtitle}>Manage your medical professional team and specializations.</p>
           </div>
           {/* Toolbar */}
@@ -227,11 +227,9 @@ const ManageDoctors = () => {
                         initial={{ opacity: 0, x: -10 }}
                         animate={{ opacity: 1, x: 0 }}
                         whileHover={{ 
-                          scale: 1.01,
-                          backgroundColor: '#f8fafc',
-                          boxShadow: '0 0 0 2px #2563eb, 0 12px 20px -5px rgba(37, 99, 235, 0.2)',
-                          zIndex: 10,
-                          borderRadius: '8px'
+                          backgroundColor: '#eff6ff',
+                          y: -2,
+                          transition: { duration: 0.2 }
                         }}
                         transition={{ delay: idx * 0.05 }}
                         style={{...styles.tr, position: 'relative'}}
@@ -415,13 +413,13 @@ const styles = {
   },
   th: {
     padding: '20px 24px',
-    backgroundColor: '#f8fafc',
+    background: 'linear-gradient(to right, #2563eb, #1d4ed8)',
     fontSize: '12px',
-    fontWeight: '800', // Making it even bolder
-    color: '#0f172a', // Darker for more emphasis
+    fontWeight: '800',
+    color: 'white',
     textTransform: 'uppercase',
     letterSpacing: '1.2px',
-    borderBottom: '2px solid #e2e8f0'
+    borderBottom: 'none'
   },
   tr: {
     borderBottom: '1px solid #f1f5f9',

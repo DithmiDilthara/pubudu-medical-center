@@ -39,16 +39,8 @@ const Reports = () => {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const [reportData, setReportData] = useState(null);
-
-  // Mock Data Generation for Chart
-  const mockChartData = [
-    { name: 'Pediatrics', revenue: 45000, patients: 12 },
-    { name: 'Cardiology', revenue: 52000, patients: 8 },
-    { name: 'Neurology', revenue: 38000, patients: 5 },
-    { name: 'Dermatology', revenue: 25000, patients: 15 },
-    { name: 'General', revenue: 18000, patients: 22 },
-  ];
 
   const handleGenerateReport = async () => {
     if (!startDate || !endDate) {
@@ -66,10 +58,7 @@ const Reports = () => {
       });
 
       if (response.data.success) {
-        setReportData({
-          ...response.data.data,
-          chartData: mockChartData // Injecting mock chart data for visualization
-        });
+        setReportData(response.data.data);
         toast.success("Report generated successfully!");
       }
     } catch (error) {
@@ -77,6 +66,31 @@ const Reports = () => {
       toast.error("Failed to generate report");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleExportPDF = async () => {
+    if (!reportData) return;
+    setIsExporting(true);
+    try {
+      const response = await api.get(`/admin/reports/export/${reportType}`, {
+        params: { startDate, endDate },
+        responseType: 'blob'
+      });
+      
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `${reportType}_report_${new Date().toISOString().split('T')[0]}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      toast.success("PDF exported successfully!");
+    } catch (error) {
+      console.error("Export error:", error);
+      toast.error("Failed to export PDF");
+    } finally {
+      setIsExporting(false);
     }
   };
 
@@ -108,8 +122,8 @@ const Reports = () => {
         >
           {/* Header Title - Personalized Welcome */}
           <div style={styles.headerTitleSection}>
-            <h1 style={styles.welcomeTitle}>Welcome back, {adminName}!</h1>
-            <p style={styles.pageSubtitle}>Analyze healthcare performance and financial trends with data-driven insights.</p>
+            <h1 style={styles.pageTitle}>Generate Reports</h1>
+            <p style={styles.pageSubtitle}>Analyze healthcare performance and financial trends with data-driven insights</p>
           </div>
           {/* Report Generator Form */}
           <div style={styles.generatorCard}>
@@ -200,9 +214,22 @@ const Reports = () => {
                     </h3>
                     <p style={styles.resultsPeriod}>Period: {startDate} to {endDate}</p>
                   </div>
-                  <button style={styles.exportBtn}>
-                    <FiDownload size={16} />
-                    <span>Export PDF</span>
+                  <button 
+                    style={styles.exportBtn} 
+                    onClick={handleExportPDF}
+                    disabled={isExporting}
+                  >
+                    {isExporting ? (
+                      <motion.div
+                        animate={{ rotate: 360 }}
+                        transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
+                      >
+                        <FiActivity size={16} />
+                      </motion.div>
+                    ) : (
+                      <FiDownload size={16} />
+                    )}
+                    <span>{isExporting ? 'Exporting...' : 'Export PDF'}</span>
                   </button>
                 </div>
 
@@ -232,7 +259,10 @@ const Reports = () => {
 
                 {/* Chart Section */}
                 <div style={styles.chartCard}>
-                  <h4 style={styles.chartTitle}>Departmental Revenue vs Patient Volume</h4>
+                  <h4 style={styles.chartTitle}>
+                    {reportType === 'revenue' ? 'Revenue & Patient Volume per Doctor' : 
+                     reportType === 'patients' ? 'Patient Registrations by Source' : 'Appointment Volume per Doctor'}
+                  </h4>
                   <div style={{ width: '100%', height: 400 }}>
                     <ResponsiveContainer>
                       <BarChart data={reportData.chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
@@ -263,22 +293,49 @@ const Reports = () => {
                           contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
                         />
                         <Legend iconType="circle" wrapperStyle={{ paddingTop: '20px' }} />
-                        <Bar 
-                          yAxisId="left" 
-                          dataKey="revenue" 
-                          name="Revenue (LKR)" 
-                          fill="#2563eb" 
-                          radius={[6, 6, 0, 0]} 
-                          barSize={40} 
-                        />
-                        <Bar 
-                          yAxisId="right" 
-                          dataKey="patients" 
-                          name="Patient Volume" 
-                          fill="#93c5fd" 
-                          radius={[6, 6, 0, 0]} 
-                          barSize={40} 
-                        />
+                        
+                        {reportType === 'revenue' && (
+                          <>
+                            <Bar 
+                              yAxisId="left" 
+                              dataKey="revenue" 
+                              name="Revenue (LKR)" 
+                              fill="#2563eb" 
+                              radius={[6, 6, 0, 0]} 
+                              barSize={40} 
+                            />
+                            <Bar 
+                              yAxisId="right" 
+                              dataKey="patients" 
+                              name="Patient Volume" 
+                              fill="#93c5fd" 
+                              radius={[6, 6, 0, 0]} 
+                              barSize={40} 
+                            />
+                          </>
+                        )}
+
+                        {reportType === 'patients' && (
+                          <Bar 
+                            yAxisId="left" 
+                            dataKey="count" 
+                            name="Registration Count" 
+                            fill="#0ea5e9" 
+                            radius={[6, 6, 0, 0]} 
+                            barSize={60} 
+                          />
+                        )}
+
+                        {reportType === 'appointments' && (
+                          <Bar 
+                            yAxisId="left" 
+                            dataKey="appointments" 
+                            name="Appointment Count" 
+                            fill="#6366f1" 
+                            radius={[6, 6, 0, 0]} 
+                            barSize={50} 
+                          />
+                        )}
                       </BarChart>
                     </ResponsiveContainer>
                   </div>

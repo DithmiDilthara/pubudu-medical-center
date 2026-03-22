@@ -1,5 +1,6 @@
 import { User, Doctor, Receptionist, Admin, Appointment, Payment, Patient, sequelize } from '../models/index.js';
 import { Op } from 'sequelize';
+import ReportGenerator from '../utils/ReportGenerator.js';
 
 /**
  * @desc    Get system-wide statistics (counts)
@@ -62,11 +63,27 @@ export const getRevenueReport = async (req, res) => {
 
     const totalCenterRevenue = appointments.reduce((sum, appt) => sum + parseFloat(appt.doctor?.center_fee || 0), 0);
 
+    // Group by Doctor for Chart
+    const doctorStats = {};
+    appointments.forEach(a => {
+      const docName = a.doctor?.full_name || 'Unknown';
+      if (!doctorStats[docName]) doctorStats[docName] = { revenue: 0, patients: 0 };
+      doctorStats[docName].revenue += parseFloat(a.doctor?.center_fee || 0);
+      doctorStats[docName].patients += 1;
+    });
+
+    const chartData = Object.entries(doctorStats).map(([name, stats]) => ({
+      name,
+      revenue: stats.revenue,
+      patients: stats.patients
+    }));
+
     res.status(200).json({
       success: true,
       data: {
         totalRevenue: totalCenterRevenue,
         appointmentCount: appointments.length,
+        chartData,
         appointments: appointments.map(a => ({
           appointment_id: a.appointment_id,
           patient_name: a.patient?.full_name,
@@ -115,10 +132,17 @@ export const getPatientRegistrationReport = async (req, res) => {
       receptionist: patients.filter(p => p.registration_source === 'RECEPTIONIST').length
     };
 
+    // Chart Data: Registration Source
+    const chartData = [
+      { name: 'Online', count: summary.online },
+      { name: 'Receptionist', count: summary.receptionist }
+    ];
+
     res.status(200).json({
       success: true,
       data: {
         summary,
+        chartData,
         patients: patients.map(p => ({
           name: p.full_name,
           nic: p.nic,
@@ -165,10 +189,24 @@ export const getAppointmentReport = async (req, res) => {
       absent: appointments.filter(a => a.status === 'CANCELLED' && a.is_noshow).length
     };
 
+    // Chart Data: Appointments per Doctor
+    const doctorStats = {};
+    appointments.forEach(a => {
+      const docName = a.doctor?.full_name || 'Unknown';
+      if (!doctorStats[docName]) doctorStats[docName] = { volume: 0 };
+      doctorStats[docName].volume += 1;
+    });
+
+    const chartData = Object.entries(doctorStats).map(([name, stats]) => ({
+      name,
+      appointments: stats.volume
+    }));
+
     res.status(200).json({
       success: true,
       data: {
         summary,
+        chartData,
         appointments: appointments.map(a => ({
           id: a.appointment_id,
           patient: a.patient?.full_name,
@@ -183,6 +221,100 @@ export const getAppointmentReport = async (req, res) => {
     });
   } catch (error) {
     console.error('Appointment report error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+/**
+ * @desc    Export Report as PDF
+ * @route   GET /api/admin/reports/export/:type
+ * @access  Private/Admin
+ */
+export const exportReport = async (req, res) => {
+  try {
+    const { type } = req.params;
+    const { startDate, endDate } = req.query;
+
+    // 1. Fetch data similar to the report functions
+    let reportData = {};
+    
+    if (type === 'revenue') {
+      const where = { payment_status: 'PAID' };
+      if (startDate && endDate) where.appointment_date = { [Op.between]: [startDate, endDate] };
+      const appointments = await Appointment.findAll({
+        where,
+        include: [
+          { model: Doctor, as: 'doctor', attributes: ['center_fee', 'full_name'] },
+          { model: Patient, as: 'patient', attributes: ['full_name'] }
+        ]
+      });
+      reportData = {
+        totalRevenue: appointments.reduce((sum, appt) => sum + parseFloat(appt.doctor?.center_fee || 0), 0),
+        appointmentCount: appointments.length,
+        appointments: appointments.map(a => ({
+          patient_name: a.patient?.full_name,
+          doctor_name: a.doctor?.full_name,
+          date: a.appointment_date,
+          center_fee: parseFloat(a.doctor?.center_fee || 0)
+        }))
+      };
+    } else if (type === 'patients') {
+      const where = {};
+      if (startDate && endDate) where.created_at = { [Op.between]: [new Date(startDate), new Date(endDate + 'T23:59:59')] };
+      const patients = await Patient.findAll({
+        where,
+        include: [{ model: User, as: 'user', attributes: ['email', 'contact_number'] }],
+        order: [['created_at', 'DESC']]
+      });
+      reportData = {
+        summary: {
+          total: patients.length,
+          online: patients.filter(p => p.registration_source === 'ONLINE').length,
+          receptionist: patients.filter(p => p.registration_source === 'RECEPTIONIST').length
+        },
+        patients: patients.map(p => ({
+          name: p.full_name,
+          nic: p.nic,
+          source: p.registration_source,
+          contact: p.user?.contact_number || 'N/A'
+        }))
+      };
+    } else if (type === 'appointments') {
+      const where = {};
+      if (startDate && endDate) where.appointment_date = { [Op.between]: [startDate, endDate] };
+      const appointments = await Appointment.findAll({
+        where,
+        include: [
+          { model: Doctor, as: 'doctor', attributes: ['full_name'] },
+          { model: Patient, as: 'patient', attributes: ['full_name'] }
+        ]
+      });
+      reportData = {
+        summary: {
+          total: appointments.length,
+          cancelled: appointments.filter(a => a.status === 'CANCELLED').length,
+          absent: appointments.filter(a => a.status === 'CANCELLED' && a.is_noshow).length
+        },
+        appointments: appointments.map(a => ({
+          patient_name: a.patient?.full_name,
+          doctor_name: a.doctor?.full_name,
+          date: a.appointment_date,
+          status: a.status
+        }))
+      };
+    } else {
+      return res.status(400).json({ success: false, message: 'Invalid report type' });
+    }
+
+    // 2. Generate PDF
+    const pdfBuffer = await ReportGenerator.generateReportBuffer(type, reportData, { startDate, endDate });
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename=${type}_report_${new Date().toISOString().split('T')[0]}.pdf`);
+    res.send(pdfBuffer);
+
+  } catch (error) {
+    console.error('Export report error:', error);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };

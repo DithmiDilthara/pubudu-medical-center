@@ -87,43 +87,8 @@ function AdminDashboard() {
             <p style={styles.pageSubtitle}>Monitor and manage medical center operations efficiently.</p>
           </motion.div>
 
-          {/* Section 1: Quick Actions Card - Premium Styled */}
-          <motion.section variants={itemVariants} style={styles.quickActionsCard}>
-            <div style={styles.quickActionsHeader}>
-              <div style={styles.quickActionIconTile}>
-                <FiActivity style={{ fontSize: '24px' }} />
-              </div>
-              <div>
-                <h2 style={styles.quickActionsTitle}>Quick Management</h2>
-                <p style={styles.quickActionsSubtitle}>Common administrative tasks at your fingertips</p>
-              </div>
-            </div>
-
-            <div style={styles.quickActionsGrid}>
-              {[
-                { label: "Add Doctor", icon: <FaStethoscope />, gradient: "linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)", onClick: () => navigate("/admin/doctors") },
-                { label: "Add Receptionist", icon: <FiUserCheck />, gradient: "linear-gradient(135deg, #10b981 0%, #059669 100%)", onClick: () => navigate("/admin/receptionist") },
-                { label: "Generate Reports", icon: <FiFileText />, gradient: "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)", onClick: () => navigate("/admin/reports") }
-              ].map((action, idx) => (
-                <motion.button
-                  key={idx}
-                  whileHover={{ y: -6, scale: 1.02, boxShadow: '0 12px 24px -8px rgba(0,0,0,0.1)' }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={action.onClick}
-                  style={styles.premiumActionBtn}
-                >
-                  <div style={{ ...styles.actionIconSquare, background: action.gradient }}>
-                    {action.icon}
-                  </div>
-                  <span style={styles.actionLabelText}>{action.label}</span>
-                </motion.button>
-              ))}
-            </div>
-          </motion.section>
-
-          {/* Section 2: stat cards */}
+          {/* Section 1: stat cards (Moved Up) */}
           <motion.section variants={itemVariants} style={styles.dashboardSection}>
-            <h2 style={styles.sectionHeading}>System Statistics</h2>
             <div style={styles.statsGrid}>
               <StatsCard 
                 icon={<FaStethoscope style={{ fontSize: '20px' }} />} 
@@ -152,6 +117,50 @@ function AdminDashboard() {
             </div>
           </motion.section>
 
+          {/* Section 2: Quick Actions Card (Moved Down) */}
+          <motion.section variants={itemVariants} style={styles.quickActionsCard}>
+            <div style={styles.quickActionsHeader}>
+              <div style={styles.quickActionIconTile}>
+                <FiActivity style={{ fontSize: '24px' }} />
+              </div>
+              <div>
+                <h2 style={styles.quickActionsTitle}>Quick Management</h2>
+                <p style={styles.quickActionsSubtitle}>Common administrative tasks at your fingertips</p>
+              </div>
+            </div>
+
+            <div style={styles.quickActionsGrid}>
+              {[
+                { label: "Add Doctor", icon: <FaStethoscope />, gradient: "linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)", shadow: "rgba(99, 102, 241, 0.2)", onClick: () => navigate("/admin/doctors") },
+                { label: "Add Receptionist", icon: <FiUserCheck />, gradient: "linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)", shadow: "rgba(99, 102, 241, 0.2)", onClick: () => navigate("/admin/receptionist") },
+                { label: "Generate Reports", icon: <FiFileText />, gradient: "linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)", shadow: "rgba(99, 102, 241, 0.2)", onClick: () => navigate("/admin/reports") }
+              ].map((action, idx) => (
+                <motion.button
+                  key={idx}
+                  whileHover={{ 
+                    y: -6, 
+                    scale: 1.02, 
+                    boxShadow: `0 12px 24px -8px ${action.shadow}`,
+                    background: action.gradient,
+                  }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={action.onClick}
+                  className="premium-action-btn-hover"
+                  style={{
+                    ...styles.premiumActionBtn,
+                    border: `1px solid ${action.shadow.replace('0.2', '0.1')}`,
+                    boxShadow: `0 4px 6px -1px ${action.shadow.replace('0.2', '0.05')}`
+                  }}
+                >
+                  <div className="action-icon-wrapper" style={{ ...styles.actionIconSquare, background: action.gradient }}>
+                    {action.icon}
+                  </div>
+                  <span className="action-label" style={styles.actionLabelText}>{action.label}</span>
+                </motion.button>
+              ))}
+            </div>
+          </motion.section>
+
           <motion.section variants={itemVariants} style={styles.dashboardSection}>
             <div className="dashboard-charts-grid">
               <div className="chart-span-2">
@@ -164,6 +173,22 @@ function AdminDashboard() {
           </motion.section>
         </main>
       </motion.div>
+
+      <style>
+        {`
+          .premium-action-btn-hover {
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important;
+          }
+          .premium-action-btn-hover:hover .action-label {
+            color: white !important;
+          }
+          .premium-action-btn-hover:hover .action-icon-wrapper {
+            background: rgba(255, 255, 255, 0.2) !important;
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+          }
+        `}
+      </style>
     </div>
   );
 }

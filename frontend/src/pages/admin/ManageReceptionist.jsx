@@ -137,7 +137,7 @@ const ManageReceptionist = () => {
         >
           {/* Header Title - Personalized Welcome */}
           <div style={styles.headerTitleSection}>
-            <h1 style={styles.pageTitle}>Welcome back, {adminName}!</h1>
+            <h1 style={styles.pageTitle}>Manage receptionist</h1>
             <p style={styles.pageSubtitle}>Coordinate frontline staff and streamline patient intake operations.</p>
           </div>
           {/* Toolbar */}
@@ -204,6 +204,11 @@ const ManageReceptionist = () => {
                         key={rec.receptionist_id} 
                         initial={{ opacity: 0, x: -10 }}
                         animate={{ opacity: 1, x: 0 }}
+                        whileHover={{ 
+                          backgroundColor: '#eff6ff',
+                          y: -2,
+                          transition: { duration: 0.2 }
+                        }}
                         transition={{ delay: idx * 0.05 }}
                         style={styles.tr}
                       >
@@ -391,13 +396,13 @@ const styles = {
   },
   th: {
     padding: '20px 24px',
-    backgroundColor: '#f8fafc',
+    background: 'linear-gradient(to right, #2563eb, #1d4ed8)',
     fontSize: '12px',
-    fontWeight: '700',
-    color: '#64748b',
+    fontWeight: '800',
+    color: 'white',
     textTransform: 'uppercase',
     letterSpacing: '1px',
-    borderBottom: '1px solid #f1f5f9',
+    borderBottom: 'none',
     fontFamily: 'var(--font-accent)',
   },
   tr: {
@@ -417,15 +422,15 @@ const styles = {
     width: '44px',
     height: '44px',
     borderRadius: '14px',
-    backgroundColor: '#f5f3ff', // purple bg for receptionists
-    color: '#7c3aed', // purple text
+    backgroundColor: '#eff6ff', // blue bg for receptionists (matches doctors)
+    color: '#2563eb', // blue text
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     fontSize: '14px',
     fontWeight: '800',
     border: '2px solid white',
-    boxShadow: '0 4px 6px -1px rgba(124, 58, 237, 0.1)'
+    boxShadow: '0 4px 6px -1px rgba(37, 99, 235, 0.1)'
   },
   personName: {
     fontSize: '15px',

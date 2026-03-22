@@ -1107,25 +1107,29 @@ const styles = {
   },
   // Calendar Styles
   calendarCard: {
-    border: "1px solid #e2e8f0",
-    borderRadius: "20px",
+    border: "2px solid #2563eb",
+    borderRadius: "16px",
     overflow: "hidden",
-    boxShadow: "0 10px 15px -3px rgba(15, 23, 42, 0.05)"
+    boxShadow: "0 10px 15px -3px rgba(37, 99, 235, 0.1)",
+    margin: "0 auto",
+    width: "100%",
+    maxWidth: "500px" // Medium size
   },
   calendarHeader: {
-    padding: "20px",
-    background: "#0f172a",
+    padding: "16px",
+    backgroundColor: "#2563eb",
     display: "flex",
     justifyContent: "space-between",
-    alignItems: "center"
+    alignItems: "center",
+    borderBottom: "1px solid rgba(255, 255, 255, 0.1)"
   },
   navBtn: {
-    width: "36px",
-    height: "36px",
-    borderRadius: "10px",
-    backgroundColor: "rgba(255,255,255,0.1)",
+    width: "32px",
+    height: "32px",
+    borderRadius: "8px",
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
     border: "none",
-    color: "white",
+    color: "#ffffff",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
@@ -1133,38 +1137,39 @@ const styles = {
     transition: "all 0.2s"
   },
   monthTitle: {
-    fontSize: "18px",
+    fontSize: "16px",
     fontWeight: "700",
-    color: "white",
-    letterSpacing: "0.025em"
+    color: "#ffffff",
+    letterSpacing: "0.01em"
   },
   calendarBody: {
-    padding: "20px",
+    padding: "12px",
     backgroundColor: "white"
   },
   dayNames: {
     display: "grid",
     gridTemplateColumns: "repeat(7, 1fr)",
-    marginBottom: "12px"
+    marginBottom: "8px"
   },
   dayName: {
     textAlign: "center",
-    fontSize: "12px",
+    fontSize: "10px",
     fontWeight: "700",
     color: "#94a3b8"
   },
   daysGrid: {
     display: "grid",
     gridTemplateColumns: "repeat(7, 1fr)",
-    gap: "8px"
+    gap: "4px"
   },
   dayCell: {
-    aspectRatio: "1",
+    aspectRatio: "1.1",
     display: "flex",
+    flexDirection: "column",
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: "10px",
-    fontSize: "14px",
+    borderRadius: "12px",
+    fontSize: "15px", // Medium font
     fontWeight: "600",
     cursor: "pointer",
     transition: "all 0.2s",
@@ -1180,7 +1185,8 @@ const styles = {
     boxShadow: "0 4px 12px rgba(37, 99, 235, 0.3)"
   },
   dayDisabled: {
-    color: "#cbd5e1",
+    color: "#000000",
+    opacity: 0.2,
     cursor: "not-allowed"
   },
   // Time Styles

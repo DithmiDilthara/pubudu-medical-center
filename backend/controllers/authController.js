@@ -263,7 +263,7 @@ export const logout = async (req, res) => {
 export const registerPatient = async (req, res) => {
     const transaction = await sequelize.transaction();
     try {
-        const { username, email, password, first_name, last_name, phone, contact_number, date_of_birth, gender, address } = req.body;
+        const { username, email, password, full_name, nic, phone, contact_number, date_of_birth, gender, address, blood_group, allergies } = req.body;
         const targetPhone = phone || contact_number;
 
         if (!username || !email || !password) {
@@ -273,7 +273,7 @@ export const registerPatient = async (req, res) => {
 
         const role = await Role.findOne({ where: { role_name: 'Patient' }, transaction });
         const newUser = await User.create({ username, email, password_hash: password, role_id: role.role_id, contact_number: targetPhone, is_active: true }, { transaction });
-        await Patient.create({ user_id: newUser.user_id, first_name, last_name, date_of_birth, gender, address, registration_source: 'ONLINE' }, { transaction });
+        await Patient.create({ user_id: newUser.user_id, full_name, nic, date_of_birth, gender, address, blood_group, allergies, registration_source: 'ONLINE' }, { transaction });
 
         await transaction.commit();
         res.status(201).json({ success: true, message: 'Patient registered successfully.', data: { user: { user_id: newUser.user_id, username, email, role: 'Patient' }, token: generateToken(newUser) } });
