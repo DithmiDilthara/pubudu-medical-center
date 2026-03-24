@@ -279,6 +279,66 @@ class NotificationService {
             console.error('Error sending prescription notification:', error);
         }
     }
+
+    /**
+     * Send account credentials to new staff members
+     */
+    static async sendStaffCredentials(email, staffDetails) {
+        const { fullName, username, password, role } = staffDetails;
+        const loginUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+
+        const mailOptions = {
+            from: `"Pubudu Medical Center" <${process.env.EMAIL_USER}>`,
+            to: email,
+            subject: `Your Pubudu Medical Center Account Credentials`,
+            html: `
+        <div style="font-family: sans-serif; padding: 20px; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px;">
+          <div style="text-align: center; margin-bottom: 20px;">
+            <h2 style="color: #2563eb; margin: 0;">Welcome to the Team!</h2>
+            <p style="color: #64748b;">Your staff account has been created successfully.</p>
+          </div>
+          
+          <p>Dear ${fullName},</p>
+          <p>An account has been created for you as a <strong>${role}</strong> at Pubudu Medical Center. You can now access the staff portal using the credentials below:</p>
+          
+          <div style="background: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #2563eb;">
+            <p style="margin: 0 0 10px 0;"><strong>Username:</strong> ${username}</p>
+            <p style="margin: 0;"><strong>Temporary Password:</strong> ${password}</p>
+          </div>
+          
+          <div style="background: #fff7ed; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #ffedd5;">
+            <p style="margin: 0; color: #9a3412; font-size: 14px;">
+              <strong>Important:</strong> For security reasons, please log in and change your password immediately after your first access.
+            </p>
+          </div>
+          
+          <div style="text-align: center; margin-top: 30px;">
+            <a href="${loginUrl}" style="background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; borderRadius: 8px; fontWeight: bold; display: inline-block;">
+              Login to Portal
+            </a>
+          </div>
+          
+          <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 30px 0;" />
+          <p style="font-size: 12px; color: #94a3b8; text-align: center;">
+            This is an automated message from Pubudu Medical Center. Please do not reply to this email.
+          </p>
+        </div>
+      `
+        };
+
+        try {
+            if (transporter && email) {
+                await transporter.sendMail(mailOptions);
+                console.log(`Credential email sent to ${email} for ${role}: ${username}`);
+                return true;
+            }
+            console.warn('Email skipped: Transporter or email missing');
+            return false;
+        } catch (error) {
+            console.error('Error sending staff credentials email:', error);
+            return false;
+        }
+    }
 }
 
 export default NotificationService;

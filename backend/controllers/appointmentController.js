@@ -9,7 +9,7 @@ import { Op } from 'sequelize';
  */
 export const createAppointment = async (req, res) => {
     try {
-        const { doctor_id, appointment_date, time_slot, patient_id, notes, skipNotification } = req.body;
+        const { doctor_id, appointment_date, time_slot, availability_id, patient_id, notes, skipNotification } = req.body;
         const currentUser = req.user;
 
         let targetPatientId = patient_id;
@@ -25,8 +25,8 @@ export const createAppointment = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Patient ID is required' });
         }
 
-        // In session-based booking, multiple people can book the same time range.
-        // We will no longer block bookings based on time_slot existence.
+        // In session-based booking, multiple people can book the same session block.
+        // There is no longer a check for individual 30-minute slots.
 
         // Calculate next appointment number for this doctor and date
         const lastAppointment = await Appointment.findOne({
@@ -44,7 +44,8 @@ export const createAppointment = async (req, res) => {
             patient_id: targetPatientId,
             doctor_id,
             appointment_date,
-            time_slot,
+            availability_id,
+            time_slot, // Stores the full session range string
             status: 'PENDING',
             payment_status: 'UNPAID',
             appointment_number: nextNumber,
@@ -181,7 +182,7 @@ export const getAppointments = async (req, res) => {
         const appointments = await Appointment.findAll({
             where,
             include,
-            order: [['appointment_date', 'DESC'], ['time_slot', 'ASC']]
+            order: [['appointment_date', 'DESC'], ['appointment_id', 'ASC']]
         });
 
         res.status(200).json({ success: true, data: appointments });
@@ -298,7 +299,7 @@ export const cancelDoctorSession = async (req, res) => {
 export const rescheduleAppointment = async (req, res) => {
     try {
         const { id } = req.params;
-        const { appointment_date, time_slot } = req.body;
+        const { appointment_date, time_slot, availability_id } = req.body;
 
         if (!appointment_date || !time_slot) {
             return res.status(400).json({ success: false, message: 'Date and time slot are required' });
@@ -327,6 +328,7 @@ export const rescheduleAppointment = async (req, res) => {
 
         appointment.appointment_date = appointment_date;
         appointment.time_slot = time_slot;
+        if (availability_id) appointment.availability_id = availability_id;
         appointment.status = 'CONFIRMED'; // Auto-confirm when rescheduled by staff
         await appointment.save();
 

@@ -74,12 +74,16 @@ function AddPatient() {
     phoneNumber: {
       required: true,
       custom: (value) => {
-        try {
-          const digits = value.replace(/\D/g, "");
-          return digits.length === 10 ? null : "Phone number must be 10 digits";
-        } catch (error) {
-          return "Invalid phone number";
-        }
+        const digits = value.replace(/\D/g, "");
+        const validPrefixes = ['070', '071', '072', '074', '075', '076', '077', '078'];
+        const prefix = digits.substring(0, 3);
+        
+        if (digits.length !== 10) return "Phone number must be exactly 10 digits";
+        if (!digits.startsWith('07')) return "Phone number must start with 07";
+        if (!validPrefixes.includes(prefix)) return "Invalid Sri Lankan mobile prefix";
+        if (/(\d)\1{7,}/.test(digits)) return "Too many repeating digits";
+        if (/0123456|1234567|2345678|3456789/.test(digits)) return "Sequential numbers not allowed";
+        return null;
       },
       message: "Phone number is required"
     },
@@ -95,10 +99,18 @@ function AddPatient() {
       required: true,
       custom: (value) => {
         if (!value) return "NIC is required";
-        if (value.length > 12) return "NIC cannot exceed 12 characters";
-        if (!/^(?:\d{9}[vVxX]|\d{12})$/.test(value)) {
-          return "Invalid NIC format (9 digits + V/X or 12 digits)";
+        const nic = value.trim().toUpperCase();
+        const oldNicRegex = /^[0-9]{9}[VX]$/;
+        const newNicRegex = /^[0-9]{12}$/;
+        
+        if (!oldNicRegex.test(nic) && !newNicRegex.test(nic)) {
+          return "Invalid NIC format (e.g., 123456789V or 12 digits)";
         }
+        
+        const digitsOnly = nic.replace(/[VX]/g, '');
+        if (/(\d)\1{8,}/.test(digitsOnly)) return "Invalid repeating pattern";
+        if (/012345678|123456789|987654321/.test(digitsOnly)) return "Sequential digits not allowed";
+        
         return null;
       }
     },
@@ -528,7 +540,7 @@ function AddPatient() {
                     <input
                       type="text"
                       name="username"
-                      placeholder="e.g., Jane_Doe"
+                      placeholder="e.g., Sayumi_01"
                       value={formData.username}
                       onChange={handleInputChange}
                       onFocus={() => setFocusedField('username')}

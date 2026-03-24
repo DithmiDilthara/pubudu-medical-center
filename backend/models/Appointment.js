@@ -19,6 +19,10 @@ const Appointment = sequelize.define('appointment', {
         type: DataTypes.DATEONLY,
         allowNull: false
     },
+    availability_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true
+    },
     time_slot: {
         type: DataTypes.STRING(20),
         allowNull: false

@@ -39,6 +39,7 @@ function NewBooking() {
   const [selectedService, setSelectedService] = useState("");
   const [selectedDoctor, setSelectedDoctor] = useState("");
   const [selectedDate, setSelectedDate] = useState(null);
+  const [selectedSession, setSelectedSession] = useState(null);
   const [selectedTime, setSelectedTime] = useState("");
 
   const [doctors, setDoctors] = useState([]);
@@ -231,8 +232,8 @@ function NewBooking() {
         return;
       }
     } else if (currentStep === 4) {
-      if (!selectedTime) {
-        toast.error("Please select a time");
+      if (!selectedSession) {
+        toast.error("Please select a session");
         return;
       }
     }
@@ -249,7 +250,6 @@ function NewBooking() {
     const toastId = toast.loading("Booking appointment...");
     try {
       const token = localStorage.getItem('token');
-      // FIX: formattedDate should be local YYYY-MM-DD
       const year = selectedDate.getFullYear();
       const month = selectedDate.getMonth();
       const day = selectedDate.getDate();
@@ -259,7 +259,8 @@ function NewBooking() {
         doctor_id: parseInt(selectedDoctor),
         patient_id: patientInfo.patientId,
         appointment_date: formattedDate,
-        time_slot: selectedTime
+        time_slot: selectedSession.timeRange,
+        availability_id: selectedSession.id
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -277,13 +278,10 @@ function NewBooking() {
   };
 
   const handlePayNow = async () => {
-    // Similar to confirm but maybe handle differently?
-    // For now, let's just confirm and set context for payment
     setIsLoading(true);
     const toastId = toast.loading("Preparing payment...");
     try {
       const token = localStorage.getItem('token');
-      // FIX: formattedDate should be local YYYY-MM-DD
       const year = selectedDate.getFullYear();
       const month = selectedDate.getMonth();
       const day = selectedDate.getDate();
@@ -293,7 +291,8 @@ function NewBooking() {
         doctor_id: parseInt(selectedDoctor),
         patient_id: patientInfo.patientId,
         appointment_date: formattedDate,
-        time_slot: selectedTime
+        time_slot: selectedSession.timeRange,
+        availability_id: selectedSession.id
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -354,6 +353,8 @@ function NewBooking() {
     if (day) {
       const selected = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
       setSelectedDate(selected);
+      setSelectedSession(null);
+      setSelectedTime("");
     }
   };
 
@@ -395,7 +396,7 @@ function NewBooking() {
     // Specific date overrides take precedence
     let dayAvails = doctorAvailability.filter(a =>
       a.specific_date === formattedDate &&
-      (a.session_name === 'Available' || a.session_name === 'Half Day' || a.session_name === 'Regular Session')
+      a.session_name !== 'Unavailable'
     );
 
     // If no specific override, use recurring
@@ -409,17 +410,11 @@ function NewBooking() {
       });
     }
 
-    const slots = [];
-    dayAvails.forEach(avail => {
-      let current = new Date(`2024-01-01 ${avail.start_time}`);
-      const end = new Date(`2024-01-01 ${avail.end_time}`);
-      while (current < end) {
-        slots.push(current.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }));
-        current.setMinutes(current.getMinutes() + 30);
-      }
-    });
-
-    return slots;
+    return dayAvails.map(avail => ({
+      id: avail.availability_id,
+      sessionName: avail.session_name,
+      timeRange: `${avail.start_time} - ${avail.end_time}`
+    }));
   };
 
   const isSelectedDate = (day) => {
@@ -719,27 +714,28 @@ function NewBooking() {
                       <div style={styles.timeGrid}>
                         {(() => {
                           const day = selectedDate ? selectedDate.getDate() : null;
-                          const slots = getTimeSlotsForDay(day);
+                          const sessions = getTimeSlotsForDay(day);
 
-                          if (slots.length === 0) return <p style={{ gridColumn: '1/-1', textAlign: 'center', color: '#64748b', padding: '40px' }}>No available slots for this date.</p>;
+                          if (sessions.length === 0) return <p style={{ gridColumn: '1/-1', textAlign: 'center', color: '#64748b', padding: '40px' }}>No available sessions for this date.</p>;
 
-                          return slots.map((time) => {
-                            const isBooked = bookedSlots.includes(time);
-                            return (
-                              <button
-                                key={time}
-                                disabled={isBooked}
-                                onClick={() => setSelectedTime(time)}
-                                style={{
-                                  ...styles.timeBtn,
-                                  ...(selectedTime === time ? styles.timeBtnActive : {}),
-                                  ...(isBooked ? { opacity: 0.3, cursor: 'not-allowed', backgroundColor: '#f1f5f9' } : {})
-                                }}
-                              >
-                                {time}
-                              </button>
-                            );
-                          });
+                          return sessions.map((session) => (
+                            <button
+                              key={session.id}
+                              onClick={() => setSelectedSession(session)}
+                              style={{
+                                ...styles.timeBtn,
+                                ...(selectedSession?.id === session.id ? styles.timeBtnActive : {}),
+                                gridColumn: 'span 2',
+                                textAlign: 'left',
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center'
+                              }}
+                            >
+                              <span>{session.sessionName}</span>
+                              <span style={{ fontWeight: 700 }}>{session.timeRange}</span>
+                            </button>
+                          ));
                         })()}
                       </div>
                     </div>
@@ -775,7 +771,7 @@ function NewBooking() {
                         <div style={styles.confirmItem}>
                           <span style={styles.confirmLabel}>Appointment</span>
                           <span style={styles.confirmValue}>
-                            {selectedDate?.toLocaleDateString()} • {selectedTime}
+                            {selectedDate?.toLocaleDateString()} • {selectedSession?.timeRange}
                           </span>
                         </div>
                         {nextQueueNumber !== null && (

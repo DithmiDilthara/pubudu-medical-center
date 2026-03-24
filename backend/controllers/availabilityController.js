@@ -28,6 +28,26 @@ export const setAvailability = async (req, res) => {
                 });
             }
 
+            // ENFORCE OPERATING HOURS: 07:00 - 21:00
+            if (slot.start_time < '07:00' || slot.end_time > '21:00') {
+              return res.status(400).json({
+                  success: false,
+                  message: "Session times must be within operating hours (07:00–21:00)"
+              });
+            }
+
+            // ENFORCE MINIMUM DURATION: 1 HOUR (60 MINUTES)
+            const start = new Date(`1970-01-01T${slot.start_time}`);
+            const end = new Date(`1970-01-01T${slot.end_time}`);
+            const durationMinutes = (end - start) / (1000 * 60);
+            
+            if (durationMinutes < 60) {
+              return res.status(400).json({
+                  success: false,
+                  message: "Session must be at least 1 hour long"
+              });
+            }
+
             // Check specific date logic
             if (slot.specific_date && slot.specific_date < todayStr) {
                 return res.status(400).json({
@@ -35,100 +55,48 @@ export const setAvailability = async (req, res) => {
                     message: `Cannot set availability for past date: ${slot.specific_date}`
                 });
             }
-        }
 
-        // Separate recurring and specific date availability
-        const recurring = availability.filter(slot => slot.day_of_week && !slot.specific_date);
-        const specific = availability.filter(slot => slot.specific_date);
-        const { clear_all_recurring } = req.body;
+            // --- CHANGE 2: OVERLAP CHECK ---
+            const whereClause = {
+                doctor_id: doctor.doctor_id,
+            };
 
-        // For recurring: Clear all existing recurring and replace (if provided or explicitly requested)
-        if (recurring.length > 0 || clear_all_recurring) {
-            await Availability.destroy({
-                where: {
-                    doctor_id: doctor.doctor_id,
-                    specific_date: null
-                }
-            });
-        }
-
-        // Handle specific availability records
-        if (specific.length > 0) {
-            // Separate actual updates from deletions
-            const toDelete = specific.filter(slot => slot.session_name === 'DELETED');
-            const toUpsert = specific.filter(slot => slot.session_name !== 'DELETED');
-
-            // Process deletions
-            if (toDelete.length > 0) {
-                await Availability.destroy({
-                    where: {
-                        doctor_id: doctor.doctor_id,
-                        specific_date: { [Op.in]: toDelete.map(s => s.specific_date) }
-                    }
-                });
+            if (slot.specific_date) {
+                whereClause.specific_date = slot.specific_date;
+            } else if (slot.day_of_week) {
+                whereClause.day_of_week = slot.day_of_week;
+                whereClause.specific_date = null;
             }
 
-            // Process upserts (delete then create to ensure clean slate for those dates)
-            if (toUpsert.length > 0) {
-                await Availability.destroy({
-                    where: {
-                        doctor_id: doctor.doctor_id,
-                        specific_date: { [Op.in]: toUpsert.map(s => s.specific_date) }
-                    }
-                });
+            const existingSessions = await Availability.findAll({ where: whereClause });
 
-                await Availability.bulkCreate(
-                    toUpsert.map(slot => ({
-                        ...slot,
-                        doctor_id: doctor.doctor_id
-                    }))
-                );
-
-                // Handle cancellations for specific 'Unavailable' dates
-                const unavailableDates = toUpsert.filter(s => s.session_name === 'Unavailable').map(s => s.specific_date);
-                if (unavailableDates.length > 0) {
-                    await cancelAffectedAppointments(doctor.doctor_id, { specific_date: unavailableDates });
+            for (const existing of existingSessions) {
+                // newStart < existingEnd AND newEnd > existingStart
+                if (slot.start_time < existing.end_time && slot.end_time > existing.start_time) {
+                    return res.status(400).json({
+                        success: false,
+                        message: `This time slot overlaps with an existing session (${existing.start_time}-${existing.end_time}). Please choose a different time.`
+                    });
                 }
             }
         }
 
-        // Handle recurring availability and its cancellation cascade
-        if (recurring.length > 0 || clear_all_recurring) {
-            // Get existing recurring days before they are wiped
-            const oldRecurringAvails = await Availability.findAll({
-                where: { doctor_id: doctor.doctor_id, specific_date: null }
-            });
-            const oldDays = oldRecurringAvails.map(a => a.day_of_week);
-
-            // Wipe existing recurring
-            await Availability.destroy({
-                where: { doctor_id: doctor.doctor_id, specific_date: null }
-            });
-
-            if (recurring.length > 0) {
+        // Add the sessions (Additive approach)
+        const sessionsToCreate = availability.map(slot => {
+            const data = {
+                ...slot,
+                doctor_id: doctor.doctor_id,
+                session_name: slot.session_name || 'Available'
+            };
+            if (slot.day_of_week && !slot.specific_date) {
                 const threeMonthsOut = new Date();
                 threeMonthsOut.setMonth(threeMonthsOut.getMonth() + 3);
-
-                await Availability.bulkCreate(
-                    recurring.map(slot => ({
-                        ...slot,
-                        doctor_id: doctor.doctor_id,
-                        end_date: threeMonthsOut
-                    }))
-                );
-
-                // IDENTIFY REMOVED DAYS for the cascade
-                const newDays = recurring.map(s => s.day_of_week);
-                const removedDays = oldDays.filter(d => !newDays.includes(d));
-
-                if (removedDays.length > 0) {
-                    await cancelAffectedAppointments(doctor.doctor_id, { day_of_week: removedDays });
-                }
-            } else if (clear_all_recurring && oldDays.length > 0) {
-                // If everything cleared, cancel all appointments on those days
-                await cancelAffectedAppointments(doctor.doctor_id, { day_of_week: oldDays });
+                data.end_date = threeMonthsOut;
             }
-        }
+            return data;
+        });
+
+        await Availability.bulkCreate(sessionsToCreate);
 
         res.status(201).json({
             success: true,
@@ -143,6 +111,44 @@ export const setAvailability = async (req, res) => {
             error: error.message,
             stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
         });
+    }
+};
+
+/**
+ * @desc    Delete a specific availability slot
+ * @route   DELETE /api/availability/:id
+ * @access  Private (Doctor)
+ */
+export const deleteAvailability = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const userId = req.user.user_id;
+
+        const doctor = await Doctor.findOne({ where: { user_id: userId } });
+        if (!doctor) return res.status(404).json({ success: false, message: 'Doctor profile not found' });
+
+        const slot = await Availability.findOne({
+            where: {
+                availability_id: id,
+                doctor_id: doctor.doctor_id
+            }
+        });
+
+        if (!slot) return res.status(404).json({ success: false, message: 'Availability slot not found' });
+
+        // Handle cancellation cascade if it was a confirmed/pending slot on that day
+        if (slot.specific_date) {
+            await cancelAffectedAppointments(doctor.doctor_id, { specific_date: [slot.specific_date] });
+        } else if (slot.day_of_week) {
+            await cancelAffectedAppointments(doctor.doctor_id, { day_of_week: [slot.day_of_week] });
+        }
+
+        await slot.destroy();
+
+        res.status(200).json({ success: true, message: 'Availability slot removed' });
+    } catch (error) {
+        console.error('Delete availability error:', error);
+        res.status(500).json({ success: false, message: 'Server error' });
     }
 };
 

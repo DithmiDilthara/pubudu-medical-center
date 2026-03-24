@@ -18,20 +18,26 @@ import DoctorHeader from '../../components/DoctorHeader';
 import DoctorSidebar from '../../components/DoctorSidebar';
 import ClockTimePicker from '../../components/ClockTimePicker';
 import ConfirmationModal from '../../components/ConfirmationModal';
+import { toast } from 'react-hot-toast';
 
 function DoctorAvailability() {
   const navigate = useNavigate();
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-  const [startTime, setStartTime] = useState('18:00');
-  const [endTime, setEndTime] = useState('20:00');
-  const [recurringDays, setRecurringDays] = useState([]);
+  
+  // New Add Session State
+  const [bookingType, setBookingType] = useState('ONE-TIME'); // 'ONE-TIME' or 'RECURRING'
+  const [selectedDayIndex, setSelectedDayIndex] = useState(0); // For recurring
+  const [startTime, setStartTime] = useState('09:00');
+  const [endTime, setEndTime] = useState('11:00');
+  const [endDate, setEndDate] = useState(''); // For recurring end
+  const [sessionName, setSessionName] = useState('Available');
+
   const [doctorName, setDoctorName] = useState('Doctor');
-  const [availability, setAvailability] = useState({});
+  const [rawAvailability, setRawAvailability] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState(null);
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
   const fetchAvailability = async () => {
     try {
@@ -46,33 +52,12 @@ function DoctorAvailability() {
         const availabilityRes = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/doctors/${doctorId}/availability`);
 
         if (availabilityRes.data.success) {
-          const availData = availabilityRes.data.data;
-
-          const daysOrder = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
-          const recurringArr = [...new Set(availData
-            .filter(a => a.day_of_week && !a.specific_date)
-            .map(a => daysOrder.indexOf(a.day_of_week)))];
-          setRecurringDays(recurringArr);
-
-          const specificAvail = {};
-          const todayDate = new Date();
-          todayDate.setHours(0,0,0,0);
-          const todayStr = todayDate.toISOString().split('T')[0];
-
-          availData.filter(a => a.specific_date && a.specific_date >= todayStr).forEach(a => {
-            specificAvail[a.specific_date] = {
-              status: a.session_name === 'Available' ? 'available' : a.session_name === 'Half Day' ? 'half-day' : 'unavailable',
-              startTime: a.start_time,
-              endTime: a.end_time,
-              reason: a.session_name
-            };
-          });
-          setAvailability(specificAvail);
+          setRawAvailability(availabilityRes.data.data);
         }
       }
     } catch (error) {
       console.error("Error fetching availability:", error);
-      setErrorMessage("Failed to load availability data.");
+      toast.error("Failed to load availability data.");
     }
   };
 
@@ -83,6 +68,7 @@ function DoctorAvailability() {
   const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
     'July', 'August', 'September', 'October', 'November', 'December'];
   const daysOfWeek = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const fullDays = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
 
   const getDaysInMonth = (month, year) => new Date(year, month + 1, 0).getDate();
   const getFirstDayOfMonth = (month, year) => {
@@ -95,6 +81,23 @@ function DoctorAvailability() {
     d.setHours(0, 0, 0, 0);
     return d;
   }, []);
+
+  // Process raw availability for calendar view
+  const availabilityMap = useMemo(() => {
+    const map = {};
+    const todayStr = today.toISOString().split('T')[0];
+    
+    rawAvailability.forEach(a => {
+      if (a.specific_date) {
+        if (!map[a.specific_date]) map[a.specific_date] = [];
+        map[a.specific_date].push(a);
+      } else if (a.day_of_week) {
+        if (!map[a.day_of_week]) map[a.day_of_week] = [];
+        map[a.day_of_week].push(a);
+      }
+    });
+    return map;
+  }, [rawAvailability, today]);
 
   const calendarDays = useMemo(() => {
     const daysInMonth = getDaysInMonth(selectedMonth, selectedYear);
@@ -109,8 +112,10 @@ function DoctorAvailability() {
       const dateKey = `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
       const dateObj = new Date(selectedYear, selectedMonth, day);
       const dayOfWeekIndex = dateObj.getDay() === 0 ? 6 : dateObj.getDay() - 1;
-      const isRecurring = recurringDays.includes(dayOfWeekIndex);
-      const dayAvailability = availability[dateKey] || (isRecurring ? { status: 'available', startTime: 'Recurring' } : null);
+      const dayOfWeekName = fullDays[dayOfWeekIndex];
+      
+      const specific = availabilityMap[dateKey] || [];
+      const recurring = availabilityMap[dayOfWeekName] || [];
       
       days.push({
         type: 'day',
@@ -118,12 +123,12 @@ function DoctorAvailability() {
         dateKey,
         dateObj,
         isPast: dateObj < today,
-        availability: dayAvailability,
+        sessions: [...recurring, ...specific],
         isSelected: selectedDate === dateKey
       });
     }
     return days;
-  }, [selectedMonth, selectedYear, recurringDays, availability, selectedDate, today]);
+  }, [selectedMonth, selectedYear, availabilityMap, selectedDate, today]);
 
   const handlePrevMonth = () => {
     if (selectedMonth === 0) {
@@ -145,114 +150,81 @@ function DoctorAvailability() {
     setSelectedDate(null);
   };
 
-  const handleSetAvailability = async (status) => {
-    if (!selectedDate) return;
-    
-    if (status === 'DELETED') {
-      setIsDeleteModalOpen(true);
+  const handleAddSession = async () => {
+    if (bookingType === 'ONE-TIME' && !selectedDate) {
+      toast.error("Please select a date on the calendar first!");
       return;
     }
 
     if (startTime >= endTime) {
-      setErrorMessage("End time must be after start time.");
+      toast.error("End time must be after start time.");
       return;
     }
 
-    await proceedWithAvailability(status);
-  };
+    // ENFORCE OPERATING HOURS: 07:00 - 21:00
+    if (startTime < '07:00' || endTime > '21:00') {
+      toast.error("Sessions must be within operating hours (7:00 AM – 9:00 PM)");
+      return;
+    }
 
-  const proceedWithAvailability = async (status) => {
+    // ENFORCE MINIMUM DURATION: 1 HOUR
+    const start = new Date(`1970-01-01T${startTime}`);
+    const end = new Date(`1970-01-01T${endTime}`);
+    const durationMinutes = (end - start) / (1000 * 60);
+    
+    if (durationMinutes < 60) {
+      toast.error("Session duration must be at least 1 hour");
+      return;
+    }
+
     setIsLoading(true);
-    setErrorMessage(null);
-
     try {
       const token = localStorage.getItem('token');
-      const availabilityPayload = [{
-        specific_date: selectedDate,
-        day_of_week: null,
-        start_time: startTime,
-        end_time: endTime,
-        session_name: status === 'available' ? 'Available' : status === 'DELETED' ? 'DELETED' : 'Unavailable'
-      }];
+      const payload = {
+        availability: [{
+          specific_date: bookingType === 'ONE-TIME' ? selectedDate : null,
+          day_of_week: bookingType === 'RECURRING' ? fullDays[selectedDayIndex] : null,
+          start_time: startTime,
+          end_time: endTime,
+          session_name: sessionName,
+          end_date: bookingType === 'RECURRING' ? endDate || null : null
+        }]
+      };
 
       const response = await axios.post(
         `${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/clinical/availability`,
-        { availability: availabilityPayload },
+        payload,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
       if (response.data.success) {
-        if (status === 'DELETED') {
-          const newAvail = { ...availability };
-          delete newAvail[selectedDate];
-          setAvailability(newAvail);
-        } else {
-          setAvailability(prev => ({
-            ...prev,
-            [selectedDate]: { status, startTime, endTime }
-          }));
-        }
+        toast.success("Session added successfully");
         await fetchAvailability();
       }
     } catch (error) {
-      setErrorMessage("Failed to update availability.");
+      toast.error(error.response?.data?.message || "Failed to add session.");
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleToggleRecurringDay = (dayIndex) => {
-    setRecurringDays(prev => 
-      prev.includes(dayIndex) ? prev.filter(d => d !== dayIndex) : [...prev, dayIndex]
-    );
-  };
-
-  const handleApplyRecurring = async () => {
-    if (recurringDays.length === 0) return;
+  const handleDeleteSession = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this session?")) return;
     
-    if (startTime >= endTime) {
-      setErrorMessage("End time must be after start time.");
-      return;
-    }
-
-    setIsLoading(true);
-    const daysOrder = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
-    const availabilityPayload = recurringDays.map(index => ({
-      day_of_week: daysOrder[index],
-      start_time: startTime,
-      end_time: endTime,
-      session_name: "Regular Session"
-    }));
-
-    try {
-      const token = localStorage.getItem('token');
-      await axios.post(
-        `${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/clinical/availability`,
-        { availability: availabilityPayload },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      await fetchAvailability();
-    } catch (error) {
-      setErrorMessage("Failed to save recurring availability.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleCancelAllRecurring = async () => {
-    if (!window.confirm('Cancel all recurring availability?')) return;
     setIsLoading(true);
     try {
       const token = localStorage.getItem('token');
-      await axios.post(
-        `${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/clinical/availability`,
-        { availability: [], clear_all_recurring: true },
+      const response = await axios.delete(
+        `${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/clinical/availability/${id}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      setRecurringDays([]);
-      await fetchAvailability();
+
+      if (response.data.success) {
+        toast.success("Session deleted");
+        await fetchAvailability();
+      }
     } catch (error) {
-      setErrorMessage("Failed to clear recurring availability.");
+      toast.error("Failed to delete session");
     } finally {
       setIsLoading(false);
     }
@@ -263,6 +235,18 @@ function DoctorAvailability() {
     navigate('/');
   };
 
+  const currentDaySessions = useMemo(() => {
+    if (!selectedDate) return [];
+    const dateObj = new Date(selectedDate);
+    const dayOfWeekIndex = dateObj.getDay() === 0 ? 6 : dateObj.getDay() - 1;
+    const dayOfWeekName = fullDays[dayOfWeekIndex];
+    
+    return [
+      ...(availabilityMap[dayOfWeekName] || []),
+      ...(availabilityMap[selectedDate] || [])
+    ].sort((a, b) => a.start_time.localeCompare(b.start_time));
+  }, [selectedDate, availabilityMap]);
+
   return (
     <div style={styles.pageContainer}>
       <DoctorSidebar onLogout={handleLogout} />
@@ -271,260 +255,161 @@ function DoctorAvailability() {
         <DoctorHeader doctorName={doctorName} />
 
         <main style={styles.contentPadding}>
-          {/* Page Header */}
           <div style={styles.headerRow}>
-            <motion.div 
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-            >
+            <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}>
               <h1 style={styles.pageTitle}>Schedule & Availability</h1>
-              <p style={styles.pageSubtitle}>
-                Manage your working hours and weekly routine
-              </p>
+              <p style={styles.pageSubtitle}>Precision management of multiple clinical sessions</p>
             </motion.div>
-
-            {errorMessage && (
-              <motion.div 
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                style={styles.errorBadge}
-              >
-                <FiAlertCircle />
-                {errorMessage}
-              </motion.div>
-            )}
           </div>
 
           <div style={styles.gridContainer}>
-            {/* Left Column: Calendar */}
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              style={styles.calendarCard}
-            >
-              {/* Calendar Header */}
-              <div style={styles.calendarHeader}>
-                <h2 style={styles.monthTitle}>
-                  {monthNames[selectedMonth]} {selectedYear}
-                </h2>
-                <div style={styles.calendarNav}>
-                  <button onClick={handlePrevMonth} style={styles.iconBtn}>
-                    <FiChevronLeft size={20} />
-                  </button>
-                  <button 
-                    onClick={() => {
-                      setSelectedMonth(new Date().getMonth());
-                      setSelectedYear(new Date().getFullYear());
-                    }}
-                    style={styles.todayBtn}
-                  >
-                    Today
-                  </button>
-                  <button onClick={handleNextMonth} style={styles.iconBtn}>
-                    <FiChevronRight size={20} />
-                  </button>
+            {/* Left: Calendar & Session List */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+              <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} style={styles.calendarCard}>
+                <div style={styles.calendarHeader}>
+                  <h2 style={styles.monthTitle}>{monthNames[selectedMonth]} {selectedYear}</h2>
+                  <div style={styles.calendarNav}>
+                    <button onClick={handlePrevMonth} style={styles.iconBtn}><FiChevronLeft size={20} /></button>
+                    <button onClick={() => { setSelectedMonth(new Date().getMonth()); setSelectedYear(new Date().getFullYear()); }} style={styles.todayBtn}>Today</button>
+                    <button onClick={handleNextMonth} style={styles.iconBtn}><FiChevronRight size={20} /></button>
+                  </div>
                 </div>
-              </div>
 
-              {/* Legend */}
-              <div style={styles.legend}>
-                <div style={styles.legendItem}>
-                  <div style={{ ...styles.legendDot, background: '#3b82f6' }} />
-                  <span>Available</span>
+                <div style={styles.calendarGrid}>
+                  {daysOfWeek.map(day => <div key={day} style={styles.dayHeaderCell}>{day}</div>)}
+                  {calendarDays.map((item, idx) => (
+                    item.type === 'empty' ? <div key={item.id} style={styles.emptyCell} /> : (
+                      <motion.button
+                        key={item.dateKey}
+                        onClick={() => !item.isPast && setSelectedDate(item.dateKey)}
+                        style={{
+                          ...styles.dayCell,
+                          ...(item.isPast ? styles.pastCell : {}),
+                          ...(item.isSelected ? styles.selectedCell : {}),
+                          ...(item.sessions.length > 0 && !item.isSelected ? (
+                            item.sessions.some(s => !s.specific_date) ? styles.recurringDay : styles.availableDay
+                          ) : {})
+                        }}
+                      >
+                        <span style={{ fontSize: '13px', fontWeight: '700', color: item.isSelected ? '#1d4ed8' : (item.isPast ? '#94a3b8' : '#1e293b') }}>{item.day}</span>
+                        {item.sessions.length > 0 && <div style={styles.sessionCount}>{item.sessions.length}</div>}
+                      </motion.button>
+                    )
+                  ))}
                 </div>
-                <div style={styles.legendItem}>
-                  <div style={{ ...styles.legendDot, background: '#e2e8f0' }} />
-                  <span style={{ color: '#94a3b8' }}>Not Set</span>
-                </div>
-                <div style={styles.legendItem}>
-                  <div style={{ ...styles.legendDot, background: '#f59e0b' }} />
-                  <span>Recurring Only</span>
-                </div>
-              </div>
+              </motion.div>
 
-              {/* Calendar Grid */}
-              <div style={styles.calendarGrid}>
-                {daysOfWeek.map(day => (
-                  <div key={day} style={styles.dayHeaderCell}>{day}</div>
-                ))}
-                {calendarDays.map((item, idx) => (
-                  item.type === 'empty' ? (
-                    <div key={item.id} style={styles.emptyCell} />
-                  ) : (
-                    <motion.button
-                      key={item.dateKey}
-                      whileHover={!item.isPast ? { y: -2, scale: 1.02 } : {}}
-                      whileTap={!item.isPast ? { scale: 0.98 } : {}}
-                      onClick={() => !item.isPast && setSelectedDate(item.dateKey)}
-                      style={{
-                        ...styles.dayCell,
-                        ...(item.isPast ? styles.pastCell : {}),
-                        ...(item.isSelected ? styles.selectedCell : {}),
-                        ...(item.availability && !item.isSelected ? (
-                          item.availability.startTime === 'Recurring' ? styles.recurringDay : styles.availableDay
-                        ) : {})
-                      }}
-                    >
-                      <span style={{ 
-                        fontSize: '13px', 
-                        fontWeight: '700',
-                        color: item.isSelected ? '#1d4ed8' : (item.isPast ? '#94a3b8' : '#1e293b')
-                      }}>
-                        {item.day}
-                      </span>
-                      
-                      {item.dateKey === new Date().toISOString().split('T')[0] && (
-                        <div style={styles.todayIndicator} />
-                      )}
-                    </motion.button>
-                  )
-                ))}
-              </div>
-
-              {/* Selected Day Footer */}
+              {/* Session List for Selected Day */}
               <AnimatePresence mode="wait">
                 {selectedDate && (
-                  <motion.div 
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 20 }}
-                    style={styles.selectedFooter}
-                  >
-                    <div style={styles.footerLeft}>
-                      <div style={styles.footerIconBox}>
-                        <FiCalendar size={24} />
-                      </div>
-                      <div>
-                        <p style={styles.footerLabel}>Selected Date</p>
-                        <h3 style={styles.footerDate}>
-                          {new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-                        </h3>
-                      </div>
+                  <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} style={styles.sessionsCard}>
+                    <div style={styles.sessionsHeader}>
+                      <FiCalendar />
+                      <span>Sessions for {new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</span>
                     </div>
-                    <div style={styles.footerRight}>
-                      <button 
-                        onClick={() => handleSetAvailability('available')}
-                        disabled={isLoading}
-                        style={styles.markAvailableBtn}
-                      >
-                        <FiCheck strokeWidth={3} /> Mark Available
-                      </button>
-                      <button 
-                        onClick={() => handleSetAvailability('DELETED')}
-                        disabled={isLoading}
-                        style={styles.deleteBtn}
-                      >
-                        <FiTrash2 />
-                      </button>
+                    
+                    <div style={styles.sessionsList}>
+                      {currentDaySessions.length > 0 ? currentDaySessions.map(session => (
+                        <div key={session.availability_id} style={styles.sessionItem}>
+                          <div style={styles.sessionTime}>
+                            <FiClock style={{ color: '#2563eb' }} />
+                            <span>{session.start_time} - {session.end_time}</span>
+                            {!session.specific_date && <span style={styles.recurringBadge}>Recurring</span>}
+                          </div>
+                          <div style={styles.sessionInfo}>
+                            <span style={styles.sessionType}>{session.session_name}</span>
+                            <button onClick={() => handleDeleteSession(session.availability_id)} style={styles.deleteIconButton} title="Delete Session">
+                              <FiTrash2 />
+                            </button>
+                          </div>
+                        </div>
+                      )) : (
+                        <div style={styles.noSessions}>No sessions scheduled for this date.</div>
+                      )}
                     </div>
                   </motion.div>
                 )}
               </AnimatePresence>
-            </motion.div>
+            </div>
 
-            {/* Right Column: Settings */}
+            {/* Right: Add Session Form */}
             <div style={styles.settingsColumn}>
-              {/* Working Hours Card */}
-              <motion.div 
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                style={styles.settingsCard}
-              >
+              <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} style={styles.settingsCard}>
                 <div style={styles.cardHeader}>
-                  <div style={{ ...styles.cardIconBox, background: '#eff6ff', color: '#2563eb' }}>
-                    <FiClock size={20} />
-                  </div>
-                  <h3 style={styles.cardTitle}>Working Hours</h3>
+                  <div style={{ ...styles.cardIconBox, background: '#eff6ff', color: '#2563eb' }}><FiPlus size={20} /></div>
+                  <h3 style={styles.cardTitle}>Add New Session</h3>
                 </div>
 
-                <div style={styles.inputStack}>
+                <div style={styles.toggleGroup}>
+                  <button 
+                    onClick={() => setBookingType('ONE-TIME')} 
+                    style={{...styles.toggleBtn, ...(bookingType === 'ONE-TIME' ? styles.toggleBtnActive : {})}}
+                  >One-time</button>
+                  <button 
+                    onClick={() => setBookingType('RECURRING')} 
+                    style={{...styles.toggleBtn, ...(bookingType === 'RECURRING' ? styles.toggleBtnActive : {})}}
+                  >Recurring</button>
+                </div>
+
+                <div style={styles.formStack}>
+                  {bookingType === 'RECURRING' ? (
+                    <>
+                      <div style={styles.inputGroup}>
+                        <label style={styles.label}>Day of Week</label>
+                        <select 
+                          style={styles.select} 
+                          value={selectedDayIndex} 
+                          onChange={(e) => setSelectedDayIndex(parseInt(e.target.value))}
+                        >
+                          {daysOfWeek.map((day, idx) => <option key={day} value={idx}>{fullDays[idx]}</option>)}
+                        </select>
+                      </div>
+                      <div style={styles.inputGroup}>
+                        <label style={styles.label}>End Recurring Date (Optional)</label>
+                        <input 
+                          type="date" 
+                          style={styles.input} 
+                          value={endDate} 
+                          onChange={(e) => setEndDate(e.target.value)}
+                        />
+                      </div>
+                    </>
+                  ) : (
+                    <div style={styles.infoBox}>
+                      <FiInfo />
+                      <span>{selectedDate ? `Selected: ${selectedDate}` : "Select a date on the calendar first"}</span>
+                    </div>
+                  )}
+
+                  <div style={styles.timeGrid}>
+                    <ClockTimePicker label="Start Time" value={startTime} onChange={setStartTime} />
+                    <ClockTimePicker label="End Time" value={endTime} onChange={setEndTime} />
+                  </div>
+
                   <div style={styles.inputGroup}>
-                    <ClockTimePicker 
-                      label="Start Time"
-                      value={startTime}
-                      onChange={setStartTime}
+                    <label style={styles.label}>Session Title</label>
+                    <input 
+                      type="text" 
+                      placeholder="e.g. Evening Clinic" 
+                      style={styles.input} 
+                      value={sessionName} 
+                      onChange={(e) => setSessionName(e.target.value)}
                     />
                   </div>
-                  <div style={styles.inputGroup}>
-                    <ClockTimePicker 
-                      label="End Time"
-                      value={endTime}
-                      onChange={setEndTime}
-                    />
-                  </div>
-                </div>
-              </motion.div>
 
-              {/* Weekly Routine Card */}
-              <motion.div 
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.1 }}
-                style={styles.settingsCard}
-              >
-                <div style={styles.cardHeader}>
-                  <div style={{ ...styles.cardIconBox, background: '#eef2ff', color: '#4f46e5' }}>
-                    <FiCornerDownRight size={20} />
-                  </div>
-                  <h3 style={styles.cardTitle}>Weekly Routine</h3>
-                </div>
-
-                <p style={styles.cardSubtitle}>Apply hours for the next 3 months.</p>
-
-                <div style={styles.daySelectionGrid}>
-                  {daysOfWeek.map((day, idx) => (
-                    <button
-                      key={day}
-                      onClick={() => handleToggleRecurringDay(idx)}
-                      style={{
-                        ...styles.dayChip,
-                        ...(recurringDays.includes(idx) ? styles.dayChipActive : {})
-                      }}
-                    >
-                      {day[0]}
-                    </button>
-                  ))}
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                   <button 
-                    onClick={handleApplyRecurring}
-                    disabled={isLoading || recurringDays.length === 0}
-                    style={styles.saveRoutineBtn}
+                    onClick={handleAddSession} 
+                    disabled={isLoading || (bookingType === 'ONE-TIME' && !selectedDate)} 
+                    style={styles.addBtn}
                   >
-                    <FiPlus /> Save Routine
+                    {isLoading ? 'Adding...' : <><FiPlus /> Add Session</>}
                   </button>
-                  <button 
-                    onClick={handleCancelAllRecurring}
-                    disabled={isLoading}
-                    style={styles.clearRoutineBtn}
-                  >
-                    Clear All Recurring
-                  </button>
-                </div>
-
-                <div style={styles.infoBox}>
-                  <FiInfo size={16} style={{ marginTop: '2px' }} />
-                  <p>Specific date settings will override your weekly routine.</p>
                 </div>
               </motion.div>
             </div>
           </div>
         </main>
       </div>
-
-      <ConfirmationModal 
-        isOpen={isDeleteModalOpen}
-        onClose={() => setIsDeleteModalOpen(false)}
-        onConfirm={() => {
-          setIsDeleteModalOpen(false);
-          proceedWithAvailability('DELETED');
-        }}
-        title="Remove Availability"
-        message={`Are you sure you want to remove the availability for ${selectedDate ? new Date(selectedDate).toLocaleDateString() : ''}? It will revert to your standard routine.`}
-        confirmText="Remove Schedule"
-        type="danger"
-      />
     </div>
   );
 }
@@ -566,30 +451,18 @@ const styles = {
     fontSize: '15px',
     color: '#64748b',
     marginTop: '4px',
-    fontWeight: '500',
-    fontFamily: "'Inter', sans-serif"
-  },
-  errorBadge: {
-    backgroundColor: '#fef2f2',
-    color: '#dc2626',
-    padding: '8px 16px',
-    borderRadius: '12px',
-    border: '1px solid #fee2e2',
-    fontSize: '14px',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px'
+    fontWeight: '500'
   },
   gridContainer: {
     display: 'grid',
-    gridTemplateColumns: '2.2fr 1fr',
+    gridTemplateColumns: '1.6fr 1fr',
     gap: '32px'
   },
   calendarCard: {
     backgroundColor: 'white',
     borderRadius: '24px',
-    boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.04)',
-    border: '1px solid #cbd5e1',
+    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.05)',
+    border: '1px solid #e2e8f0',
     overflow: 'hidden'
   },
   calendarHeader: {
@@ -597,24 +470,23 @@ const styles = {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#2563eb'
+    background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+    color: 'white'
   },
   monthTitle: {
     fontSize: '20px',
     fontWeight: '700',
-    color: 'white',
-    fontFamily: "'Plus Jakarta Sans', sans-serif"
+    margin: 0
   },
   calendarNav: {
     display: 'flex',
-    gap: '8px',
-    alignItems: 'center'
+    gap: '8px'
   },
   iconBtn: {
     padding: '8px',
-    borderRadius: '12px',
-    border: '1px solid transparent',
-    backgroundColor: 'transparent',
+    borderRadius: '10px',
+    border: 'none',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
     color: 'white',
     cursor: 'pointer',
     transition: 'all 0.2s'
@@ -624,50 +496,29 @@ const styles = {
     fontSize: '14px',
     fontWeight: '600',
     color: '#2563eb',
-    backgroundColor: '#eff6ff',
+    backgroundColor: 'white',
     border: 'none',
-    borderRadius: '12px',
-    cursor: 'pointer',
-    transition: 'all 0.2s'
-  },
-  legend: {
-    padding: '16px 24px',
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: '24px',
-    borderBottom: '1px solid #f8fafc',
-    fontSize: '14px'
-  },
-  legendItem: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    color: '#64748b'
-  },
-  legendDot: {
-    width: '12px',
-    height: '12px',
-    borderRadius: '50%'
+    borderRadius: '10px',
+    cursor: 'pointer'
   },
   calendarGrid: {
-    padding: "8px 12px 12px 12px",
+    padding: "16px",
     display: "grid",
     gridTemplateColumns: "repeat(7, 1fr)",
-    gap: "4px" // Reduced gap
+    gap: "8px"
   },
   dayHeaderCell: {
     textAlign: 'center',
     fontSize: '12px',
-    fontWeight: '700',
+    fontWeight: '800',
     color: '#94a3b8',
     textTransform: 'uppercase',
-    letterSpacing: '0.05em',
     padding: '8px 0'
   },
   dayCell: {
     aspectRatio: '1',
-    borderRadius: '8px',
-    border: '1px solid #000000', // Black outline for all dates
+    borderRadius: '14px',
+    border: '1px solid #e2e8f0',
     backgroundColor: 'white',
     display: 'flex',
     flexDirection: 'column',
@@ -675,238 +526,201 @@ const styles = {
     justifyContent: 'center',
     cursor: 'pointer',
     transition: 'all 0.2s',
-    position: 'relative',
-    outline: 'none',
-    boxShadow: 'none'
+    position: 'relative'
   },
-  emptyCell: {
-    aspectRatio: '1',
-    backgroundColor: 'rgba(248, 250, 252, 0.5)',
-    borderRadius: '8px'
-  },
-  pastCell: {
-    backgroundColor: '#f8fafc',
-    borderColor: 'transparent',
-    opacity: 0.5,
-    cursor: 'not-allowed'
-  },
-  selectedCell: {
-    borderColor: '#2563eb',
-    borderWidth: '2.5px', // Make selection more prominent
-    backgroundColor: '#eff6ff',
-    zIndex: 10,
-    outline: 'none'
-  },
-  todayIndicator: {
+  emptyCell: { aspectDay: '1', opacity: 0 },
+  pastCell: { backgroundColor: '#f8fafc', cursor: 'not-allowed', opacity: 0.5 },
+  selectedCell: { borderColor: '#2563eb', borderWidth: '2px', backgroundColor: '#eff6ff' },
+  availableDay: { backgroundColor: '#eff6ff', borderColor: '#3b82f6' },
+  recurringDay: { backgroundColor: '#fffbeb', borderColor: '#f59e0b' },
+  sessionCount: {
     position: 'absolute',
-    top: '4px',
+    bottom: '4px',
     right: '4px',
-    width: '5px',
-    height: '5px',
-    backgroundColor: '#2563eb',
-    borderRadius: '50%'
-  },
-  availableDay: {
-    backgroundColor: '#dbeafe',
-    borderColor: '#3b82f6',
-  },
-  recurringDay: {
-    backgroundColor: '#fef3c7',
-    borderColor: '#f59e0b',
-  },
-  selectedFooter: {
-    padding: '24px',
-    backgroundColor: '#2563eb',
+    backgroundColor: '#3b82f6',
     color: 'white',
+    fontSize: '10px',
+    width: '18px',
+    height: '18px',
+    borderRadius: '50%',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontWeight: '800'
+  },
+  sessionsCard: {
+    backgroundColor: 'white',
+    borderRadius: '24px',
+    padding: '24px',
+    boxShadow: '0 4px 15px rgba(0, 0, 0, 0.05)',
+    border: '1px solid #e2e8f0'
+  },
+  sessionsHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    fontSize: '18px',
+    fontWeight: '700',
+    color: '#1e293b',
+    marginBottom: '20px'
+  },
+  sessionsList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '12px'
+  },
+  sessionItem: {
     display: 'flex',
     justifyContent: 'space-between',
-    alignItems: 'center'
+    alignItems: 'center',
+    padding: '16px',
+    borderRadius: '16px',
+    backgroundColor: '#f8fafc',
+    border: '1px solid #e2e8f0'
   },
-  footerLeft: {
+  sessionTime: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    fontWeight: '700',
+    color: '#334155'
+  },
+  sessionInfo: {
     display: 'flex',
     alignItems: 'center',
     gap: '16px'
   },
-  footerIconBox: {
-    width: '48px',
-    height: '48px',
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: '16px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backdropFilter: 'blur(4px)'
+  sessionType: {
+    fontSize: '13px',
+    fontWeight: '600',
+    color: '#64748b',
+    backgroundColor: '#eff6ff',
+    padding: '4px 12px',
+    borderRadius: '100px'
   },
-  footerLabel: {
-    fontSize: '12px',
-    color: '#bfdbfe',
-    fontWeight: '500'
-  },
-  footerDate: {
+  deleteIconButton: {
+    border: 'none',
+    backgroundColor: 'transparent',
+    color: '#ef4444',
+    cursor: 'pointer',
     fontSize: '18px',
-    fontWeight: '700',
-    fontFamily: "'Plus Jakarta Sans', sans-serif"
-  },
-  footerRight: {
-    display: 'flex',
-    gap: '12px'
-  },
-  markAvailableBtn: {
-    backgroundColor: '#22c55e',
-    color: 'white',
-    padding: '10px 20px',
-    borderRadius: '12px',
-    fontWeight: '700',
-    border: 'none',
-    cursor: 'pointer',
     display: 'flex',
     alignItems: 'center',
-    gap: '8px',
-    fontSize: '14px',
-    boxShadow: '0 4px 12px rgba(34, 197, 94, 0.3)',
-    transition: 'all 0.2s'
+    padding: '4px',
+    borderRadius: '8px',
+    transition: 'all 0.2s',
+    ':hover': { backgroundColor: '#fef2f2' }
   },
-  deleteBtn: {
-    backgroundColor: '#ef4444',
-    color: 'white',
-    padding: '10px',
-    borderRadius: '12px',
-    border: 'none',
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    boxShadow: '0 4px 12px rgba(239, 68, 68, 0.3)',
-    transition: 'all 0.2s'
-  },
-  settingsColumn: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '24px'
+  recurringBadge: {
+    fontSize: '10px',
+    backgroundColor: '#fef3c7',
+    color: '#92400e',
+    padding: '2px 8px',
+    borderRadius: '8px',
+    marginLeft: '8px',
+    textTransform: 'uppercase'
   },
   settingsCard: {
     backgroundColor: 'white',
     borderRadius: '24px',
-    padding: '24px',
+    padding: '28px',
+    boxShadow: '0 4px 15px rgba(0, 0, 0, 0.05)',
     border: '1px solid #e2e8f0',
-    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)'
+    position: 'sticky',
+    top: '24px'
   },
   cardHeader: {
     display: 'flex',
     alignItems: 'center',
-    gap: '12px',
+    gap: '16px',
     marginBottom: '24px'
   },
   cardIconBox: {
-    width: '40px',
-    height: '40px',
-    borderRadius: '12px',
+    width: '44px',
+    height: '44px',
+    borderRadius: '14px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center'
   },
-  cardTitle: {
-    fontSize: '18px',
-    fontWeight: '700',
-    color: '#1e293b',
-    fontFamily: "'Plus Jakarta Sans', sans-serif"
-  },
-  cardSubtitle: {
-    fontSize: '14px',
-    color: '#64748b',
-    marginBottom: '20px'
-  },
-  inputStack: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '16px'
-  },
-  inputGroup: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '8px'
-  },
-  label: {
-    fontSize: '12px',
-    fontWeight: '700',
-    color: '#94a3b8',
-    textTransform: 'uppercase',
-    letterSpacing: '0.05em'
-  },
-  timeInput: {
-    width: '100%',
-    backgroundColor: '#f8fafc',
-    border: '2px solid #f1f5f9',
-    borderRadius: '16px',
-    padding: '12px 16px',
-    fontSize: '16px',
-    fontWeight: '700',
-    color: '#334155',
-    outline: 'none',
-    transition: 'all 0.2s',
-    fontFamily: "'Inter', sans-serif"
-  },
-  daySelectionGrid: {
+  cardTitle: { fontSize: '20px', fontWeight: '800', margin: 0 },
+  toggleGroup: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(7, 1fr)',
+    gridTemplateColumns: '1fr 1fr',
     gap: '8px',
+    padding: '6px',
+    backgroundColor: '#f1f5f9',
+    borderRadius: '16px',
     marginBottom: '24px'
   },
-  dayChip: {
-    height: '48px',
-    borderRadius: '16px',
-    border: '2px solid #f1f5f9',
-    backgroundColor: 'white',
-    color: '#64748b',
-    fontWeight: '700',
+  toggleBtn: {
+    padding: '10px',
+    border: 'none',
+    backgroundColor: 'transparent',
+    borderRadius: '12px',
     fontSize: '14px',
+    fontWeight: '700',
+    color: '#64748b',
     cursor: 'pointer',
     transition: 'all 0.2s'
   },
-  dayChipActive: {
-    backgroundColor: '#2563eb',
-    borderColor: '#2563eb',
-    color: 'white',
-    boxShadow: '0 10px 15px -3px rgba(37, 99, 235, 0.2)'
+  toggleBtnActive: {
+    backgroundColor: 'white',
+    color: '#2563eb',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
   },
-  saveRoutineBtn: {
-    width: '100%',
+  formStack: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '20px'
+  },
+  inputGroup: { display: 'flex', flexDirection: 'column', gap: '8px' },
+  label: { fontSize: '13px', fontWeight: '700', color: '#475569' },
+  select: {
+    padding: '12px',
+    borderRadius: '12px',
+    border: '1px solid #e2e8f0',
+    outline: 'none',
+    fontSize: '14px'
+  },
+  input: {
+    padding: '12px',
+    borderRadius: '12px',
+    border: '1px solid #e2e8f0',
+    outline: 'none',
+    fontSize: '14px'
+  },
+  timeGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' },
+  infoBox: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    padding: '14px',
+    backgroundColor: '#f8fafc',
+    borderRadius: '12px',
+    border: '1px solid #e2e8f0',
+    fontSize: '13px',
+    color: '#64748b'
+  },
+  addBtn: {
+    marginTop: '12px',
     padding: '16px',
     borderRadius: '16px',
-    backgroundColor: '#0f172a',
-    color: 'white',
-    fontWeight: '700',
     border: 'none',
+    backgroundColor: '#2563eb',
+    color: 'white',
+    fontSize: '16px',
+    fontWeight: '700',
     cursor: 'pointer',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: '8px',
-    transition: 'all 0.2s'
-  },
-  clearRoutineBtn: {
-    width: '100%',
-    padding: '12px',
-    borderRadius: '16px',
-    backgroundColor: 'transparent',
-    color: '#ef4444',
-    fontWeight: '700',
-    border: 'none',
-    cursor: 'pointer',
-    transition: 'all 0.2s'
-  },
-  infoBox: {
-    marginTop: '24px',
-    padding: '16px',
-    backgroundColor: '#fffbeb',
-    borderRadius: '16px',
-    border: '1px solid #fef3c7',
-    display: 'flex',
     gap: '12px',
-    fontSize: '13px',
-    color: '#92400e',
-    lineHeight: 1.5
-  }
+    boxShadow: '0 8px 15px -3px rgba(37, 99, 235, 0.3)',
+    transition: 'all 0.2s',
+    ':hover': { transform: 'translateY(-2px)' }
+  },
+  noSessions: { textAlign: 'center', padding: '32px', color: '#94a3b8', fontStyle: 'italic' }
 };
 
 export default DoctorAvailability;

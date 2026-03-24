@@ -77,7 +77,7 @@ const ManageDoctors = () => {
         : await api.post('/admin/doctors', dataToSend);
 
       if (response.data.success) {
-        toast.success(editingDoctor ? 'Doctor updated successfully' : 'Doctor added successfully');
+        toast.success(editingDoctor ? 'Doctor updated successfully' : 'Doctor added successfully! Credentials emailed.');
         fetchDoctors();
         setShowModal(false);
       }

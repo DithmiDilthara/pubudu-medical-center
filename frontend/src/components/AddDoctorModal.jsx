@@ -26,6 +26,14 @@ const AddDoctorModal = ({
 
   const [formErrors, setFormErrors] = useState({});
 
+  const specializations = [
+    "General Physician", "Cardiology", "Neurology", "Pediatrics", "Dermatology",
+    "Orthopedics", "ENT (Otolaryngology)", "Ophthalmology", "Obstetrics & Gynecology",
+    "Psychiatry", "Radiology", "Oncology", "Nephrology", "Urology",
+    "Gastroenterology", "Endocrinology", "Rheumatology", "Pulmonology",
+    "Diabetology", "General Surgery", "Anesthesiology", "Pathology", "Vascular Surgery"
+  ];
+
   useEffect(() => {
     if (editingDoctor) {
       setFormData({
@@ -54,29 +62,82 @@ const AddDoctorModal = ({
         contact_number: ''
       });
     }
+    setFormErrors({});
   }, [editingDoctor, isOpen]);
+
+  const validateField = (name, value) => {
+    let error = '';
+    switch (name) {
+      case 'full_name':
+        if (!value) error = 'Full name is required';
+        else if (value.length < 3) error = 'Minimum 3 characters required';
+        else if (!/^[a-zA-Z\s.]+$/.test(value)) error = 'Only letters, spaces and periods allowed';
+        break;
+      case 'specialization':
+        if (!value) error = 'Please select a specialization';
+        break;
+      case 'email':
+        if (!value) error = 'Email is required';
+        else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) error = 'Invalid email format';
+        break;
+      case 'contact_number':
+        if (!value) error = 'Phone number is required';
+        else {
+          const digits = value.replace(/\D/g, '');
+          const validPrefixes = ['070', '071', '072', '074', '075', '076', '077', '078'];
+          const prefix = digits.substring(0, 3);
+          
+          if (digits.length !== 10) error = 'Must be exactly 10 digits';
+          else if (!digits.startsWith('07')) error = 'Must start with 07';
+          else if (!validPrefixes.includes(prefix)) error = 'Invalid Sri Lankan mobile prefix';
+          else if (/(\d)\1{7,}/.test(digits)) error = 'Too many repeating digits'; // e.g. 0777777777
+          else if (/0123456|1234567|2345678|3456789/.test(digits)) error = 'Sequential numbers not allowed';
+          else if (digits.substring(2) === '11111111' || digits.substring(2) === '22222222') error = 'Fake pattern detected';
+        }
+        break;
+      case 'license_no':
+        if (!editingDoctor) {
+          if (!value) error = 'License number is required';
+          else if (value.length < 5) error = 'Minimum 5 characters required';
+          else if (!/^[a-zA-Z0-9]+$/.test(value)) error = 'Only alphanumeric characters allowed';
+        }
+        break;
+      case 'doctor_fee':
+        if (value === '' || value === null) error = 'Doctor fee is required';
+        else if (Number(value) < 1000) error = 'Minimum fee is LKR 1,000';
+        break;
+      case 'center_fee':
+        if (value === '' || value === null) error = 'Center fee is required';
+        else if (Number(value) < 600) error = 'Minimum fee is LKR 600';
+        break;
+      case 'username':
+        if (!editingDoctor && !value) error = 'Username is required';
+        break;
+      case 'password':
+        if (!editingDoctor && !value) error = 'Password is required';
+        break;
+      case 'gender':
+        if (!value) error = 'Gender selection is required';
+        break;
+      default:
+        break;
+    }
+    return error;
+  };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
-    if (formErrors[name]) {
-      setFormErrors(prev => ({ ...prev, [name]: '' }));
-    }
+    const error = validateField(name, value);
+    setFormErrors(prev => ({ ...prev, [name]: error }));
   };
-
-
 
   const validateForm = () => {
     const errors = {};
-    if (!formData.full_name) errors.full_name = 'Required';
-    if (!formData.specialization) errors.specialization = 'Required';
-    if (!editingDoctor) {
-        if (!formData.username) errors.username = 'Required';
-        if (!formData.password) errors.password = 'Required';
-        if (!formData.license_no) errors.license_no = 'Required';
-    }
-    if (!formData.email) errors.email = 'Required';
-    if (!formData.contact_number) errors.contact_number = 'Required';
+    Object.keys(formData).forEach(key => {
+      const error = validateField(key, formData[key]);
+      if (error) errors[key] = error;
+    });
     
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
@@ -127,11 +188,15 @@ const AddDoctorModal = ({
                         value={formData.username} 
                         onChange={handleInputChange}
                         disabled={!!editingDoctor}
-                        style={{...styles.input, ...(editingDoctor ? styles.disabledInput : {})}}
+                        style={{
+                          ...styles.input, 
+                          ...(editingDoctor ? styles.disabledInput : {}),
+                          ...(formErrors.username ? styles.inputError : {})
+                        }}
                         placeholder="Doc_Admin"
                       />
                     </div>
-                    {formErrors.username && <span style={styles.error}>{formErrors.username}</span>}
+                    {formErrors.username && <span style={styles.errorText}>{formErrors.username}</span>}
                   </div>
 
                   <div style={styles.formGroup}>
@@ -144,11 +209,15 @@ const AddDoctorModal = ({
                         value={formData.password} 
                         onChange={handleInputChange}
                         disabled={!!editingDoctor}
-                        style={{...styles.input, ...(editingDoctor ? styles.disabledInput : {})}}
+                        style={{
+                          ...styles.input, 
+                          ...(editingDoctor ? styles.disabledInput : {}),
+                          ...(formErrors.password ? styles.inputError : {})
+                        }}
                         placeholder="••••••••"
                       />
                     </div>
-                    {formErrors.password && <span style={styles.error}>{formErrors.password}</span>}
+                    {formErrors.password && <span style={styles.errorText}>{formErrors.password}</span>}
                   </div>
                 </div>
               </div>
@@ -163,10 +232,10 @@ const AddDoctorModal = ({
                       name="full_name" 
                       value={formData.full_name} 
                       onChange={handleInputChange}
-                      style={styles.input}
+                      style={{...styles.input, ...(formErrors.full_name ? styles.inputError : {})}}
                       placeholder="Dr. Tachini Thaweesha"
                     />
-                    {formErrors.full_name && <span style={styles.error}>{formErrors.full_name}</span>}
+                    {formErrors.full_name && <span style={styles.errorText}>{formErrors.full_name}</span>}
                   </div>
 
                   <div style={styles.formGroup}>
@@ -175,12 +244,13 @@ const AddDoctorModal = ({
                       name="gender" 
                       value={formData.gender} 
                       onChange={handleInputChange}
-                      style={styles.input}
+                      style={{...styles.input, ...(formErrors.gender ? styles.inputError : {})}}
                     >
                       <option value="MALE">Male</option>
                       <option value="FEMALE">Female</option>
                       <option value="OTHER">Other</option>
                     </select>
+                    {formErrors.gender && <span style={styles.errorText}>{formErrors.gender}</span>}
                   </div>
 
                   <div style={styles.formGroup}>
@@ -189,19 +259,17 @@ const AddDoctorModal = ({
                       name="specialization" 
                       value={formData.specialization} 
                       onChange={handleInputChange}
-                      style={styles.input}
+                      style={{...styles.input, ...(formErrors.specialization ? styles.inputError : {})}}
                     >
                       <option value="">Select Specialization</option>
-                      <option value="General Physician">General Physician</option>
-                      <option value="Cardiology">Cardiology</option>
-                      <option value="Neurology">Neurology</option>
-                      <option value="Pediatrics">Pediatrics</option>
-                      <option value="Dermatology">Dermatology</option>
+                      {specializations.map(spec => (
+                        <option key={spec} value={spec}>{spec}</option>
+                      ))}
                     </select>
-                    {formErrors.specialization && <span style={styles.error}>{formErrors.specialization}</span>}
+                    {formErrors.specialization && <span style={styles.errorText}>{formErrors.specialization}</span>}
                   </div>
 
-                  <div style={styles.formGroup}>
+                   <div style={styles.formGroup}>
                     <label style={styles.label}>License Number <span style={styles.req}>*</span></label>
                     <div style={styles.inputWrapper}>
                       <FiTarget style={styles.inputIcon} />
@@ -211,11 +279,15 @@ const AddDoctorModal = ({
                         value={formData.license_no} 
                         onChange={handleInputChange}
                         disabled={!!editingDoctor}
-                        style={{...styles.input, ...(editingDoctor ? styles.disabledInput : {})}}
+                        style={{
+                          ...styles.input, 
+                          ...(editingDoctor ? styles.disabledInput : {}),
+                          ...(formErrors.license_no ? styles.inputError : {})
+                        }}
                         placeholder="SLMC1234"
                       />
                     </div>
-                    {formErrors.license_no && <span style={styles.error}>{formErrors.license_no}</span>}
+                    {formErrors.license_no && <span style={styles.errorText}>{formErrors.license_no}</span>}
                   </div>
                 </div>
               </div>
@@ -230,9 +302,11 @@ const AddDoctorModal = ({
                       name="doctor_fee" 
                       value={formData.doctor_fee} 
                       onChange={handleInputChange}
-                      style={styles.input}
+                      style={{...styles.input, ...(formErrors.doctor_fee ? styles.inputError : {})}}
                       placeholder="2500"
+                      min="1000"
                     />
+                    {formErrors.doctor_fee && <span style={styles.errorText}>{formErrors.doctor_fee}</span>}
                   </div>
 
                   <div style={styles.formGroup}>
@@ -242,9 +316,11 @@ const AddDoctorModal = ({
                       name="center_fee" 
                       value={formData.center_fee} 
                       onChange={handleInputChange}
-                      style={styles.input}
+                      style={{...styles.input, ...(formErrors.center_fee ? styles.inputError : {})}}
                       placeholder="600"
+                      min="600"
                     />
+                    {formErrors.center_fee && <span style={styles.errorText}>{formErrors.center_fee}</span>}
                   </div>
 
                   <div style={styles.formGroup}>
@@ -271,11 +347,11 @@ const AddDoctorModal = ({
                         name="email" 
                         value={formData.email} 
                         onChange={handleInputChange}
-                        style={styles.input}
+                        style={{...styles.input, ...(formErrors.email ? styles.inputError : {})}}
                         placeholder="doctor@example.com"
                       />
                     </div>
-                    {formErrors.email && <span style={styles.error}>{formErrors.email}</span>}
+                    {formErrors.email && <span style={styles.errorText}>{formErrors.email}</span>}
                   </div>
 
                   <div style={styles.formGroup}>
@@ -287,11 +363,12 @@ const AddDoctorModal = ({
                         name="contact_number" 
                         value={formData.contact_number} 
                         onChange={handleInputChange}
-                        style={styles.input}
+                        style={{...styles.input, ...(formErrors.contact_number ? styles.inputError : {})}}
                         placeholder="0771234567"
+                        maxLength="10"
                       />
                     </div>
-                    {formErrors.contact_number && <span style={styles.error}>{formErrors.contact_number}</span>}
+                    {formErrors.contact_number && <span style={styles.errorText}>{formErrors.contact_number}</span>}
                   </div>
                 </div>
               </div>
@@ -464,10 +541,15 @@ const styles = {
     color: '#2563eb',
     cursor: 'default'
   },
-  error: {
+  errorText: {
     fontSize: '12px',
     color: '#ef4444',
-    marginTop: '4px'
+    marginTop: '4px',
+    fontWeight: '500'
+  },
+  inputError: {
+    borderColor: '#ef4444',
+    backgroundColor: '#fffafb'
   },
   daysGrid: {
     display: 'flex',

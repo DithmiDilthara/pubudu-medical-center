@@ -76,7 +76,7 @@ const ManageReceptionist = () => {
         : await api.post('/admin/receptionists', formData);
 
       if (response.data.success) {
-        toast.success(editingReceptionist ? 'Receptionist updated successfully' : 'Receptionist added successfully');
+        toast.success(editingReceptionist ? 'Receptionist updated successfully' : 'Receptionist added successfully! Credentials emailed.');
         fetchReceptionists();
         setShowModal(false);
       }

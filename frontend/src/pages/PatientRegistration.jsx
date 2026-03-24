@@ -271,8 +271,16 @@ function PatientRegistration() {
       case "contact_number":
         if (!value) {
           error = "Phone number is required";
-        } else if (!/^0[0-9]{9}$/.test(value)) {
-          error = "Contact number must start with 0 and be 10 digits";
+        } else {
+          const digits = value.replace(/\D/g, "");
+          const validPrefixes = ['070', '071', '072', '074', '075', '076', '077', '078'];
+          const prefix = digits.substring(0, 3);
+          
+          if (digits.length !== 10) error = "Phone number must be exactly 10 digits";
+          else if (!digits.startsWith('07')) error = "Phone number must start with 07";
+          else if (!validPrefixes.includes(prefix)) error = "Invalid Sri Lankan mobile prefix";
+          else if (/(\d)\1{7,}/.test(digits)) error = "Too many repeating digits";
+          else if (/0123456|1234567|2345678|3456789/.test(digits)) error = "Sequential numbers not allowed";
         }
         break;
 
@@ -282,15 +290,25 @@ function PatientRegistration() {
         } else if (value.length < 3) {
           error = "Full name must be at least 3 characters";
         } else if (!/^[a-zA-Z\s.]+$/.test(value)) {
-          error = "Full name can only contain letters and periods";
+          error = "Full name can only contain letters, spaces and periods";
         }
         break;
 
       case "nic":
         if (!value.trim()) {
           error = "NIC is required";
-        } else if (!/^(?:\d{9}[vVxX]|\d{12})$/.test(value)) {
-          error = "Invalid NIC format (e.g., 123456789V or 12 digits)";
+        } else {
+          const nic = value.trim().toUpperCase();
+          const oldNicRegex = /^[0-9]{9}[VX]$/;
+          const newNicRegex = /^[0-9]{12}$/;
+          
+          if (!oldNicRegex.test(nic) && !newNicRegex.test(nic)) {
+            error = "Invalid NIC format (e.g., 123456789V or 12 digits)";
+          } else {
+            const digitsOnly = nic.replace(/[VX]/g, '');
+            if (/(\d)\1{8,}/.test(digitsOnly)) error = "Invalid repeating pattern";
+            if (/012345678|123456789|987654321/.test(digitsOnly)) error = "Sequential digits not allowed";
+          }
         }
         break;
 

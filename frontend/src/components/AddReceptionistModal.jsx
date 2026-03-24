@@ -42,24 +42,73 @@ const AddReceptionistModal = ({
     }
   }, [editingReceptionist, isOpen]);
 
+  const validateField = (name, value) => {
+    let error = '';
+    switch (name) {
+      case 'full_name':
+        if (!value) error = 'Full name is required';
+        else if (value.length < 3) error = 'Minimum 3 characters required';
+        else if (!/^[a-zA-Z\s.]+$/.test(value)) error = 'Only letters, spaces and periods allowed';
+        break;
+      case 'email':
+        if (!value) error = 'Email is required';
+        else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) error = 'Invalid email format';
+        break;
+      case 'contact_number':
+        if (!value) error = 'Phone number is required';
+        else {
+          const digits = value.replace(/\D/g, '');
+          const validPrefixes = ['070', '071', '072', '074', '075', '076', '077', '078'];
+          const prefix = digits.substring(0, 3);
+          
+          if (digits.length !== 10) error = 'Must be exactly 10 digits';
+          else if (!digits.startsWith('07')) error = 'Must start with 07';
+          else if (!validPrefixes.includes(prefix)) error = 'Invalid Sri Lankan mobile prefix';
+          else if (/(\d)\1{7,}/.test(digits)) error = 'Too many repeating digits';
+          else if (/0123456|1234567|2345678|3456789/.test(digits)) error = 'Sequential numbers not allowed';
+        }
+        break;
+      case 'nic':
+        if (!value) error = 'NIC is required';
+        else {
+          const nic = value.trim().toUpperCase();
+          const oldNicRegex = /^[0-9]{9}[VX]$/;
+          const newNicRegex = /^[0-9]{12}$/;
+          
+          if (!oldNicRegex.test(nic) && !newNicRegex.test(nic)) {
+            error = 'Invalid NIC format (e.g., 123456789V or 12 digits)';
+          } else {
+            const digitsOnly = nic.replace(/[VX]/g, '');
+            if (/(\d)\1{8,}/.test(digitsOnly)) error = 'Invalid repeating pattern';
+            if (/012345678|123456789|987654321/.test(digitsOnly)) error = 'Sequential digits not allowed';
+          }
+        }
+        break;
+      case 'username':
+        if (!editingReceptionist && !value) error = 'Username is required';
+        break;
+      case 'password':
+        if (!editingReceptionist && !value) error = 'Password is required';
+        break;
+      default:
+        break;
+    }
+    return error;
+  };
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
-    if (formErrors[name]) {
-      setFormErrors(prev => ({ ...prev, [name]: '' }));
-    }
+    const error = validateField(name, value);
+    setFormErrors(prev => ({ ...prev, [name]: error }));
   };
 
   const validateForm = () => {
     const errors = {};
-    if (!formData.full_name) errors.full_name = 'Required';
-    if (!editingReceptionist) {
-        if (!formData.username) errors.username = 'Required';
-        if (!formData.password) errors.password = 'Required';
-        if (!formData.nic) errors.nic = 'Required';
-    }
-    if (!formData.email) errors.email = 'Required';
-    if (!formData.contact_number) errors.contact_number = 'Required';
+    Object.keys(formData).forEach(key => {
+      const error = validateField(key, formData[key]);
+      if (error) errors[key] = error;
+    });
     
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
@@ -108,11 +157,15 @@ const AddReceptionistModal = ({
                         value={formData.username} 
                         onChange={handleInputChange}
                         disabled={!!editingReceptionist}
-                        style={{...styles.input, ...(editingReceptionist ? styles.disabledInput : {})}}
+                        style={{
+                          ...styles.input, 
+                          ...(editingReceptionist ? styles.disabledInput : {}),
+                          ...(formErrors.username ? styles.inputError : {})
+                        }}
                         placeholder="Rep_Admin"
                       />
                     </div>
-                    {formErrors.username && <span style={styles.error}>{formErrors.username}</span>}
+                    {formErrors.username && <span style={styles.errorText}>{formErrors.username}</span>}
                   </div>
 
                   {!editingReceptionist && (
@@ -125,11 +178,14 @@ const AddReceptionistModal = ({
                           name="password" 
                           value={formData.password} 
                           onChange={handleInputChange}
-                          style={styles.input}
+                          style={{
+                            ...styles.input,
+                            ...(formErrors.password ? styles.inputError : {})
+                          }}
                           placeholder="••••••••"
                         />
                       </div>
-                      {formErrors.password && <span style={styles.error}>{formErrors.password}</span>}
+                      {formErrors.password && <span style={styles.errorText}>{formErrors.password}</span>}
                     </div>
                   )}
                 </div>
@@ -145,10 +201,13 @@ const AddReceptionistModal = ({
                       name="full_name" 
                       value={formData.full_name} 
                       onChange={handleInputChange}
-                      style={styles.input}
+                      style={{
+                        ...styles.input,
+                        ...(formErrors.full_name ? styles.inputError : {})
+                      }}
                       placeholder="Sayumi Manujana"
                     />
-                    {formErrors.full_name && <span style={styles.error}>{formErrors.full_name}</span>}
+                    {formErrors.full_name && <span style={styles.errorText}>{formErrors.full_name}</span>}
                   </div>
 
                   <div style={styles.formGroup}>
@@ -161,11 +220,15 @@ const AddReceptionistModal = ({
                         value={formData.nic} 
                         onChange={handleInputChange}
                         disabled={!!editingReceptionist}
-                        style={{...styles.input, ...(editingReceptionist ? styles.disabledInput : {})}}
+                        style={{
+                          ...styles.input, 
+                          ...(editingReceptionist ? styles.disabledInput : {}),
+                          ...(formErrors.nic ? styles.inputError : {})
+                        }}
                         placeholder="123456789V"
                       />
                     </div>
-                    {formErrors.nic && <span style={styles.error}>{formErrors.nic}</span>}
+                    {formErrors.nic && <span style={styles.errorText}>{formErrors.nic}</span>}
                   </div>
 
 
@@ -184,11 +247,14 @@ const AddReceptionistModal = ({
                         name="email" 
                         value={formData.email} 
                         onChange={handleInputChange}
-                        style={styles.input}
+                        style={{
+                          ...styles.input,
+                          ...(formErrors.email ? styles.inputError : {})
+                        }}
                         placeholder="receptionist@example.com"
                       />
                     </div>
-                    {formErrors.email && <span style={styles.error}>{formErrors.email}</span>}
+                    {formErrors.email && <span style={styles.errorText}>{formErrors.email}</span>}
                   </div>
 
                   <div style={styles.formGroup}>
@@ -200,11 +266,15 @@ const AddReceptionistModal = ({
                         name="contact_number" 
                         value={formData.contact_number} 
                         onChange={handleInputChange}
-                        style={styles.input}
+                        style={{
+                          ...styles.input,
+                          ...(formErrors.contact_number ? styles.inputError : {})
+                        }}
                         placeholder="0771234567"
+                        maxLength="10"
                       />
                     </div>
-                    {formErrors.contact_number && <span style={styles.error}>{formErrors.contact_number}</span>}
+                    {formErrors.contact_number && <span style={styles.errorText}>{formErrors.contact_number}</span>}
                   </div>
                 </div>
               </div>
@@ -360,10 +430,15 @@ const styles = {
     color: '#94a3b8',
     cursor: 'not-allowed'
   },
-  error: {
+  errorText: {
     fontSize: '12px',
     color: '#ef4444',
-    marginTop: '4px'
+    marginTop: '4px',
+    fontWeight: '500'
+  },
+  inputError: {
+    borderColor: '#ef4444',
+    backgroundColor: '#fffafb'
   },
   footer: {
     padding: '24px 32px',

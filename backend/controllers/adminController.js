@@ -1,6 +1,7 @@
 import { User, Doctor, Receptionist, Admin, Appointment, Payment, Patient, sequelize } from '../models/index.js';
 import { Op } from 'sequelize';
 import ReportGenerator from '../utils/ReportGenerator.js';
+import NotificationService from '../utils/NotificationService.js';
 
 /**
  * @desc    Get system-wide statistics (counts)
@@ -404,6 +405,16 @@ export const createDoctor = async (req, res) => {
       gender
     });
 
+    // Send credentials email
+    if (email) {
+      await NotificationService.sendStaffCredentials(email, {
+        fullName: full_name,
+        username: username,
+        password: password, // Plain password before hashing
+        role: 'Doctor'
+      });
+    }
+
     res.status(201).json({
       success: true,
       message: 'Doctor created successfully',
@@ -622,6 +633,16 @@ export const createReceptionist = async (req, res) => {
       nic,
       shift
     });
+
+    // Send credentials email
+    if (email) {
+      await NotificationService.sendStaffCredentials(email, {
+        fullName: full_name,
+        username: username,
+        password: password, // Plain password before hashing
+        role: 'Receptionist'
+      });
+    }
 
     res.status(201).json({
       success: true,

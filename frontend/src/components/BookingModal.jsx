@@ -7,6 +7,7 @@ import ConfirmDialog from "./ConfirmDialog";
 
 const BookingModal = ({ isOpen, onClose, appointment, onUpdate }) => {
     const [selectedDate, setSelectedDate] = useState(null);
+    const [selectedSession, setSelectedSession] = useState(null);
     const [selectedTime, setSelectedTime] = useState("");
     const [currentMonth, setCurrentMonth] = useState(new Date());
     const [doctorAvailability, setDoctorAvailability] = useState([]);
@@ -24,6 +25,9 @@ const BookingModal = ({ isOpen, onClose, appointment, onUpdate }) => {
                 setCurrentMonth(new Date(date.getFullYear(), date.getMonth(), 1));
             }
             setSelectedTime(appointment.time_slot || "");
+            if (appointment.availability_id) {
+                setSelectedSession({ id: appointment.availability_id, timeRange: appointment.time_slot });
+            }
         }
     }, [isOpen, appointment]);
 
@@ -68,8 +72,8 @@ const BookingModal = ({ isOpen, onClose, appointment, onUpdate }) => {
     const [showConfirm, setShowConfirm] = useState(false);
 
     const handleReschedule = async () => {
-        if (!selectedDate || !selectedTime) {
-            toast.error("Please select a date and time");
+        if (!selectedDate || !selectedSession) {
+            toast.error("Please select a date and session");
             return;
         }
         setShowConfirm(true);
@@ -84,7 +88,8 @@ const BookingModal = ({ isOpen, onClose, appointment, onUpdate }) => {
             
             const response = await axios.put(`${API_URL}/appointments/${appointment.appointment_id}/reschedule`, {
                 appointment_date: formattedDate,
-                time_slot: selectedTime
+                time_slot: selectedSession.timeRange,
+                availability_id: selectedSession.id
             }, {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -131,21 +136,16 @@ const BookingModal = ({ isOpen, onClose, appointment, onUpdate }) => {
         const formattedDate = selectedDate.toISOString().split('T')[0];
         const dayName = selectedDate.toLocaleString('en-US', { weekday: 'long' }).toUpperCase();
 
-        let avails = doctorAvailability.filter(a => a.specific_date === formattedDate);
+        let avails = doctorAvailability.filter(a => a.specific_date === formattedDate && a.session_name !== 'Unavailable');
         if (avails.length === 0) {
             avails = doctorAvailability.filter(a => a.day_of_week?.toUpperCase() === dayName && !a.specific_date);
         }
 
-        const slots = [];
-        avails.forEach(avail => {
-            if (avail.start_time && avail.end_time) {
-                // Return the full session range as a single slot
-                const start = new Date(`2000-01-01 ${avail.start_time}`).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
-                const end = new Date(`2000-01-01 ${avail.end_time}`).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
-                slots.push(`${start} - ${end}`);
-            }
-        });
-        return slots;
+        return avails.map(avail => ({
+            id: avail.availability_id,
+            sessionName: avail.session_name,
+            timeRange: `${avail.start_time} - ${avail.end_time}`
+        }));
     };
 
     if (!isOpen) return null;
@@ -205,21 +205,19 @@ const BookingModal = ({ isOpen, onClose, appointment, onUpdate }) => {
                     <div style={styles.timeSection}>
                         <h3 style={styles.sectionTitle}><FiClock style={{marginRight: '8px'}} /> Select Time</h3>
                         <div style={styles.timeGrid}>
-                            {getTimeSlots().map(time => {
-                                return (
-                                    <button
-                                        key={time}
-                                        onClick={() => setSelectedTime(time)}
-                                        style={{
-                                            ...styles.timeBtn,
-                                            ...(selectedTime === time ? styles.timeSelected : {}),
-                                            gridColumn: 'span 2' // Make it wider for range text
-                                        }}
-                                    >
-                                        {time}
-                                    </button>
-                                );
-                            })}
+                            {getTimeSlots().map(session => (
+                                <button
+                                    key={session.id}
+                                    onClick={() => setSelectedSession(session)}
+                                    style={{
+                                        ...styles.timeBtn,
+                                        ...(selectedSession?.id === session.id ? styles.timeSelected : {}),
+                                        gridColumn: 'span 2'
+                                    }}
+                                >
+                                    {session.sessionName}: {session.timeRange}
+                                </button>
+                            ))}
                         </div>
                     </div>
                 </div>
@@ -228,7 +226,7 @@ const BookingModal = ({ isOpen, onClose, appointment, onUpdate }) => {
                     <button onClick={onClose} style={styles.cancelBtn}>Cancel</button>
                     <button 
                         onClick={handleReschedule} 
-                        disabled={isProcessing || !selectedDate || !selectedTime}
+                        disabled={isProcessing || !selectedDate || !selectedSession}
                         style={styles.confirmBtn}
                     >
                         {isProcessing ? "Processing..." : "Confirm Reschedule"}
@@ -241,7 +239,7 @@ const BookingModal = ({ isOpen, onClose, appointment, onUpdate }) => {
                 onClose={() => setShowConfirm(false)}
                 onConfirm={confirmReschedule}
                 title="Confirm Reschedule"
-                message={`Are you sure you want to reschedule ${appointment?.patient?.full_name}'s appointment to ${selectedDate?.toLocaleDateString()} at ${selectedTime}?`}
+                message={`Are you sure you want to reschedule ${appointment?.patient?.full_name}'s appointment to ${selectedDate?.toLocaleDateString()} at ${selectedSession?.timeRange}?`}
                 confirmLabel="Confirm Reschedule"
                 cancelLabel="Go Back"
                 type="warning"
