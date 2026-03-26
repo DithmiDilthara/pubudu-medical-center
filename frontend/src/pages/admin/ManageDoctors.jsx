@@ -29,6 +29,10 @@ const ManageDoctors = () => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterSpecialization, setFilterSpecialization] = useState('All');
+
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(8);
   
   // Modal States
   const [showModal, setShowModal] = useState(false);
@@ -40,6 +44,11 @@ const ManageDoctors = () => {
   useEffect(() => {
     fetchDoctors();
   }, []);
+
+  // Reset pagination when search or filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, filterSpecialization]);
 
   const fetchDoctors = async () => {
     try {
@@ -110,6 +119,14 @@ const ManageDoctors = () => {
       return matchesSearch && matchesFilter;
     });
   }, [doctors, searchQuery, filterSpecialization]);
+
+  // Pagination logic
+  const paginatedDoctors = filteredDoctors.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  const totalPages = Math.ceil(filteredDoctors.length / itemsPerPage);
 
   const getInitials = (name) => {
     return name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'DR';
@@ -221,7 +238,7 @@ const ManageDoctors = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredDoctors.map((doctor, idx) => (
+                    {paginatedDoctors.map((doctor, idx) => (
                       <motion.tr 
                         key={doctor.doctor_id} 
                         initial={{ opacity: 0, x: -10 }}
@@ -282,6 +299,49 @@ const ManageDoctors = () => {
                     ))}
                   </tbody>
                 </table>
+              </div>
+            )}
+            
+            {/* Pagination Controls */}
+            {!loading && filteredDoctors.length > 0 && (
+              <div style={styles.paginationPanel}>
+                <div style={styles.paginationInfo}>
+                  Showing <span style={{fontWeight: '700'}}>{Math.min(filteredDoctors.length, (currentPage - 1) * itemsPerPage + 1)}</span> to <span style={{fontWeight: '700'}}>{Math.min(filteredDoctors.length, currentPage * itemsPerPage)}</span> of <span style={{fontWeight: '700'}}>{filteredDoctors.length}</span> doctors
+                </div>
+                <div style={styles.paginationControls}>
+                  <button 
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    style={{...styles.pageBtn, opacity: currentPage === 1 ? 0.5 : 1, cursor: currentPage === 1 ? 'not-allowed' : 'pointer'}}
+                  >
+                    Previous
+                  </button>
+                  
+                  <div style={styles.pageNumbers}>
+                      {[...Array(totalPages)].map((_, i) => (
+                          <button 
+                              key={i + 1}
+                              onClick={() => setCurrentPage(i + 1)}
+                              style={{
+                                  ...styles.pageNumber,
+                                  backgroundColor: currentPage === i + 1 ? '#2563eb' : 'white',
+                                  color: currentPage === i + 1 ? 'white' : '#475569',
+                                  borderColor: currentPage === i + 1 ? '#2563eb' : '#e2e8f0'
+                              }}
+                          >
+                              {i + 1}
+                          </button>
+                      ))}
+                  </div>
+
+                  <button 
+                    disabled={currentPage === totalPages}
+                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                    style={{...styles.pageBtn, opacity: currentPage === totalPages ? 0.5 : 1, cursor: currentPage === totalPages ? 'not-allowed' : 'pointer'}}
+                  >
+                    Next
+                  </button>
+                </div>
               </div>
             )}
           </div>
@@ -606,6 +666,51 @@ const styles = {
     color: '#64748b',
     cursor: 'pointer',
     transition: 'all 0.2s'
+  },
+  paginationPanel: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: "24px 32px",
+    backgroundColor: "white",
+    borderTop: "1px solid #f1f5f9"
+  },
+  paginationInfo: {
+    fontSize: "13px",
+    color: "#64748b",
+    fontWeight: "500"
+  },
+  paginationControls: {
+    display: "flex",
+    alignItems: "center",
+    gap: "12px"
+  },
+  pageNumbers: {
+    display: "flex",
+    gap: "6px"
+  },
+  pageBtn: {
+    padding: "8px 16px",
+    fontSize: "13px",
+    fontWeight: "600",
+    color: "#2563eb",
+    backgroundColor: "white",
+    border: "1px solid #e2e8f0",
+    borderRadius: "10px",
+    transition: "all 0.2s"
+  },
+  pageNumber: {
+    width: "36px",
+    height: "36px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "13px",
+    fontWeight: "600",
+    borderRadius: "10px",
+    border: "1px solid #e2e8f0",
+    cursor: "pointer",
+    transition: "all 0.2s"
   }
 };
 

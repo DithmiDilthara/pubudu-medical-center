@@ -16,6 +16,7 @@ import DoctorSidebar from '../components/DoctorSidebar';
 import DoctorHeader from '../components/DoctorHeader';
 import ReceptionistSidebar from '../components/ReceptionistSidebar';
 import ReceptionistHeader from '../components/ReceptionistHeader';
+import ConfirmationModal from '../components/ConfirmationModal';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
@@ -42,6 +43,16 @@ const Profile = () => {
     const [validationErrors, setValidationErrors] = useState({});
     const [isSaving, setIsSaving] = useState(false);
 
+    // Custom Confirmation Modal State
+    const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+    const [confirmModalConfig, setConfirmModalConfig] = useState({
+        title: '',
+        message: '',
+        confirmText: 'Confirm',
+        type: 'primary',
+        onConfirm: () => {}
+    });
+
     useEffect(() => {
         const fetchProfile = async () => {
             try {
@@ -65,7 +76,9 @@ const Profile = () => {
                         nic: userData.profile?.nic || '',
                         address: userData.profile?.address || '',
                         date_of_birth: userData.profile?.date_of_birth || '',
-                        gender: userData.profile?.gender || ''
+                        gender: userData.profile?.gender || '',
+                        specialization: userData.profile?.specialization || '',
+                        license_no: userData.profile?.license_no || ''
                     });
                 }
             } catch (error) {
@@ -106,17 +119,72 @@ const Profile = () => {
         navigate("/");
     };
 
+    const handleCancelEdit = () => {
+        setEditingSection(null);
+        setValidationErrors({});
+        // Restore formData from the saved user profile data
+        if (user) {
+            setFormData({
+                full_name: user.profile?.full_name || '',
+                email: user.email || '',
+                contact_number: user.contact_number || '',
+                nic: user.profile?.nic || '',
+                address: user.profile?.address || '',
+                date_of_birth: user.profile?.date_of_birth || '',
+                gender: user.profile?.gender || '',
+                specialization: user.profile?.specialization || '',
+                license_no: user.profile?.license_no || ''
+            });
+        }
+        setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+    };
+
     // Patient Interactive Handlers
     const validateDetails = () => {
         const errors = {};
-        if (!formData.full_name) errors.full_name = "Full name is required";
-        if (!formData.email || !/\S+@\S+\.\S+/.test(formData.email)) errors.email = "Invalid email format";
         
+        // Full Name Validation
+        if (!formData.full_name?.trim()) {
+            errors.full_name = "Full name is required";
+        } else if (formData.full_name.length < 3) {
+            errors.full_name = "Full name must be at least 3 characters";
+        } else if (!/^[a-zA-Z\s.]+$/.test(formData.full_name)) {
+            errors.full_name = "Full name can only contain letters, spaces and periods";
+        }
+
+        // Phone Number Validation (Registry Level)
+        if (!formData.contact_number) {
+            errors.contact_number = "Phone number is required";
+        } else {
+            const digits = formData.contact_number.replace(/\D/g, "");
+            const validPrefixes = ['070', '071', '072', '074', '075', '076', '077', '078'];
+            const prefix = digits.substring(0, 3);
+            
+            if (digits.length !== 10) errors.contact_number = "Phone number must be exactly 10 digits";
+            else if (!digits.startsWith('07')) errors.contact_number = "Phone number must start with 07";
+            else if (!validPrefixes.includes(prefix)) errors.contact_number = "Invalid Sri Lankan mobile prefix";
+        }
+
+        // Email Validation
+        if (!formData.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+            errors.email = "Invalid email format";
+        }
+
+        // Date of Birth Validation
         if (formData.date_of_birth) {
             const dob = new Date(formData.date_of_birth);
             const today = new Date();
             today.setHours(0, 0, 0, 0);
             if (dob > today) errors.date_of_birth = "Date of birth cannot be in the future";
+        }
+
+        // Address Validation (Skip for Receptionist)
+        if (user?.role_id !== 3) {
+            if (!formData.address?.trim()) {
+                errors.address = "Address is required";
+            } else if (formData.address.length < 5) {
+                errors.address = "Address must be at least 5 characters";
+            }
         }
         
         setValidationErrors(errors);
@@ -126,12 +194,25 @@ const Profile = () => {
     const handleUpdateDetails = async () => {
         if (!validateDetails()) return;
         
+        setConfirmModalConfig({
+            title: "Update Profile Details?",
+            message: "Are you sure you want to save these changes to your personal information?",
+            confirmText: "Update Profile",
+            type: "primary",
+            onConfirm: performUpdateDetails
+        });
+        setIsConfirmModalOpen(true);
+    };
+
+    const performUpdateDetails = async () => {
+        setIsConfirmModalOpen(false);
         setIsSaving(true);
         const toastId = toast.loading("Updating your details...");
         
         try {
             const token = localStorage.getItem('token');
-            const response = await axios.patch(`${API_URL}/patient/update-details`, formData, {
+            // Use generic auth profile endpoint for all roles
+            const response = await axios.put(`${API_URL}/auth/profile`, formData, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             
@@ -139,6 +220,9 @@ const Profile = () => {
                 toast.success("Your details have been updated", { id: toastId });
                 setEditingSection(null);
                 setValidationErrors({});
+                if (response.data.data) {
+                    setUser(response.data.data);
+                }
             }
         } catch (error) {
             toast.error(error.response?.data?.message || "Failed to update details", { id: toastId });
@@ -169,12 +253,24 @@ const Profile = () => {
     const handleUpdatePassword = async () => {
         if (!validatePassword()) return;
         
+        setConfirmModalConfig({
+            title: "Change Password?",
+            message: "Are you sure you want to update your login credentials? You will need to use your new password the next time you log in.",
+            confirmText: "Change Password",
+            type: "danger",
+            onConfirm: performUpdatePassword
+        });
+        setIsConfirmModalOpen(true);
+    };
+
+    const performUpdatePassword = async () => {
+        setIsConfirmModalOpen(false);
         setIsSaving(true);
         const toastId = toast.loading("Updating password...");
         
         try {
             const token = localStorage.getItem('token');
-            const response = await axios.patch(`${API_URL}/auth/change-password`, {
+            const response = await axios.put(`${API_URL}/auth/change-password`, {
                 currentPassword: passwordData.currentPassword,
                 newPassword: passwordData.newPassword
             }, {
@@ -222,7 +318,11 @@ const Profile = () => {
                                     onChange={handleInputChange}
                                     onFocus={() => setFocusedField(name)}
                                     onBlur={() => setFocusedField(null)}
-                                    style={{...styles.textarea, ...(focusedField === name ? {...styles.inputFocus, borderColor: themeColor} : {})}}
+                                    style={{
+                                        ...styles.textarea, 
+                                        ...(focusedField === name ? {...styles.inputFocus, borderColor: themeColor} : {}),
+                                        ...(error ? styles.inputError : {})
+                                    }}
                                 />
                             ) : type === 'select' ? (
                                 <select
@@ -231,7 +331,11 @@ const Profile = () => {
                                     onChange={handleInputChange}
                                     onFocus={() => setFocusedField(name)}
                                     onBlur={() => setFocusedField(null)}
-                                    style={{...styles.select, ...(focusedField === name ? {...styles.inputFocus, borderColor: themeColor} : {})}}
+                                    style={{
+                                        ...styles.select, 
+                                        ...(focusedField === name ? {...styles.inputFocus, borderColor: themeColor} : {}),
+                                        ...(error ? styles.inputError : {})
+                                    }}
                                 >
                                     <option value="MALE">Male</option>
                                     <option value="FEMALE">Female</option>
@@ -245,10 +349,14 @@ const Profile = () => {
                                     onChange={handleInputChange}
                                     onFocus={() => setFocusedField(name)}
                                     onBlur={() => setFocusedField(null)}
-                                    style={{...styles.input, ...(focusedField === name ? {...styles.inputFocus, borderColor: themeColor} : {})}}
+                                    style={{
+                                        ...styles.input, 
+                                        ...(focusedField === name ? {...styles.inputFocus, borderColor: themeColor} : {}),
+                                        ...(error ? styles.inputError : {})
+                                    }}
                                 />
                             )}
-                            {error && <div style={styles.fieldError}><FiInfo size={12} /> {error}</div>}
+                            {error && <div style={styles.fieldError}><FiAlertCircle size={14} /> {error}</div>}
                         </>
                     ) : (
                         <div 
@@ -262,6 +370,16 @@ const Profile = () => {
                         </div>
                     )}
                 </div>
+                {/* Custom Confirmation Modal */}
+                <ConfirmationModal 
+                    isOpen={isConfirmModalOpen}
+                    onClose={() => setIsConfirmModalOpen(false)}
+                    onConfirm={confirmModalConfig.onConfirm}
+                    title={confirmModalConfig.title}
+                    message={confirmModalConfig.message}
+                    confirmText={confirmModalConfig.confirmText}
+                    type={confirmModalConfig.type}
+                />
             </div>
         );
     };
@@ -353,38 +471,51 @@ const Profile = () => {
                           </div>
                         </div>
 
-{(user?.role_id === 4) ? (
-  <>
-    <div style={styles.gridContainer}>
-      <div style={styles.column}>
-        <h3 style={styles.columnTitle}>
-          <FiUser style={{marginRight: '8px', color: themeColor}} />
-          Personal Information
-          {editingSection !== 'personal' && (
-            <FiEdit3 
-              style={{...styles.inlinePencil, fontSize: '18px', color: themeColor}} 
-              onClick={() => setEditingSection('personal')} 
-            />
-          )}
-        </h3>
-        
-        {renderEditableField('Full Legal Name', 'full_name', formData.full_name, FiUser)}
-        {renderEditableField('National ID (NIC)', 'nic', formData.nic, FiCreditCard, true)}
-        {renderEditableField('Date of Birth', 'date_of_birth', formData.date_of_birth, FiCalendar, false, 'date')}
-      </div>
+{(user?.role_id === 4 || user?.role_id === 3 || user?.role_id === 2) ? (
+  <div style={styles.formContainer}>
+    <>
+                                <div style={styles.gridContainer}>
+                                  {/* Section Titles */}
+                                  <h3 style={styles.columnTitle}>
+                                    <FiUser style={{marginRight: '8px', color: themeColor}} />
+                                    Personal Information
+                                    {editingSection !== 'personal' && (
+                                      <FiEdit3 
+                                        style={{...styles.inlinePencil, fontSize: '18px', color: themeColor}} 
+                                        onClick={() => setEditingSection('personal')} 
+                                      />
+                                    )}
+                                  </h3>
+                                  <h3 style={styles.columnTitle}>
+                                    <FiMail style={{marginRight: '8px', color: themeColor}} />
+                                    Contact Details
+                                  </h3>
+                                  
+                                  {/* Row 1: Name & Email */}
+                                  {renderEditableField('Full Legal Name', 'full_name', formData.full_name, FiUser)}
+                                  {renderEditableField('Primary Email', 'email', formData.email, FiMail, true, 'email')}
+                                  
+                                  {/* NIC Hub: Hide for Doctors, Show for Patient/Receps */}
+                                  {user?.role_id !== 2 && renderEditableField('National ID (NIC)', 'nic', formData.nic, FiCreditCard, true)}
+                                  {renderEditableField('Phone Number', 'contact_number', formData.contact_number, FiPhone, false)}
+                                  
+                                  {/* Row 3 (Optional for Staff/Patient) */}
+                                  {user?.role_id === 4 && renderEditableField('Date of Birth', 'date_of_birth', formData.date_of_birth, FiCalendar, false, 'date')}
+                                  {user?.role_id !== 3 && renderEditableField('Gender', 'gender', formData.gender, FiInfo, user?.role_id !== 4, user?.role_id === 4 ? 'select' : 'text')}
+                                  {user?.role_id === 3 && renderEditableField('Gender', 'gender', formData.gender, FiInfo, true)}
 
-      <div style={styles.column}>
-        <h3 style={styles.columnTitle}>
-          <FiMail style={{marginRight: '8px', color: themeColor}} />
-          Contact Details
-        </h3>
-        {renderEditableField('Primary Email', 'email', formData.email, FiMail, false, 'email')}
-        {renderEditableField('Phone Number', 'contact_number', formData.contact_number, FiPhone, true)}
-        {renderEditableField('Gender', 'gender', formData.gender, FiInfo, false, 'select')}
-      </div>
-    </div>
+                                  {/* Doctor Specific Info */}
+                                  {user?.role_id === 2 && (
+                                    <>
+                                        {renderEditableField('Specialization', 'specialization', formData.specialization, FiInfo, true)}
+                                        {renderEditableField('License Number', 'license_no', formData.license_no, FiShield, true)}
+                                    </>
+                                  )}
 
-    {renderEditableField('Residential Address', 'address', formData.address, FiMapPin, false, 'textarea')}
+                                  {/* Receptionist Specific Info - Hidden shift as requested */}
+                                </div>
+ 
+    {user?.role_id !== 3 && user?.role_id !== 2 && renderEditableField('Residential Address', 'address', formData.address, FiMapPin, false, 'textarea')}
 
     <AnimatePresence>
       {editingSection === 'personal' && (
@@ -396,7 +527,7 @@ const Profile = () => {
         >
           <button 
             type="button" 
-            onClick={() => { setEditingSection(null); setValidationErrors({}); }} 
+            onClick={handleCancelEdit} 
             style={styles.cancelBtn}
           >
             <FiX style={{marginRight: '8px'}} /> Cancel
@@ -439,14 +570,18 @@ const Profile = () => {
                 type={showPasswords.current ? "text" : "password"}
                 value={passwordData.currentPassword}
                 onChange={(e) => setPasswordData({...passwordData, currentPassword: e.target.value})}
-                style={{...styles.input, paddingLeft: '16px'}}
+                style={{
+                  ...styles.input, 
+                  paddingLeft: '16px',
+                  ...(validationErrors.currentPassword ? styles.inputError : {})
+                }}
                 placeholder="Enter current password"
               />
               <div onClick={() => setShowPasswords({...showPasswords, current: !showPasswords.current})} style={styles.eyeIcon}>
                 {showPasswords.current ? <FiEyeOff /> : <FiEye />}
               </div>
             </div>
-            {validationErrors.currentPassword && <div style={styles.fieldError}><FiInfo size={12} /> {validationErrors.currentPassword}</div>}
+            {validationErrors.currentPassword && <div style={styles.fieldError}><FiAlertCircle size={14} /> {validationErrors.currentPassword}</div>}
           </div>
 
           <div style={styles.inputGroup}>
@@ -456,14 +591,18 @@ const Profile = () => {
                 type={showPasswords.new ? "text" : "password"}
                 value={passwordData.newPassword}
                 onChange={(e) => setPasswordData({...passwordData, newPassword: e.target.value})}
-                style={{...styles.input, paddingLeft: '16px'}}
+                style={{
+                  ...styles.input, 
+                  paddingLeft: '16px',
+                  ...(validationErrors.newPassword ? styles.inputError : {})
+                }}
                 placeholder="Enter new password"
               />
               <div onClick={() => setShowPasswords({...showPasswords, new: !showPasswords.new})} style={styles.eyeIcon}>
                 {showPasswords.new ? <FiEyeOff /> : <FiEye />}
               </div>
             </div>
-            {validationErrors.newPassword && <div style={styles.fieldError}><FiInfo size={12} /> {validationErrors.newPassword}</div>}
+            {validationErrors.newPassword && <div style={styles.fieldError}><FiAlertCircle size={14} /> {validationErrors.newPassword}</div>}
           </div>
 
           <div style={styles.inputGroup}>
@@ -473,14 +612,18 @@ const Profile = () => {
                 type={showPasswords.confirm ? "text" : "password"}
                 value={passwordData.confirmPassword}
                 onChange={(e) => setPasswordData({...passwordData, confirmPassword: e.target.value})}
-                style={{...styles.input, paddingLeft: '16px'}}
+                style={{
+                  ...styles.input, 
+                  paddingLeft: '16px',
+                  ...(validationErrors.confirmPassword ? styles.inputError : {})
+                }}
                 placeholder="Confirm new password"
               />
               <div onClick={() => setShowPasswords({...showPasswords, confirm: !showPasswords.confirm})} style={styles.eyeIcon}>
                 {showPasswords.confirm ? <FiEyeOff /> : <FiEye />}
               </div>
             </div>
-            {validationErrors.confirmPassword && <div style={styles.fieldError}><FiInfo size={12} /> {validationErrors.confirmPassword}</div>}
+            {validationErrors.confirmPassword && <div style={styles.fieldError}><FiAlertCircle size={14} /> {validationErrors.confirmPassword}</div>}
           </div>
 
           <div style={styles.passwordHint}>
@@ -491,7 +634,7 @@ const Profile = () => {
           <div style={{...styles.sectionEditActions, gridColumn: '1 / -1'}}>
             <button 
               type="button" 
-              onClick={() => { setEditingSection(null); setValidationErrors({}); setPasswordData({currentPassword:'', newPassword:'', confirmPassword:''}); }} 
+              onClick={handleCancelEdit} 
               style={styles.cancelBtn}
             >
               <FiX style={{marginRight: '8px'}} /> Cancel
@@ -517,16 +660,21 @@ const Profile = () => {
       )}
     </div>
   </>
+  </div>
 ) : (
     <form onSubmit={handleSave} style={styles.formContainer}>
         <div style={styles.gridContainer}>
-          {/* Left Column: Personal Info */}
-          <div style={styles.column}>
+            {/* Section Titles */}
             <h3 style={styles.columnTitle}>
               <FiUser style={{marginRight: '8px', color: themeColor}} />
               Personal Information
             </h3>
-            
+            <h3 style={styles.columnTitle}>
+              <FiMail style={{marginRight: '8px', color: themeColor}} />
+              Contact & Security
+            </h3>
+
+            {/* Row 1: Name & Email */}
             <div style={styles.inputGroup}>
               <label style={styles.label}>Full Legal Name</label>
               <div style={styles.inputWrapper}>
@@ -544,32 +692,6 @@ const Profile = () => {
             </div>
 
             <div style={styles.inputGroup}>
-              <label style={styles.label}>National ID (NIC)</label>
-              <div style={styles.inputWrapper}>
-                <FiCreditCard style={{...styles.inputIcon, color: focusedField === 'nic' ? themeColor : '#94a3b8'}} />
-                <input
-                  type="text"
-                  name="nic"
-                  value={formData.nic}
-                  onChange={handleInputChange}
-                  onFocus={() => setFocusedField('nic')}
-                  onBlur={() => setFocusedField(null)}
-                  style={{...styles.input, ...(focusedField === 'nic' ? {...styles.inputFocus, borderColor: themeColor} : {})}}
-                />
-              </div>
-            </div>
-
-
-          </div>
-
-          {/* Right Column: Contact Info */}
-          <div style={styles.column}>
-            <h3 style={styles.columnTitle}>
-              <FiMail style={{marginRight: '8px', color: themeColor}} />
-              Contact & Security
-            </h3>
-
-            <div style={styles.inputGroup}>
               <label style={styles.label}>Primary Email</label>
               <div style={styles.inputWrapper}>
                 <FiMail style={{...styles.inputIcon, color: focusedField === 'email' ? themeColor : '#94a3b8'}} />
@@ -581,6 +703,23 @@ const Profile = () => {
                   onFocus={() => setFocusedField('email')}
                   onBlur={() => setFocusedField(null)}
                   style={{...styles.input, ...(focusedField === 'email' ? {...styles.inputFocus, borderColor: themeColor} : {})}}
+                />
+              </div>
+            </div>
+
+            {/* Row 2: NIC & Phone */}
+            <div style={styles.inputGroup}>
+              <label style={styles.label}>National ID (NIC)</label>
+              <div style={styles.inputWrapper}>
+                <FiCreditCard style={{...styles.inputIcon, color: focusedField === 'nic' ? themeColor : '#94a3b8'}} />
+                <input
+                  type="text"
+                  name="nic"
+                  value={formData.nic}
+                  onChange={handleInputChange}
+                  onFocus={() => setFocusedField('nic')}
+                  onBlur={() => setFocusedField(null)}
+                  style={{...styles.input, ...(focusedField === 'nic' ? {...styles.inputFocus, borderColor: themeColor} : {})}}
                 />
               </div>
             </div>
@@ -600,9 +739,6 @@ const Profile = () => {
                 />
               </div>
             </div>
-
-
-          </div>
         </div>
 
         <div style={styles.fullWidthGroup}>
@@ -648,6 +784,15 @@ const Profile = () => {
                     </motion.div>
                     </div>
                 </main>
+                <ConfirmationModal 
+                    isOpen={isConfirmModalOpen}
+                    onClose={() => setIsConfirmModalOpen(false)}
+                    onConfirm={confirmModalConfig.onConfirm}
+                    title={confirmModalConfig.title}
+                    message={confirmModalConfig.message}
+                    confirmText={confirmModalConfig.confirmText}
+                    type={confirmModalConfig.type}
+                />
             </div>
         </div>
     );
@@ -840,7 +985,7 @@ const styles = {
     },
     input: {
       width: '100%',
-      padding: '14px 16px 14px 48px',
+      padding: '18px 16px 18px 48px',
       fontSize: '15px',
       backgroundColor: '#f8fafc',
       border: '1px solid #e2e8f0',
@@ -852,7 +997,7 @@ const styles = {
     },
     textarea: {
       width: '100%',
-      padding: '14px 16px 14px 48px',
+      padding: '18px 16px 18px 48px',
       fontSize: '15px',
       backgroundColor: '#f8fafc',
       border: '1px solid #e2e8f0',
@@ -865,7 +1010,7 @@ const styles = {
     },
     select: {
       width: '100%',
-      padding: '14px 16px 14px 48px',
+      padding: '18px 16px 18px 48px',
       fontSize: '15px',
       backgroundColor: '#f8fafc',
       border: '1px solid #e2e8f0',
@@ -882,6 +1027,11 @@ const styles = {
     inputFocus: {
       backgroundColor: 'white',
       boxShadow: '0 0 0 4px rgba(37, 99, 235, 0.05)'
+    },
+    inputError: {
+      borderColor: '#ef4444',
+      backgroundColor: '#fef2f2',
+      boxShadow: '0 0 0 4px rgba(239, 68, 68, 0.1)'
     },
     footer: {
       display: 'flex',
@@ -936,7 +1086,7 @@ const styles = {
     },
     readOnlyText: {
         width: '100%',
-        padding: '14px 16px',
+        padding: '18px 20px',
         fontSize: '15px',
         backgroundColor: '#f8fafc',
         border: '1px solid #e2e8f0',
@@ -950,13 +1100,13 @@ const styles = {
         cursor: 'pointer'
     },
     fieldError: {
-        color: '#ef4444',
+        color: '#dc2626',
         fontSize: '12px',
-        marginTop: '4px',
-        fontWeight: '500',
+        marginTop: '6px',
+        fontWeight: '600',
         display: 'flex',
         alignItems: 'center',
-        gap: '4px'
+        gap: '6px'
     },
     lockNote: {
         fontSize: '11px',
@@ -993,7 +1143,7 @@ const styles = {
     eyeIcon: {
         position: 'absolute',
         right: '16px',
-        top: '14px',
+        top: '18px',
         color: '#94a3b8',
         cursor: 'pointer',
         padding: '4px',

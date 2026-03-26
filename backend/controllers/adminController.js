@@ -252,19 +252,44 @@ export const exportReport = async (req, res) => {
       const appointments = await Appointment.findAll({
         where,
         include: [
-          { model: Doctor, as: 'doctor', attributes: ['center_fee', 'full_name'] },
+          { model: Doctor, as: 'doctor', attributes: ['center_fee', 'full_name', 'specialization'] },
           { model: Patient, as: 'patient', attributes: ['full_name'] }
         ]
       });
+      // Aggregate by Doctor
+      const doctorAggregation = {};
+      let grandTotalVolume = 0;
+      let grandTotalRevenue = 0;
+
+      appointments.forEach(appt => {
+        const docId = appt.doctor_id || 'unknown';
+        const doc = appt.doctor;
+        const centerFee = parseFloat(doc?.center_fee || 0);
+
+        if (!doctorAggregation[docId]) {
+          doctorAggregation[docId] = {
+            doctor_name: doc?.full_name || 'Unknown',
+            specialisation: doc?.specialization || 'General',
+            patient_volume: 0,
+            center_fee: centerFee,
+            total_revenue: 0
+          };
+        }
+
+        doctorAggregation[docId].patient_volume += 1;
+        doctorAggregation[docId].total_revenue += centerFee;
+        grandTotalVolume += 1;
+        grandTotalRevenue += centerFee;
+      });
+
       reportData = {
-        totalRevenue: appointments.reduce((sum, appt) => sum + parseFloat(appt.doctor?.center_fee || 0), 0),
-        appointmentCount: appointments.length,
-        appointments: appointments.map(a => ({
-          patient_name: a.patient?.full_name,
-          doctor_name: a.doctor?.full_name,
-          date: a.appointment_date,
-          center_fee: parseFloat(a.doctor?.center_fee || 0)
-        }))
+        totalRevenue: grandTotalRevenue,
+        appointmentCount: grandTotalVolume,
+        doctors: Object.values(doctorAggregation),
+        grandTotal: {
+          volume: grandTotalVolume,
+          revenue: grandTotalRevenue
+        }
       };
     } else if (type === 'patients') {
       const where = {};

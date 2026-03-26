@@ -9,6 +9,7 @@ import {
   FiUser,
   FiClock
 } from 'react-icons/fi';
+import { LuStethoscope } from 'react-icons/lu';
 import { motion, AnimatePresence } from "framer-motion";
 import ReceptionistSidebar from "../../components/ReceptionistSidebar";
 import ReceptionistHeader from "../../components/ReceptionistHeader";
@@ -21,6 +22,10 @@ const Doctors = () => {
     const [searchTerm, setSearchTerm] = useState("");
     const [selectedSpecialization, setSelectedSpecialization] = useState("All");
     const [specializations, setSpecializations] = useState(["All"]);
+    
+    // Pagination
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage] = useState(8);
     const [nextNumbers, setNextNumbers] = useState({});
     const [receptionistName, setReceptionistName] = useState("Receptionist");
 
@@ -95,6 +100,19 @@ const Doctors = () => {
         return matchesSearch && matchesSpec;
     });
 
+    // Reset pagination when filters change
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchTerm, selectedSpecialization]);
+
+    // Paginated doctors
+    const paginatedDoctors = filteredDoctors.slice(
+        (currentPage - 1) * itemsPerPage,
+        currentPage * itemsPerPage
+    );
+
+    const totalPages = Math.ceil(filteredDoctors.length / itemsPerPage);
+
     const containerVariants = {
         hidden: { opacity: 0 },
         visible: {
@@ -112,20 +130,6 @@ const Doctors = () => {
         }
     };
 
-    const getSpecializationTheme = (spec) => {
-        const specialization = spec?.toLowerCase() || "";
-        if (specialization.includes("cardio")) return { main: "#f43f5e", light: "#fff1f2" }; // Rose
-        if (specialization.includes("derma")) return { main: "#8b5cf6", light: "#f5f3ff" }; // Violet
-        if (specialization.includes("pedia")) return { main: "#f59e0b", light: "#fffbeb" }; // Amber
-        if (specialization.includes("ent")) return { main: "#14b8a6", light: "#f0fdfa" };   // Teal
-        if (specialization.includes("gyne")) return { main: "#d946ef", light: "#fdf4ff" };  // Fuchsia
-        if (specialization.includes("ortho")) return { main: "#0ea5e9", light: "#f0f9ff" }; // Sky
-        if (specialization.includes("neuro")) return { main: "#6366f1", light: "#eef2ff" }; // Indigo
-        if (specialization.includes("physician")) return { main: "#10b981", light: "#ecfdf5" }; // Emerald
-        if (specialization.includes("nephro")) return { main: "#f97316", light: "#fff7ed" }; // Orange
-        if (specialization.includes("ophthal")) return { main: "#06b6d4", light: "#ecfeff" }; // Cyan
-        return { main: "#64748b", light: "#f8fafc" }; // Slate
-    };
 
     const handleLogout = () => {
         localStorage.clear();
@@ -196,8 +200,7 @@ const Doctors = () => {
                                     animate="visible"
                                     style={styles.doctorGrid}
                                 >
-                                    {filteredDoctors.map((doctor) => {
-                                        const theme = getSpecializationTheme(doctor.specialization);
+                                    {paginatedDoctors.map((doctor) => {
                                         return (
                                             <motion.div
                                                 key={doctor.doctor_id}
@@ -206,25 +209,20 @@ const Doctors = () => {
                                                 whileHover="hover"
                                             >
                                                 {/* Color Bar */}
-                                                <div style={{ height: '4px', width: '100%', backgroundColor: theme.main }}></div>
+                                                <div style={{ height: '4px', width: '100%', backgroundColor: 'var(--primary-blue)' }}></div>
                                                 
                                                 <div style={{ padding: '24px' }}>
                                                     {/* Top Section */}
                                                     <div style={styles.cardHeader}>
                                                         <motion.div 
                                                             variants={{ hover: { scale: 1.05 } }}
-                                                            style={{ 
-                                                                ...styles.avatarPlaceholder, 
-                                                                backgroundColor: theme.light,
-                                                                borderColor: theme.main + '20',
-                                                                color: theme.main
-                                                            }}
+                                                            style={styles.avatarPlaceholder}
                                                         >
-                                                            <FiActivity style={{ fontSize: '28px' }} />
+                                                            <LuStethoscope style={{ fontSize: '28px' }} />
                                                         </motion.div>
                                                         <div>
                                                             <h3 style={styles.doctorName}>{doctor.full_name}</h3>
-                                                            <p style={{ ...styles.doctorSpecialty, color: theme.main }}>{doctor.specialization}</p>
+                                                            <p style={{ ...styles.doctorSpecialty, color: '#0f172a' }}>{doctor.specialization}</p>
                                                         </div>
                                                     </div>
 
@@ -232,13 +230,13 @@ const Doctors = () => {
                                                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginTop: '16px' }}>
                                                         <div>
                                                             <div style={styles.sectionLabelWrapper}>
-                                                                <FiClock style={{ color: '#2563eb', opacity: 0.8, fontSize: '14px' }} />
-                                                                <span style={{ ...styles.sectionLabel, color: '#2563eb' }}>Available Times</span>
+                                                                <FiClock style={{ color: '#0f172a', opacity: 0.8, fontSize: '14px' }} />
+                                                                <span style={{ ...styles.sectionLabel, color: '#0f172a' }}>Available Times</span>
                                                             </div>
                                                             <div style={styles.daysWrapper}>
                                                                 {doctor.availability && doctor.availability.length > 0 ? (
                                                                     doctor.availability.slice(0, 2).map((av, idx) => (
-                                                                        <span key={idx} style={{ ...styles.dayChip, backgroundColor: '#eff6ff', color: '#2563eb', border: '1px solid #dbeafe' }}>
+                                                                        <span key={idx} style={{ ...styles.dayChip, backgroundColor: '#f8fafc', color: '#0f172a', border: '1px solid #e2e8f0' }}>
                                                                             {av.start_time.substring(0, 5)} - {av.end_time.substring(0, 5)}
                                                                         </span>
                                                                     ))
@@ -249,10 +247,10 @@ const Doctors = () => {
                                                         </div>
                                                         <div>
                                                             <div style={styles.sectionLabelWrapper}>
-                                                                <FiActivity style={{ color: '#f59e0b', opacity: 0.8, fontSize: '14px' }} />
-                                                                <span style={{ ...styles.sectionLabel, color: '#f59e0b' }}>Next available</span>
+                                                                <LuStethoscope style={{ color: '#0f172a', opacity: 0.8, fontSize: '14px' }} />
+                                                                <span style={{ ...styles.sectionLabel, color: '#0f172a' }}>Next available</span>
                                                             </div>
-                                                            <div style={{ fontSize: '18px', fontWeight: '800', color: '#b45309' }}>
+                                                            <div style={{ fontSize: '18px', fontWeight: '800', color: '#0f172a' }}>
                                                                 #{nextNumbers[doctor.doctor_id] || '01'}
                                                             </div>
                                                         </div>
@@ -262,8 +260,8 @@ const Doctors = () => {
                                                 {/* Fee Section */}
                                                 <div style={styles.cardFooter}>
                                                     <div>
-                                                        <p style={{ ...styles.feeLabel, color: '#10b981', opacity: 0.9 }}>Consultation Fee</p>
-                                                        <p style={{ ...styles.feeValue, color: '#059669' }}>
+                                                        <p style={{ ...styles.feeLabel, color: '#0f172a', opacity: 0.8 }}>Consultation Fee</p>
+                                                        <p style={{ ...styles.feeValue, color: '#0f172a' }}>
                                                             LKR {(Number(doctor.doctor_fee) + Number(doctor.center_fee || 0)).toLocaleString()}
                                                         </p>
                                                     </div>
@@ -286,7 +284,7 @@ const Doctors = () => {
                                     style={styles.emptyState}
                                 >
                                     <div style={styles.emptyIconWrapper}>
-                                        <FiActivity style={{ fontSize: '32px' }} />
+                                        <LuStethoscope style={{ fontSize: '32px' }} />
                                     </div>
                                     <h3 style={{ fontSize: '20px', fontWeight: '700', color: 'var(--slate-800)' }}>No doctors found</h3>
                                     <p style={{ color: 'var(--slate-400)', marginTop: '4px', maxWidth: '320px' }}>Try adjusting your search criteria or specialization filter.</p>
@@ -299,6 +297,49 @@ const Doctors = () => {
                                 </motion.div>
                             )}
                         </AnimatePresence>
+                    )}
+
+                    {/* Pagination Footer */}
+                    {!loading && filteredDoctors.length > 0 && (
+                        <div style={styles.paginationFooter}>
+                            <div style={styles.paginationInfo}>
+                                Showing <span style={{fontWeight: '700'}}>{Math.min(filteredDoctors.length, (currentPage - 1) * itemsPerPage + 1)}</span> to <span style={{fontWeight: '700'}}>{Math.min(filteredDoctors.length, currentPage * itemsPerPage)}</span> of <span style={{fontWeight: '700'}}>{filteredDoctors.length}</span> doctors
+                            </div>
+                            <div style={styles.paginationControls}>
+                                <button 
+                                    disabled={currentPage === 1}
+                                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                    style={{...styles.pageBtn, opacity: currentPage === 1 ? 0.5 : 1, cursor: currentPage === 1 ? 'not-allowed' : 'pointer'}}
+                                >
+                                    Previous
+                                </button>
+                                
+                                <div style={styles.pageNumbers}>
+                                    {[...Array(totalPages)].map((_, i) => (
+                                        <button 
+                                            key={i + 1}
+                                            onClick={() => setCurrentPage(i + 1)}
+                                            style={{
+                                                ...styles.pageNumber,
+                                                backgroundColor: currentPage === i + 1 ? '#2563eb' : 'white',
+                                                color: currentPage === i + 1 ? 'white' : '#475569',
+                                                borderColor: currentPage === i + 1 ? '#2563eb' : '#e2e8f0'
+                                            }}
+                                        >
+                                            {i + 1}
+                                        </button>
+                                    ))}
+                                </div>
+
+                                <button 
+                                    disabled={currentPage === totalPages}
+                                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                    style={{...styles.pageBtn, opacity: currentPage === totalPages ? 0.5 : 1, cursor: currentPage === totalPages ? 'not-allowed' : 'pointer'}}
+                                >
+                                    Next
+                                </button>
+                            </div>
+                        </div>
                     )}
                 </main>
             </motion.div>
@@ -569,6 +610,51 @@ const styles = {
         cursor: 'pointer',
         transition: 'all 0.2s',
         border: 'none',
+    },
+    paginationFooter: {
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        padding: "32px 0",
+        marginTop: "16px",
+        borderTop: "1px solid var(--slate-200)"
+    },
+    paginationInfo: {
+        fontSize: "14px",
+        color: "var(--slate-500)",
+        fontWeight: "500"
+    },
+    paginationControls: {
+        display: "flex",
+        alignItems: "center",
+        gap: "12px"
+    },
+    pageNumbers: {
+        display: "flex",
+        gap: "6px"
+    },
+    pageBtn: {
+        padding: "8px 16px",
+        fontSize: "13px",
+        fontWeight: "600",
+        color: "#2563eb",
+        backgroundColor: "white",
+        border: "1px solid #e2e8f0",
+        borderRadius: "8px",
+        transition: "all 0.2s"
+    },
+    pageNumber: {
+        width: "36px",
+        height: "36px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontSize: "13px",
+        fontWeight: "600",
+        borderRadius: "8px",
+        border: "1px solid #e2e8f0",
+        cursor: "pointer",
+        transition: "all 0.2s"
     }
 };
 

@@ -22,6 +22,10 @@ function DoctorPatients() {
   const [isLoading, setIsLoading] = useState(true);
   const [doctorName, setDoctorName] = useState('');
 
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(8);
+
   // Fetch unique patients from backend
   useEffect(() => {
     const fetchPatients = async () => {
@@ -73,6 +77,19 @@ function DoctorPatients() {
     return name.toLowerCase().includes(search) || id.toLowerCase().includes(search);
   });
 
+  // Reset pagination when search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
+
+  // Paginated patients
+  const paginatedPatients = filteredPatients.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  const totalPages = Math.ceil(filteredPatients.length / itemsPerPage);
+
   const cardVariants = {
     hidden: { opacity: 0, scale: 0.95 },
     visible: { opacity: 1, scale: 1 }
@@ -116,7 +133,7 @@ function DoctorPatients() {
             <AnimatePresence mode='wait'>
               {filteredPatients.length > 0 ? (
                 <div style={styles.patientGrid}>
-                  {filteredPatients.map((patient, index) => (
+                  {paginatedPatients.map((patient, index) => (
                     <motion.div
                       key={patient.patientId || index}
                       variants={cardVariants}
@@ -167,6 +184,49 @@ function DoctorPatients() {
               )}
             </AnimatePresence>
           </div>
+
+          {/* Pagination Footer */}
+          {!isLoading && filteredPatients.length > 0 && (
+            <div style={styles.paginationFooter}>
+              <div style={styles.paginationInfo}>
+                Showing <span style={{fontWeight: '700'}}>{Math.min(filteredPatients.length, (currentPage - 1) * itemsPerPage + 1)}</span> to <span style={{fontWeight: '700'}}>{Math.min(filteredPatients.length, currentPage * itemsPerPage)}</span> of <span style={{fontWeight: '700'}}>{filteredPatients.length}</span> patients
+              </div>
+              <div style={styles.paginationControls}>
+                <button 
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  style={{...styles.pageBtn, opacity: currentPage === 1 ? 0.5 : 1, cursor: currentPage === 1 ? 'not-allowed' : 'pointer'}}
+                >
+                  Previous
+                </button>
+                
+                <div style={styles.pageNumbers}>
+                    {[...Array(totalPages)].map((_, i) => (
+                        <button 
+                            key={i + 1}
+                            onClick={() => setCurrentPage(i + 1)}
+                            style={{
+                                ...styles.pageNumber,
+                                backgroundColor: currentPage === i + 1 ? '#2563eb' : 'white',
+                                color: currentPage === i + 1 ? 'white' : '#475569',
+                                borderColor: currentPage === i + 1 ? '#2563eb' : '#e2e8f0'
+                            }}
+                        >
+                            {i + 1}
+                        </button>
+                    ))}
+                </div>
+
+                <button 
+                  disabled={currentPage === totalPages}
+                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                  style={{...styles.pageBtn, opacity: currentPage === totalPages ? 0.5 : 1, cursor: currentPage === totalPages ? 'not-allowed' : 'pointer'}}
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
         </motion.main>
       </div>
     </div>
@@ -375,6 +435,51 @@ const styles = {
     fontSize: "15px",
     color: "#64748b",
     margin: 0
+  },
+  paginationFooter: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: "32px 0",
+    marginTop: "16px",
+    borderTop: "1px solid #e2e8f0"
+  },
+  paginationInfo: {
+    fontSize: "14px",
+    color: "#64748b",
+    fontWeight: "500"
+  },
+  paginationControls: {
+    display: "flex",
+    alignItems: "center",
+    gap: "12px"
+  },
+  pageNumbers: {
+    display: "flex",
+    gap: "6px"
+  },
+  pageBtn: {
+    padding: "8px 16px",
+    fontSize: "13px",
+    fontWeight: "600",
+    color: "#2563eb",
+    backgroundColor: "white",
+    border: "1px solid #e2e8f0",
+    borderRadius: "8px",
+    transition: "all 0.2s"
+  },
+  pageNumber: {
+    width: "36px",
+    height: "36px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "13px",
+    fontWeight: "600",
+    borderRadius: "8px",
+    border: "1px solid #e2e8f0",
+    cursor: "pointer",
+    transition: "all 0.2s"
   }
 };
 

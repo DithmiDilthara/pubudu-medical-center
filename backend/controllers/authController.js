@@ -398,7 +398,7 @@ export const registerPatient = async (req, res) => {
 export const addStaff = async (req, res) => {
     const transaction = await sequelize.transaction();
     try {
-        const { username, email, password, role_name, first_name, last_name, phone, specialization, qualification, experience_years, consultation_fee, bio, shift } = req.body;
+        const { username, email, password, role_name, first_name, last_name, phone, specialization, qualification, experience_years, consultation_fee, bio } = req.body;
         const admin_id = req.user.user_id;
 
         if (!['Doctor', 'Receptionist'].includes(role_name)) {
@@ -412,7 +412,7 @@ export const addStaff = async (req, res) => {
         if (role_name === 'Doctor') {
             await Doctor.create({ user_id: newUser.user_id, first_name, last_name, phone, specialization, qualification, experience_years, consultation_fee, bio, is_available: true, admin_id }, { transaction });
         } else {
-            await Receptionist.create({ user_id: newUser.user_id, first_name, last_name, phone, shift }, { transaction });
+            await Receptionist.create({ user_id: newUser.user_id, first_name, last_name, phone }, { transaction });
         }
 
         await transaction.commit();

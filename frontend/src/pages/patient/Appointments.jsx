@@ -15,6 +15,10 @@ function Appointments() {
   const [activeTab, setActiveTab] = useState('Upcoming');
   const [loading, setLoading] = useState(true);
 
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(6);
+
   // Cancellation Modal State
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
   const [apptToCancel, setApptToCancel] = useState(null);
@@ -40,6 +44,11 @@ function Appointments() {
     };
     fetchAppointments();
   }, [API_URL]);
+
+  // Reset pagination when tab changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab]);
 
   const handleLogout = () => {
     localStorage.clear();
@@ -88,6 +97,12 @@ function Appointments() {
   };
 
   const filteredAppointments = getFilteredAppointments();
+
+  // Pagination Logic
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const paginatedAppointments = filteredAppointments.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(filteredAppointments.length / itemsPerPage);
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -156,7 +171,7 @@ function Appointments() {
                 </div>
               ) : filteredAppointments.length > 0 ? (
                 <div style={styles.appointmentGrid}>
-                  {filteredAppointments.map((apt) => (
+                  {paginatedAppointments.map((apt) => (
                     <motion.div key={apt.appointment_id} variants={cardVariants}>
                         <AppointmentCard 
                             appt={apt} 
@@ -186,6 +201,49 @@ function Appointments() {
               )}
             </motion.div>
           </AnimatePresence>
+
+          {/* Pagination Controls */}
+          {filteredAppointments.length > itemsPerPage && (
+            <div style={styles.paginationPanel}>
+              <div style={styles.paginationInfo}>
+                Showing <span style={{fontWeight: '700'}}>{indexOfFirstItem + 1}</span> to <span style={{fontWeight: '700'}}>{Math.min(indexOfLastItem, filteredAppointments.length)}</span> of <span style={{fontWeight: '700'}}>{filteredAppointments.length}</span> {activeTab.toLowerCase()} appointments
+              </div>
+              <div style={styles.paginationControls}>
+                <button 
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  style={{...styles.pageBtn, opacity: currentPage === 1 ? 0.5 : 1, cursor: currentPage === 1 ? 'not-allowed' : 'pointer'}}
+                >
+                  Previous
+                </button>
+                
+                <div style={styles.pageNumbers}>
+                    {[...Array(totalPages)].map((_, i) => (
+                        <button 
+                            key={i + 1}
+                            onClick={() => setCurrentPage(i + 1)}
+                            style={{
+                                ...styles.pageNumber,
+                                backgroundColor: currentPage === i + 1 ? '#2563eb' : 'white',
+                                color: currentPage === i + 1 ? 'white' : '#475569',
+                                borderColor: currentPage === i + 1 ? '#2563eb' : '#e2e8f0'
+                            }}
+                        >
+                            {i + 1}
+                        </button>
+                    ))}
+                </div>
+
+                <button 
+                  disabled={currentPage === totalPages}
+                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                  style={{...styles.pageBtn, opacity: currentPage === totalPages ? 0.5 : 1, cursor: currentPage === totalPages ? 'not-allowed' : 'pointer'}}
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
           </div>
         </main>
       </div>
@@ -350,6 +408,51 @@ const styles = {
     borderTop: '4px solid #2563eb',
     borderRadius: '50%',
     animation: 'spin 1s linear infinite'
+  },
+  paginationPanel: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: "32px 0",
+    marginTop: "20px",
+    borderTop: "1px solid #f1f5f9"
+  },
+  paginationInfo: {
+    fontSize: "14px",
+    color: "#64748b",
+    fontWeight: "500"
+  },
+  paginationControls: {
+    display: "flex",
+    alignItems: "center",
+    gap: "12px"
+  },
+  pageNumbers: {
+    display: "flex",
+    gap: "6px"
+  },
+  pageBtn: {
+    padding: "10px 20px",
+    fontSize: "14px",
+    fontWeight: "600",
+    color: "#2563eb",
+    backgroundColor: "white",
+    border: "1px solid #e2e8f0",
+    borderRadius: "12px",
+    transition: "all 0.2s"
+  },
+  pageNumber: {
+    width: "40px",
+    height: "40px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "14px",
+    fontWeight: "600",
+    borderRadius: "12px",
+    border: "1px solid #e2e8f0",
+    cursor: "pointer",
+    transition: "all 0.2s"
   }
 };
 

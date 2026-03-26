@@ -25,11 +25,6 @@ const Receptionist = sequelize.define('receptionist', {
     allowNull: false,
     unique: 'receptionist_nic_unique'
   },
-  shift: {
-    type: DataTypes.ENUM('Morning', 'Afternoon', 'Night', 'Full Day'),
-    allowNull: true,
-    defaultValue: 'Morning'
-  }
 }, {
   tableName: 'receptionist',
   timestamps: false

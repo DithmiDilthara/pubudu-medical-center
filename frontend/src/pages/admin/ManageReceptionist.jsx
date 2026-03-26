@@ -29,6 +29,10 @@ const ManageReceptionist = () => {
   const [receptionists, setReceptionists] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(8);
   
   // Modal States
   const [showModal, setShowModal] = useState(false);
@@ -41,6 +45,11 @@ const ManageReceptionist = () => {
     fetchReceptionists();
   }, []);
 
+  // Reset pagination when search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
+
   const fetchReceptionists = async () => {
     try {
       setLoading(true);
@@ -51,11 +60,11 @@ const ManageReceptionist = () => {
         // Add mock receptionists if list is empty for demonstration as requested
         if (docs.length === 0) {
           docs = [
-            { receptionist_id: 'm1', full_name: 'Kumara Perera', shift: 'Morning', user: { email: 'kumara@pubudu.lk', contact_number: '0771234567', is_active: true } },
-            { receptionist_id: 'm2', full_name: 'Dileepa Silva', shift: 'Afternoon', user: { email: 'dileepa@pubudu.lk', contact_number: '0772345678', is_active: true } },
-            { receptionist_id: 'm3', full_name: 'Anula Wijesinghe', shift: 'Night', user: { email: 'anula@pubudu.lk', contact_number: '0773456789', is_active: true } },
-            { receptionist_id: 'm4', full_name: 'Sunil Rathnayake', shift: 'Full Day', user: { email: 'sunil@pubudu.lk', contact_number: '0774567890', is_active: false } },
-            { receptionist_id: 'm5', full_name: 'Manel Gunawardena', shift: 'Morning', user: { email: 'manel@pubudu.lk', contact_number: '0775678901', is_active: true } }
+            { receptionist_id: 'm1', full_name: 'Kumara Perera', user: { email: 'kumara@pubudu.lk', contact_number: '0771234567', is_active: true } },
+            { receptionist_id: 'm2', full_name: 'Dileepa Silva', user: { email: 'dileepa@pubudu.lk', contact_number: '0772345678', is_active: true } },
+            { receptionist_id: 'm3', full_name: 'Anula Wijesinghe', user: { email: 'anula@pubudu.lk', contact_number: '0773456789', is_active: true } },
+            { receptionist_id: 'm4', full_name: 'Sunil Rathnayake', user: { email: 'sunil@pubudu.lk', contact_number: '0774567890', is_active: false } },
+            { receptionist_id: 'm5', full_name: 'Manel Gunawardena', user: { email: 'manel@pubudu.lk', contact_number: '0775678901', is_active: true } }
           ];
         }
         setReceptionists(docs);
@@ -109,6 +118,14 @@ const ManageReceptionist = () => {
       return matchesSearch;
     });
   }, [receptionists, searchQuery]);
+
+  // Pagination logic
+  const paginatedReceptionists = filteredReceptionists.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  const totalPages = Math.ceil(filteredReceptionists.length / itemsPerPage);
 
   const getInitials = (name) => {
     return name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'RP';
@@ -199,7 +216,7 @@ const ManageReceptionist = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredReceptionists.map((rec, idx) => (
+                    {paginatedReceptionists.map((rec, idx) => (
                       <motion.tr 
                         key={rec.receptionist_id} 
                         initial={{ opacity: 0, x: -10 }}
@@ -265,6 +282,49 @@ const ManageReceptionist = () => {
                     ))}
                   </tbody>
                 </table>
+              </div>
+            )}
+            
+            {/* Pagination Controls */}
+            {!loading && filteredReceptionists.length > 0 && (
+              <div style={styles.paginationPanel}>
+                <div style={styles.paginationInfo}>
+                  Showing <span style={{fontWeight: '700'}}>{Math.min(filteredReceptionists.length, (currentPage - 1) * itemsPerPage + 1)}</span> to <span style={{fontWeight: '700'}}>{Math.min(filteredReceptionists.length, currentPage * itemsPerPage)}</span> of <span style={{fontWeight: '700'}}>{filteredReceptionists.length}</span> staff
+                </div>
+                <div style={styles.paginationControls}>
+                  <button 
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    style={{...styles.pageBtn, opacity: currentPage === 1 ? 0.5 : 1, cursor: currentPage === 1 ? 'not-allowed' : 'pointer'}}
+                  >
+                    Previous
+                  </button>
+                  
+                  <div style={styles.pageNumbers}>
+                      {[...Array(totalPages)].map((_, i) => (
+                          <button 
+                              key={i + 1}
+                              onClick={() => setCurrentPage(i + 1)}
+                              style={{
+                                  ...styles.pageNumber,
+                                  backgroundColor: currentPage === i + 1 ? '#2563eb' : 'white',
+                                  color: currentPage === i + 1 ? 'white' : '#475569',
+                                  borderColor: currentPage === i + 1 ? '#2563eb' : '#e2e8f0'
+                              }}
+                          >
+                              {i + 1}
+                          </button>
+                      ))}
+                  </div>
+
+                  <button 
+                    disabled={currentPage === totalPages}
+                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                    style={{...styles.pageBtn, opacity: currentPage === totalPages ? 0.5 : 1, cursor: currentPage === totalPages ? 'not-allowed' : 'pointer'}}
+                  >
+                    Next
+                  </button>
+                </div>
               </div>
             )}
           </div>
@@ -444,16 +504,6 @@ const styles = {
     margin: 0,
     marginTop: '2px'
   },
-  shiftBadge: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    padding: '6px 14px',
-    borderRadius: '10px',
-    fontSize: '13px',
-    fontWeight: '600',
-    backgroundColor: '#f1f5f9',
-    color: '#475569'
-  },
   contactInfo: {
     display: 'flex',
     flexDirection: 'column',
@@ -585,6 +635,51 @@ const styles = {
     color: '#64748b',
     cursor: 'pointer',
     transition: 'all 0.2s'
+  },
+  paginationPanel: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: "24px 32px",
+    backgroundColor: "white",
+    borderTop: "1px solid #f1f5f9"
+  },
+  paginationInfo: {
+    fontSize: "13px",
+    color: "#64748b",
+    fontWeight: "500"
+  },
+  paginationControls: {
+    display: "flex",
+    alignItems: "center",
+    gap: "12px"
+  },
+  pageNumbers: {
+    display: "flex",
+    gap: "6px"
+  },
+  pageBtn: {
+    padding: "8px 16px",
+    fontSize: "13px",
+    fontWeight: "600",
+    color: "#2563eb",
+    backgroundColor: "white",
+    border: "1px solid #e2e8f0",
+    borderRadius: "10px",
+    transition: "all 0.2s"
+  },
+  pageNumber: {
+    width: "36px",
+    height: "36px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "13px",
+    fontWeight: "600",
+    borderRadius: "10px",
+    border: "1px solid #e2e8f0",
+    cursor: "pointer",
+    transition: "all 0.2s"
   }
 };
 

@@ -11,140 +11,146 @@ class ReportGenerator {
     static async generateReportBuffer(type, data, params) {
         return new Promise((resolve, reject) => {
             try {
-                const doc = new PDFDocument({ margin: 50, size: 'A4' });
+                const doc = new PDFDocument({ margin: 50, size: 'A4', bufferPages: true });
                 let buffers = [];
                 doc.on('data', buffers.push.bind(buffers));
                 doc.on('end', () => resolve(Buffer.concat(buffers)));
 
                 const { startDate, endDate } = params;
-                const title = type.charAt(0).toUpperCase() + type.slice(1) + ' Report';
+                const margin = 50;
+                const contentWidth = doc.page.width - 2 * margin;
 
-                // --- Header & Branding ---
-                doc.fillColor('#2563eb')
-                   .fontSize(24)
-                   .text('Pubudu Medical Center', { align: 'left' })
-                   .fontSize(10)
-                   .fillColor('#64748b')
-                   .text('No 46, Matara road, Hakmana', { align: 'left' })
-                   .text('Phone: 071-8050917 / 0769659767', { align: 'left' })
-                   .moveDown();
+                // --- 1. HOSPITAL HEADER (from Payment Receipt) ---
+                const logoPath = '../frontend/src/assets/medical center logo.png';
+                const headerHeight = 75;
 
-                doc.strokeColor('#e2e8f0')
-                   .lineWidth(1)
-                   .moveTo(50, 105)
-                   .lineTo(550, 105)
-                   .stroke();
+                // Light blue bar background
+                doc.rect(0, 0, doc.page.width, headerHeight).fill('#60a5fa');
 
-                doc.moveDown(2);
+                // Circular Logo
+                const logoRadius = 25;
+                const logoX = margin;
+                const logoY = (headerHeight - 2 * logoRadius) / 2;
 
-                // --- Report Title & Period ---
-                doc.fillColor('#0f172a')
-                   .fontSize(18)
-                   .text(title, { align: 'center' })
-                   .fontSize(10)
-                   .fillColor('#64748b')
-                   .text(`Period: ${startDate || 'All Time'} to ${endDate || 'Present'}`, { align: 'center' })
-                   .moveDown(2);
-
-                // --- Summary Section ---
-                doc.fillColor('#0f172a').fontSize(14).text('Summary Statistics', 50);
-                doc.moveDown(0.5);
-                
-                const summaryY = doc.y;
-                doc.rect(50, summaryY, 500, 60).fillAndStroke('#f8fafc', '#e2e8f0');
-                
-                doc.fillColor('#64748b').fontSize(10);
-                if (type === 'revenue') {
-                    doc.text('Total Revenue', 70, summaryY + 15)
-                       .text('Total Appointments', 250, summaryY + 15)
-                       .text('LKR ' + (data.totalRevenue?.toLocaleString() || '0'), 70, summaryY + 35, { color: '#2563eb', fontSize: 14 })
-                       .text(data.appointmentCount?.toString() || '0', 250, summaryY + 35, { fontSize: 14 });
-                } else if (type === 'patients') {
-                    doc.text('Total Registrations', 70, summaryY + 15)
-                       .text('Online', 220, summaryY + 15)
-                       .text('Receptionist', 370, summaryY + 15)
-                       .text(data.summary?.total?.toString() || '0', 70, summaryY + 35, { fontSize: 14 })
-                       .text(data.summary?.online?.toString() || '0', 220, summaryY + 35, { fontSize: 14 })
-                       .text(data.summary?.receptionist?.toString() || '0', 370, summaryY + 35, { fontSize: 14 });
-                } else if (type === 'appointments') {
-                    doc.text('Total', 70, summaryY + 15)
-                       .text('Cancelled', 170, summaryY + 15)
-                       .text('Absent', 270, summaryY + 15)
-                       .text(data.summary?.total?.toString() || '0', 70, summaryY + 35, { fontSize: 14 })
-                       .text(data.summary?.cancelled?.toString() || '0', 170, summaryY + 35, { fontSize: 14 })
-                       .text(data.summary?.absent?.toString() || '0', 270, summaryY + 35, { fontSize: 14 });
+                try {
+                    doc.save()
+                       .circle(logoX + logoRadius, logoY + logoRadius, logoRadius)
+                       .clip()
+                       .image(logoPath, logoX, logoY, { width: 50, height: 50 })
+                       .restore();
+                } catch (logoErr) {
+                    console.log("Logo not found for report, skipping:", logoErr.message);
                 }
 
-                doc.moveDown(5);
-
-                // --- Data Table ---
-                doc.fillColor('#0f172a').fontSize(14).text('Detailed Records', 50);
-                doc.moveDown(1);
-
-                const tableTop = doc.y;
-                const colWidths = type === 'revenue' ? [120, 120, 100, 80] : 
-                                  type === 'patients' ? [130, 100, 100, 100] : 
-                                  [120, 120, 80, 80];
+                // Hospital Contact Info (Right Aligned)
+                doc.fillColor('#FFFFFF').fontSize(16).font('Helvetica-Bold');
+                doc.text('Pubudu Medical Center', margin + 60, logoY + 5);
                 
-                const headers = type === 'revenue' ? ['Patient', 'Doctor', 'Date', 'Fee (LKR)'] :
-                                type === 'patients' ? ['Name', 'NIC', 'Source', 'Contact'] :
-                                ['Patient', 'Doctor', 'Date', 'Status'];
+                doc.fontSize(9).font('Helvetica');
+                const contactX = doc.page.width - margin - 200;
+                doc.text('No 46, Matara Road, Hakmana', contactX, logoY + 5, { align: 'right', width: 200 })
+                   .text('071-8050917  /  076-9659767', contactX, logoY + 18, { align: 'right', width: 200 })
+                   .text('076-6880179', contactX, logoY + 31, { align: 'right', width: 200 });
 
-                // Draw Table Header
-                doc.rect(50, tableTop, 500, 25).fill('#eff6ff');
-                doc.fillColor('#1e40af').fontSize(10).font('Helvetica-Bold');
+                doc.moveDown(4);
+
+                // --- 2. REPORT TITLE ---
+                const title = type === 'revenue' ? 'REVENUE REPORT' : 
+                              type === 'patients' ? 'PATIENT REGISTRATION REPORT' : 
+                              'APPOINTMENT REPORT';
                 
-                let currentX = 60;
-                headers.forEach((h, i) => {
-                    doc.text(h, currentX, tableTop + 7);
-                    currentX += colWidths[i];
-                });
+                doc.fillColor('#1e40af').fontSize(18).font('Helvetica-Bold')
+                   .text(title, margin, 100, { align: 'center' });
 
-                // Draw Rows
-                doc.font('Helvetica').fillColor('#334155');
-                let currentY = tableTop + 25;
-                const records = data.appointments || data.patients || data.appointments; // Fix: patients has 'patients' key
+                const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+                doc.fillColor('#64748b').fontSize(10).font('Helvetica')
+                   .text(`Period: ${startDate} – ${endDate}  |  Generated: ${today}`, margin, 125, { align: 'center' });
 
-                (records || []).slice(0, 50).forEach((item, index) => {
-                    if (currentY > 700) {
-                        doc.addPage();
-                        currentY = 50;
-                    }
+                doc.strokeColor('#60a5fa').lineWidth(0.5).moveTo(margin, 145).lineTo(doc.page.width - margin, 145).stroke();
 
-                    if (index % 2 === 1) {
-                        doc.rect(50, currentY, 500, 20).fill('#f8fafc');
-                        doc.fillColor('#334155');
-                    }
+                doc.moveDown(3);
 
-                    let rowX = 60;
-                    if (type === 'revenue' || type === 'appointments') {
-                        doc.text(item.patient_name || item.patient || 'N/A', rowX, currentY + 5);
-                        rowX += colWidths[0];
-                        doc.text(item.doctor_name || item.doctor || 'N/A', rowX, currentY + 5);
-                        rowX += colWidths[1];
-                        doc.text(item.date || 'N/A', rowX, currentY + 5);
-                        rowX += colWidths[2];
-                        doc.text(type === 'revenue' ? (item.center_fee?.toFixed(2) || '0.00') : (item.status || 'N/A'), rowX, currentY + 5);
-                    } else if (type === 'patients') {
-                        doc.text(item.name || 'N/A', rowX, currentY + 5);
-                        rowX += colWidths[0];
-                        doc.text(item.nic || 'N/A', rowX, currentY + 5);
-                        rowX += colWidths[1];
-                        doc.text(item.source || 'N/A', rowX, currentY + 5);
-                        rowX += colWidths[2];
-                        doc.text(item.contact || 'N/A', rowX, currentY + 5);
-                    }
+                // --- 3. REVENUE SPECIFIC SECTIONS ---
+                if (type === 'revenue') {
+                    // KPI CARDS
+                    const cardY = 165;
+                    const cardWidth = (contentWidth - 20) / 2;
+                    const cardHeight = 60;
 
-                    currentY += 20;
-                });
+                    // Left Card: Total Revenue
+                    doc.rect(margin, cardY, cardWidth, cardHeight).fillAndStroke('#eff6ff', '#3b82f6');
+                    doc.fillColor('#64748b').fontSize(9).text('Total Revenue', margin + 15, cardY + 12);
+                    doc.fillColor('#1e40af').fontSize(16).font('Helvetica-Bold').text(`LKR ${data.totalRevenue?.toLocaleString() || '0.00'}`, margin + 15, cardY + 28);
 
-                // --- Footer ---
+                    // Right Card: Total Appointments
+                    doc.rect(margin + cardWidth + 20, cardY, cardWidth, cardHeight).fillAndStroke('#e0f2fe', '#3b82f6');
+                    doc.fillColor('#64748b').font('Helvetica').fontSize(9).text('Total Appointments', margin + cardWidth + 35, cardY + 12);
+                    doc.fillColor('#1e40af').fontSize(16).font('Helvetica-Bold').text(`${data.appointmentCount || '0'}`, margin + cardWidth + 35, cardY + 28);
+
+                    doc.moveDown(6);
+
+                    // REVENUE BY SPECIALISATION TABLE
+                    doc.fillColor('#1e40af').fontSize(12).text('REVENUE BY SPECIALISATION', margin);
+                    doc.moveDown(0.5);
+
+                    const tableY = doc.y;
+                    const tableCols = [140, 110, 70, 80, 100];
+                    const tableWidth = contentWidth;
+
+                    // Header
+                    doc.rect(margin, tableY, tableWidth, 25).fill('#3b82f6');
+                    doc.fillColor('#FFFFFF').fontSize(9).font('Helvetica-Bold');
+                    let curX = margin + 10;
+                    ['Doctor', 'Specialisation', 'Patients', 'Center Fee', 'Total Revenue'].forEach((h, i) => {
+                        doc.text(h, curX, tableY + 8, { width: tableCols[i] - 10, align: i > 2 ? 'right' : 'left' });
+                        curX += tableCols[i];
+                    });
+
+                    // Rows
+                    let curY = tableY + 25;
+                    const tableData = data.doctors || [];
+
+                    tableData.forEach((row, i) => {
+                        if (i % 2 === 1) doc.rect(margin, curY, tableWidth, 25).fill('#f8fafc');
+                        doc.fillColor('#1e293b').font('Helvetica').fontSize(9);
+                        
+                        let rX = margin + 10;
+                        doc.text(row.doctor_name, rX, curY + 8, { width: tableCols[0] - 10 });
+                        rX += tableCols[0];
+                        doc.text(row.specialisation, rX, curY + 8, { width: tableCols[1] - 10 });
+                        rX += tableCols[1];
+                        doc.text(row.patient_volume.toString(), rX, curY + 8, { width: tableCols[2] - 10, align: 'center' });
+                        rX += tableCols[2];
+                        doc.text(row.center_fee.toLocaleString(), rX, curY + 8, { width: tableCols[3] - 10, align: 'right' });
+                        rX += tableCols[3];
+                        doc.text(row.total_revenue.toLocaleString(), rX, curY + 8, { width: tableCols[4] - 10, align: 'right' });
+                        
+                        curY += 25;
+                    });
+
+                    // Grand Total Row
+                    doc.rect(margin, curY, tableWidth, 30).fill('#1e40af');
+                    doc.fillColor('#FFFFFF').font('Helvetica-Bold').fontSize(10);
+                    doc.text('GRAND TOTAL', margin + 10, curY + 10);
+                    doc.text(data.grandTotal?.volume.toString() || '0', margin + 10 + tableCols[0] + tableCols[1], curY + 10, { width: tableCols[2] - 10, align: 'center' });
+                    doc.text(`LKR ${data.grandTotal?.revenue.toLocaleString() || '0.00'}`, margin + 10 + tableCols[0] + tableCols[1] + tableCols[2] + tableCols[3], curY + 10, { width: tableCols[4] - 10, align: 'right' });
+
+                    doc.moveDown(4);
+
+                    // ANALYTICS CHART
+                    if (curY > 500) doc.addPage();
+                    this.drawRevenueChart(doc, data.doctors || []);
+                }
+
+                // --- 4. FOOTER ---
                 const pageCount = doc.bufferedPageRange().count;
                 for (let i = 0; i < pageCount; i++) {
                     doc.switchToPage(i);
-                    doc.fontSize(8).fillColor('#94a3b8')
-                       .text(`Page ${i + 1} of ${pageCount}`, 50, 780, { align: 'center' })
-                       .text(`Generated on ${new Date().toLocaleString()}`, 50, 792, { align: 'center' });
+                    const footerY = doc.page.height - 50;
+                    doc.strokeColor('#bfdbfe').lineWidth(0.5).moveTo(margin, footerY).lineTo(doc.page.width - margin, footerY).stroke();
+                    doc.fillColor('#94a3b8').fontSize(8).font('Helvetica')
+                       .text(`* Revenue calculated from Medical Center Fee only. | Period: ${startDate} – ${endDate}`, margin, footerY + 10, { align: 'left' })
+                       .text(`Page ${i + 1} of ${pageCount}`, margin, footerY + 10, { align: 'right' });
                 }
 
                 doc.end();
@@ -152,6 +158,54 @@ class ReportGenerator {
                 reject(err);
             }
         });
+    }
+
+    static drawRevenueChart(doc, doctors) {
+        const margin = 50;
+        const chartY = doc.y + 30;
+        const chartHeight = 150;
+        const chartWidth = doc.page.width - 2 * margin;
+
+        doc.fillColor('#1e40af').fontSize(12).font('Helvetica-Bold').text('Analytics – Revenue & Patient Volume by Doctor', margin, chartY - 20);
+
+        // Chart Background & Grid
+        doc.rect(margin, chartY, chartWidth, chartHeight).fill('#FFFFFF');
+        doc.strokeColor('#bfdbfe').dash(2, { space: 2 }).lineWidth(0.5);
+        for (let i = 0; i <= 5; i++) {
+            const h = chartY + (chartHeight / 5) * i;
+            doc.moveTo(margin, h).lineTo(margin + chartWidth, h).stroke();
+        }
+        doc.undash();
+
+        if (doctors.length === 0) return;
+
+        const maxRevenue = Math.max(...doctors.map(d => d.total_revenue), 1000);
+        const maxVolume = Math.max(...doctors.map(d => d.patient_volume), 10);
+        const barAreaWidth = chartWidth / doctors.length;
+        const barWidth = Math.min(barAreaWidth * 0.4, 25);
+
+        doctors.forEach((docData, i) => {
+            const x = margin + i * barAreaWidth + (barAreaWidth / 2);
+            
+            // Revenue Bar (Dark Blue)
+            const revHeight = (docData.total_revenue / maxRevenue) * chartHeight;
+            doc.fillColor('#3b82f6').rect(x - barWidth, chartY + chartHeight - revHeight, barWidth, revHeight).fill();
+            
+            // Volume Bar (Light Blue)
+            const volHeight = (docData.patient_volume / maxVolume) * chartHeight;
+            doc.fillColor('#93c5fd').rect(x, chartY + chartHeight - volHeight, barWidth, volHeight).fill();
+
+            // Labels
+            doc.fillColor('#1e293b').fontSize(7).font('Helvetica')
+               .text(docData.doctor_name.split(' ').pop(), x - barAreaWidth/2, chartY + chartHeight + 5, { width: barAreaWidth, align: 'center' });
+        });
+
+        // Legends
+        const legendY = chartY - 15;
+        doc.fillColor('#3b82f6').rect(doc.page.width - margin - 150, legendY, 10, 10).fill();
+        doc.fillColor('#1e40af').fontSize(8).text('Revenue', doc.page.width - margin - 135, legendY + 1);
+        doc.fillColor('#93c5fd').rect(doc.page.width - margin - 80, legendY, 10, 10).fill();
+        doc.fillColor('#1e40af').text('Volume', doc.page.width - margin - 65, legendY + 1);
     }
 }
 

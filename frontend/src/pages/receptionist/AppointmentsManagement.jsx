@@ -24,6 +24,10 @@ function AppointmentsManagement() {
     const [searchQuery, setSearchQuery] = useState("");
     const [statusFilter, setStatusFilter] = useState("ALL");
     
+    // Pagination
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage] = useState(10);
+    
     // Modals
     const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
     const [selectedAptForReschedule, setSelectedAptForReschedule] = useState(null);
@@ -69,8 +73,21 @@ function AppointmentsManagement() {
             const matchesStatus = statusFilter === "ALL" || apt.status === statusFilter;
             
             return matchesSearch && matchesStatus;
-        }).sort((a, b) => new Date(b.appointment_date) - new Date(a.appointment_date));
+        }).sort((a, b) => b.appointment_id - a.appointment_id);
     }, [appointments, searchQuery, statusFilter]);
+
+    // Reset pagination when filter changes
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchQuery, statusFilter]);
+
+    // Paginated appointments
+    const paginatedAppointments = useMemo(() => {
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        return filteredAppointments.slice(startIndex, startIndex + itemsPerPage);
+    }, [filteredAppointments, currentPage, itemsPerPage]);
+
+    const totalPages = Math.ceil(filteredAppointments.length / itemsPerPage);
 
     const handleCancelAppointment = (apt) => {
         setAptToCancel(apt);
@@ -255,8 +272,8 @@ function AppointmentsManagement() {
                                     <AnimatePresence>
                                         {isLoading ? (
                                             <tr><td colSpan="7" style={ui.emptyRow}>Loading...</td></tr>
-                                        ) : filteredAppointments.length > 0 ? (
-                                            filteredAppointments.map((apt) => (
+                                        ) : paginatedAppointments.length > 0 ? (
+                                            paginatedAppointments.map((apt) => (
                                                 <motion.tr 
                                                     key={apt.appointment_id}
                                                     layout
@@ -332,6 +349,49 @@ function AppointmentsManagement() {
                                 </tbody>
                             </table>
                         </div>
+                        
+                        {/* Pagination Footer */}
+                        {!isLoading && filteredAppointments.length > 0 && (
+                            <div style={ui.paginationFooter}>
+                                <div style={ui.paginationInfo}>
+                                    Showing <span style={{fontWeight: '700'}}>{Math.min(filteredAppointments.length, (currentPage - 1) * itemsPerPage + 1)}</span> to <span style={{fontWeight: '700'}}>{Math.min(filteredAppointments.length, currentPage * itemsPerPage)}</span> of <span style={{fontWeight: '700'}}>{filteredAppointments.length}</span> appointments
+                                </div>
+                                <div style={ui.paginationControls}>
+                                    <button 
+                                        disabled={currentPage === 1}
+                                        onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                        style={{...ui.pageBtn, opacity: currentPage === 1 ? 0.5 : 1, cursor: currentPage === 1 ? 'not-allowed' : 'pointer'}}
+                                    >
+                                        Previous
+                                    </button>
+                                    
+                                    <div style={ui.pageNumbers}>
+                                        {[...Array(totalPages)].map((_, i) => (
+                                            <button 
+                                                key={i + 1}
+                                                onClick={() => setCurrentPage(i + 1)}
+                                                style={{
+                                                    ...ui.pageNumber,
+                                                    backgroundColor: currentPage === i + 1 ? '#2563eb' : 'white',
+                                                    color: currentPage === i + 1 ? 'white' : '#475569',
+                                                    borderColor: currentPage === i + 1 ? '#2563eb' : '#e2e8f0'
+                                                }}
+                                            >
+                                                {i + 1}
+                                            </button>
+                                        ))}
+                                    </div>
+
+                                    <button 
+                                        disabled={currentPage === totalPages}
+                                        onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                        style={{...ui.pageBtn, opacity: currentPage === totalPages ? 0.5 : 1, cursor: currentPage === totalPages ? 'not-allowed' : 'pointer'}}
+                                    >
+                                        Next
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </motion.div>
                 </main>
             </motion.div>
@@ -731,6 +791,50 @@ const ui = {
         backgroundColor: "transparent",
         cursor: "pointer",
         color: "#94a3b8"
+    },
+    paginationFooter: {
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        padding: "20px 32px",
+        backgroundColor: "#f8fafc",
+        borderTop: "1px solid #e2e8f0"
+    },
+    paginationInfo: {
+        fontSize: "14px",
+        color: "#64748b"
+    },
+    paginationControls: {
+        display: "flex",
+        alignItems: "center",
+        gap: "12px"
+    },
+    pageNumbers: {
+        display: "flex",
+        gap: "6px"
+    },
+    pageBtn: {
+        padding: "8px 16px",
+        fontSize: "13px",
+        fontWeight: "600",
+        color: "#4f46e5",
+        backgroundColor: "white",
+        border: "1px solid #e2e8f0",
+        borderRadius: "8px",
+        transition: "all 0.2s"
+    },
+    pageNumber: {
+        width: "36px",
+        height: "36px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontSize: "13px",
+        fontWeight: "600",
+        borderRadius: "8px",
+        border: "1px solid #e2e8f0",
+        cursor: "pointer",
+        transition: "all 0.2s"
     }
 };
 

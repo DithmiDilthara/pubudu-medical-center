@@ -182,7 +182,7 @@ export const getAppointments = async (req, res) => {
         const appointments = await Appointment.findAll({
             where,
             include,
-            order: [['appointment_date', 'DESC'], ['appointment_id', 'ASC']]
+            order: [['appointment_id', 'DESC']]
         });
 
         res.status(200).json({ success: true, data: appointments });

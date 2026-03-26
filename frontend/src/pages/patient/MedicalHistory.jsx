@@ -277,6 +277,22 @@ const styles = {
         border: "1px solid #e2e8f0",
         boxShadow: "0 2px 4px rgba(0,0,0,0.02)"
     },
+    searchIcon: {
+        color: "#94a3b8",
+        fontSize: "20px",
+        marginRight: "12px",
+        flexShrink: 0
+    },
+    searchInput: {
+        border: "none",
+        outline: "none",
+        fontSize: "15px",
+        color: "#1e293b",
+        backgroundColor: "transparent",
+        width: "100%",
+        fontWeight: "500",
+        padding: "4px 0"
+    },
     recordsGrid: {
         display: "grid",
         gridTemplateColumns: "repeat(auto-fill, minmax(380px, 1fr))",

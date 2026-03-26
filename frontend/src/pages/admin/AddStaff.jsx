@@ -32,7 +32,6 @@ const AddStaff = () => {
         experience_years: '',
         consultation_fee: 1600, // Default 1000 + 600
         bio: '',
-        // Receptionist-specific
         shift: 'Morning'
     });
 
@@ -170,7 +169,6 @@ const AddStaff = () => {
                 dataToSubmit.bio = formData.bio;
             } else if (roleType === 'Receptionist') {
                 dataToSubmit.nic = formData.nic;
-                dataToSubmit.shift = formData.shift;
             }
 
             const result = await addStaff(dataToSubmit);
@@ -192,8 +190,7 @@ const AddStaff = () => {
                     qualification: '',
                     experience_years: '',
                     consultation_fee: 1600,
-                    bio: '',
-                    shift: 'Morning'
+                    bio: ''
                 });
             } else {
                 setError(result.error || 'Failed to create staff account');
@@ -592,27 +589,6 @@ const AddStaff = () => {
                                         {formErrors.nic && <p style={{ color: '#ef4444', fontSize: '12px', marginTop: '4px' }}>{formErrors.nic}</p>}
                                     </div>
 
-                                    <div style={{ marginBottom: '16px' }}>
-                                        <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>
-                                            Shift
-                                        </label>
-                                        <select
-                                            name="shift"
-                                            value={formData.shift}
-                                            onChange={handleInputChange}
-                                            style={{
-                                                width: '100%',
-                                                padding: '10px',
-                                                border: '1px solid #ddd',
-                                                borderRadius: '4px',
-                                                fontSize: '14px'
-                                            }}
-                                        >
-                                            <option value="Morning">Morning</option>
-                                            <option value="Evening">Evening</option>
-                                            <option value="Night">Night</option>
-                                        </select>
-                                    </div>
                                 </>
                             )}
 
@@ -650,8 +626,7 @@ const AddStaff = () => {
                                             qualification: '',
                                             experience_years: '',
                                             consultation_fee: '',
-                                            bio: '',
-                                            shift: 'Morning'
+                                            bio: ''
                                         });
                                         setError('');
                                         setSuccess('');

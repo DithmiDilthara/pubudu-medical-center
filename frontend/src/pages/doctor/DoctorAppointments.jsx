@@ -33,6 +33,10 @@ function DoctorAppointments() {
   const [doctorName, setDoctorName] = useState('Doctor');
   const [isLoading, setIsLoading] = useState(true);
 
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(5);
+
   // Fetch profile on mount
   useEffect(() => {
     const fetchProfile = async () => {
@@ -151,22 +155,38 @@ function DoctorAppointments() {
 
   const getFilteredAppointments = () => {
     let filtered = appointments.filter(apt => {
+        // Exclude Cancelled appointments entirely for the doctor
+        if (apt.status === 'CANCELLED') return false;
+
         const nameMatch = apt.patient?.full_name?.toLowerCase().includes(searchTerm.toLowerCase());
         const idMatch = apt.patient_id?.toString().includes(searchTerm);
         return nameMatch || idMatch;
     });
 
     if (activeTab === 'Today') {
-        return filtered.filter(apt => apt.appointment_date === todayDate);
+        return filtered.filter(apt => apt.appointment_date === todayDate && apt.status !== 'COMPLETED');
     } else if (activeTab === 'Upcoming') {
-        return filtered.filter(apt => apt.appointment_date > todayDate && apt.status !== 'CANCELLED');
+        return filtered.filter(apt => apt.appointment_date > todayDate && apt.status !== 'COMPLETED');
     } else if (activeTab === 'Past') {
-        return filtered.filter(apt => apt.appointment_date < todayDate || apt.status === 'COMPLETED' || apt.status === 'CANCELLED');
+        return filtered.filter(apt => apt.appointment_date < todayDate || apt.status === 'COMPLETED');
     }
     return filtered;
   };
 
   const filteredList = getFilteredAppointments();
+
+  // Reset pagination when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, activeTab]);
+
+  // Paginated list
+  const paginatedList = filteredList.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  const totalPages = Math.ceil(filteredList.length / itemsPerPage);
 
   return (
     <div style={styles.pageContainer}>
@@ -233,7 +253,7 @@ function DoctorAppointments() {
                             exit={{ opacity: 0, y: -10 }}
                             style={styles.aptList}
                         >
-                            {filteredList.map((apt) => (
+                            {paginatedList.map((apt) => (
                                 <div 
                                     key={apt.appointment_id} 
                                     onClick={() => setSelectedAppointment(apt)}
@@ -259,6 +279,49 @@ function DoctorAppointments() {
                         </div>
                     )}
                 </AnimatePresence>
+
+                {/* Pagination Controls */}
+                {!isLoading && filteredList.length > 0 && (
+                  <div style={styles.paginationPanel}>
+                    <div style={styles.paginationInfo}>
+                      Showing <span style={{fontWeight: '700'}}>{Math.min(filteredList.length, (currentPage - 1) * itemsPerPage + 1)}</span> to <span style={{fontWeight: '700'}}>{Math.min(filteredList.length, currentPage * itemsPerPage)}</span>
+                    </div>
+                    <div style={styles.paginationControls}>
+                      <button 
+                        disabled={currentPage === 1}
+                        onClick={(e) => { e.stopPropagation(); setCurrentPage(prev => Math.max(1, prev - 1)); }}
+                        style={{...styles.pageBtn, opacity: currentPage === 1 ? 0.5 : 1, cursor: currentPage === 1 ? 'not-allowed' : 'pointer'}}
+                      >
+                        Previous
+                      </button>
+                      
+                      <div style={styles.pageNumbers}>
+                          {[...Array(totalPages)].map((_, i) => (
+                              <button 
+                                  key={i + 1}
+                                  onClick={(e) => { e.stopPropagation(); setCurrentPage(i + 1); }}
+                                  style={{
+                                      ...styles.pageNumber,
+                                      backgroundColor: currentPage === i + 1 ? '#2563eb' : 'white',
+                                      color: currentPage === i + 1 ? 'white' : '#475569',
+                                      borderColor: currentPage === i + 1 ? '#2563eb' : '#e2e8f0'
+                                  }}
+                              >
+                                  {i + 1}
+                              </button>
+                          ))}
+                      </div>
+
+                      <button 
+                        disabled={currentPage === totalPages}
+                        onClick={(e) => { e.stopPropagation(); setCurrentPage(prev => Math.min(totalPages, prev + 1)); }}
+                        style={{...styles.pageBtn, opacity: currentPage === totalPages ? 0.5 : 1, cursor: currentPage === totalPages ? 'not-allowed' : 'pointer'}}
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -716,6 +779,54 @@ const styles = {
     fontSize: "16px",
     fontWeight: "600",
     color: "#94a3b8"
+  },
+  paginationPanel: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "12px",
+    marginTop: "24px",
+    padding: "16px",
+    backgroundColor: "white",
+    borderRadius: "20px",
+    border: "1px solid #e2e8f0"
+  },
+  paginationInfo: {
+    fontSize: "13px",
+    color: "#64748b",
+    textAlign: "center"
+  },
+  paginationControls: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "10px"
+  },
+  pageNumbers: {
+    display: "flex",
+    gap: "4px"
+  },
+  pageBtn: {
+    padding: "6px 12px",
+    fontSize: "12px",
+    fontWeight: "600",
+    color: "#2563eb",
+    backgroundColor: "white",
+    border: "1px solid #e2e8f0",
+    borderRadius: "8px",
+    transition: "all 0.2s"
+  },
+  pageNumber: {
+    width: "30px",
+    height: "30px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "12px",
+    fontWeight: "600",
+    borderRadius: "6px",
+    border: "1px solid #e2e8f0",
+    cursor: "pointer",
+    transition: "all 0.2s"
   }
 };
 
