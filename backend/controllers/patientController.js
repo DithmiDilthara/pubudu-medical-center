@@ -1,4 +1,5 @@
-import { Payment, Patient } from '../models/index.js';
+import { Payment, Patient, User } from '../models/index.js';
+import bcrypt from 'bcryptjs';
 
 /**
  * @desc    Create a new payment record
@@ -73,6 +74,83 @@ export const getTransactionHistory = async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Server error during transaction fetch',
+            error: error.message
+        });
+    }
+};
+/**
+ * @desc    Update patient personal details
+ * @route   PATCH /api/patient/update-details
+ * @access  Private (Patient)
+ */
+export const updatePatientDetails = async (req, res) => {
+    try {
+        const userId = req.user.user_id;
+        const { full_name, email, date_of_birth, gender, address } = req.body;
+
+        // Validation
+        if (date_of_birth) {
+            const dob = new Date(date_of_birth);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            if (dob > today) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Date of birth cannot be in the future'
+                });
+            }
+        }
+
+        if (email && !/\S+@\S+\.\S+/.test(email)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid email format'
+            });
+        }
+
+        if (gender && !['MALE', 'FEMALE', 'OTHER'].includes(gender)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid gender value'
+            });
+        }
+
+        const user = await User.findByPk(userId, {
+            include: [{ model: Patient, as: 'patient' }]
+        });
+
+        if (!user || !user.patient) {
+            return res.status(404).json({
+                success: false,
+                message: 'Patient profile not found'
+            });
+        }
+
+        // Update User fields
+        if (email) user.email = email;
+        await user.save();
+
+        // Update Patient fields
+        if (full_name) user.patient.full_name = full_name;
+        if (date_of_birth) user.patient.date_of_birth = date_of_birth;
+        if (gender) user.patient.gender = gender;
+        if (address) user.patient.address = address;
+        await user.patient.save();
+
+        res.status(200).json({
+            success: true,
+            message: 'Your details have been updated',
+            data: {
+                user_id: user.user_id,
+                email: user.email,
+                profile: user.patient
+            }
+        });
+    } catch (error) {
+        console.error('Update details error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server error during profile update',
             error: error.message
         });
     }

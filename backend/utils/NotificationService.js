@@ -117,7 +117,19 @@ class NotificationService {
     }
 
     static async sendPaymentSuccess(patientEmail, patientPhone, paymentDetails) {
-        const { patientName, amount, appointmentId, doctorName, date, time, appointmentNumber, transactionId, method } = paymentDetails;
+        const { 
+            patientName, 
+            doctorFee, 
+            centerFee, 
+            total,
+            appointmentId, 
+            doctorName, 
+            date, 
+            time, 
+            appointmentNumber, 
+            transactionId, 
+            method 
+        } = paymentDetails;
 
         // 1. Send Email with PDF Receipt
         if (patientEmail && process.env.EMAIL_USER) {
@@ -125,13 +137,16 @@ class NotificationService {
                 // Generate PDF Receipt
                 const pdfBuffer = await ReceiptGenerator.generateReceiptBuffer({
                     receiptNumber: `REC-${appointmentId}-${Date.now().toString().slice(-4)}`,
-                    date: new Date().toLocaleDateString(),
+                    date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' }),
+                    time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
                     patientName,
                     doctorName: doctorName || 'Medical Consultation',
                     appointmentDate: date || 'N/A',
                     timeSlot: time || 'N/A',
                     appointmentNumber: appointmentNumber || 'N/A',
-                    amount,
+                    doctorFee: doctorFee || 0,
+                    centerFee: centerFee || 0,
+                    total: total || (Number(doctorFee || 0) + Number(centerFee || 0)),
                     paymentMethod: method || 'Online',
                     transactionId
                 });
@@ -144,7 +159,7 @@ class NotificationService {
                         <div style="font-family: sans-serif; padding: 20px; color: #333;">
                             <h2 style="color: #059669;">Payment Successful & Appointment Confirmed</h2>
                             <p>Dear ${patientName},</p>
-                            <p>Your payment of <strong>LKR ${amount}</strong> has been received, and your appointment with <strong>${doctorName}</strong> has been successfully confirmed.</p>
+                            <p>Your payment of <strong>LKR ${total}</strong> has been received, and your appointment with <strong>${doctorName}</strong> has been successfully confirmed.</p>
                             
                             <div style="background: #f4f4f4; padding: 15px; border-radius: 8px; margin: 20px 0;">
                                 <p><strong>Doctor:</strong> ${doctorName}</p>

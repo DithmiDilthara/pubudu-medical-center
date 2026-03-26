@@ -45,6 +45,10 @@ const Patient = sequelize.define('patient', {
     type: DataTypes.ENUM('ONLINE', 'RECEPTIONIST'),
     allowNull: false,
     defaultValue: 'ONLINE'
+  },
+  is_verified: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false
   }
 }, {
   tableName: 'patient',

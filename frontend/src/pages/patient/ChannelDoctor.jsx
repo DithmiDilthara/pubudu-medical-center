@@ -159,7 +159,7 @@ const ChannelDoctor = () => {
                                 doctor: doctor,
                                 date: new Date(year, month, selectedDate),
                                 time: selectedTime,
-                                totalFee: Number(doctor.doctor_fee) + 200
+                                totalFee: Number(doctor.doctor_fee) + Number(doctor.center_fee || 600)
                             }
                         }
                     });
@@ -182,7 +182,7 @@ const ChannelDoctor = () => {
                     doctor: doctor,
                     date: new Date(year, month, selectedDate),
                     time: selectedTime,
-                    totalFee: Number(doctor.doctor_fee) + Number(doctor.center_fee || 200)
+                    totalFee: Number(doctor.doctor_fee) + Number(doctor.center_fee || 600)
                 }
             }
         });
@@ -507,7 +507,7 @@ const ChannelDoctor = () => {
                                                                 doctor: doctor,
                                                                 date: new Date(year, month, selectedDate),
                                                                 time: selectedTime,
-                                                                totalFee: Number(doctor.doctor_fee) + Number(doctor.center_fee || 200)
+                                                                totalFee: Number(doctor.doctor_fee) + Number(doctor.center_fee || 600)
                                                             }
                                                         }
                                                     })} 

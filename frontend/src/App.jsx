@@ -6,6 +6,8 @@ import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import Profile from './pages/Profile';
 import PatientRegistration from './pages/PatientRegistration';
+import OtpVerification from './pages/OtpVerification';
+import RegistrationSuccess from './pages/RegistrationSuccess';
 import PatientDashboard from './pages/patient/PatientDashboard';
 import FindDoctor from './pages/patient/FindDoctor';
 import DoctorDetails from './pages/patient/DoctorDetails';
@@ -15,6 +17,7 @@ import Appointments from './pages/patient/Appointments';
 import Payments from './pages/patient/Payments';
 import MedicalHistory from './pages/patient/MedicalHistory';
 import ChannelDoctor from './pages/patient/ChannelDoctor';
+
 import DoctorDashboard from './pages/doctor/DoctorDashboard';
 import DoctorAppointments from './pages/doctor/DoctorAppointments';
 import PatientDetailsDoctor from './pages/doctor/PatientDetailsDoctor';
@@ -44,6 +47,8 @@ function App() {
           <Route path="/reset-password/:token" element={<ResetPassword />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/register" element={<PatientRegistration />} />
+          <Route path="/register/verify" element={<OtpVerification />} />
+          <Route path="/register/success" element={<RegistrationSuccess />} />
           <Route path="/patient/dashboard" element={<PatientDashboard />} />
           <Route path="/patient/find-doctor" element={<FindDoctor />} />
           <Route path="/patient/doctor-details" element={<DoctorDetails />} />
@@ -53,6 +58,7 @@ function App() {
           <Route path="/patient/payments" element={<Payments />} />
           <Route path="/patient/medical-history" element={<MedicalHistory />} />
           <Route path="/patient/channel-doctor" element={<ChannelDoctor />} />
+
           <Route path="/doctor/dashboard" element={<DoctorDashboard />} />
           <Route path="/doctor/appointments" element={<DoctorAppointments />} />
           <Route path="/doctor/patient-details" element={<PatientDetailsDoctor />} />

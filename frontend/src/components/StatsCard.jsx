@@ -62,8 +62,23 @@ const StatsCard = ({ title, value, icon: Icon, gradient, shadow, delay = 0, tren
       </div>
 
       {/* Middle: Value */}
-      <div style={{ marginTop: '8px' }}>
+      <div style={{ marginTop: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
         <h3 style={{ fontSize: '28px', fontWeight: '800', margin: 0 }}>{value}</h3>
+        {onClick && (
+          <span style={{ 
+            fontSize: '11px', 
+            fontWeight: '600', 
+            opacity: 0.7, 
+            background: 'rgba(255, 255, 255, 0.2)',
+            padding: '4px 8px',
+            borderRadius: '8px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px'
+          }}>
+            View Breakdown
+          </span>
+        )}
       </div>
 
     </motion.div>

@@ -364,6 +364,10 @@ textarea:focus {
   grid-column: span 1;
 }
 
+.chart-span-3 {
+  grid-column: span 3;
+}
+
 @media (max-width: 1024px) {
   .dashboard-charts-grid {
     grid-template-columns: 1fr;

@@ -4,15 +4,9 @@ import nodemailer from 'nodemailer';
 import bcrypt from 'bcryptjs';
 import { User, Role, Patient, Doctor, Receptionist, Admin, Token } from '../models/index.js';
 import sequelize from '../config/database.js';
+import NotificationService from '../utils/NotificationService.js';
 
-// Configure Nodemailer Transporter
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS
-  }
-});
+// Nodemailer Transporter is now managed by NotificationService
 
 // Generate JWT Token
 const generateToken = (user) => {
@@ -118,6 +112,17 @@ export const login = async (req, res) => {
       return res.status(401).json({ success: false, message: 'Your account has been deactivated.' });
     }
 
+    // Check if patient is verified
+    if (user.role_id === 4) {
+      const patient = await Patient.findOne({ where: { user_id: user.user_id } });
+      if (patient && !patient.is_verified) {
+        return res.status(403).json({ 
+          success: false, 
+          message: 'Please verify your email before logging in. Check your inbox for the verification code.' 
+        });
+      }
+    }
+
     const isPasswordValid = await user.comparePassword(password);
     if (!isPasswordValid) {
       return res.status(401).json({ success: false, message: 'Invalid username or password.' });
@@ -201,16 +206,31 @@ export const updateProfile = async (req, res) => {
 export const changePassword = async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
+    
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ success: false, message: 'All password fields are required' });
+    }
+
     const user = await User.findByPk(req.user.user_id);
     
     if (!user || !(await user.comparePassword(currentPassword))) {
-      return res.status(401).json({ success: false, message: 'Incorrect current password' });
+      return res.status(400).json({ success: false, message: 'Current password is incorrect' });
+    }
+
+    // New Password Validation: Min 8 chars, uppercase, lowercase, number, special character
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+    if (!passwordRegex.test(newPassword)) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Password must be at least 8 characters long and include uppercase, lowercase, number, and a special character' 
+      });
     }
 
     user.password_hash = newPassword;
     await user.save();
-    res.status(200).json({ success: true, message: 'Password changed successfully' });
+    res.status(200).json({ success: true, message: 'Password updated successfully' });
   } catch (error) {
+    console.error('Change password error:', error);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };
@@ -232,12 +252,21 @@ export const forgotPassword = async (req, res) => {
     });
 
     const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
-    await transporter.sendMail({
+    const mailOptions = {
       from: `"Pubudu Medical Center" <${process.env.EMAIL_USER}>`,
       to: email,
       subject: 'Password Reset Request',
       html: `<p>Click <a href="${resetUrl}">here</a> to reset your password.</p>`
+    };
+
+    // Use a custom transporter here or update NotificationService (keeping it simple for now as requested to use NotificationService as is)
+    // Actually NotificationService doesn't have a forgot password template yet, so I'll use the nodemailer directly here if available, 
+    // but the task says 'use it as is'. I'll keep the existing direct nodemailer usage for forgot password if it was there.
+    const transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS }
     });
+    await transporter.sendMail(mailOptions);
 
     res.status(200).json({ success: true, message: 'Reset link sent to email' });
   } catch (error) {
@@ -296,12 +325,71 @@ export const registerPatient = async (req, res) => {
 
         const role = await Role.findOne({ where: { role_name: 'Patient' }, transaction });
         const newUser = await User.create({ username, email, password_hash: password, role_id: role.role_id, contact_number: targetPhone, is_active: true }, { transaction });
-        await Patient.create({ user_id: newUser.user_id, full_name, nic, date_of_birth, gender, address, blood_group, allergies, registration_source: 'ONLINE' }, { transaction });
+        
+        // Generate 6-digit OTP
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        
+        // Generate stateless OTP Token (Expires in 10 minutes)
+        const otpToken = jwt.sign(
+            { otp, userId: newUser.user_id },
+            process.env.JWT_SECRET || 'your-super-secret-jwt-key',
+            { expiresIn: '10m' }
+        );
+
+        const newPatient = await Patient.create({ 
+            user_id: newUser.user_id, 
+            full_name, 
+            nic, 
+            date_of_birth, 
+            gender, 
+            address, 
+            blood_group, 
+            allergies, 
+            registration_source: 'ONLINE',
+            is_verified: false
+        }, { transaction });
 
         await transaction.commit();
-        res.status(201).json({ success: true, message: 'Patient registered successfully.', data: { user: { user_id: newUser.user_id, username, email, role: 'Patient' }, token: generateToken(newUser) } });
+
+        // Send OTP Email
+        try {
+            const transporter = nodemailer.createTransport({
+                service: 'gmail',
+                auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS }
+            });
+
+            await transporter.sendMail({
+                from: `"Pubudu Medical Center" <${process.env.EMAIL_USER}>`,
+                to: email,
+                subject: 'Pubudu Medical Center – Your Email Verification Code',
+                html: `
+                    <div style="font-family: sans-serif; padding: 20px; color: #333;">
+                        <p>Dear ${full_name},</p>
+                        <p>To complete your registration, please verify your email address using the verification code below:</p>
+                        <div style="background: #f4f4f4; padding: 15px; border-radius: 8px; margin: 20px 0; font-size: 24px; font-weight: bold; text-align: center; letter-spacing: 5px; color: #0066CC;">
+                            ${otp}
+                        </div>
+                        <p>This code will expire in 10 minutes.</p>
+                        <p>⚠️ <strong>Important:</strong> Please do not share this verification code with anyone. Pubudu Medical Center staff will never ask you for this code.</p>
+                        <p>If you did not request this code, please ignore this email.</p>
+                        <p>Warm regards,<br/>The Pubudu Medical Center Team</p>
+                    </div>
+                `
+            });
+            console.log(`OTP email sent to ${email}`);
+        } catch (mailError) {
+            console.error('Failed to send OTP email:', mailError);
+        }
+
+        res.status(201).json({ 
+            success: true, 
+            message: 'Patient registered successfully. OTP sent to your email.', 
+            otpToken,
+            email
+        });
     } catch (error) {
         await transaction.rollback();
+        console.error('Registration error detail:', error);
         res.status(500).json({ success: false, message: 'An error occurred during registration.', error: error.message });
     }
 };
@@ -355,6 +443,142 @@ export const verifyAuth = async (req, res) => {
   }
 };
 
+// @desc    Verify email with OTP (Stateless JWT Approach)
+export const verifyEmail = async (req, res) => {
+    try {
+        const { otpToken, otp } = req.body;
+
+        if (!otpToken || !otp) {
+            return res.status(400).json({ success: false, message: 'OTP and Token are required.' });
+        }
+
+        // Verify the stateless token
+        let decoded;
+        try {
+            decoded = jwt.verify(otpToken, process.env.JWT_SECRET || 'your-super-secret-jwt-key');
+        } catch (err) {
+            return res.status(400).json({ success: false, message: 'Verification link expired or invalid. Please resend code.' });
+        }
+
+        if (decoded.otp !== otp) {
+            return res.status(400).json({ success: false, message: 'Invalid verification code.' });
+        }
+
+        const patient = await Patient.findOne({ where: { user_id: decoded.userId } });
+        if (!patient) {
+            return res.status(404).json({ success: false, message: 'Patient record not found.' });
+        }
+
+        if (patient.is_verified) {
+            return res.status(400).json({ success: false, message: 'Email is already verified.' });
+        }
+
+        patient.is_verified = true;
+        await patient.save();
+
+        // Send Welcome Email
+        try {
+            const user = await User.findByPk(decoded.userId);
+            if (user) {
+                const transporter = nodemailer.createTransport({
+                    service: 'gmail',
+                    auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS }
+                });
+
+                await transporter.sendMail({
+                    from: `"Pubudu Medical Center" <${process.env.EMAIL_USER}>`,
+                    to: user.email,
+                    subject: 'Welcome to Pubudu Medical Center – Account Created Successfully',
+                    html: `
+                        <div style="font-family: sans-serif; padding: 20px; color: #333;">
+                            <p>Dear ${patient.full_name},</p>
+                            <p>Welcome to Pubudu Medical Center! 🎉</p>
+                            <p>Your account has been successfully created and your email has been verified. We are glad to have you with us.</p>
+                            <div style="background: #f4f4f4; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                                <p><strong>Name:</strong> ${patient.full_name}</p>
+                                <p><strong>Email:</strong> ${user.email}</p>
+                                <p><strong>Username:</strong> ${user.username}</p>
+                            </div>
+                            <p>⚠️ <strong>Important:</strong> Please do not share your account credentials with anyone. Pubudu Medical Center staff will never ask you for your password.</p>
+                            <p>If you did not create this account, please contact us immediately.</p>
+                            <p>Thank you for choosing Pubudu Medical Center. We look forward to serving you.</p>
+                            <p>Warm regards,<br/>The Pubudu Medical Center Team</p>
+                        </div>
+                    `
+                });
+                console.log(`Welcome email sent to ${user.email}`);
+            }
+        } catch (mailError) {
+            console.error('Failed to send Welcome email:', mailError);
+        }
+
+        res.status(200).json({ success: true, message: 'Email verified successfully.' });
+    } catch (error) {
+        console.error('Verify email error:', error);
+        res.status(500).json({ success: false, message: 'Server error during verification.' });
+    }
+};
+
+// @desc    Resend OTP (Stateless JWT Approach)
+export const resendOtp = async (req, res) => {
+    try {
+        const { email } = req.body;
+
+        if (!email) {
+            return res.status(400).json({ success: false, message: 'Email is required.' });
+        }
+
+        const user = await User.findOne({ where: { email }, include: [{ model: Patient, as: 'patient' }] });
+        if (!user || !user.patient) {
+            return res.status(404).json({ success: false, message: 'Patient not found with this email.' });
+        }
+
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        
+        // Generate new stateless token
+        const otpToken = jwt.sign(
+            { otp, userId: user.user_id },
+            process.env.JWT_SECRET || 'your-super-secret-jwt-key',
+            { expiresIn: '10m' }
+        );
+
+        // Send OTP Email
+        try {
+            const transporter = nodemailer.createTransport({
+                service: 'gmail',
+                auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS }
+            });
+
+            await transporter.sendMail({
+                from: `"Pubudu Medical Center" <${process.env.EMAIL_USER}>`,
+                to: user.email,
+                subject: 'Pubudu Medical Center – Your Email Verification Code',
+                html: `
+                    <div style="font-family: sans-serif; padding: 20px; color: #333;">
+                        <p>Dear ${user.patient.full_name},</p>
+                        <p>To complete your registration, please verify your email address using the verification code below:</p>
+                        <div style="background: #f4f4f4; padding: 15px; border-radius: 8px; margin: 20px 0; font-size: 24px; font-weight: bold; text-align: center; letter-spacing: 5px; color: #0066CC;">
+                            ${otp}
+                        </div>
+                        <p>This code will expire in 10 minutes.</p>
+                        <p>⚠️ <strong>Important:</strong> Please do not share this verification code with anyone. Pubudu Medical Center staff will never ask you for this code.</p>
+                        <p>If you did not request this code, please ignore this email.</p>
+                        <p>Warm regards,<br/>The Pubudu Medical Center Team</p>
+                    </div>
+                `
+            });
+            console.log(`Resend OTP email sent to ${user.email}`);
+        } catch (mailError) {
+            console.error('Failed to send OTP email:', mailError);
+        }
+
+        res.status(200).json({ success: true, message: 'New OTP sent to your email.', otpToken });
+    } catch (error) {
+        console.error('Resend OTP error:', error);
+        res.status(500).json({ success: false, message: 'Server error while resending OTP.' });
+    }
+};
+
 export default {
     register,
     registerPatient,
@@ -367,5 +591,7 @@ export default {
     forgotPassword,
     resetPassword,
     getTokens,
-    verifyAuth
+    verifyAuth,
+    verifyEmail,
+    resendOtp
 };

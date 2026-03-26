@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FiArrowLeft, FiUser, FiPhone, FiMail, FiMapPin, 
   FiFileText, FiPlus, FiTrash2, FiCalendar, FiActivity,
-  FiDroplet, FiAlertCircle, FiChevronRight, FiX
+  FiDroplet, FiAlertCircle, FiChevronRight, FiX, FiEdit2, FiCheckCircle
 } from 'react-icons/fi';
 import { GiPill } from 'react-icons/gi';
 import DoctorHeader from '../../components/DoctorHeader';
@@ -27,6 +27,12 @@ function PatientDetailsDoctor() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [errorStatus, setErrorStatus] = useState(null);
+  const [appointmentStatus, setAppointmentStatus] = useState(null);
+
+  // Unified modal state
+  const [showMedicalHistoryModal, setShowMedicalHistoryModal] = useState(false);
+  const [editingRecord, setEditingRecord] = useState(null); // null = new, object = editing
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(null); // record_id to delete
 
   // Form states for Consultation
   const [consultationData, setConsultationData] = useState({
@@ -36,11 +42,17 @@ function PatientDetailsDoctor() {
     follow_up_date: ''
   });
 
-  // Modal states
-  const [showPrescriptionModal, setShowPrescriptionModal] = useState(false);
-  const [showDiagnosisModal, setShowDiagnosisModal] = useState(false);
-  const [showNoteModal, setShowNoteModal] = useState(false);
-  const [showFollowupModal, setShowFollowupModal] = useState(false);
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+
+  const resetForm = () => {
+    setConsultationData({
+      diagnosis: '',
+      prescription: [{ name: '', dosage: '', frequency: 'Once daily', duration: '', instructions: '' }],
+      notes: '',
+      follow_up_date: ''
+    });
+    setEditingRecord(null);
+  };
 
   useEffect(() => {
     const fetchAllData = async () => {
@@ -52,11 +64,10 @@ function PatientDetailsDoctor() {
       setErrorStatus(null);
       try {
         const token = localStorage.getItem('token');
-        const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
         // 1. Fetch Demographics
         try {
-          const profileRes = await axios.get(`${baseUrl}/doctors/patient/${patientId}`, {
+          const profileRes = await axios.get(`${API_URL}/doctors/patient/${patientId}`, {
             headers: { Authorization: `Bearer ${token}` }
           });
           if (profileRes.data.success) setPatientData(profileRes.data.data);
@@ -70,7 +81,7 @@ function PatientDetailsDoctor() {
         }
 
         // 2. Fetch Clinical History
-        const historyRes = await axios.get(`${baseUrl}/clinical/history/${patientId}`, {
+        const historyRes = await axios.get(`${API_URL}/clinical/history/${patientId}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         if (historyRes.data.success) {
@@ -108,6 +119,20 @@ function PatientDetailsDoctor() {
           setFollowups(allFollowups);
         }
 
+        // 3. Fetch appointment status if we have an appointment_id
+        if (appointment_id) {
+          try {
+            const aptRes = await axios.get(`${API_URL}/appointments/${appointment_id}`, {
+              headers: { Authorization: `Bearer ${token}` }
+            });
+            if (aptRes.data.success) {
+              setAppointmentStatus(aptRes.data.data.status);
+            }
+          } catch (e) {
+            // If we can't fetch the appointment, it's ok
+          }
+        }
+
       } catch (error) {
         console.error("Error fetching patient details:", error);
         setErrorStatus(error.response?.status || 500);
@@ -117,7 +142,7 @@ function PatientDetailsDoctor() {
     };
 
     fetchAllData();
-  }, [patientId]);
+  }, [patientId, appointment_id, API_URL]);
 
   const handleSaveConsultation = async () => {
     if (!consultationData.diagnosis && consultationData.prescription.every(p => !p.name)) {
@@ -128,41 +153,104 @@ function PatientDetailsDoctor() {
     setIsSaving(true);
     try {
       const token = localStorage.getItem('token');
-      const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
       const prescriptionString = consultationData.prescription
         .filter(p => p.name.trim())
         .map(p => `${p.name} (${p.dosage}) - ${p.frequency} for ${p.duration}. ${p.instructions}`.trim())
         .join('\n');
 
-      const payload = {
-        appointment_id,
-        patient_id: patientId,
-        diagnosis: consultationData.diagnosis,
-        notes: consultationData.notes,
-        prescription: prescriptionString,
-        follow_up_date: consultationData.follow_up_date || null
-      };
-
-      const response = await axios.post(`${baseUrl}/clinical/record`, payload, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-
-      if (response.data.success) {
-        alert("Consultation records saved successfully!");
-        setConsultationData({
-          diagnosis: '',
-          prescription: [{ name: '', dosage: '', frequency: 'Once daily', duration: '', instructions: '' }],
-          notes: '',
-          follow_up_date: ''
+      if (editingRecord) {
+        // UPDATE existing record
+        await axios.put(`${API_URL}/clinical/record/${editingRecord.record_id}`, {
+          diagnosis: consultationData.diagnosis,
+          notes: consultationData.notes,
+          prescription: prescriptionString,
+          follow_up_date: consultationData.follow_up_date || null
+        }, {
+          headers: { Authorization: `Bearer ${token}` }
         });
-        window.location.reload();
+        alert("Record updated successfully!");
+      } else {
+        // CREATE new record
+        const payload = {
+          appointment_id,
+          patient_id: patientId,
+          diagnosis: consultationData.diagnosis,
+          notes: consultationData.notes,
+          prescription: prescriptionString,
+          follow_up_date: consultationData.follow_up_date || null
+        };
+        await axios.post(`${API_URL}/clinical/record`, payload, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        alert("Consultation records saved successfully!");
       }
+
+      resetForm();
+      setShowMedicalHistoryModal(false);
+      window.location.reload();
     } catch (error) {
       console.error("Error saving consultation:", error);
-      alert("Failed to save consultation records.");
+      alert(error.response?.data?.message || "Failed to save consultation records.");
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleDeleteRecord = async (recordId) => {
+    try {
+      const token = localStorage.getItem('token');
+      await axios.delete(`${API_URL}/clinical/record/${recordId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      alert("Record deleted successfully!");
+      setShowDeleteConfirm(null);
+      window.location.reload();
+    } catch (error) {
+      console.error("Error deleting record:", error);
+      alert(error.response?.data?.message || "Failed to delete record.");
+    }
+  };
+
+  const handleEditRecord = (record) => {
+    // Parse the prescription string back into structured data
+    const prescLines = record.prescription 
+      ? record.prescription.split('\n').filter(l => l.trim()).map(line => {
+          const name = line.split('(')[0].trim();
+          const dosage = line.match(/\(([^)]+)\)/)?.[1] || '';
+          const freqMatch = line.match(/- (.+?) for/);
+          const frequency = freqMatch ? freqMatch[1].trim() : 'Once daily';
+          const durMatch = line.match(/for (.+?)\./);
+          const duration = durMatch ? durMatch[1].trim() : '';
+          const instrMatch = line.match(/\.\s*(.+)$/);
+          const instructions = instrMatch ? instrMatch[1].trim() : '';
+          return { name, dosage, frequency, duration, instructions };
+        })
+      : [{ name: '', dosage: '', frequency: 'Once daily', duration: '', instructions: '' }];
+
+    setConsultationData({
+      diagnosis: record.diagnosis || '',
+      prescription: prescLines,
+      notes: record.notes || '',
+      follow_up_date: record.follow_up_date || ''
+    });
+    setEditingRecord(record);
+    setShowMedicalHistoryModal(true);
+  };
+
+  const handleMarkComplete = async () => {
+    if (!appointment_id) return;
+    try {
+      const token = localStorage.getItem('token');
+      await axios.put(`${API_URL}/appointments/${appointment_id}/status`, 
+        { status: 'COMPLETED' },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      alert("Appointment marked as completed!");
+      setAppointmentStatus('COMPLETED');
+    } catch (error) {
+      console.error("Error marking complete:", error);
+      alert("Failed to mark appointment as complete.");
     }
   };
 
@@ -179,19 +267,17 @@ function PatientDetailsDoctor() {
     setConsultationData(prev => ({ ...prev, prescription: newPresc }));
   };
 
+  const openNewRecordModal = () => {
+    resetForm();
+    setShowMedicalHistoryModal(true);
+  };
+
   const tabs = [
     { id: 'history', label: 'Medical History', icon: <FiActivity /> },
     { id: 'prescriptions', label: 'Prescriptions', icon: <GiPill /> },
     { id: 'diagnosis', label: 'Diagnosis & Notes', icon: <FiFileText /> },
     { id: 'followups', label: 'Follow-ups', icon: <FiCalendar /> }
   ];
-
-  const getQuickActionStyle = (isActive) => ({
-    ...styles.actionBtnQuick,
-    backgroundColor: isActive ? '#2563EB' : '#EFF6FF',
-    color: isActive ? 'white' : '#2563EB',
-    borderColor: isActive ? '#1D4ED8' : 'transparent'
-  });
 
   if (isLoading) return <div style={styles.loading}>Loading Patient Data...</div>;
 
@@ -271,42 +357,8 @@ function PatientDetailsDoctor() {
               </div>
             </div>
             <div style={styles.headerRight}>
-              <div style={styles.headerActions}>
-                <button 
-                  onClick={() => setShowDiagnosisModal(true)} 
-                  style={getQuickActionStyle(consultationData.diagnosis)}
-                  className="quick-action-btn"
-                >
-                  <FiActivity /> Diagnosis
-                </button>
-                <button 
-                  onClick={() => setShowPrescriptionModal(true)} 
-                  style={getQuickActionStyle(consultationData.prescription.some(p => p.name))}
-                  className="quick-action-btn"
-                >
-                  <GiPill /> Prescription
-                </button>
-                <button 
-                  onClick={() => setShowNoteModal(true)} 
-                  style={getQuickActionStyle(consultationData.notes)}
-                  className="quick-action-btn"
-                >
-                  <FiFileText /> Notes
-                </button>
-                <button 
-                  onClick={() => setShowFollowupModal(true)} 
-                  style={getQuickActionStyle(consultationData.follow_up_date)}
-                  className="quick-action-btn"
-                >
-                  <FiCalendar /> Follow Up
-                </button>
-              </div>
-              <button 
-                onClick={handleSaveConsultation} 
-                style={styles.actionBtnBlue}
-                disabled={isSaving}
-              >
-                {isSaving ? 'Saving...' : 'Save Consultation'}
+              <button onClick={openNewRecordModal} style={styles.addHistoryBtn}>
+                <FiPlus /> Add Medical History
               </button>
             </div>
           </div>
@@ -354,9 +406,27 @@ function PatientDetailsDoctor() {
                         >
                           <div style={styles.timelineNode} />
                           <div style={styles.timelineCard}>
-                            <span style={styles.timelineDate}>
-                              {new Date(visit.record_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
-                            </span>
+                            <div style={styles.timelineCardHeader}>
+                              <span style={styles.timelineDate}>
+                                {new Date(visit.record_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                              </span>
+                              <div style={styles.recordActions}>
+                                <button 
+                                  onClick={() => handleEditRecord(visit)} 
+                                  style={styles.recordActionBtn}
+                                  title="Edit Record"
+                                >
+                                  <FiEdit2 size={14} /> Edit
+                                </button>
+                                <button 
+                                  onClick={() => setShowDeleteConfirm(visit.record_id)} 
+                                  style={styles.recordDeleteBtn}
+                                  title="Delete Record"
+                                >
+                                  <FiTrash2 size={14} /> Delete
+                                </button>
+                              </div>
+                            </div>
                             <h3 style={styles.timelineDiagnosis}>{visit.diagnosis}</h3>
                             <p style={styles.timelineNotes}>{visit.notes}</p>
                             {visit.prescription && (
@@ -364,10 +434,33 @@ function PatientDetailsDoctor() {
                                 <GiPill /> {visit.prescription.split('\n').map((l, i) => <div key={i}>{l}</div>)}
                               </div>
                             )}
+                            {visit.follow_up_date && (
+                              <div style={styles.timelineFollowup}>
+                                <FiCalendar /> Follow-up: {new Date(visit.follow_up_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                              </div>
+                            )}
                           </div>
                         </motion.div>
                       )) : <p style={styles.emptyState}>No past visits recorded.</p>}
                     </div>
+
+                    {/* Mark as Complete - bottom left of Medical History tab */}
+                    {appointment_id && appointmentStatus !== 'COMPLETED' && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        style={{ marginTop: '32px' }}
+                      >
+                        <button onClick={handleMarkComplete} style={styles.markCompleteBtn}>
+                          <FiCheckCircle size={18} /> Mark as Complete
+                        </button>
+                      </motion.div>
+                    )}
+                    {appointment_id && appointmentStatus === 'COMPLETED' && (
+                      <div style={styles.completedBadge}>
+                        <FiCheckCircle size={18} /> Appointment Completed
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -469,47 +562,57 @@ function PatientDetailsDoctor() {
         </main>
       </div>
 
+      {/* ======== Unified Add/Edit Medical History Modal ======== */}
       <AnimatePresence>
-        {(showPrescriptionModal || showDiagnosisModal || showNoteModal || showFollowupModal) && (
+        {showMedicalHistoryModal && (
           <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             style={styles.modalOverlay}
-            onClick={() => {
-              setShowPrescriptionModal(false);
-              setShowDiagnosisModal(false);
-              setShowNoteModal(false);
-              setShowFollowupModal(false);
-            }}
+            onClick={() => { setShowMedicalHistoryModal(false); resetForm(); }}
           >
             <motion.div 
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              style={{
-                ...styles.modalContainer,
-                maxWidth: showPrescriptionModal ? '800px' : '500px'
-              }}
+              style={styles.modalContainer}
               onClick={e => e.stopPropagation()}
             >
               <div style={styles.modalHeader}>
                 <h3 style={styles.modalTitle}>
-                  {showPrescriptionModal && 'Build Prescription'}
-                  {showDiagnosisModal && 'Add Diagnosis'}
-                  {showNoteModal && 'Add Medical Note'}
-                  {showFollowupModal && 'Schedule Follow-up'}
+                  {editingRecord ? 'Edit Medical Record' : 'Add Medical History'}
                 </h3>
-                <button onClick={() => {
-                   setShowPrescriptionModal(false);
-                   setShowDiagnosisModal(false);
-                   setShowNoteModal(false);
-                   setShowFollowupModal(false);
-                }} style={styles.closeBtn}><FiX /></button>
+                <button onClick={() => { setShowMedicalHistoryModal(false); resetForm(); }} style={styles.closeBtn}><FiX /></button>
               </div>
               
               <div style={styles.modalBody}>
-                {showPrescriptionModal && <div style={styles.form}>
+                {/* ---- Diagnosis Section ---- */}
+                <div style={styles.modalSection}>
+                  <div style={styles.modalSectionHeader}>
+                    <FiActivity style={{ color: '#2563EB', fontSize: '18px' }} />
+                    <h4 style={styles.modalSectionTitle}>Diagnosis</h4>
+                  </div>
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>Condition / Diagnosis</label>
+                    <input 
+                      type="text" 
+                      placeholder="e.g. Hypertension" 
+                      style={styles.formInput} 
+                      value={consultationData.diagnosis}
+                      onChange={(e) => setConsultationData(prev => ({ ...prev, diagnosis: e.target.value }))}
+                    />
+                  </div>
+                </div>
+
+                <div style={styles.modalDivider} />
+
+                {/* ---- Prescription Section ---- */}
+                <div style={styles.modalSection}>
+                  <div style={styles.modalSectionHeader}>
+                    <GiPill style={{ color: '#2563EB', fontSize: '18px' }} />
+                    <h4 style={styles.modalSectionTitle}>Prescription</h4>
+                  </div>
                   {consultationData.prescription.map((med, idx) => (
                     <div key={idx} style={styles.medicineEntry}>
                        <div style={styles.medicineHeader}>
@@ -603,35 +706,36 @@ function PatientDetailsDoctor() {
                   <button onClick={handleAddMedicine} style={styles.addMedBtn}>
                     <FiPlus /> Add Another Medicine
                   </button>
-                </div>}
+                </div>
 
-                {showNoteModal && <div style={styles.form}>
+                <div style={styles.modalDivider} />
+
+                {/* ---- Notes Section ---- */}
+                <div style={styles.modalSection}>
+                  <div style={styles.modalSectionHeader}>
+                    <FiFileText style={{ color: '#2563EB', fontSize: '18px' }} />
+                    <h4 style={styles.modalSectionTitle}>Notes</h4>
+                  </div>
                   <div style={styles.formGroup}>
                     <label style={styles.label}>Note Content</label>
                     <textarea 
-                      rows={8} 
+                      rows={5} 
                       placeholder="Type your patient notes here..." 
                       style={styles.formTextarea} 
                       value={consultationData.notes}
                       onChange={(e) => setConsultationData(prev => ({ ...prev, notes: e.target.value }))}
                     />
                   </div>
-                </div>}
+                </div>
 
-                {showDiagnosisModal && <div style={styles.form}>
-                   <div style={styles.formGroup}>
-                    <label style={styles.label}>Condition / Diagnosis</label>
-                    <input 
-                      type="text" 
-                      placeholder="e.g. Hypertension" 
-                      style={styles.formInput} 
-                      value={consultationData.diagnosis}
-                      onChange={(e) => setConsultationData(prev => ({ ...prev, diagnosis: e.target.value }))}
-                    />
+                <div style={styles.modalDivider} />
+
+                {/* ---- Follow Up Section ---- */}
+                <div style={styles.modalSection}>
+                  <div style={styles.modalSectionHeader}>
+                    <FiCalendar style={{ color: '#2563EB', fontSize: '18px' }} />
+                    <h4 style={styles.modalSectionTitle}>Follow Up</h4>
                   </div>
-                </div>}
-
-                {showFollowupModal && <div style={styles.form}>
                   <div style={styles.formGroup}>
                     <label style={styles.label}>Follow-up Date</label>
                     <input 
@@ -641,40 +745,54 @@ function PatientDetailsDoctor() {
                       onChange={(e) => setConsultationData(prev => ({ ...prev, follow_up_date: e.target.value }))}
                     />
                   </div>
-                </div>}
+                </div>
               </div>
 
               <div style={styles.modalFooter}>
-                <button onClick={() => {
-                   setShowPrescriptionModal(false);
-                   setShowDiagnosisModal(false);
-                   setShowNoteModal(false);
-                   setShowFollowupModal(false);
-                }} style={styles.secondaryBtn}>Close</button>
+                <button onClick={() => { setShowMedicalHistoryModal(false); resetForm(); }} style={styles.secondaryBtn}>Cancel</button>
                 <button 
-                  onClick={() => {
-                    setShowPrescriptionModal(false);
-                    setShowDiagnosisModal(false);
-                    setShowNoteModal(false);
-                    setShowFollowupModal(false);
-                  }} 
+                  onClick={handleSaveConsultation} 
                   style={styles.primaryBtn}
-                > Done </button>
+                  disabled={isSaving}
+                >
+                  {isSaving ? 'Saving...' : (editingRecord ? 'Update Record' : 'Save Consultation')}
+                </button>
               </div>
             </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      <style>{`
-        .quick-action-btn { transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
-        .quick-action-btn:hover {
-          background-color: #2563EB !important;
-          color: white !important;
-          transform: translateY(-2px);
-          box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
-        }
-      `}</style>
+      {/* ======== Delete Confirmation Modal ======== */}
+      <AnimatePresence>
+        {showDeleteConfirm && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            style={styles.modalOverlay}
+            onClick={() => setShowDeleteConfirm(null)}
+          >
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              style={styles.deleteConfirmModal}
+              onClick={e => e.stopPropagation()}
+            >
+              <div style={styles.deleteConfirmIcon}>
+                <FiAlertCircle size={32} color="#EF4444" />
+              </div>
+              <h3 style={styles.deleteConfirmTitle}>Delete Medical Record</h3>
+              <p style={styles.deleteConfirmText}>Are you sure you want to delete this record? This action cannot be undone.</p>
+              <div style={styles.deleteConfirmActions}>
+                <button onClick={() => setShowDeleteConfirm(null)} style={styles.secondaryBtn}>Cancel</button>
+                <button onClick={() => handleDeleteRecord(showDeleteConfirm)} style={styles.deleteBtnConfirm}>Delete Record</button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -697,26 +815,22 @@ const styles = {
   infoPill: { display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', color: '#1E293B', backgroundColor: '#F1F5F9', padding: '6px 14px', borderRadius: '100px', fontWeight: '700' },
   bloodPill: { display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', color: '#1E293B', backgroundColor: '#FEF2F2', padding: '6px 14px', borderRadius: '100px', fontWeight: '700' },
   allergiesPill: { display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', color: '#92400E', backgroundColor: '#FEF3C7', padding: '6px 14px', borderRadius: '100px', fontWeight: '700' },
-  headerActions: { display: 'flex', gap: '10px' },
-  actionBtnQuick: { display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 18px', borderRadius: '12px', border: '2px solid transparent', fontWeight: '700', cursor: 'pointer', fontSize: '0.875rem', transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)', fontFamily: "'Inter', sans-serif" },
+  
+  // Single "Add Medical History" button
+  addHistoryBtn: { 
+    display: 'flex', alignItems: 'center', gap: '10px', padding: '14px 28px', 
+    borderRadius: '14px', backgroundColor: '#2563EB', color: 'white', border: 'none', 
+    fontWeight: '700', cursor: 'pointer', fontSize: '0.95rem', 
+    boxShadow: '0 4px 14px 0 rgba(37, 99, 235, 0.39)', transition: 'all 0.2s', 
+    fontFamily: "'Inter', sans-serif" 
+  },
   actionBtnBlue: { display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 24px', borderRadius: '14px', backgroundColor: '#2563EB', color: 'white', border: 'none', fontWeight: '700', cursor: 'pointer', fontSize: '0.95rem', boxShadow: '0 4px 14px 0 rgba(37, 99, 235, 0.39)', transition: 'all 0.2s', fontFamily: "'Inter', sans-serif" },
   tabNav: { maxWidth: '1400px', margin: '0 auto', padding: '0 32px', display: 'flex', gap: '40px' },
   tabItem: { 
-    padding: '16px 0', 
-    fontSize: '0.9rem', 
-    fontWeight: '700', 
-    border: 'none', 
-    background: 'none', 
-    cursor: 'pointer', 
-    display: 'flex', 
-    alignItems: 'center', 
-    gap: '8px', 
-    position: 'relative', 
-    transition: 'color 0.2s', 
-    textTransform: 'uppercase', 
-    letterSpacing: '0.5px',
-    outline: 'none', // Remove ugly outline
-    fontFamily: "'Inter', sans-serif"
+    padding: '16px 0', fontSize: '0.9rem', fontWeight: '700', border: 'none', background: 'none', 
+    cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', position: 'relative', 
+    transition: 'color 0.2s', textTransform: 'uppercase', letterSpacing: '0.5px',
+    outline: 'none', fontFamily: "'Inter', sans-serif"
   },
   tabUnderline: { position: 'absolute', bottom: 0, left: 0, right: 0, height: '3px', backgroundColor: '#2563EB', borderRadius: '3px 3px 0 0' },
   tabContent: { backgroundColor: '#F8FAFC', minHeight: 'calc(100vh - 200px)', padding: '40px 0' },
@@ -724,14 +838,48 @@ const styles = {
   section: { display: 'flex', flexDirection: 'column', gap: '24px', fontFamily: "'Inter', sans-serif" },
   sectionHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' },
   sectionTitle: { fontSize: '1.25rem', fontWeight: '800', color: '#0F172A', margin: 0, fontFamily: "'Plus Jakarta Sans', sans-serif" },
+  
+  // Timeline
   timeline: { position: 'relative', paddingLeft: '32px', borderLeft: '2px solid #E2E8F0', marginLeft: '8px', display: 'flex', flexDirection: 'column', gap: '32px' },
   timelineItem: { position: 'relative' },
   timelineNode: { position: 'absolute', left: '-41px', top: '24px', width: '16px', height: '16px', borderRadius: '50%', backgroundColor: '#2563EB', border: '4px solid white', boxShadow: '0 0 0 2px #E0E7FF' },
   timelineCard: { backgroundColor: 'white', padding: '24px', borderRadius: '24px', border: '1px solid #F1F5F9', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' },
-  timelineDate: { fontSize: '0.9rem', color: '#2563EB', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.02em', display: 'block', marginBottom: '8px' },
+  timelineCardHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' },
+  timelineDate: { fontSize: '0.9rem', color: '#2563EB', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.02em' },
   timelineDiagnosis: { fontSize: '1.2rem', fontWeight: '800', color: '#0F172A', margin: '0 0 12px 0' },
   timelineNotes: { fontSize: '0.95rem', color: '#475569', lineHeight: 1.6, margin: 0 },
   timelinePresc: { marginTop: '16px', padding: '12px 20px', backgroundColor: '#F8FAFC', borderRadius: '14px', fontSize: '0.9rem', color: '#2563EB', display: 'flex', alignItems: 'center', gap: '12px', fontWeight: '600' },
+  timelineFollowup: { marginTop: '12px', padding: '10px 16px', backgroundColor: '#F0FDF4', borderRadius: '12px', fontSize: '0.85rem', color: '#059669', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '600' },
+  
+  // Edit/Delete buttons per record
+  recordActions: { display: 'flex', gap: '8px' },
+  recordActionBtn: { 
+    display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 14px', borderRadius: '10px', 
+    backgroundColor: '#EFF6FF', color: '#2563EB', border: '1px solid #DBEAFE', fontSize: '0.8rem', 
+    fontWeight: '700', cursor: 'pointer', transition: 'all 0.2s' 
+  },
+  recordDeleteBtn: { 
+    display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 14px', borderRadius: '10px', 
+    backgroundColor: '#FEF2F2', color: '#EF4444', border: '1px solid #FECACA', fontSize: '0.8rem', 
+    fontWeight: '700', cursor: 'pointer', transition: 'all 0.2s' 
+  },
+
+  // Mark as Complete
+  markCompleteBtn: {
+    display: 'flex', alignItems: 'center', gap: '10px', padding: '14px 28px',
+    borderRadius: '14px', backgroundColor: '#059669', color: 'white', border: 'none',
+    fontWeight: '700', cursor: 'pointer', fontSize: '0.95rem',
+    boxShadow: '0 4px 14px 0 rgba(5, 150, 105, 0.3)', transition: 'all 0.2s',
+    fontFamily: "'Inter', sans-serif"
+  },
+  completedBadge: {
+    display: 'flex', alignItems: 'center', gap: '10px', padding: '14px 28px',
+    borderRadius: '14px', backgroundColor: '#ECFDF5', color: '#059669', border: '1px solid #A7F3D0',
+    fontWeight: '700', fontSize: '0.95rem', marginTop: '32px', width: 'fit-content',
+    fontFamily: "'Inter', sans-serif"
+  },
+  
+  // Prescription/Diagnosis/Notes/Followup tab styles
   cardGrid: { display: 'flex', flexDirection: 'column', gap: '16px' },
   prescriptionCard: { backgroundColor: 'white', padding: '24px', borderRadius: '24px', display: 'flex', alignItems: 'center', gap: '24px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)', border: '1px solid #F1F5F9' },
   prescIcon: { width: '56px', height: '56px', borderRadius: '16px', backgroundColor: '#EFF6FF', color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center' },
@@ -761,32 +909,28 @@ const styles = {
   followupNotes: { fontSize: '0.9rem', color: '#64748B', marginTop: '4px', fontWeight: '500' },
   statusBadgeScheduled: { fontSize: '0.8rem', fontWeight: '800', padding: '6px 14px', borderRadius: '100px', backgroundColor: '#ECFDF5', color: '#059669', textTransform: 'uppercase' },
   emptyState: { 
-    textAlign: 'center', 
-    padding: '60px 40px', 
-    color: '#64748B', 
-    fontWeight: '500', 
-    fontSize: '1rem',
-    backgroundColor: 'white',
-    borderRadius: '24px',
-    border: '1px solid #E2E8F0',
-    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)',
-    margin: '20px 0',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: '160px'
+    textAlign: 'center', padding: '60px 40px', color: '#64748B', fontWeight: '500', fontSize: '1rem',
+    backgroundColor: 'white', borderRadius: '24px', border: '1px solid #E2E8F0',
+    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', margin: '20px 0',
+    display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '160px'
   },
+
+  // Modal styles
   modalOverlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.75)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '24px', fontFamily: "'Inter', sans-serif" },
-  modalContainer: { backgroundColor: 'white', borderRadius: '28px', width: '100%', maxHeight: '90vh', display: 'flex', flexDirection: 'column', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', border: '1px solid rgba(255,255,255,0.1)' },
+  modalContainer: { backgroundColor: 'white', borderRadius: '28px', width: '100%', maxWidth: '800px', maxHeight: '90vh', display: 'flex', flexDirection: 'column', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', border: '1px solid rgba(255,255,255,0.1)' },
   modalHeader: { padding: '24px 32px', borderBottom: '1px solid #F1F5F9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
   modalTitle: { fontSize: '1.5rem', fontWeight: '800', color: '#0F172A', margin: 0, letterSpacing: '-0.02em', fontFamily: "'Plus Jakarta Sans', sans-serif" },
   closeBtn: { backgroundColor: '#F1F5F9', border: 'none', borderRadius: '12px', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem', cursor: 'pointer', color: '#64748B', transition: 'all 0.2s' },
   modalBody: { padding: '32px', overflowY: 'auto', flex: 1 },
+  modalSection: { display: 'flex', flexDirection: 'column', gap: '16px' },
+  modalSectionHeader: { display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' },
+  modalSectionTitle: { fontSize: '1.05rem', fontWeight: '800', color: '#0F172A', margin: 0, fontFamily: "'Plus Jakarta Sans', sans-serif" },
+  modalDivider: { height: '1px', backgroundColor: '#F1F5F9', margin: '24px 0' },
   form: { display: 'flex', flexDirection: 'column', gap: '24px' },
   formGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' },
   formGroup: { display: 'flex', flexDirection: 'column', gap: '10px' },
   label: { fontSize: '0.9rem', fontWeight: '700', color: '#475569', marginLeft: '4px' },
-  formInput: { padding: '14px 18px', borderRadius: '14px', border: '1px solid #E2E8F0', fontSize: '1rem', outline: 'none', transition: 'all 0.2s', backgroundColor: '#F8FAFC', ':focus': { borderColor: '#2563EB', backgroundColor: 'white', boxShadow: '0 0 0 4px rgba(37, 99, 235, 0.1)' } },
+  formInput: { padding: '14px 18px', borderRadius: '14px', border: '1px solid #E2E8F0', fontSize: '1rem', outline: 'none', transition: 'all 0.2s', backgroundColor: '#F8FAFC' },
   formTextarea: { padding: '18px', borderRadius: '16px', border: '1px solid #E2E8F0', fontSize: '1rem', outline: 'none', resize: 'none', transition: 'all 0.2s', backgroundColor: '#F8FAFC', lineHeight: 1.6 },
   modalFooter: { padding: '24px 32px', borderTop: '1px solid #F1F5F9', display: 'flex', justifyContent: 'flex-end', gap: '12px' },
   primaryBtn: { padding: '12px 28px', borderRadius: '12px', backgroundColor: '#2563EB', color: 'white', border: 'none', fontWeight: '700', fontSize: '1rem', cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 4px 10px rgba(37, 99, 235, 0.2)' },
@@ -795,7 +939,15 @@ const styles = {
   medicineHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' },
   medTitle: { margin: 0, fontSize: '1.1rem', fontWeight: '800', color: '#0F172A' },
   removeMedBtn: { display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 12px', borderRadius: '10px', backgroundColor: '#FEF2F2', color: '#EF4444', border: 'none', fontSize: '0.85rem', fontWeight: '700', cursor: 'pointer' },
-  addMedBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', padding: '16px', borderRadius: '16px', border: '2px dashed #CBD5E1', backgroundColor: 'transparent', color: '#64748B', fontSize: '1rem', fontWeight: '700', cursor: 'pointer', transition: 'all 0.2s', ':hover': { borderColor: '#2563EB', color: '#2563EB', backgroundColor: '#EFF6FF' } }
+  addMedBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', padding: '16px', borderRadius: '16px', border: '2px dashed #CBD5E1', backgroundColor: 'transparent', color: '#64748B', fontSize: '1rem', fontWeight: '700', cursor: 'pointer', transition: 'all 0.2s' },
+
+  // Delete confirmation modal
+  deleteConfirmModal: { backgroundColor: 'white', borderRadius: '24px', padding: '40px', maxWidth: '420px', width: '100%', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' },
+  deleteConfirmIcon: { width: '64px', height: '64px', borderRadius: '50%', backgroundColor: '#FEF2F2', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  deleteConfirmTitle: { fontSize: '1.25rem', fontWeight: '800', color: '#0F172A', margin: 0 },
+  deleteConfirmText: { fontSize: '0.95rem', color: '#64748B', margin: 0, lineHeight: 1.6 },
+  deleteConfirmActions: { display: 'flex', gap: '12px', marginTop: '8px', width: '100%', justifyContent: 'center' },
+  deleteBtnConfirm: { padding: '12px 28px', borderRadius: '12px', backgroundColor: '#EF4444', color: 'white', border: 'none', fontWeight: '700', fontSize: '1rem', cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 4px 10px rgba(239, 68, 68, 0.2)' }
 };
 
 export default PatientDetailsDoctor;

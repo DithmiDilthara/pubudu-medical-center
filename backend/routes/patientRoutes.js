@@ -1,5 +1,9 @@
 import express from 'express';
-import { createPayment, getTransactionHistory } from '../controllers/patientController.js';
+import { 
+    createPayment, 
+    getTransactionHistory,
+    updatePatientDetails
+} from '../controllers/patientController.js';
 import { protect } from '../middleware/authMiddleware.js';
 import { isPatient } from '../middleware/roleMiddleware.js';
 
@@ -9,7 +13,10 @@ const router = express.Router();
 router.use(protect);
 router.use(isPatient);
 
-// Payment routes
+
+// Profile management
+router.patch('/update-details', updatePatientDetails);
+
 router.post('/payment', createPayment);
 router.get('/transactions', getTransactionHistory);
 

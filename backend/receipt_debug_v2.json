@@ -1,0 +1,15 @@
+{
+  "receiptNumber": "REC-44-7954",
+  "date": "26 March 2026",
+  "time": "02:41 PM",
+  "patientName": "Dithmi Dilthara",
+  "doctorName": "Dr. Kapila Witharana",
+  "appointmentDate": "2026-03-28",
+  "timeSlot": "05:00 PM - 08:00 PM",
+  "appointmentNumber": 2,
+  "doctorFee": 2500,
+  "centerFee": 600,
+  "total": 3100,
+  "paymentMethod": "PayHere",
+  "transactionId": "PH_VERIFY_1774516277952"
+}

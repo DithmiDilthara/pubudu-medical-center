@@ -1,0 +1,36 @@
+--- Recent Appointments ---
+Appointment ID: 35
+  Doctor: Dr. Kapila Witharana
+  Patient: Dithmi Dilthara
+  Status: PENDING
+  Payment Status: UNPAID
+  Calculated Total: 3100
+-------------------
+Appointment ID: 34
+  Doctor: Dr. Hiromel De Silva
+  Patient: sayumi manujana
+  Status: CANCELLED
+  Payment Status: UNPAID
+  Calculated Total: 2600
+-------------------
+Appointment ID: 33
+  Doctor: Dr. Kapila Witharana
+  Patient: sayumi manujana
+  Status: CANCELLED
+  Payment Status: UNPAID
+  Calculated Total: 3100
+-------------------
+Appointment ID: 32
+  Doctor: Dr. Hiromel De Silva
+  Patient: sayumi manujana
+  Status: CANCELLED
+  Payment Status: UNPAID
+  Calculated Total: 2600
+-------------------
+Appointment ID: 31
+  Doctor: Dr. R.P. Jayasinghe
+  Patient: sayumi manujana
+  Status: CANCELLED
+  Payment Status: UNPAID
+  Calculated Total: 2600
+-------------------

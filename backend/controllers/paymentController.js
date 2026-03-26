@@ -36,13 +36,23 @@ export const initiatePayment = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Appointment already paid' });
         }
 
-        const amount = appointment.doctor.session_fee || 3000.00;
+        const doctorFee = parseFloat(appointment.doctor.doctor_fee) || 0;
+        const centerFee = parseFloat(appointment.doctor.center_fee) || 600;
+        const amount = doctorFee + centerFee;
+        
         const merchantId = process.env.PAYHERE_MERCHANT_ID;
         const merchantSecret = process.env.PAYHERE_MERCHANT_SECRET;
         const currency = 'LKR';
         const orderId = `APT_${appointment.appointment_id}_${Date.now()}`;
 
         const hash = generateHash(merchantId, orderId, amount, currency, merchantSecret);
+
+        // Extract city from address or use sensible default
+        const address = appointment.patient.address || 'Not Provided';
+        const addressParts = address.split(',');
+        const city = addressParts.length > 1 ? addressParts[addressParts.length - 1].trim() : (address !== 'Not Provided' ? address : 'Colombo');
+
+        const doctorName = appointment.doctor.full_name.startsWith('Dr.') ? appointment.doctor.full_name : `Dr. ${appointment.doctor.full_name}`;
 
         const paymentData = {
             sandbox: process.env.PAYHERE_MODE === 'sandbox',
@@ -51,16 +61,16 @@ export const initiatePayment = async (req, res) => {
             cancel_url: `${process.env.FRONTEND_URL}/patient/appointments?payment=cancel`,
             notify_url: `${process.env.BACKEND_URL || 'http://localhost:3000'}/api/payments/notify`,
             order_id: orderId,
-            items: `Consultation with Dr. ${appointment.doctor.full_name}`,
-            amount: amount,
+            items: `Consultation with ${doctorName}`,
+            amount: amount.toFixed(2),
             currency: currency,
             hash: hash,
             first_name: appointment.patient.full_name.split(' ')[0],
             last_name: appointment.patient.full_name.split(' ').slice(1).join(' ') || 'Patient',
             email: appointment.patient.user.email,
-            phone: appointment.patient.user.contact_number || '0771234567',
-            address: appointment.patient.address || 'Colombo, Sri Lanka',
-            city: 'Colombo',
+            phone: appointment.patient.user.contact_number || '0000000000',
+            address: address,
+            city: city,
             country: 'Sri Lanka',
             custom_1: appointment.appointment_id.toString(),
             custom_2: appointment.patient_id.toString()
@@ -131,14 +141,16 @@ export const handleNotify = async (req, res) => {
                 try {
                     NotificationService.sendPaymentSuccess(appointment.patient?.user?.email, appointment.patient?.user?.contact_number, {
                         patientName: appointment.patient.full_name,
-                        amount: payhere_amount,
+                        doctorFee: Number(appointment.doctor?.doctor_fee) || 0,
+                        centerFee: Number(appointment.doctor?.center_fee) || 600,
+                        total: Number(payhere_amount) || (Number(appointment.doctor?.doctor_fee || 0) + Number(appointment.doctor?.center_fee || 600)),
                         appointmentId: appointment.appointment_id,
                         doctorName: appointment.doctor.full_name,
                         date: appointment.appointment_date,
                         time: appointment.time_slot,
                         appointmentNumber: appointment.appointment_number,
                         transactionId: payhere_payment_id,
-                        method: method || 'PayHere'
+                        method: (method?.toLowerCase().includes('payhere')) ? 'Online' : (method || 'Online')
                     });
                 } catch (notifyError) {
                     console.error('Notify webhook notification error:', notifyError);
@@ -190,11 +202,15 @@ export const verifyPayment = async (req, res) => {
             // Check if record exists
             const existingPayment = await Payment.findOne({ where: { appointment_id: appointment_id } });
             if (!existingPayment) {
+                const doctorFee = parseFloat(appointment.doctor.doctor_fee) || 0;
+                const centerFee = parseFloat(appointment.doctor.center_fee) || 600;
+                const amount = doctorFee + centerFee;
+
                 // Create Payment Record
                 await Payment.create({
                     patient_id: appointment.patient_id,
                     appointment_id: appointment_id,
-                    amount: appointment.doctor.session_fee || 3000.00,
+                    amount: amount,
                     payment_method: 'PayHere',
                     transaction_id: `PH_${Date.now()}`,
                     status: 'SUCCESS',
@@ -204,16 +220,25 @@ export const verifyPayment = async (req, res) => {
 
             // Send Confirmation Email safely
             try {
+                const doctorFee = parseFloat(appointment.doctor.doctor_fee) || 0;
+                const centerFee = parseFloat(appointment.doctor.center_fee) || 600;
+                const amount = doctorFee + centerFee;
+
+                const docFeeVal = Number(appointment.doctor?.doctor_fee) || 0;
+                const centerFeeVal = Number(appointment.doctor?.center_fee) || 600;
+
                 NotificationService.sendPaymentSuccess(appointment.patient?.user?.email, appointment.patient?.user?.contact_number, {
                     patientName: appointment.patient.full_name,
-                    amount: appointment.doctor.session_fee || 3000.00,
+                    doctorFee: docFeeVal,
+                    centerFee: centerFeeVal,
+                    total: docFeeVal + centerFeeVal,
                     appointmentId: appointment.appointment_id,
                     doctorName: appointment.doctor.full_name,
                     date: appointment.appointment_date,
                     time: appointment.time_slot,
                     appointmentNumber: appointment.appointment_number,
                     transactionId: `PH_VERIFY_${Date.now()}`,
-                    method: 'PayHere'
+                    method: 'Online'
                 });
             } catch (notifyError) {
                 console.error('Verify payment notification error:', notifyError);
@@ -259,21 +284,58 @@ export const downloadReceipt = async (req, res) => {
             }
         }
 
+        // Debug info
+        console.log("Appointment Doctor:", JSON.stringify(appointment.doctor, null, 2));
+        console.log("Appointment Payment:", JSON.stringify(appointment.payment, null, 2));
+
         if (appointment.payment_status !== 'PAID' || !appointment.payment) {
             return res.status(400).json({ success: false, message: 'No payment record found for this appointment' });
         }
 
+        // Format dates and times
+        const dateOptions = { day: '2-digit', month: 'long', year: 'numeric' };
+        const timeOptions = { hour: '2-digit', minute: '2-digit', hour12: true };
+        
+        const issueDateStr = new Intl.DateTimeFormat('en-GB', dateOptions).format(new Date());
+        const issueTimeStr = new Intl.DateTimeFormat('en-US', timeOptions).format(new Date());
+        const consultDateStr = new Intl.DateTimeFormat('en-GB', dateOptions).format(new Date(appointment.appointment_date));
+
+        // Get fixed fees with strict Number casting and defaults
+        const rawDoctorFee = appointment.doctor?.doctor_fee;
+        const rawCenterFee = appointment.doctor?.center_fee;
+        
+        const doctorFee = Number(rawDoctorFee) || 0;
+        const centerFee = Number(rawCenterFee) || 600;
+        const total = doctorFee + centerFee;
+
+        // Force 'Online' label for PayHere
+        const rawMethod = appointment.payment.payment_method || '';
+        const displayMethod = (rawMethod.toLowerCase().includes('payhere')) 
+            ? 'Online' 
+            : rawMethod;
+
+        console.log("Mapped Data for Receipt:", {
+            doctorFee,
+            centerFee,
+            total,
+            displayMethod,
+            issueTime: issueTimeStr
+        });
+
         // Generate PDF Buffer
         const pdfBuffer = await ReceiptGenerator.generateReceiptBuffer({
             receiptNumber: `REC-${appointment.appointment_id}-${appointment.payment.payment_id}`,
-            date: appointment.payment.created_at.toLocaleDateString(),
-            patientName: appointment.patient.full_name,
-            doctorName: appointment.doctor.full_name,
-            appointmentDate: appointment.appointment_date,
+            date: issueDateStr,
+            time: issueTimeStr,
+            patientName: appointment.patient?.full_name || 'N/A',
+            doctorName: appointment.doctor?.full_name || 'N/A',
+            appointmentDate: consultDateStr,
             timeSlot: appointment.time_slot,
-            appointmentNumber: appointment.appointment_number,
-            amount: appointment.payment.amount,
-            paymentMethod: appointment.payment.payment_method,
+            appointmentNumber: `Q-${appointment.appointment_number}`,
+            doctorFee: doctorFee,
+            centerFee: centerFee,
+            total: total,
+            paymentMethod: displayMethod,
             transactionId: appointment.payment.transaction_id
         });
 

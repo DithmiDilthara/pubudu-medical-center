@@ -461,15 +461,19 @@ function PatientRegistration() {
         allergies: formData.allergies || null
       };
 
-      // Call registration API directly without auto-login
-      const response = await axios.post(`${API_URL}/auth/register`, registrationData);
+      const response = await axios.post(`${API_URL}/auth/register-patient`, registrationData);
 
       if (response.data.success) {
-        setSuccessMessage("Registration successful! Redirecting to login page...");
+        setSuccessMessage("Registration successful! Redirecting to email verification...");
 
         setTimeout(() => {
-          navigate("/");
-        }, 2000);
+          navigate("/register/verify", { 
+            state: { 
+              otpToken: response.data.otpToken,
+              email: formData.email 
+            } 
+          });
+        }, 1500);
       } else {
         setGeneralError(response.data.message || "Registration failed. Please try again.");
       }

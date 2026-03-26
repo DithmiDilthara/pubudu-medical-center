@@ -8,7 +8,10 @@ import AdminSidebar from "../../components/AdminSidebar";
 import AdminHeader from "../../components/AdminHeader";
 import StatsCard from "../../components/StatsCard";
 import WeeklyAppointmentsChart from "../../components/WeeklyAppointmentsChart";
-import RevenueDonutChart from "../../components/RevenueDonutChart";
+import PatientRegistrationModal from "../../components/PatientRegistrationModal";
+import RevenueBreakdownModal from "../../components/RevenueBreakdownModal";
+import RevenueTrendChart from "../../components/RevenueTrendChart";
+import { FiDollarSign } from "react-icons/fi";
 
 function AdminDashboard() {
   const navigate = useNavigate();
@@ -20,6 +23,8 @@ function AdminDashboard() {
   });
   const [isLoading, setIsLoading] = useState(true);
   const [adminName, setAdminName] = useState('Admin');
+  const [isPatientModalOpen, setIsPatientModalOpen] = useState(false);
+  const [isRevenueModalOpen, setIsRevenueModalOpen] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -113,6 +118,16 @@ function AdminDashboard() {
                 gradient="linear-gradient(135deg, #f59e0b 0%, #d97706 100%)"
                 shadow="rgba(245, 158, 11, 0.25)"
                 delay={0.6}
+                onClick={() => setIsPatientModalOpen(true)}
+              />
+              <StatsCard 
+                icon={<FiDollarSign style={{ fontSize: '20px' }} />} 
+                title="Total Revenue" 
+                value={isLoading ? "..." : `LKR ${parseFloat(stats.totalRevenue || 0).toLocaleString()}`}
+                gradient="linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)"
+                shadow="rgba(99, 102, 241, 0.25)"
+                delay={0.7}
+                onClick={() => setIsRevenueModalOpen(true)}
               />
             </div>
           </motion.section>
@@ -163,16 +178,27 @@ function AdminDashboard() {
 
           <motion.section variants={itemVariants} style={styles.dashboardSection}>
             <div className="dashboard-charts-grid">
-              <div className="chart-span-2">
+              <div className="chart-span-3">
                 <WeeklyAppointmentsChart />
-              </div>
-              <div className="chart-span-1">
-                <RevenueDonutChart />
               </div>
             </div>
           </motion.section>
+
+          <motion.section variants={itemVariants} style={styles.dashboardSection}>
+            <RevenueTrendChart />
+          </motion.section>
         </main>
       </motion.div>
+
+      <PatientRegistrationModal 
+        isOpen={isPatientModalOpen} 
+        onClose={() => setIsPatientModalOpen(false)} 
+      />
+
+      <RevenueBreakdownModal
+        isOpen={isRevenueModalOpen}
+        onClose={() => setIsRevenueModalOpen(false)}
+      />
 
       <style>
         {`

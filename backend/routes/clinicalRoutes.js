@@ -1,6 +1,6 @@
 import express from 'express';
 import { setAvailability, getDoctorAvailability, deleteAvailability } from '../controllers/availabilityController.js';
-import { addMedicalRecord, getMedicalHistory } from '../controllers/clinicalController.js';
+import { addMedicalRecord, getMedicalHistory, updateMedicalRecord, deleteMedicalRecord } from '../controllers/clinicalController.js';
 import { protect } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
@@ -13,5 +13,7 @@ router.delete('/availability/:id', protect, deleteAvailability);
 // Clinical
 router.post('/record', protect, addMedicalRecord);
 router.get('/history/:patient_id', protect, getMedicalHistory);
+router.put('/record/:id', protect, updateMedicalRecord);
+router.delete('/record/:id', protect, deleteMedicalRecord);
 
 export default router;

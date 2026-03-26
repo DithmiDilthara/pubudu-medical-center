@@ -1,4 +1,5 @@
 import { MedicalRecord, Appointment, Patient, User, Doctor } from '../models/index.js';
+import { Op } from 'sequelize';
 import NotificationService from '../utils/NotificationService.js';
 
 /**
@@ -90,5 +91,69 @@ export const getMedicalHistory = async (req, res) => {
     } catch (error) {
         console.error('Get history error:', error);
         res.status(500).json({ success: false, message: 'Server error' });
+    }
+};
+
+/**
+ * @desc    Update a medical record
+ * @route   PUT /api/clinical/record/:id
+ * @access  Private (Doctor who created it)
+ */
+export const updateMedicalRecord = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { diagnosis, prescription, notes, follow_up_date } = req.body;
+        const userId = req.user.user_id;
+
+        const doctor = await Doctor.findOne({ where: { user_id: userId } });
+        if (!doctor) return res.status(404).json({ success: false, message: 'Doctor not found' });
+
+        const record = await MedicalRecord.findByPk(id);
+        if (!record) return res.status(404).json({ success: false, message: 'Record not found' });
+
+        if (record.doctor_id !== doctor.doctor_id) {
+            return res.status(403).json({ success: false, message: 'You can only edit your own records' });
+        }
+
+        await record.update({
+            diagnosis: diagnosis !== undefined ? diagnosis : record.diagnosis,
+            prescription: prescription !== undefined ? prescription : record.prescription,
+            notes: notes !== undefined ? notes : record.notes,
+            follow_up_date: follow_up_date !== undefined ? (follow_up_date || null) : record.follow_up_date
+        });
+
+        res.status(200).json({ success: true, message: 'Record updated', data: record });
+    } catch (error) {
+        console.error('Update medical record error:', error);
+        res.status(500).json({ success: false, message: 'Server error: ' + error.message });
+    }
+};
+
+/**
+ * @desc    Delete a medical record
+ * @route   DELETE /api/clinical/record/:id
+ * @access  Private (Doctor who created it)
+ */
+export const deleteMedicalRecord = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const userId = req.user.user_id;
+
+        const doctor = await Doctor.findOne({ where: { user_id: userId } });
+        if (!doctor) return res.status(404).json({ success: false, message: 'Doctor not found' });
+
+        const record = await MedicalRecord.findByPk(id);
+        if (!record) return res.status(404).json({ success: false, message: 'Record not found' });
+
+        if (record.doctor_id !== doctor.doctor_id) {
+            return res.status(403).json({ success: false, message: 'You can only delete your own records' });
+        }
+
+        await record.destroy();
+
+        res.status(200).json({ success: true, message: 'Record deleted' });
+    } catch (error) {
+        console.error('Delete medical record error:', error);
+        res.status(500).json({ success: false, message: 'Server error: ' + error.message });
     }
 };

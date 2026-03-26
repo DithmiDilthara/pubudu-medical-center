@@ -13,7 +13,8 @@ import {
   getPatientRegistrationReport,
   getAppointmentReport,
   exportReport,
-  getDashboardData
+  getDashboardData,
+  getPatientRegistrationStats
 } from '../controllers/adminController.js';
 import { protect } from '../middleware/authMiddleware.js';
 import { isAdmin } from '../middleware/roleMiddleware.js';
@@ -43,5 +44,6 @@ router.get('/reports/patients', getPatientRegistrationReport);
 router.get('/reports/appointments', getAppointmentReport);
 router.get('/reports/export/:type', exportReport);
 router.get('/dashboard-data', getDashboardData);
+router.get('/patient-registration-stats', getPatientRegistrationStats);
 
 export default router;

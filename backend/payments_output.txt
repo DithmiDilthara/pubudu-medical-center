@@ -1,0 +1,25 @@
+--- Recent Payments ---
+Payment ID: 4
+  Amount: 3000.00
+  Doctor: Dr. Lashan Sanoj
+  Method: PayHere
+  Status: SUCCESS
+-------------------
+Payment ID: 3
+  Amount: 3000.00
+  Doctor: Dr. Hiromel De Silva
+  Method: PayHere
+  Status: SUCCESS
+-------------------
+Payment ID: 2
+  Amount: 3000.00
+  Doctor: N/A
+  Method: PayHere
+  Status: SUCCESS
+-------------------
+Payment ID: 1
+  Amount: 3000.00
+  Doctor: N/A
+  Method: PayHere
+  Status: SUCCESS
+-------------------

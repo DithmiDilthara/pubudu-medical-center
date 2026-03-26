@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { FiAlertCircle, FiCheck, FiX, FiActivity, FiEye, FiEyeOff } from 'react-icons/fi';
 import { useAuth } from '../context/AuthContext';
 
@@ -7,7 +7,10 @@ import hospitalBg from '../assets/hospital_clear.png';
 
 const Login = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { login } = useAuth();
+  
+  const [successMessage, setSuccessMessage] = useState(location.state?.message || '');
 
   const [formData, setFormData] = useState({
     username: '',
@@ -154,6 +157,31 @@ const Login = () => {
         <div style={styles.formContainer}>
           <h2 style={styles.welcomeTitle}>Welcome to Pubudu Medical Center</h2>
           <p style={styles.welcomeSubtitle}>Please login to continue</p>
+
+          {successMessage && (
+            <div style={{
+              padding: '12px 16px',
+              backgroundColor: '#F0FDF4',
+              border: '1px solid #10B981',
+              borderRadius: '8px',
+              color: '#059669',
+              marginBottom: '20px',
+              fontSize: '14px',
+              fontWeight: '600',
+              display: 'flex',
+              alignItems: 'center',
+              animation: 'slideIn 0.3s ease-out'
+            }}>
+              <FiCheck style={{ marginRight: '8px' }} />
+              {successMessage}
+              <button 
+                onClick={() => setSuccessMessage('')}
+                style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: '#059669' }}
+              >
+                <FiX />
+              </button>
+            </div>
+          )}
 
           {generalError && (
             <div style={styles.generalError}>

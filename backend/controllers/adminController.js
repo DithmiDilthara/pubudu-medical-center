@@ -1,4 +1,4 @@
-import { User, Doctor, Receptionist, Admin, Appointment, Payment, Patient, sequelize } from '../models/index.js';
+import { User, Doctor, Receptionist, Admin, Appointment, Payment, Patient, Availability, MedicalRecord, sequelize } from '../models/index.js';
 import { Op } from 'sequelize';
 import ReportGenerator from '../utils/ReportGenerator.js';
 import NotificationService from '../utils/NotificationService.js';
@@ -10,12 +10,18 @@ import NotificationService from '../utils/NotificationService.js';
  */
 export const getSystemStats = async (req, res) => {
   try {
-    const [doctorCount, patientCount, receptionistCount, appointmentCount] = await Promise.all([
+    const [doctorCount, patientCount, receptionistCount, appointmentCount, paidAppointments] = await Promise.all([
       Doctor.count(),
       Patient.count(),
       Receptionist.count(),
-      Appointment.count()
+      Appointment.count(),
+      Appointment.findAll({
+        where: { payment_status: 'PAID' },
+        include: [{ model: Doctor, as: 'doctor', attributes: ['center_fee'] }]
+      })
     ]);
+
+    const totalRevenue = paidAppointments.reduce((sum, appt) => sum + parseFloat(appt.doctor?.center_fee || 0), 0);
 
     res.status(200).json({
       success: true,
@@ -23,7 +29,8 @@ export const getSystemStats = async (req, res) => {
         doctors: doctorCount,
         patients: patientCount,
         receptionists: receptionistCount,
-        appointments: appointmentCount
+        appointments: appointmentCount,
+        totalRevenue: totalRevenue
       }
     });
   } catch (error) {
@@ -534,10 +541,26 @@ export const deleteDoctor = async (req, res) => {
       });
     }
 
-    // Delete doctor record first to avoid FK constraint issues
+    // 1. Delete associated Medical Records
+    await MedicalRecord.destroy({ where: { doctor_id: id } });
+
+    // 2. Delete associated Payments and Appointments
+    // We need to find the appointments first to get their IDs for deleting payments
+    const appointments = await Appointment.findAll({ where: { doctor_id: id } });
+    const appointmentIds = appointments.map(a => a.appointment_id);
+
+    if (appointmentIds.length > 0) {
+      await Payment.destroy({ where: { appointment_id: { [Op.in]: appointmentIds } } });
+      await Appointment.destroy({ where: { appointment_id: { [Op.in]: appointmentIds } } });
+    }
+
+    // 3. Delete associated Availability (Schedules)
+    await Availability.destroy({ where: { doctor_id: id } });
+
+    // 4. Delete the Doctor record
     await Doctor.destroy({ where: { doctor_id: id } });
 
-    // Then delete the user
+    // 5. Delete the User record
     await User.destroy({ where: { user_id: doctor.user_id } });
 
     res.status(200).json({
@@ -777,6 +800,31 @@ export const deleteReceptionist = async (req, res) => {
     });
   }
 };
+/**
+ * @desc    Get Patient Registration Stats for Pie Chart
+ * @route   GET /api/admin/patient-registration-stats
+ * @access  Private/Admin
+ */
+export const getPatientRegistrationStats = async (req, res) => {
+  try {
+    const onlineCount = await Patient.count({ where: { registration_source: 'ONLINE' } });
+    const receptionistCount = await Patient.count({ where: { registration_source: 'RECEPTIONIST' } });
+    const totalCount = onlineCount + receptionistCount;
+
+    res.status(200).json({
+      success: true,
+      data: {
+        online: onlineCount,
+        receptionist: receptionistCount,
+        total: totalCount
+      }
+    });
+  } catch (error) {
+    console.error('Get patient registration stats error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
 // @desc    Get data specifically for the Admin Dashboard (Charts)
 // @route   GET /api/admin/dashboard-data
 // @access  Private/Admin
@@ -830,38 +878,37 @@ export const getDashboardData = async (req, res) => {
       startDate.setDate(startDate.getDate() - 7);
     }
 
-    const revenueData = await Appointment.findAll({
+    // 2. Revenue Trend based on Period
+    const revenueTrendData = await Appointment.findAll({
       where: {
         payment_status: 'PAID',
         appointment_date: { [Op.gte]: startDate.toISOString().split('T')[0] }
       },
-      include: [
-        {
-          model: Doctor,
-          as: 'doctor',
-          attributes: ['full_name', 'center_fee']
-        }
-      ]
+      include: [{ model: Doctor, as: 'doctor', attributes: ['full_name', 'center_fee'] }],
+      attributes: ['appointment_date', 'created_at'], 
+      raw: true,
+      nest: true
     });
 
-    // Group by Doctor
-    const doctorRevenueMap = {};
-    revenueData.forEach(appt => {
+    // Group by Doctor for the specified Period
+    const doctorMap = {};
+    revenueTrendData.forEach(appt => {
       const docName = appt.doctor?.full_name || 'Unknown';
-      const fee = parseFloat(appt.doctor?.center_fee || 0);
-      doctorRevenueMap[docName] = (doctorRevenueMap[docName] || 0) + fee;
+      if (!doctorMap[docName]) {
+        doctorMap[docName] = 0;
+      }
+      doctorMap[docName] += parseFloat(appt.doctor?.center_fee || 0);
     });
 
-    const revenueByDoctor = Object.entries(doctorRevenueMap).map(([name, value]) => ({
-      name,
-      value
-    }));
+    const revenueTrend = Object.entries(doctorMap)
+      .map(([name, revenue]) => ({ name, revenue }))
+      .sort((a, b) => b.revenue - a.revenue); // Sort by highest revenue
 
     res.status(200).json({
       success: true,
       data: {
         weeklyTrend,
-        revenueByDoctor
+        revenueTrend
       }
     });
 

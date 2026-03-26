@@ -20,7 +20,7 @@ function PatientHeader() {
       case "/patient/prescriptions":
       case "/patient/payments":
       case "/patient/medical-history":
-      case "/profile":
+      case "/patient/profile":
         return { 
           title: "", 
           subtitle: "" 
@@ -51,7 +51,7 @@ function PatientHeader() {
           Patient Portal
         </div>
 
-        <div style={styles.profileSection} onClick={() => navigate('/profile')}>
+        <div style={styles.profileSection} onClick={() => navigate('/patient/profile')}>
           <div style={styles.profileDetails}>
             <p style={styles.profileName}>{user?.profile?.full_name || "Patient"}</p>
           </div>
