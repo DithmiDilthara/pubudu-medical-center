@@ -8,7 +8,7 @@ import { Op } from 'sequelize';
  */
 export const setAvailability = async (req, res) => {
     try {
-        const { availability } = req.body; // Array of {day_of_week, start_time, end_time, session_name}
+        const { availability } = req.body; // Array of {day_of_week, start_time, end_time}
         const userId = req.user.user_id;
 
         const doctor = await Doctor.findOne({ where: { user_id: userId } });
@@ -49,10 +49,10 @@ export const setAvailability = async (req, res) => {
             }
 
             // Check specific date logic
-            if (slot.specific_date && slot.specific_date < todayStr) {
+            if (slot.schedule_date && slot.schedule_date < todayStr) {
                 return res.status(400).json({
                     success: false,
-                    message: `Cannot set availability for past date: ${slot.specific_date}`
+                    message: `Cannot set availability for past date: ${slot.schedule_date}`
                 });
             }
 
@@ -61,11 +61,11 @@ export const setAvailability = async (req, res) => {
                 doctor_id: doctor.doctor_id,
             };
 
-            if (slot.specific_date) {
-                whereClause.specific_date = slot.specific_date;
+            if (slot.schedule_date) {
+                whereClause.schedule_date = slot.schedule_date;
             } else if (slot.day_of_week) {
                 whereClause.day_of_week = slot.day_of_week;
-                whereClause.specific_date = null;
+                whereClause.schedule_date = null;
             }
 
             const existingSessions = await Availability.findAll({ where: whereClause });
@@ -85,10 +85,9 @@ export const setAvailability = async (req, res) => {
         const sessionsToCreate = availability.map(slot => {
             const data = {
                 ...slot,
-                doctor_id: doctor.doctor_id,
-                session_name: slot.session_name || 'Available'
+                doctor_id: doctor.doctor_id
             };
-            if (slot.day_of_week && !slot.specific_date) {
+            if (slot.day_of_week && !slot.schedule_date) {
                 const threeMonthsOut = new Date();
                 threeMonthsOut.setMonth(threeMonthsOut.getMonth() + 3);
                 data.end_date = threeMonthsOut;
@@ -129,7 +128,7 @@ export const deleteAvailability = async (req, res) => {
 
         const slot = await Availability.findOne({
             where: {
-                availability_id: id,
+                schedule_id: id,
                 doctor_id: doctor.doctor_id
             }
         });
@@ -137,8 +136,8 @@ export const deleteAvailability = async (req, res) => {
         if (!slot) return res.status(404).json({ success: false, message: 'Availability slot not found' });
 
         // Handle cancellation cascade if it was a confirmed/pending slot on that day
-        if (slot.specific_date) {
-            await cancelAffectedAppointments(doctor.doctor_id, { specific_date: [slot.specific_date] });
+        if (slot.schedule_date) {
+            await cancelAffectedAppointments(doctor.doctor_id, { schedule_date: [slot.schedule_date] });
         } else if (slot.day_of_week) {
             await cancelAffectedAppointments(doctor.doctor_id, { day_of_week: [slot.day_of_week] });
         }
@@ -173,7 +172,7 @@ export const getDoctorAvailability = async (req, res) => {
         await Availability.destroy({
             where: {
                 doctor_id,
-                specific_date: { [Op.lt]: todayStr }
+                schedule_date: { [Op.lt]: todayStr }
             }
         });
 
@@ -206,8 +205,8 @@ async function cancelAffectedAppointments(doctorId, filter) {
     });
 
     const toCancel = affected.filter(appt => {
-        if (filter.specific_date) {
-            return filter.specific_date.includes(appt.appointment_date);
+        if (filter.schedule_date) {
+            return filter.schedule_date.includes(appt.appointment_date);
         }
         if (filter.day_of_week) {
             const dateObj = new Date(appt.appointment_date);

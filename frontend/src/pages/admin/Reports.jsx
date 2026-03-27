@@ -22,12 +22,22 @@ import {
   Tooltip, 
   Legend, 
   ResponsiveContainer,
-  Cell
+  Cell,
+  PieChart,
+  Pie
 } from 'recharts';
+import { useRef } from "react";
 import AdminSidebar from "../../components/AdminSidebar";
 import AdminHeader from "../../components/AdminHeader";
 import { useAuth } from "../../context/AuthContext";
 import { toast } from "react-hot-toast";
+import { captureComponentAsBase64, getCircularBase64ImageFromURL } from '../../utils/pdfUtils';
+import pdfMake from "pdfmake/build/pdfmake";
+import * as pdfFonts from "pdfmake/build/vfs_fonts";
+import logo from "../../assets/medical center logo.png";
+
+// Initialize pdfMake fonts
+pdfMake.vfs = pdfFonts.pdfMake ? pdfFonts.pdfMake.vfs : pdfFonts.vfs;
 
 const Reports = () => {
   const navigate = useNavigate();
@@ -41,6 +51,10 @@ const Reports = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [reportData, setReportData] = useState(null);
+  
+  // Chart Refs for PDF capture
+  const barChartRef = useRef(null);
+  const pieChartRef = useRef(null);
 
   const handleGenerateReport = async () => {
     if (!startDate || !endDate) {
@@ -71,6 +85,12 @@ const Reports = () => {
 
   const handleExportPDF = async () => {
     if (!reportData) return;
+    
+    if (reportType === 'appointments') {
+      await generateAppointmentsPDF();
+      return;
+    }
+
     setIsExporting(true);
     try {
       const response = await api.get(`/admin/reports/export/${reportType}`, {
@@ -89,6 +109,237 @@ const Reports = () => {
     } catch (error) {
       console.error("Export error:", error);
       toast.error("Failed to export PDF");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const generateAppointmentsPDF = async () => {
+    setIsExporting(true);
+    try {
+      // 1. Prepare Base64 Assets
+      const logoImg = await getCircularBase64ImageFromURL(logo);
+      
+      // Wait a moment for charts to be fully rendered and animations to settle
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      const barChartImg = await captureComponentAsBase64(barChartRef.current);
+      const pieChartImg = await captureComponentAsBase64(pieChartRef.current);
+
+      const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+      
+      // 2. Define colors from palette
+      const colors = {
+        headerBg: '#60a5fa',
+        titleBlue: '#1e40af',
+        bodyText: '#1e293b',
+        labelGray: '#64748b',
+        tableHeader: '#3b82f6',
+        borderBlue: '#bfdbfe',
+        altRow: '#f8fafc',
+        completed: '#177b49',
+        cancelled: '#c4352d',
+        noshow: '#e67e1d',
+        pending: '#2a7ebc',
+        totalStats: '#0e7b90'
+      };
+
+      // 3. Construct pdfmake definition
+      const docDefinition = {
+        pageSize: 'A4',
+        pageMargins: [40, 40, 40, 60],
+        content: [
+          // --- Branded Header ---
+          {
+            table: {
+              widths: ['*'],
+              body: [[
+                {
+                  fillColor: colors.headerBg,
+                  columns: [
+                    {
+                      image: logoImg,
+                      width: 45,
+                      margin: [10, 10, 0, 10],
+                    },
+                    {
+                      stack: [
+                        { text: 'Pubudu Medical Center', style: 'hospitalName', margin: [10, 15, 0, 0] },
+                      ],
+                      width: '*'
+                    },
+                    {
+                      stack: [
+                        { text: 'No 46, Matara Road, Hakmana', style: 'contactInfo' },
+                        { text: '071-8050917 / 076-9659767 / 076-6880179', style: 'contactInfo' },
+                      ],
+                      width: 'auto',
+                      margin: [0, 15, 10, 0]
+                    }
+                  ],
+                  border: [false, false, false, false]
+                }
+              ]]
+            },
+            layout: 'noBorders',
+            margin: [-40, -40, -40, 30]
+          },
+
+          // --- Title Section ---
+          { text: 'APPOINTMENTS REPORT', style: 'title' },
+          { text: `Period: ${startDate} – ${endDate}  |  Generated: ${today}`, style: 'subtitle' },
+          { canvas: [{ type: 'line', x1: 0, y1: 5, x2: 515, y2: 5, lineWidth: 0.5, lineColor: colors.headerBg }], margin: [0, 5, 0, 20] },
+
+          // --- KPI Cards (Refactored to Table for reliable Background Rendering) ---
+          {
+            table: {
+              widths: ['20%', '20%', '20%', '20%', '20%'],
+              body: [[
+                {
+                  stack: [
+                    { text: 'TOTAL APPOINTMENTS', style: 'kpiLabel' },
+                    { text: reportData.totalAppointments.toString(), style: 'kpiValue' }
+                  ],
+                  fillColor: colors.totalStats,
+                  border: [false, false, true, false],
+                  borderColor: ['white', 'white', 'white', 'white']
+                },
+                {
+                  stack: [
+                    { text: 'COMPLETED', style: 'kpiLabel' },
+                    { text: reportData.totalCompleted.toString(), style: 'kpiValue' }
+                  ],
+                  fillColor: colors.completed,
+                  border: [false, false, true, false],
+                  borderColor: ['white', 'white', 'white', 'white']
+                },
+                {
+                  stack: [
+                    { text: 'CANCELLED', style: 'kpiLabel' },
+                    { text: reportData.totalCancelled.toString(), style: 'kpiValue' }
+                  ],
+                  fillColor: colors.cancelled,
+                  border: [false, false, true, false],
+                  borderColor: ['white', 'white', 'white', 'white']
+                },
+                {
+                  stack: [
+                    { text: 'NO-SHOW (ABSENT)', style: 'kpiLabel' },
+                    { text: reportData.totalNoShow.toString(), style: 'kpiValue' }
+                  ],
+                  fillColor: colors.noshow,
+                  border: [false, false, true, false],
+                  borderColor: ['white', 'white', 'white', 'white']
+                },
+                {
+                  stack: [
+                    { text: 'PENDING', style: 'kpiLabel' },
+                    { text: reportData.totalPending.toString(), style: 'kpiValue' }
+                  ],
+                  fillColor: colors.pending,
+                  border: [false, false, false, false]
+                }
+              ]]
+            },
+            margin: [0, 0, 0, 25]
+          },
+
+          // --- Detailed Table ---
+          { text: 'APPOINTMENTS BY DOCTOR BREAKDOWN', style: 'sectionTitle' },
+          {
+            table: {
+              headerRows: 1,
+              widths: ['*', '*', 50, 60, 60, 50],
+              body: [
+                [
+                  { text: 'DOCTOR', style: 'tableHeader' },
+                  { text: 'SPECIALISATION', style: 'tableHeader' },
+                  { text: 'TOTAL', style: 'tableHeader', alignment: 'center' },
+                  { text: 'COMPLETED', style: 'tableHeader', alignment: 'center' },
+                  { text: 'CANCELLED', style: 'tableHeader', alignment: 'center' },
+                  { text: 'NO-SHOW', style: 'tableHeader', alignment: 'center' }
+                ],
+                ...reportData.doctors.map((doc, i) => [
+                  { text: doc.doctor_name, style: 'tableCell', fillColor: i % 2 === 0 ? '#fff' : colors.altRow },
+                  { text: doc.specialisation, style: 'tableCell', fillColor: i % 2 === 0 ? '#fff' : colors.altRow },
+                  { text: doc.total.toString(), style: 'tableCell', alignment: 'center', fillColor: i % 2 === 0 ? '#fff' : colors.altRow },
+                  { text: doc.completed.toString(), style: 'tableCell', alignment: 'center', bold: true, color: colors.completed, fillColor: i % 2 === 0 ? '#fff' : colors.altRow },
+                  { text: doc.cancelled.toString(), style: 'tableCell', alignment: 'center', bold: true, color: colors.cancelled, fillColor: i % 2 === 0 ? '#fff' : colors.altRow },
+                  { text: doc.noshow.toString(), style: 'tableCell', alignment: 'center', bold: true, color: colors.noshow, fillColor: i % 2 === 0 ? '#fff' : colors.altRow }
+                ]),
+                // Total Row
+                [
+                  { text: 'GRAND TOTAL', style: 'tableFooter', colSpan: 2 },
+                  {},
+                  { text: reportData.totalAppointments.toString(), style: 'tableFooter', alignment: 'center' },
+                  { text: reportData.totalCompleted.toString(), style: 'tableFooter', alignment: 'center' },
+                  { text: reportData.totalCancelled.toString(), style: 'tableFooter', alignment: 'center' },
+                  { text: reportData.totalNoShow.toString(), style: 'tableFooter', alignment: 'center' }
+                ]
+              ]
+            },
+            layout: {
+              hLineWidth: (i, node) => 0.5,
+              vLineWidth: (i, node) => 0.5,
+              hLineColor: (i, node) => colors.borderBlue,
+              vLineColor: (i, node) => colors.borderBlue,
+              paddingLeft: (i) => 8,
+              paddingRight: (i) => 8,
+              paddingTop: (i) => 6,
+              paddingBottom: (i) => 6
+            },
+            margin: [0, 0, 0, 30]
+          },
+
+          // --- Analytics Section (Reordered to Vertical Stack) ---
+          { text: 'ANALYTICS VISUALIZATION', style: 'sectionTitle', pageBreak: 'before' },
+          {
+            stack: [
+              { text: 'Appointment Volume by Doctor', style: 'chartTitle', alignment: 'center', margin: [0, 0, 0, 10] },
+              { image: barChartImg, width: 480, alignment: 'center', margin: [0, 0, 0, 30] },
+              
+              { text: 'Appointment Status Breakdown', style: 'chartTitle', alignment: 'center', margin: [0, 0, 0, 10] },
+              { image: pieChartImg, width: 280, alignment: 'center' }
+            ],
+            margin: [0, 10, 0, 0]
+          }
+        ],
+        footer: (currentPage, pageCount) => {
+          return {
+            stack: [
+              { canvas: [{ type: 'line', x1: 40, y1: 0, x2: 555, y2: 0, lineWidth: 0.5, lineColor: colors.borderBlue }] },
+              {
+                columns: [
+                  { text: `* No-Show = appointments where is_noshow flag is true. | Period: ${startDate} – ${endDate}`, style: 'footer' },
+                  { text: `Page ${currentPage} of ${pageCount}`, style: 'footer', alignment: 'right' }
+                ],
+                margin: [40, 10, 40, 0]
+              }
+            ]
+          };
+        },
+        styles: {
+          hospitalName: { fontSize: 18, bold: true, color: 'white' },
+          contactInfo: { fontSize: 9, color: 'white', alignment: 'right' },
+          title: { fontSize: 18, bold: true, color: colors.titleBlue, alignment: 'center', margin: [0, 0, 0, 5] },
+          subtitle: { fontSize: 10, color: colors.labelGray, alignment: 'center' },
+          kpiLabel: { fontSize: 7, color: 'white', bold: true, margin: [8, 8, 8, 2] },
+          kpiValue: { fontSize: 16, color: 'white', bold: true, margin: [8, 0, 8, 8] },
+          sectionTitle: { fontSize: 12, bold: true, color: colors.titleBlue, margin: [0, 0, 0, 10] },
+          tableHeader: { fontSize: 9, bold: true, color: 'white', fillColor: colors.tableHeader, margin: [2, 4, 2, 4] },
+          tableCell: { fontSize: 9, color: colors.bodyText },
+          tableFooter: { fontSize: 10, bold: true, color: 'white', fillColor: colors.titleBlue, margin: [2, 6, 2, 6] },
+          chartTitle: { fontSize: 10, bold: true, color: colors.bodyText, margin: [0, 0, 0, 10] },
+          footer: { fontSize: 8, color: colors.labelGray }
+        }
+      };
+
+      // 4. Generate and Download
+      pdfMake.createPdf(docDefinition).download(`appointments_report_${startDate}_${endDate}.pdf`);
+      toast.success("Branded PDF Generated Successfully!");
+    } catch (error) {
+      console.error("PDF Generation Error:", error);
+      toast.error("Critical error in PDF generation. Check console.");
     } finally {
       setIsExporting(false);
     }
@@ -264,80 +515,141 @@ const Reports = () => {
                      reportType === 'patients' ? 'Patient Registrations by Source' : 'Appointment Volume per Doctor'}
                   </h4>
                   <div style={{ width: '100%', height: 400 }}>
-                    <ResponsiveContainer>
-                      <BarChart data={reportData.chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                        <XAxis 
-                          dataKey="name" 
-                          axisLine={false} 
-                          tickLine={false} 
-                          tick={{ fill: '#64748b', fontSize: 12 }} 
-                        />
-                        <YAxis 
-                          yAxisId="left" 
-                          axisLine={false} 
-                          tickLine={false} 
-                          tick={{ fill: '#2563eb', fontSize: 12 }}
-                          label={{ value: 'Revenue (LKR)', angle: -90, position: 'insideLeft', offset: 10, fill: '#2563eb', fontSize: 11 }}
-                        />
-                        <YAxis 
-                          yAxisId="right" 
-                          orientation="right" 
-                          axisLine={false} 
-                          tickLine={false} 
-                          tick={{ fill: '#60a5fa', fontSize: 12 }}
-                          label={{ value: 'Patient Count', angle: 90, position: 'insideRight', offset: 10, fill: '#60a5fa', fontSize: 11 }}
-                        />
-                        <Tooltip 
-                          cursor={{ fill: '#f8fafc' }}
-                          contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
-                        />
-                        <Legend iconType="circle" wrapperStyle={{ paddingTop: '20px' }} />
-                        
-                        {reportType === 'revenue' && (
-                          <>
-                            <Bar 
-                              yAxisId="left" 
-                              dataKey="revenue" 
-                              name="Revenue (LKR)" 
-                              fill="#2563eb" 
-                              radius={[6, 6, 0, 0]} 
-                              barSize={40} 
-                            />
-                            <Bar 
-                              yAxisId="right" 
-                              dataKey="patients" 
-                              name="Patient Volume" 
-                              fill="#93c5fd" 
-                              radius={[6, 6, 0, 0]} 
-                              barSize={40} 
-                            />
-                          </>
-                        )}
-
-                        {reportType === 'patients' && (
+                    {reportType === 'revenue' && (
+                      <ResponsiveContainer>
+                        <BarChart data={reportData.chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                          <XAxis 
+                            dataKey="name" 
+                            axisLine={false} 
+                            tickLine={false} 
+                            tick={{ fill: '#64748b', fontSize: 12 }} 
+                          />
+                          <YAxis 
+                            yAxisId="left" 
+                            axisLine={false} 
+                            tickLine={false} 
+                            tick={{ fill: '#2563eb', fontSize: 12 }}
+                            label={{ value: 'Revenue (LKR)', angle: -90, position: 'insideLeft', offset: 10, fill: '#2563eb', fontSize: 11 }}
+                          />
+                          <YAxis 
+                            yAxisId="right" 
+                            orientation="right" 
+                            axisLine={false} 
+                            tickLine={false} 
+                            tick={{ fill: '#60a5fa', fontSize: 12 }}
+                            label={{ value: 'Patient Count', angle: 90, position: 'insideRight', offset: 10, fill: '#60a5fa', fontSize: 11 }}
+                          />
+                          <Tooltip 
+                            cursor={{ fill: '#f8fafc' }}
+                            contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
+                          />
+                          <Legend iconType="circle" wrapperStyle={{ paddingTop: '20px' }} />
                           <Bar 
                             yAxisId="left" 
+                            dataKey="revenue" 
+                            name="Revenue (LKR)" 
+                            fill="#2563eb" 
+                            radius={[6, 6, 0, 0]} 
+                            barSize={40} 
+                          />
+                          <Bar 
+                            yAxisId="right" 
+                            dataKey="patients" 
+                            name="Patient Volume" 
+                            fill="#93c5fd" 
+                            radius={[6, 6, 0, 0]} 
+                            barSize={40} 
+                          />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    )}
+
+                    {reportType === 'patients' && (
+                      <ResponsiveContainer>
+                        <BarChart data={reportData.chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                          <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} />
+                          <YAxis axisLine={false} tickLine={false} tick={{ fill: '#0ea5e9', fontSize: 12 }} />
+                          <Tooltip cursor={{ fill: '#f8fafc' }} />
+                          <Legend />
+                          <Bar 
                             dataKey="count" 
                             name="Registration Count" 
                             fill="#0ea5e9" 
                             radius={[6, 6, 0, 0]} 
                             barSize={60} 
                           />
-                        )}
+                        </BarChart>
+                      </ResponsiveContainer>
+                    )}
 
-                        {reportType === 'appointments' && (
-                          <Bar 
-                            yAxisId="left" 
-                            dataKey="appointments" 
-                            name="Appointment Count" 
-                            fill="#6366f1" 
-                            radius={[6, 6, 0, 0]} 
-                            barSize={50} 
-                          />
-                        )}
-                      </BarChart>
-                    </ResponsiveContainer>
+                    {reportType === 'appointments' && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '40px', alignItems: 'center' }}>
+                        <div style={{ width: '100%', height: 400 }}>
+                          <h5 style={{ textAlign: 'center', color: '#64748b', fontSize: '14px', marginBottom: '15px' }}>Appointment Volume per Doctor</h5>
+                          <div ref={barChartRef} style={{ width: '100%', height: '360px' }}>
+                            <ResponsiveContainer width="100%" height="100%">
+                              <BarChart data={reportData.chartData} margin={{ top: 10, right: 30, left: 20, bottom: 60 }}>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                <XAxis 
+                                  dataKey="name" 
+                                  axisLine={false} 
+                                  tickLine={false} 
+                                  tick={{ fill: '#64748b', fontSize: 11 }} 
+                                  angle={-60}
+                                  textAnchor="end"
+                                  interval={0}
+                                />
+                                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#3b82f6', fontSize: 12 }} />
+                                <Tooltip cursor={{ fill: '#f8fafc' }} />
+                                <Legend verticalAlign="top" align="right" />
+                                <Bar 
+                                  dataKey="appointments" 
+                                  name="Appointment Count" 
+                                  fill="#3b82f6" 
+                                  radius={[6, 6, 0, 0]} 
+                                  barSize={60}
+                                  isAnimationActive={false}
+                                />
+                              </BarChart>
+                            </ResponsiveContainer>
+                          </div>
+                        </div>
+                        
+                        <div style={{ width: '100%', maxWidth: '600px', minHeight: '450px', padding: '20px', borderTop: '1px solid #f1f5f9' }}>
+                          <h5 style={{ textAlign: 'center', color: '#64748b', fontSize: '14px', marginBottom: '20px' }}>Appointment Status Breakdown</h5>
+                          <div ref={pieChartRef} style={{ width: '100%', height: '350px' }}>
+                            <ResponsiveContainer width="100%" height="100%">
+                              <PieChart>
+                                <Pie
+                                  data={[
+                                    { name: 'Completed', value: Number(reportData.totalCompleted) || 0 },
+                                    { name: 'Cancelled', value: Number(reportData.totalCancelled) || 0 },
+                                    { name: 'No-Show', value: Number(reportData.totalNoShow) || 0 },
+                                    { name: 'Pending', value: Number(reportData.totalPending) || 0 }
+                                  ]}
+                                  innerRadius={70}
+                                  outerRadius={110}
+                                  paddingAngle={5}
+                                  dataKey="value"
+                                  labelLine={false}
+                                  label={({ percent }) => percent >= 0.05 ? `${(percent * 100).toFixed(0)}%` : ''}
+                                  isAnimationActive={false}
+                                >
+                                  <Cell fill="#177b49" />
+                                  <Cell fill="#c4352d" />
+                                  <Cell fill="#e67e1d" />
+                                  <Cell fill="#2a7ebc" />
+                                </Pie>
+                                <Tooltip />
+                                <Legend verticalAlign="bottom" height={50} iconType="rect" iconSize={14} />
+                              </PieChart>
+                            </ResponsiveContainer>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -346,10 +658,6 @@ const Reports = () => {
                   <button style={styles.cancelBtn} onClick={() => setReportData(null)}>
                     <FiX />
                     <span>Clear Report</span>
-                  </button>
-                  <button style={styles.scheduleBtn}>
-                    <span>Schedule Follow-up</span>
-                    <FiArrowRight />
                   </button>
                 </div>
               </motion.div>
@@ -574,21 +882,6 @@ const styles = {
     fontSize: '14px',
     fontWeight: '600',
     cursor: 'pointer'
-  },
-  scheduleBtn: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '12px',
-    padding: '12px 32px',
-    backgroundColor: '#0f172a',
-    color: 'white',
-    border: 'none',
-    borderRadius: '12px',
-    fontSize: '15px',
-    fontWeight: '700',
-    cursor: 'pointer',
-    transition: 'all 0.2s',
-    boxShadow: '0 10px 15px -3px rgba(15, 23, 42, 0.2)'
   },
   headerTitleSection: {
     marginBottom: "32px",

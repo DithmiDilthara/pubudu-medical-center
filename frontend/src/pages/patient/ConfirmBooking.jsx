@@ -64,7 +64,7 @@ function ConfirmBooking() {
         doctor_id: doctorId,
         appointment_date: localDate,
         time_slot: time,
-        availability_id: appointmentData.availability_id,
+        schedule_id: appointmentData.schedule_id,
         notes: notes,
         skipNotification: true
       }, {
@@ -101,7 +101,7 @@ function ConfirmBooking() {
         doctor_id: doctorId,
         appointment_date: localDate,
         time_slot: time,
-        availability_id: appointmentData.availability_id,
+        schedule_id: appointmentData.schedule_id,
         notes: notes
       }, {
         headers: { Authorization: `Bearer ${token}` }

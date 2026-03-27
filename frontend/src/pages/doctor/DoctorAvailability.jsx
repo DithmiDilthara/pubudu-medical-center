@@ -32,7 +32,6 @@ function DoctorAvailability() {
   const [startTime, setStartTime] = useState('09:00');
   const [endTime, setEndTime] = useState('11:00');
   const [endDate, setEndDate] = useState(''); // For recurring end
-  const [sessionName, setSessionName] = useState('Available');
 
   const [doctorName, setDoctorName] = useState('Doctor');
   const [rawAvailability, setRawAvailability] = useState([]);
@@ -88,9 +87,9 @@ function DoctorAvailability() {
     const todayStr = today.toISOString().split('T')[0];
     
     rawAvailability.forEach(a => {
-      if (a.specific_date) {
-        if (!map[a.specific_date]) map[a.specific_date] = [];
-        map[a.specific_date].push(a);
+      if (a.schedule_date) {
+        if (!map[a.schedule_date]) map[a.schedule_date] = [];
+        map[a.schedule_date].push(a);
       } else if (a.day_of_week) {
         if (!map[a.day_of_week]) map[a.day_of_week] = [];
         map[a.day_of_week].push(a);
@@ -182,11 +181,10 @@ function DoctorAvailability() {
       const token = localStorage.getItem('token');
       const payload = {
         availability: [{
-          specific_date: bookingType === 'ONE-TIME' ? selectedDate : null,
+          schedule_date: bookingType === 'ONE-TIME' ? selectedDate : null,
           day_of_week: bookingType === 'RECURRING' ? fullDays[selectedDayIndex] : null,
           start_time: startTime,
           end_time: endTime,
-          session_name: sessionName,
           end_date: bookingType === 'RECURRING' ? endDate || null : null
         }]
       };
@@ -287,7 +285,7 @@ function DoctorAvailability() {
                           ...(item.isPast ? styles.pastCell : {}),
                           ...(item.isSelected ? styles.selectedCell : {}),
                           ...(item.sessions.length > 0 && !item.isSelected ? (
-                            item.sessions.some(s => !s.specific_date) ? styles.recurringDay : styles.availableDay
+                            item.sessions.some(s => !s.schedule_date) ? styles.recurringDay : styles.availableDay
                           ) : {})
                         }}
                       >
@@ -310,15 +308,14 @@ function DoctorAvailability() {
                     
                     <div style={styles.sessionsList}>
                       {currentDaySessions.length > 0 ? currentDaySessions.map(session => (
-                        <div key={session.availability_id} style={styles.sessionItem}>
+                        <div key={session.schedule_id} style={styles.sessionItem}>
                           <div style={styles.sessionTime}>
                             <FiClock style={{ color: '#2563eb' }} />
                             <span>{session.start_time} - {session.end_time}</span>
-                            {!session.specific_date && <span style={styles.recurringBadge}>Recurring</span>}
+                            {!session.schedule_date && <span style={styles.recurringBadge}>Recurring</span>}
                           </div>
                           <div style={styles.sessionInfo}>
-                            <span style={styles.sessionType}>{session.session_name}</span>
-                            <button onClick={() => handleDeleteSession(session.availability_id)} style={styles.deleteIconButton} title="Delete Session">
+                            <button onClick={() => handleDeleteSession(session.schedule_id)} style={styles.deleteIconButton} title="Delete Session">
                               <FiTrash2 />
                             </button>
                           </div>
@@ -386,16 +383,7 @@ function DoctorAvailability() {
                     <ClockTimePicker label="End Time" value={endTime} onChange={setEndTime} />
                   </div>
 
-                  <div style={styles.inputGroup}>
-                    <label style={styles.label}>Session Title</label>
-                    <input 
-                      type="text" 
-                      placeholder="e.g. Evening Clinic" 
-                      style={styles.input} 
-                      value={sessionName} 
-                      onChange={(e) => setSessionName(e.target.value)}
-                    />
-                  </div>
+
 
                   <button 
                     onClick={handleAddSession} 

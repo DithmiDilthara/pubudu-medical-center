@@ -2,11 +2,10 @@ import { DataTypes } from 'sequelize';
 import sequelize from '../config/database.js';
 
 const Availability = sequelize.define('availability', {
-    availability_id: {
+    schedule_id: {
         type: DataTypes.INTEGER,
         primaryKey: true,
-        autoIncrement: true,
-        field: 'schedule_id'
+        autoIncrement: true
     },
     doctor_id: {
         type: DataTypes.INTEGER,
@@ -16,10 +15,9 @@ const Availability = sequelize.define('availability', {
         type: DataTypes.ENUM('MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'),
         allowNull: true
     },
-    specific_date: {
+    schedule_date: {
         type: DataTypes.DATEONLY,
-        allowNull: true,
-        field: 'schedule_date'
+        allowNull: true
     },
     start_time: {
         type: DataTypes.TIME,
@@ -28,11 +26,6 @@ const Availability = sequelize.define('availability', {
     end_time: {
         type: DataTypes.TIME,
         allowNull: false
-    },
-    session_name: {
-        type: DataTypes.STRING(100),
-        allowNull: true,
-        field: 'status'
     },
     end_date: {
         type: DataTypes.DATEONLY,

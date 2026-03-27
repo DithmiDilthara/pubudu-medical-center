@@ -86,7 +86,7 @@ const ChannelDoctor = () => {
         const formattedDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
         const dayName = dayNames[dateObj.getDay()];
         
-        return availabilities.some(a => a.day_of_week === dayName || a.specific_date === formattedDate);
+        return availabilities.some(a => a.day_of_week === dayName || a.schedule_date === formattedDate);
     };
 
     const handleDateClick = (day) => {
@@ -106,8 +106,8 @@ const ChannelDoctor = () => {
         const formattedDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(selectedDate).padStart(2, '0')}`;
 
         const relevantAvails = availabilities.filter(a => 
-            a.specific_date === formattedDate || 
-            (a.day_of_week === dayName && !a.specific_date)
+            a.schedule_date === formattedDate || 
+            (a.day_of_week === dayName && !a.schedule_date)
         );
 
         if (relevantAvails.length === 0) return [];

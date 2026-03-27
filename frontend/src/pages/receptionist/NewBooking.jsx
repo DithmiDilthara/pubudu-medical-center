@@ -260,7 +260,7 @@ function NewBooking() {
         patient_id: patientInfo.patientId,
         appointment_date: formattedDate,
         time_slot: selectedSession.timeRange,
-        availability_id: selectedSession.id
+        schedule_id: selectedSession.id
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -292,7 +292,7 @@ function NewBooking() {
         patient_id: patientInfo.patientId,
         appointment_date: formattedDate,
         time_slot: selectedSession.timeRange,
-        availability_id: selectedSession.id
+        schedule_id: selectedSession.id
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -374,14 +374,14 @@ function NewBooking() {
     const dayName = days[date.getDay()];
 
     // Check specific date overrides first
-    const specific = doctorAvailability.find(a => a.specific_date === formattedDate);
+    const specific = doctorAvailability.find(a => a.schedule_date === formattedDate);
     if (specific) {
-      return specific.session_name === 'Available' || specific.session_name === 'Half Day' || specific.session_name === 'Regular Session';
+      return true;
     }
 
     // Fallback to recurring
     return doctorAvailability.some(a => {
-      if (!a.day_of_week || a.day_of_week.toUpperCase() !== dayName || a.specific_date) return false;
+      if (!a.day_of_week || a.day_of_week.toUpperCase() !== dayName || a.schedule_date) return false;
       if (a.end_date) {
         return formattedDate <= a.end_date;
       }
@@ -400,14 +400,13 @@ function NewBooking() {
 
     // Specific date overrides take precedence
     let dayAvails = doctorAvailability.filter(a =>
-      a.specific_date === formattedDate &&
-      a.session_name !== 'Unavailable'
+      a.schedule_date === formattedDate
     );
 
     // If no specific override, use recurring
     if (dayAvails.length === 0) {
       dayAvails = doctorAvailability.filter(a => {
-        if (!a.day_of_week || a.day_of_week.toUpperCase() !== dayName || a.specific_date) return false;
+        if (!a.day_of_week || a.day_of_week.toUpperCase() !== dayName || a.schedule_date) return false;
         if (a.end_date) {
           return formattedDate <= a.end_date;
         }
@@ -416,8 +415,7 @@ function NewBooking() {
     }
 
     return dayAvails.map(avail => ({
-      id: avail.availability_id,
-      sessionName: avail.session_name,
+      id: avail.schedule_id,
       timeRange: `${avail.start_time} - ${avail.end_time}`
     }));
   };
@@ -737,7 +735,6 @@ function NewBooking() {
                                 alignItems: 'center'
                               }}
                             >
-                              <span>{session.sessionName}</span>
                               <span style={{ fontWeight: 700 }}>{session.timeRange}</span>
                             </button>
                           ));

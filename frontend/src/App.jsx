@@ -33,7 +33,7 @@ import AdminDashboard from './pages/admin/AdminDashboard';
 import ManageDoctors from './pages/admin/ManageDoctors';
 import ManageReceptionist from './pages/admin/ManageReceptionist';
 import Reports from './pages/admin/Reports';
-import AddStaff from './pages/admin/AddStaff';
+
 import Doctors from './pages/receptionist/Doctors';
 
 function App() {
@@ -76,7 +76,7 @@ function App() {
           <Route path="/admin/doctors" element={<ManageDoctors />} />
           <Route path="/admin/receptionist" element={<ManageReceptionist />} />
           <Route path="/admin/reports" element={<Reports />} />
-          <Route path="/admin/add-staff" element={<AddStaff />} />
+
         </Routes>
       </Router>
     </AuthProvider>

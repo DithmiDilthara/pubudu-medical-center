@@ -86,9 +86,9 @@ function DoctorDetails() {
 
     // Check if there are ANY non-unavailable sessions (recurring or specific)
     return availabilities.some(a => {
-      const isSpecific = a.specific_date === formattedDate;
-      const isRecurring = a.day_of_week?.toUpperCase() === dayName && !a.specific_date && (!a.end_date || formattedDate <= a.end_date);
-      return (isSpecific || isRecurring) && a.session_name !== 'Unavailable';
+      const isSpecific = a.schedule_date === formattedDate;
+      const isRecurring = a.day_of_week?.toUpperCase() === dayName && !a.schedule_date && (!a.end_date || formattedDate <= a.end_date);
+      return (isSpecific || isRecurring);
     });
   };
 
@@ -100,21 +100,20 @@ function DoctorDetails() {
 
     // Combine and sort relevant sessions
     const dayAvails = availabilities.filter(a => {
-      const isSpecific = a.specific_date === formattedDate;
-      const isRecurring = a.day_of_week?.toUpperCase() === dayName && !a.specific_date && (!a.end_date || formattedDate <= a.end_date);
-      return (isSpecific || isRecurring) && a.session_name !== 'Unavailable';
+      const isSpecific = a.schedule_date === formattedDate;
+      const isRecurring = a.day_of_week?.toUpperCase() === dayName && !a.schedule_date && (!a.end_date || formattedDate <= a.end_date);
+      return (isSpecific || isRecurring);
     }).sort((a, b) => a.start_time.localeCompare(b.start_time));
 
     // In whole-session booking, we just return the sessions themselves.
     // They are converted to a "slots" array with length 1 for UI compatibility,
     // or we can change the JSX to handle them directly.
     return dayAvails.map(session => ({
-      id: session.availability_id,
-      sessionName: session.session_name,
+      id: session.schedule_id,
       startTime: session.start_time,
       endTime: session.end_time,
       timeRange: `${session.start_time} - ${session.end_time}`,
-      isBooked: false // In multi-patient booking, a session is never "Full" unless capacity is checked
+      isBooked: false 
     }));
   };
 
@@ -124,7 +123,7 @@ function DoctorDetails() {
         doctor: doctor,
         date: new Date(year, month, selectedDate),
         time: selectedSession.timeRange,
-        availability_id: selectedSession.id
+        schedule_id: selectedSession.id
       };
       navigate("/patient/confirm-booking", { state: { appointmentData } });
     }
@@ -272,7 +271,7 @@ function DoctorDetails() {
                         >
                           <div style={styles.sessionUnitHeader}>
                             <FiClock style={{ fontSize: '20px' }} />
-                            <span style={styles.sessionUnitName}>{session.sessionName}</span>
+                            <span style={styles.sessionUnitName}>Channeling Session</span>
                           </div>
                           <div style={styles.sessionUnitTime}>
                             {session.timeRange}

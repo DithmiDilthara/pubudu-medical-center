@@ -185,46 +185,64 @@ export const getAppointmentReport = async (req, res) => {
     const appointments = await Appointment.findAll({
       where,
       include: [
-        { model: Doctor, as: 'doctor', attributes: ['full_name'] },
+        { model: Doctor, as: 'doctor', attributes: ['full_name', 'specialization'] },
         { model: Patient, as: 'patient', attributes: ['full_name'] }
       ]
     });
 
     const summary = {
       total: appointments.length,
+      completed: appointments.filter(a => a.status === 'COMPLETED').length,
       cancelled: appointments.filter(a => a.status === 'CANCELLED').length,
-      cancelledUnpaid: appointments.filter(a => a.status === 'CANCELLED' && a.cancellation_reason === 'Unpaid').length,
-      absent: appointments.filter(a => a.status === 'CANCELLED' && a.is_noshow).length
+      absent: appointments.filter(a => a.status === 'CANCELLED' && a.is_noshow).length,
+      pending: appointments.filter(a => a.status === 'PENDING').length
     };
 
-    // Chart Data: Appointments per Doctor
-    const doctorStats = {};
+    // Group by Doctor for detailed table
+    const doctorStatsMap = {};
     appointments.forEach(a => {
-      const docName = a.doctor?.full_name || 'Unknown';
-      if (!doctorStats[docName]) doctorStats[docName] = { volume: 0 };
-      doctorStats[docName].volume += 1;
+      const docId = a.doctor_id || 'unknown';
+      if (!doctorStatsMap[docId]) {
+        doctorStatsMap[docId] = {
+          doctor_name: a.doctor?.full_name || 'Unknown',
+          specialisation: a.doctor?.specialization || 'General',
+          total: 0,
+          completed: 0,
+          cancelled: 0,
+          noshow: 0
+        };
+      }
+      
+      const stats = doctorStatsMap[docId];
+      stats.total += 1;
+      if (a.status === 'COMPLETED') stats.completed += 1;
+      if (a.status === 'CANCELLED') {
+        stats.cancelled += 1;
+        if (a.is_noshow) stats.noshow += 1;
+      }
     });
 
-    const chartData = Object.entries(doctorStats).map(([name, stats]) => ({
-      name,
-      appointments: stats.volume
+    const doctorStats = Object.values(doctorStatsMap);
+
+    // Chart Data: Volume per doctor
+    const chartData = doctorStats.map(d => ({
+      name: d.doctor_name,
+      appointments: d.total
     }));
 
     res.status(200).json({
       success: true,
       data: {
-        summary,
-        chartData,
-        appointments: appointments.map(a => ({
-          id: a.appointment_id,
-          patient: a.patient?.full_name,
-          doctor: a.doctor?.full_name,
-          date: a.appointment_date,
-          status: a.status,
-          payment: a.payment_status,
-          reason: a.cancellation_reason,
-          absent: a.is_noshow
-        }))
+        period: { start: startDate, end: endDate },
+        generated: new Date().toISOString().split('T')[0],
+        totalAppointments: summary.total,
+        totalCompleted: summary.completed,
+        totalCancelled: summary.cancelled,
+        totalNoShow: summary.absent,
+        totalPending: summary.pending,
+        doctors: doctorStats,
+        chartData, // Keep this for the UI bar chart
+        summary // Keep this for existing UI components if any
       }
     });
   } catch (error) {

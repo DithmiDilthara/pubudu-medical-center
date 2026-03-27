@@ -9,7 +9,7 @@ import { Op } from 'sequelize';
  */
 export const createAppointment = async (req, res) => {
     try {
-        const { doctor_id, appointment_date, time_slot, availability_id, patient_id, notes, skipNotification } = req.body;
+        const { doctor_id, appointment_date, time_slot, schedule_id, patient_id, notes, skipNotification } = req.body;
         const currentUser = req.user;
 
         let targetPatientId = patient_id;
@@ -44,7 +44,7 @@ export const createAppointment = async (req, res) => {
             patient_id: targetPatientId,
             doctor_id,
             appointment_date,
-            availability_id,
+            schedule_id,
             time_slot, // Stores the full session range string
             status: 'PENDING',
             payment_status: 'UNPAID',
@@ -299,7 +299,7 @@ export const cancelDoctorSession = async (req, res) => {
 export const rescheduleAppointment = async (req, res) => {
     try {
         const { id } = req.params;
-        const { appointment_date, time_slot, availability_id } = req.body;
+        const { appointment_date, time_slot, schedule_id } = req.body;
 
         if (!appointment_date || !time_slot) {
             return res.status(400).json({ success: false, message: 'Date and time slot are required' });
@@ -328,7 +328,7 @@ export const rescheduleAppointment = async (req, res) => {
 
         appointment.appointment_date = appointment_date;
         appointment.time_slot = time_slot;
-        if (availability_id) appointment.availability_id = availability_id;
+        if (schedule_id) appointment.schedule_id = schedule_id;
         appointment.status = 'CONFIRMED'; // Auto-confirm when rescheduled by staff
         await appointment.save();
 

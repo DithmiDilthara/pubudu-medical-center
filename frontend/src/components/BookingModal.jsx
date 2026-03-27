@@ -25,8 +25,8 @@ const BookingModal = ({ isOpen, onClose, appointment, onUpdate }) => {
                 setCurrentMonth(new Date(date.getFullYear(), date.getMonth(), 1));
             }
             setSelectedTime(appointment.time_slot || "");
-            if (appointment.availability_id) {
-                setSelectedSession({ id: appointment.availability_id, timeRange: appointment.time_slot });
+            if (appointment.schedule_id) {
+                setSelectedSession({ id: appointment.schedule_id, timeRange: appointment.time_slot });
             }
         }
     }, [isOpen, appointment]);
@@ -89,7 +89,7 @@ const BookingModal = ({ isOpen, onClose, appointment, onUpdate }) => {
             const response = await axios.put(`${API_URL}/appointments/${appointment.appointment_id}/reschedule`, {
                 appointment_date: formattedDate,
                 time_slot: selectedSession.timeRange,
-                availability_id: selectedSession.id
+                schedule_id: selectedSession.id
             }, {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -121,12 +121,12 @@ const BookingModal = ({ isOpen, onClose, appointment, onUpdate }) => {
         const formattedDate = dayDate.toISOString().split('T')[0];
         const dayName = dayDate.toLocaleString('en-US', { weekday: 'long' }).toUpperCase();
 
-        const specific = doctorAvailability.find(a => a.specific_date === formattedDate);
-        if (specific) return specific.session_name !== 'Unavailable';
+        const specific = doctorAvailability.find(a => a.schedule_date === formattedDate);
+        if (specific) return true;
 
         return doctorAvailability.some(a => 
             a.day_of_week?.toUpperCase() === dayName && 
-            !a.specific_date && 
+            !a.schedule_date && 
             (!a.end_date || formattedDate <= a.end_date)
         );
     };
@@ -136,14 +136,13 @@ const BookingModal = ({ isOpen, onClose, appointment, onUpdate }) => {
         const formattedDate = selectedDate.toISOString().split('T')[0];
         const dayName = selectedDate.toLocaleString('en-US', { weekday: 'long' }).toUpperCase();
 
-        let avails = doctorAvailability.filter(a => a.specific_date === formattedDate && a.session_name !== 'Unavailable');
+        let avails = doctorAvailability.filter(a => a.schedule_date === formattedDate);
         if (avails.length === 0) {
-            avails = doctorAvailability.filter(a => a.day_of_week?.toUpperCase() === dayName && !a.specific_date);
+            avails = doctorAvailability.filter(a => a.day_of_week?.toUpperCase() === dayName && !a.schedule_date);
         }
 
         return avails.map(avail => ({
-            id: avail.availability_id,
-            sessionName: avail.session_name,
+            id: avail.schedule_id,
             timeRange: `${avail.start_time} - ${avail.end_time}`
         }));
     };
@@ -215,7 +214,7 @@ const BookingModal = ({ isOpen, onClose, appointment, onUpdate }) => {
                                         gridColumn: 'span 2'
                                     }}
                                 >
-                                    {session.sessionName}: {session.timeRange}
+                                    {session.timeRange}
                                 </button>
                             ))}
                         </div>
