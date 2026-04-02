@@ -194,6 +194,7 @@ export const getAppointmentReport = async (req, res) => {
       total: appointments.length,
       completed: appointments.filter(a => a.status === 'COMPLETED').length,
       cancelled: appointments.filter(a => a.status === 'CANCELLED').length,
+      reschedule_required: appointments.filter(a => a.status === 'RESCHEDULE_REQUIRED').length,
       absent: appointments.filter(a => a.status === 'CANCELLED' && a.is_noshow).length,
       pending: appointments.filter(a => a.status === 'PENDING').length
     };
@@ -209,6 +210,7 @@ export const getAppointmentReport = async (req, res) => {
           total: 0,
           completed: 0,
           cancelled: 0,
+          reschedule_required: 0,
           noshow: 0
         };
       }
@@ -216,6 +218,7 @@ export const getAppointmentReport = async (req, res) => {
       const stats = doctorStatsMap[docId];
       stats.total += 1;
       if (a.status === 'COMPLETED') stats.completed += 1;
+      if (a.status === 'RESCHEDULE_REQUIRED') stats.reschedule_required += 1;
       if (a.status === 'CANCELLED') {
         stats.cancelled += 1;
         if (a.is_noshow) stats.noshow += 1;
@@ -238,6 +241,7 @@ export const getAppointmentReport = async (req, res) => {
         totalAppointments: summary.total,
         totalCompleted: summary.completed,
         totalCancelled: summary.cancelled,
+        totalRescheduleRequired: summary.reschedule_required,
         totalNoShow: summary.absent,
         totalPending: summary.pending,
         doctors: doctorStats,
@@ -344,6 +348,7 @@ export const exportReport = async (req, res) => {
         summary: {
           total: appointments.length,
           cancelled: appointments.filter(a => a.status === 'CANCELLED').length,
+          reschedule_required: appointments.filter(a => a.status === 'RESCHEDULE_REQUIRED').length,
           absent: appointments.filter(a => a.status === 'CANCELLED' && a.is_noshow).length
         },
         appointments: appointments.map(a => ({

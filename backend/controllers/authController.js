@@ -54,11 +54,19 @@ const getUserProfile = async (userId, roleId) => {
       userData.profile = receptionist;
       break;
     case 4: // Patient
-      const patient = await Patient.findOne({ where: { user_id: userId } });
-      userData.profile = patient;
+      try {
+        const patient = await Patient.findOne({ where: { user_id: userId } });
+        userData.profile = patient;
+      } catch (err) {
+        console.error(`Error fetching patient profile for user ${userId}:`, err);
+        userData.profile = null;
+      }
       break;
   }
 
+  // Ensure userData has a profile property even if null, to avoid crashes on frontend
+  userData.profile = userData.profile || null;
+  
   return userData;
 };
 
@@ -335,7 +343,7 @@ export const registerPatient = async (req, res) => {
             process.env.JWT_SECRET || 'your-super-secret-jwt-key',
             { expiresIn: '10m' }
         );
-
+//
         const newPatient = await Patient.create({ 
             user_id: newUser.user_id, 
             full_name, 

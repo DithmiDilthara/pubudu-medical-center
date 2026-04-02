@@ -159,3 +159,25 @@ export const getPatientDetails = async (req, res) => {
         res.status(500).json({ success: false, message: 'Server error' });
     }
 };
+/**
+ * @desc    Get single doctor by ID
+ * @route   GET /api/doctors/:doctor_id
+ * @access  Public/Staff
+ */
+export const getDoctorById = async (req, res) => {
+    try {
+        const { doctor_id } = req.params;
+        const doctor = await Doctor.findByPk(doctor_id, {
+            include: [{ model: User, as: 'user', attributes: ['email', 'contact_number'] }]
+        });
+
+        if (!doctor) {
+            return res.status(404).json({ success: false, message: 'Doctor not found' });
+        }
+
+        res.status(200).json({ success: true, data: doctor });
+    } catch (error) {
+        console.error('Get doctor by ID error:', error);
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+};

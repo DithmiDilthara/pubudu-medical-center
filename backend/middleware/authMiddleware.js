@@ -65,5 +65,26 @@ export const protect = async (req, res, next) => {
 };
 
 // Verify user is authenticated (alias for protect)
+// Verify user has any of the specified roles
+export const authorizeRoles = (...roles) => {
+  return (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        message: 'User authentication required'
+      });
+    }
+
+    if (!roles.includes(req.user.role_id)) {
+      return res.status(403).json({
+        success: false,
+        message: `Role ID ${req.user.role_id} is not authorized to access this resource`
+      });
+    }
+
+    next();
+  };
+};
+
 export const authenticate = protect;
 export const verifyToken = protect;

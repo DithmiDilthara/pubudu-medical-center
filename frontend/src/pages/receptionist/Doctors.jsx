@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { 
   FiSearch, 
@@ -17,6 +18,7 @@ import ReceptionistHeader from "../../components/ReceptionistHeader";
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 const Doctors = () => {
+    const navigate = useNavigate();
     const [doctors, setDoctors] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
@@ -133,7 +135,7 @@ const Doctors = () => {
 
     const handleLogout = () => {
         localStorage.clear();
-        window.location.href = "/";
+        navigate("/");
     };
 
     return (
@@ -265,12 +267,20 @@ const Doctors = () => {
                                                             LKR {(Number(doctor.doctor_fee) + Number(doctor.center_fee || 0)).toLocaleString()}
                                                         </p>
                                                     </div>
+                                                     <div style={{ display: 'flex', gap: '8px' }}>
                                                         <button 
-                                                            onClick={() => window.location.href = `/receptionist/appointments/new?doctor=${doctor.doctor_id}`}
+                                                            onClick={() => navigate(`/receptionist/doctors/${doctor.doctor_id}/schedule`)}
+                                                            style={{ ...styles.manageBtn, background: 'white', color: '#2563eb', border: '1px solid #2563eb' }}
+                                                        >
+                                                            Manage Schedule
+                                                        </button>
+                                                        <button 
+                                                            onClick={() => navigate(`/receptionist/appointments/new?doctor=${doctor.doctor_id}`)}
                                                             style={{ ...styles.bookBtn, background: '#2563eb' }}
                                                         >
                                                             Book Now
                                                         </button>
+                                                    </div>
                                                 </div>
                                             </motion.div>
                                         );
@@ -561,6 +571,14 @@ const styles = {
         border: 'none',
         cursor: 'pointer',
         boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+        transition: 'all 0.2s ease',
+    },
+    manageBtn: {
+        padding: '10px 16px',
+        borderRadius: '12px',
+        fontSize: '13px',
+        fontWeight: '700',
+        cursor: 'pointer',
         transition: 'all 0.2s ease',
     },
     arrowIcon: {

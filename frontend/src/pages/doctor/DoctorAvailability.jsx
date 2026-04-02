@@ -37,6 +37,7 @@ function DoctorAvailability() {
   const [rawAvailability, setRawAvailability] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState(null);
+  const [userRole, setUserRole] = useState(null);
 
   const fetchAvailability = async () => {
     try {
@@ -46,8 +47,14 @@ function DoctorAvailability() {
       });
 
       if (profileRes.data.success) {
-        setDoctorName(profileRes.data.data.profile.full_name);
-        const doctorId = profileRes.data.data.profile.doctor_id;
+        setDoctorName(profileRes.data.data?.profile?.full_name || 'Doctor');
+        if (profileRes.data.data?.user) {
+          setUserRole(profileRes.data.data.user.role_id);
+        } else if (profileRes.data.data?.role_id) {
+          // Fallback if role_id is top-level
+          setUserRole(profileRes.data.data.role_id);
+        }
+        const doctorId = profileRes.data.data?.profile?.doctor_id;
         const availabilityRes = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/doctors/${doctorId}/availability`);
 
         if (availabilityRes.data.success) {
@@ -128,6 +135,8 @@ function DoctorAvailability() {
     }
     return days;
   }, [selectedMonth, selectedYear, availabilityMap, selectedDate, today]);
+
+  const isReadOnly = userRole === 2; // Doctor role is read-only for schedule management
 
   const handlePrevMonth = () => {
     if (selectedMonth === 0) {
@@ -256,11 +265,15 @@ function DoctorAvailability() {
           <div style={styles.headerRow}>
             <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}>
               <h1 style={styles.pageTitle}>Schedule & Availability</h1>
-              <p style={styles.pageSubtitle}>Precision management of multiple clinical sessions</p>
+              <p style={styles.pageSubtitle}>
+                {isReadOnly 
+                  ? "View your assigned clinical sessions. Contact receptionist for changes." 
+                  : "Precision management of multiple clinical sessions"}
+              </p>
             </motion.div>
           </div>
 
-          <div style={styles.gridContainer}>
+          <div style={{ ...styles.gridContainer, gridTemplateColumns: isReadOnly ? '1fr' : '1.6fr 1fr' }}>
             {/* Left: Calendar & Session List */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
               <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} style={styles.calendarCard}>
@@ -315,9 +328,11 @@ function DoctorAvailability() {
                             {!session.schedule_date && <span style={styles.recurringBadge}>Recurring</span>}
                           </div>
                           <div style={styles.sessionInfo}>
-                            <button onClick={() => handleDeleteSession(session.schedule_id)} style={styles.deleteIconButton} title="Delete Session">
-                              <FiTrash2 />
-                            </button>
+                            {!isReadOnly && (
+                              <button onClick={() => handleDeleteSession(session.schedule_id)} style={styles.deleteIconButton} title="Delete Session">
+                                <FiTrash2 />
+                              </button>
+                            )}
                           </div>
                         </div>
                       )) : (
@@ -329,72 +344,72 @@ function DoctorAvailability() {
               </AnimatePresence>
             </div>
 
-            {/* Right: Add Session Form */}
-            <div style={styles.settingsColumn}>
-              <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} style={styles.settingsCard}>
-                <div style={styles.cardHeader}>
-                  <div style={{ ...styles.cardIconBox, background: '#eff6ff', color: '#2563eb' }}><FiPlus size={20} /></div>
-                  <h3 style={styles.cardTitle}>Add New Session</h3>
-                </div>
-
-                <div style={styles.toggleGroup}>
-                  <button 
-                    onClick={() => setBookingType('ONE-TIME')} 
-                    style={{...styles.toggleBtn, ...(bookingType === 'ONE-TIME' ? styles.toggleBtnActive : {})}}
-                  >One-time</button>
-                  <button 
-                    onClick={() => setBookingType('RECURRING')} 
-                    style={{...styles.toggleBtn, ...(bookingType === 'RECURRING' ? styles.toggleBtnActive : {})}}
-                  >Recurring</button>
-                </div>
-
-                <div style={styles.formStack}>
-                  {bookingType === 'RECURRING' ? (
-                    <>
-                      <div style={styles.inputGroup}>
-                        <label style={styles.label}>Day of Week</label>
-                        <select 
-                          style={styles.select} 
-                          value={selectedDayIndex} 
-                          onChange={(e) => setSelectedDayIndex(parseInt(e.target.value))}
-                        >
-                          {daysOfWeek.map((day, idx) => <option key={day} value={idx}>{fullDays[idx]}</option>)}
-                        </select>
-                      </div>
-                      <div style={styles.inputGroup}>
-                        <label style={styles.label}>End Recurring Date (Optional)</label>
-                        <input 
-                          type="date" 
-                          style={styles.input} 
-                          value={endDate} 
-                          onChange={(e) => setEndDate(e.target.value)}
-                        />
-                      </div>
-                    </>
-                  ) : (
-                    <div style={styles.infoBox}>
-                      <FiInfo />
-                      <span>{selectedDate ? `Selected: ${selectedDate}` : "Select a date on the calendar first"}</span>
-                    </div>
-                  )}
-
-                  <div style={styles.timeGrid}>
-                    <ClockTimePicker label="Start Time" value={startTime} onChange={setStartTime} />
-                    <ClockTimePicker label="End Time" value={endTime} onChange={setEndTime} />
+            {/* Right: Add Session Form (Hidden in Read-Only) */}
+            {!isReadOnly && (
+              <div style={styles.settingsColumn}>
+                <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} style={styles.settingsCard}>
+                  <div style={styles.cardHeader}>
+                    <div style={{ ...styles.cardIconBox, background: '#eff6ff', color: '#2563eb' }}><FiPlus size={20} /></div>
+                    <h3 style={styles.cardTitle}>Add New Session</h3>
                   </div>
 
+                  <div style={styles.toggleGroup}>
+                    <button 
+                      onClick={() => setBookingType('ONE-TIME')} 
+                      style={{...styles.toggleBtn, ...(bookingType === 'ONE-TIME' ? styles.toggleBtnActive : {})}}
+                    >One-time</button>
+                    <button 
+                      onClick={() => setBookingType('RECURRING')} 
+                      style={{...styles.toggleBtn, ...(bookingType === 'RECURRING' ? styles.toggleBtnActive : {})}}
+                    >Recurring</button>
+                  </div>
 
+                  <div style={styles.formStack}>
+                    {bookingType === 'RECURRING' ? (
+                      <>
+                        <div style={styles.inputGroup}>
+                          <label style={styles.label}>Day of Week</label>
+                          <select 
+                            style={styles.select} 
+                            value={selectedDayIndex} 
+                            onChange={(e) => setSelectedDayIndex(parseInt(e.target.value))}
+                          >
+                            {daysOfWeek.map((day, idx) => <option key={day} value={idx}>{fullDays[idx]}</option>)}
+                          </select>
+                        </div>
+                        <div style={styles.inputGroup}>
+                          <label style={styles.label}>End Recurring Date (Optional)</label>
+                          <input 
+                            type="date" 
+                            style={styles.input} 
+                            value={endDate} 
+                            onChange={(e) => setEndDate(e.target.value)}
+                          />
+                        </div>
+                      </>
+                    ) : (
+                      <div style={styles.infoBox}>
+                        <FiInfo />
+                        <span>{selectedDate ? `Selected: ${selectedDate}` : "Select a date on the calendar first"}</span>
+                      </div>
+                    )}
 
-                  <button 
-                    onClick={handleAddSession} 
-                    disabled={isLoading || (bookingType === 'ONE-TIME' && !selectedDate)} 
-                    style={styles.addBtn}
-                  >
-                    {isLoading ? 'Adding...' : <><FiPlus /> Add Session</>}
-                  </button>
-                </div>
-              </motion.div>
-            </div>
+                    <div style={styles.timeGrid}>
+                      <ClockTimePicker label="Start Time" value={startTime} onChange={setStartTime} />
+                      <ClockTimePicker label="End Time" value={endTime} onChange={setEndTime} />
+                    </div>
+
+                    <button 
+                      onClick={handleAddSession} 
+                      disabled={isLoading || (bookingType === 'ONE-TIME' && !selectedDate)} 
+                      style={styles.addBtn}
+                    >
+                      {isLoading ? 'Adding...' : <><FiPlus /> Add Session</>}
+                    </button>
+                  </div>
+                </motion.div>
+              </div>
+            )}
           </div>
         </main>
       </div>

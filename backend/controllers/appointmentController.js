@@ -1,4 +1,4 @@
-import { Appointment, Patient, Doctor, User } from '../models/index.js';
+import { Appointment, Patient, Doctor, User, Availability } from '../models/index.js';
 import NotificationService from '../utils/NotificationService.js';
 import { Op } from 'sequelize';
 
@@ -24,6 +24,33 @@ export const createAppointment = async (req, res) => {
         if (!targetPatientId) {
             return res.status(400).json({ success: false, message: 'Patient ID is required' });
         }
+
+        // --- NEW SAFETY CHECK ---
+        // 1. Fetch the selected session to ensure it exists and is ACTIVE
+        const session = await Availability.findByPk(schedule_id);
+        if (!session) {
+            return res.status(404).json({ success: false, message: 'The selected clinical session no longer exists.' });
+        }
+
+        if (session.status !== 'ACTIVE') {
+            return res.status(400).json({ success: false, message: 'This clinical session has been cancelled and is no longer accepting bookings.' });
+        }
+
+        // 2. Check for Specific Date Exclusions (Blackouts)
+        // Even if the recurring session is active, a specific date might be blocked.
+        const exclusion = await Availability.findOne({
+            where: {
+                doctor_id,
+                schedule_date: appointment_date,
+                status: 'CANCELLED',
+                is_exclusion: true
+            }
+        });
+
+        if (exclusion) {
+            return res.status(400).json({ success: false, message: 'The doctor is unavailable on this specific date (Session Cancelled).' });
+        }
+        // -------------------------
 
         // In session-based booking, multiple people can book the same session block.
         // There is no longer a check for individual 30-minute slots.

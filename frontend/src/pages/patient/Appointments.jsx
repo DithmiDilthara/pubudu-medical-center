@@ -86,7 +86,7 @@ function Appointments() {
   const getFilteredAppointments = () => {
     switch (activeTab) {
       case 'Upcoming':
-        return appointments.filter(apt => ['PENDING', 'CONFIRMED', 'RESCHEDULED'].includes(apt.status) && apt.appointment_date >= todayStr);
+        return appointments.filter(apt => ['PENDING', 'CONFIRMED', 'RESCHEDULED', 'RESCHEDULE_REQUIRED'].includes(apt.status) && apt.appointment_date >= todayStr);
       case 'Completed':
         return appointments.filter(apt => apt.status === 'COMPLETED' || (apt.status === 'CONFIRMED' && apt.appointment_date < todayStr));
       case 'Cancelled':

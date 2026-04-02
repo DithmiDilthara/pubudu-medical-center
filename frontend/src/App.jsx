@@ -35,6 +35,7 @@ import ManageReceptionist from './pages/admin/ManageReceptionist';
 import Reports from './pages/admin/Reports';
 
 import Doctors from './pages/receptionist/Doctors';
+import DoctorSchedule from './pages/receptionist/DoctorSchedule';
 
 function App() {
   return (
@@ -72,6 +73,7 @@ function App() {
           <Route path="/receptionist/payment" element={<PaymentManagement />} />
           <Route path="/receptionist/payment/confirm" element={<ConfirmPayment />} />
           <Route path="/receptionist/doctors" element={<Doctors />} />
+          <Route path="/receptionist/doctors/:doctorId/schedule" element={<DoctorSchedule />} />
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
           <Route path="/admin/doctors" element={<ManageDoctors />} />
           <Route path="/admin/receptionist" element={<ManageReceptionist />} />

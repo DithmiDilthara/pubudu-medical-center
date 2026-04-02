@@ -8,10 +8,17 @@ import { Op } from 'sequelize';
  */
 export const setAvailability = async (req, res) => {
     try {
-        const { availability } = req.body; // Array of {day_of_week, start_time, end_time}
-        const userId = req.user.user_id;
+        const { availability, doctor_id } = req.body; // Array of {day_of_week, start_time, end_time}
+        const currentUser = req.user;
 
-        const doctor = await Doctor.findOne({ where: { user_id: userId } });
+        let doctor;
+        if (currentUser.role_id === 1 || currentUser.role_id === 3) { // Admin or Receptionist
+          if (!doctor_id) return res.status(400).json({ success: false, message: 'Doctor ID is required for staff' });
+          doctor = await Doctor.findByPk(doctor_id);
+        } else {
+          doctor = await Doctor.findOne({ where: { user_id: currentUser.user_id } });
+        }
+
         if (!doctor) return res.status(404).json({ success: false, message: 'Doctor profile not found' });
 
         // Validate all slots
@@ -59,6 +66,7 @@ export const setAvailability = async (req, res) => {
             // --- CHANGE 2: OVERLAP CHECK ---
             const whereClause = {
                 doctor_id: doctor.doctor_id,
+                status: 'ACTIVE' // Only check overlap with ACTIVE sessions
             };
 
             if (slot.schedule_date) {
@@ -113,27 +121,35 @@ export const setAvailability = async (req, res) => {
     }
 };
 
-/**
- * @desc    Delete a specific availability slot
- * @route   DELETE /api/availability/:id
- * @access  Private (Doctor)
- */
 export const deleteAvailability = async (req, res) => {
     try {
         const { id } = req.params;
-        const userId = req.user.user_id;
+        const currentUser = req.user;
 
-        const doctor = await Doctor.findOne({ where: { user_id: userId } });
-        if (!doctor) return res.status(404).json({ success: false, message: 'Doctor profile not found' });
+        let doctor;
+        let slot;
 
-        const slot = await Availability.findOne({
-            where: {
-                schedule_id: id,
-                doctor_id: doctor.doctor_id
-            }
-        });
+        if (currentUser.role_id === 1 || currentUser.role_id === 3) { // Admin or Receptionist
+          // Staff can find any slot
+          slot = await Availability.findByPk(id);
+          if (slot) {
+            doctor = await Doctor.findByPk(slot.doctor_id);
+          }
+        } else {
+          // Doctor can only find their own slot (Backwards compatibility safeguard)
+          doctor = await Doctor.findOne({ where: { user_id: currentUser.user_id } });
+          if (doctor) {
+            slot = await Availability.findOne({
+                where: {
+                    schedule_id: id,
+                    doctor_id: doctor.doctor_id
+                }
+            });
+          }
+        }
 
-        if (!slot) return res.status(404).json({ success: false, message: 'Availability slot not found' });
+        if (!slot || !doctor) return res.status(404).json({ success: false, message: 'Availability slot or Doctor not found' });
+        if (slot.status === 'CANCELLED') return res.status(400).json({ success: false, message: 'Slot is already cancelled' });
 
         // Handle cancellation cascade if it was a confirmed/pending slot on that day
         if (slot.schedule_date) {
@@ -142,11 +158,48 @@ export const deleteAvailability = async (req, res) => {
             await cancelAffectedAppointments(doctor.doctor_id, { day_of_week: [slot.day_of_week] });
         }
 
-        await slot.destroy();
+        await slot.update({ status: 'CANCELLED' });
 
-        res.status(200).json({ success: true, message: 'Availability slot removed' });
+        res.status(200).json({ success: true, message: 'Availability slot cancelled safely' });
     } catch (error) {
         console.error('Delete availability error:', error);
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+};
+
+/**
+ * @desc    Cancel a single day of a recurring session (Exclusion)
+ * @route   POST /api/availability/cancel-instance
+ * @access  Private (Receptionist, Admin)
+ */
+export const cancelSingleInstance = async (req, res) => {
+    try {
+        const { doctor_id, schedule_date, start_time, end_time } = req.body;
+
+        if (!doctor_id || !schedule_date || !start_time || !end_time) {
+            return res.status(400).json({ success: false, message: 'Doctor, Date, and Time range are required' });
+        }
+
+        // 1. Create the exclusion record
+        const exclusion = await Availability.create({
+            doctor_id,
+            schedule_date,
+            start_time,
+            end_time,
+            is_exclusion: true,
+            status: 'CANCELLED'
+        });
+
+        // 2. Move affected appointments to RESCHEDULE_REQUIRED
+        await cancelAffectedAppointments(doctor_id, { schedule_date: [schedule_date] });
+
+        res.status(201).json({
+            success: true,
+            message: 'Single session instance cancelled successfully.',
+            data: exclusion
+        });
+    } catch (error) {
+        console.error('Cancel single instance error:', error);
         res.status(500).json({ success: false, message: 'Server error' });
     }
 };
@@ -169,17 +222,37 @@ export const getDoctorAvailability = async (req, res) => {
             '-' +
             String(today.getDate()).padStart(2, '0');
 
-        await Availability.destroy({
-            where: {
-                doctor_id,
-                schedule_date: { [Op.lt]: todayStr }
+        await Availability.update(
+            { status: 'CANCELLED' },
+            {
+                where: {
+                    doctor_id,
+                    schedule_date: { [Op.lt]: todayStr },
+                    status: 'ACTIVE'
+                }
             }
-        });
+        );
+
+        // Filter: Staff see all, Patients/Public only see ACTIVE
+        const where = { doctor_id };
+        const currentUser = req.user;
+        
+        if (!currentUser || currentUser.role_id === 4) { // Public or Patient
+          where.status = 'ACTIVE';
+        }
 
         const availability = await Availability.findAll({
-            where: { doctor_id },
-            order: [['day_of_week', 'ASC'], ['start_time', 'ASC']]
+            where,
+            order: [
+                ['schedule_date', 'DESC'], // Specific dates first for override priority
+                ['day_of_week', 'ASC'], 
+                ['start_time', 'ASC']
+            ]
         });
+
+        // MASKING LOGIC (Handled in the resolution engine)
+        // If a patient is viewing, we don't return both the recurring slot AND the exclusion for the same date.
+        // The frontend mapping will treat is_exclusion: true + status: CANCELLED as a blackout.
 
         res.status(200).json({ success: true, data: availability });
     } catch (error) {
@@ -219,7 +292,7 @@ async function cancelAffectedAppointments(doctorId, filter) {
     if (toCancel.length > 0) {
         const { default: NotificationService } = await import('../utils/NotificationService.js');
         for (const appt of toCancel) {
-            appt.status = 'CANCELLED';
+            appt.status = 'RESCHEDULE_REQUIRED';
             await appt.save();
 
             if (appt.patient?.user?.email || appt.patient?.user?.contact_number) {

@@ -139,7 +139,12 @@ function PatientDashboard() {
         setLoading(false);
       }
     };
-    fetchDashboardData();
+    const pId = authUser?.profile?.patient_id;
+    if (pId) {
+      fetchDashboardData(pId);
+    } else {
+      setLoading(false);
+    }
   }, [API_URL, authUser]);
 
   const handleLogout = () => {
