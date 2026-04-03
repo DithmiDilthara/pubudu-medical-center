@@ -21,6 +21,7 @@ function AppointmentsManagement() {
     // Filters & Search
     const [searchQuery, setSearchQuery] = useState("");
     const [statusFilter, setStatusFilter] = useState("ALL");
+    const [dateFilter, setDateFilter] = useState("");
     
     // Pagination
     const [currentPage, setCurrentPage] = useState(1);
@@ -69,15 +70,17 @@ function AppointmentsManagement() {
                 (apt.appointment_id || "").toString().includes(searchQuery);
             
             const matchesStatus = statusFilter === "ALL" || apt.status === statusFilter;
+
+            const matchesDate = !dateFilter || apt.appointment_date === dateFilter;
             
-            return matchesSearch && matchesStatus;
+            return matchesSearch && matchesStatus && matchesDate;
         }).sort((a, b) => b.appointment_id - a.appointment_id);
-    }, [appointments, searchQuery, statusFilter]);
+    }, [appointments, searchQuery, statusFilter, dateFilter]);
 
     // Reset pagination when filter changes
     useEffect(() => {
         setCurrentPage(1);
-    }, [searchQuery, statusFilter]);
+    }, [searchQuery, statusFilter, dateFilter]);
 
     // Paginated appointments
     const paginatedAppointments = useMemo(() => {
@@ -233,6 +236,29 @@ function AppointmentsManagement() {
                                 <option value="COMPLETED">Completed</option>
                                 <option value="CANCELLED">Cancelled</option>
                             </select>
+                        </div>
+
+                        {/* Date Filter */}
+                        <div style={ui.dateFilterWrapper}>
+                            <FiCalendar style={ui.filterIcon} />
+                            <input
+                                type="date"
+                                value={dateFilter}
+                                onChange={(e) => setDateFilter(e.target.value)}
+                                style={ui.dateInput}
+                                title="Filter by specific date"
+                                onFocus={(e) => e.target.parentElement.style.borderColor = "#2563eb"}
+                                onBlur={(e) => e.target.parentElement.style.borderColor = "#e2e8f0"}
+                            />
+                            {dateFilter && (
+                                <button
+                                    onClick={() => setDateFilter("")}
+                                    style={ui.clearDateBtn}
+                                    title="Clear date filter"
+                                >
+                                    ✕
+                                </button>
+                            )}
                         </div>
                     </motion.div>
 
@@ -708,6 +734,39 @@ const ui = {
         color: "#475569",
         cursor: "pointer",
         outline: "none"
+    },
+    dateFilterWrapper: {
+        position: "relative",
+        display: "flex",
+        alignItems: "center",
+        gap: "8px",
+        backgroundColor: "white",
+        padding: "6px 12px",
+        borderRadius: "12px",
+        border: "2px solid #e2e8f0",
+        transition: "all 0.2s"
+    },
+    dateInput: {
+        border: "none",
+        outline: "none",
+        fontSize: "13px",
+        fontWeight: "600",
+        color: "#475569",
+        backgroundColor: "transparent",
+        cursor: "pointer",
+        fontFamily: "'Inter', sans-serif"
+    },
+    clearDateBtn: {
+        background: "none",
+        border: "none",
+        color: "#94a3b8",
+        fontSize: "14px",
+        cursor: "pointer",
+        padding: "0 4px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        transition: "color 0.2s"
     },
     card: {
         backgroundColor: "white",
