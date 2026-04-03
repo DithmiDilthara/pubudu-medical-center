@@ -203,7 +203,7 @@ export const getAppointments = async (req, res) => {
             include.push({ 
                 model: Patient, 
                 as: 'patient', 
-                attributes: ['full_name', 'nic'],
+                attributes: ['patient_id', 'full_name', 'nic'],
                 include: [{ model: User, as: 'user', attributes: ['contact_number', 'email'] }]
             });
         } else {

@@ -140,15 +140,15 @@ function ConfirmPayment() {
                     </div>
                     <div style={styles.infoItem}>
                       <span style={styles.infoLabel}>Patient ID</span>
-                      <span style={styles.infoValue}>#{appointment.patient?.patient_id}</span>
+                      <span style={styles.infoValue}>#{appointment.patient_id || 'N/A'}</span>
                     </div>
                     <div style={styles.infoItem}>
                       <span style={styles.infoLabel}>Phone</span>
-                      <span style={styles.infoValue}>{appointment.patient?.phone || "N/A"}</span>
+                      <span style={styles.infoValue}>{appointment.patient?.user?.contact_number || "N/A"}</span>
                     </div>
                     <div style={styles.infoItem}>
                       <span style={styles.infoLabel}>Email</span>
-                      <span style={styles.infoValue}>{appointment.patient?.email || "N/A"}</span>
+                      <span style={styles.infoValue}>{appointment.patient?.user?.email || "N/A"}</span>
                     </div>
                   </div>
                 </motion.section>
