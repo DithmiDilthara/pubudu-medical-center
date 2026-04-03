@@ -28,6 +28,7 @@ const ChannelDoctor = () => {
 
     // Step 2: Time Slot State
     const [selectedTime, setSelectedTime] = useState(null);
+    const [selectedScheduleId, setSelectedScheduleId] = useState(null);
     const [bookedSlots, setBookedSlots] = useState([]);
 
     // Step 3: Review State
@@ -85,8 +86,21 @@ const ChannelDoctor = () => {
         const dateObj = new Date(year, month, day);
         const formattedDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
         const dayName = dayNames[dateObj.getDay()];
-        
-        return availabilities.some(a => a.day_of_week === dayName || a.schedule_date === formattedDate);
+
+        // Defensive: if a blackout exclusion exists for this date, block it
+        const isBlackedOut = availabilities.some(a =>
+            a.is_exclusion === true &&
+            a.schedule_date === formattedDate &&
+            a.status === 'CANCELLED'
+        );
+        if (isBlackedOut) return false;
+
+        // Only show dates with an ACTIVE, non-exclusion session
+        return availabilities.some(a =>
+            a.status === 'ACTIVE' &&
+            !a.is_exclusion &&
+            (a.day_of_week === dayName || a.schedule_date === formattedDate)
+        );
     };
 
     const handleDateClick = (day) => {
@@ -100,31 +114,34 @@ const ChannelDoctor = () => {
     // --- Time Slot Logic ---
     const getTimeSlots = () => {
         if (!selectedDate) return [];
-        
+
         const dateObj = new Date(year, month, selectedDate);
         const dayName = dayNames[dateObj.getDay()];
         const formattedDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(selectedDate).padStart(2, '0')}`;
 
-        const relevantAvails = availabilities.filter(a => 
-            a.schedule_date === formattedDate || 
-            (a.day_of_week === dayName && !a.schedule_date)
+        // Only ACTIVE, non-exclusion sessions
+        const relevantAvails = availabilities.filter(a =>
+            a.status === 'ACTIVE' &&
+            !a.is_exclusion &&
+            (a.schedule_date === formattedDate ||
+            (a.day_of_week === dayName && !a.schedule_date))
         );
 
         if (relevantAvails.length === 0) return [];
 
-        const slots = [];
-        relevantAvails.forEach(avail => {
+        // Build slot objects that carry schedule_id — required for backend safety check
+        return relevantAvails.map(avail => {
             if (avail.start_time && avail.end_time) {
                 const start = new Date(`2000-01-01 ${avail.start_time}`).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
                 const end = new Date(`2000-01-01 ${avail.end_time}`).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
-                slots.push(`${start} - ${end}`);
+                return {
+                    time: `${start} - ${end}`,
+                    schedule_id: avail.schedule_id,
+                    isBooked: false
+                };
             }
-        });
-
-        return [...new Set(slots)].map(s => ({
-            time: s,
-            isBooked: false // Sessions are never "fully booked" in this model
-        }));
+            return null;
+        }).filter(Boolean);
     };
 
     // --- Action Handlers ---
@@ -139,6 +156,7 @@ const ChannelDoctor = () => {
                 doctor_id: doctor.doctor_id,
                 appointment_date: appointmentDate,
                 time_slot: selectedTime,
+                schedule_id: selectedScheduleId,
                 notes: "",
                 skipNotification: payNow // Skip initial email/SMS if paying online (sent after success)
             }, {
@@ -341,7 +359,10 @@ const ChannelDoctor = () => {
                                             {getTimeSlots().map((slot, i) => (
                                                 <button
                                                     key={i}
-                                                    onClick={() => setSelectedTime(slot.time)}
+                                                    onClick={() => {
+                                                        setSelectedTime(slot.time);
+                                                        setSelectedScheduleId(slot.schedule_id);
+                                                    }}
                                                     style={{
                                                         ...styles.slotBtn,
                                                         backgroundColor: selectedTime === slot.time ? '#2563eb' : 'white',

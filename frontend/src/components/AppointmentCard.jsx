@@ -20,6 +20,7 @@ const AppointmentCard = ({
       case 'RESCHEDULED': return { bg: '#fff7ed', text: '#f97316', border: '#ffedd5' };
       case 'CANCELLED': return { bg: '#fff1f2', text: '#e11d48', border: '#ffe4e6' };
       case 'COMPLETED': return { bg: '#eff6ff', text: '#2563eb', border: '#dbeafe' };
+      case 'RESCHEDULE_REQUIRED': return { bg: '#fff7ed', text: '#ea580c', border: '#fed7aa' };
       default: return { bg: '#f8fafc', text: '#64748b', border: '#f1f5f9' };
     }
   };
@@ -74,7 +75,7 @@ const AppointmentCard = ({
         
         {variant === 'carousel' ? (
           <div style={{...styles.statusBadge, backgroundColor: status.bg, color: status.text, border: `1px solid ${status.border}`}}>
-            {appt.status}
+            {appt.status === 'RESCHEDULE_REQUIRED' ? 'Session Cancelled' : appt.status}
           </div>
         ) : (
           <div style={styles.menuContainer}>
@@ -119,7 +120,7 @@ const AppointmentCard = ({
       <div style={styles.cardFooter}>
         {variant === 'grid' && (
           <div style={{...styles.statusBadge, backgroundColor: status.bg, color: status.text, border: `1px solid ${status.border}`}}>
-            {appt.status}
+            {appt.status === 'RESCHEDULE_REQUIRED' ? 'Session Cancelled' : appt.status}
           </div>
         )}
         
@@ -156,6 +157,21 @@ const AppointmentCard = ({
             
             {/* Cancelled appointments show no action buttons */}
         </div>
+        {appt.status === 'RESCHEDULE_REQUIRED' && (
+          <div style={{
+            marginTop: '12px',
+            padding: '10px 14px',
+            backgroundColor: '#fff7ed',
+            border: '1px solid #fed7aa',
+            borderRadius: '12px',
+            fontSize: '12px',
+            color: '#92400e',
+            fontWeight: '600',
+            lineHeight: '1.5'
+          }}>
+            ⚠️ Your session was cancelled. Please contact the medical center to reschedule your appointment.
+          </div>
+        )}
       </div>
     </motion.div>
   );

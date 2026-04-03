@@ -200,7 +200,12 @@ export const getAppointments = async (req, res) => {
 
         // Only include patient info if it's NOT a patient looking at another doctor's slots
         if (role_id !== 4 || !doctor_id) {
-            include.push({ model: Patient, as: 'patient', attributes: ['full_name', 'nic'] });
+            include.push({ 
+                model: Patient, 
+                as: 'patient', 
+                attributes: ['full_name', 'nic'],
+                include: [{ model: User, as: 'user', attributes: ['contact_number', 'email'] }]
+            });
         } else {
             // For patients looking at doctor's slots, don't return patient details for privacy
             include.push({ model: Patient, as: 'patient', attributes: ['patient_id'] }); // Or omit

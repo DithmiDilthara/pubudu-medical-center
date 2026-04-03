@@ -2,9 +2,8 @@ import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { 
-    FiChevronDown, FiSearch, FiPlus, FiCalendar, 
-    FiClock, FiFilter, FiUser, FiMoreVertical,
-    FiX, FiAlertCircle, FiCheckCircle
+    FiSearch, FiPlus, FiCalendar, 
+    FiFilter, FiUser, FiAlertTriangle, FiPhone, FiMail, FiX
 } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
@@ -16,7 +15,6 @@ import ConfirmDialog from "../../components/ConfirmDialog";
 function AppointmentsManagement() {
     const navigate = useNavigate();
     const [appointments, setAppointments] = useState([]);
-    const [doctors, setDoctors] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [receptionistName, setReceptionistName] = useState('Receptionist');
     
@@ -31,8 +29,10 @@ function AppointmentsManagement() {
     // Modals
     const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
     const [selectedAptForReschedule, setSelectedAptForReschedule] = useState(null);
-    const [isSessionCancelOpen, setIsSessionCancelOpen] = useState(false);
-    const [sessionCancelData, setSessionCancelData] = useState({ doctorId: "", date: "" });
+    
+    // Patient Contact Popup
+    const [selectedPatient, setSelectedPatient] = useState(null);
+    const [isPatientPopupOpen, setIsPatientPopupOpen] = useState(false);
     
     // Cancellation Confirmation
     const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
@@ -44,15 +44,13 @@ function AppointmentsManagement() {
         const token = localStorage.getItem('token');
         const fetchData = async () => {
             try {
-                const [profileRes, aptRes, docRes] = await Promise.all([
+                const [profileRes, aptRes] = await Promise.all([
                     axios.get(`${API_URL}/auth/profile`, { headers: { Authorization: `Bearer ${token}` } }),
-                    axios.get(`${API_URL}/appointments`, { headers: { Authorization: `Bearer ${token}` } }),
-                    axios.get(`${API_URL}/doctors`, { headers: { Authorization: `Bearer ${token}` } })
+                    axios.get(`${API_URL}/appointments`, { headers: { Authorization: `Bearer ${token}` } })
                 ]);
 
                 if (profileRes.data.success) setReceptionistName(profileRes.data.data.profile.full_name);
                 if (aptRes.data.success) setAppointments(aptRes.data.data);
-                if (docRes.data.success) setDoctors(docRes.data.data);
             } catch (error) {
                 console.error("Error fetching data:", error);
                 toast.error("Failed to load dashboard data");
@@ -116,43 +114,35 @@ function AppointmentsManagement() {
         }
     };
 
-    const handleCancelSession = async () => {
-        if (!sessionCancelData.doctorId || !sessionCancelData.date) {
-            toast.error("Please select a doctor and date");
-            return;
-        }
 
-        if (!window.confirm("This will cancel ALL appointments for this doctor on the selected date. Proceed?")) return;
-
-        try {
-            const token = localStorage.getItem('token');
-            await axios.put(`${API_URL}/appointments/cancel-session`, sessionCancelData, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            
-            // Refresh local state
-            setAppointments(prev => prev.map(apt => {
-                if (apt.doctor_id == sessionCancelData.doctorId && apt.appointment_date === sessionCancelData.date) {
-                    return { ...apt, status: 'CANCELLED' };
-                }
-                return apt;
-            }));
-
-            toast.success("Session cancelled successfully");
-            setIsSessionCancelOpen(false);
-        } catch (error) {
-            toast.error("Failed to cancel session");
-        }
-    };
 
     const getStatusBadge = (status) => {
-        const styles = {
+        if (status === 'RESCHEDULE_REQUIRED') {
+            return (
+                <span className="reschedule-badge" style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    backgroundColor: '#fff7ed',
+                    color: '#ea580c',
+                    border: '1px solid #fed7aa',
+                    padding: '4px 10px',
+                    borderRadius: '9999px',
+                    fontSize: '12px',
+                    fontWeight: '700'
+                }}>
+                    <FiAlertTriangle size={11} />
+                    Needs Reschedule
+                </span>
+            );
+        }
+        const styleMap = {
             CONFIRMED: { bg: "#e0f2fe", text: "#0369a1" },
             PENDING: { bg: "#fef3c7", text: "#92400e" },
             COMPLETED: { bg: "#dcfce7", text: "#166534" },
             CANCELLED: { bg: "#fee2e2", text: "#991b1b" }
         };
-        const config = styles[status] || styles.PENDING;
+        const config = styleMap[status] || styleMap.PENDING;
         return (
             <span style={{
                 backgroundColor: config.bg,
@@ -206,14 +196,6 @@ function AppointmentsManagement() {
                         <div style={ui.headerRight}>
                             <motion.button 
                                 whileHover={{ y: -4 }}
-                                onClick={() => setIsSessionCancelOpen(true)}
-                                style={ui.btnOutline}
-                            >
-                                <FiAlertCircle style={{marginRight: '8px'}} />
-                                Cancel Doctor Session
-                            </motion.button>
-                            <motion.button 
-                                whileHover={{ y: -4 }}
                                 onClick={() => navigate("/receptionist/appointments/new")}
                                 style={ui.btnPrimary}
                             >
@@ -245,6 +227,7 @@ function AppointmentsManagement() {
                                 onChange={(e) => setStatusFilter(e.target.value)}
                             >
                                 <option value="ALL">All Statuses</option>
+                                <option value="RESCHEDULE_REQUIRED">⚠️ Needs Reschedule</option>
                                 <option value="CONFIRMED">Confirmed</option>
                                 <option value="PENDING">Pending</option>
                                 <option value="COMPLETED">Completed</option>
@@ -289,7 +272,17 @@ function AppointmentsManagement() {
                                                     <td style={ui.td}>
                                                         <div style={ui.patientInfo}>
                                                             <div style={ui.avatar}><FiUser /></div>
-                                                            {apt.patient?.full_name || "Unknown"}
+                                                            <span
+                                                                onClick={apt.status === 'RESCHEDULE_REQUIRED' ? () => { setSelectedPatient(apt); setIsPatientPopupOpen(true); } : undefined}
+                                                                style={{
+                                                                    cursor: apt.status === 'RESCHEDULE_REQUIRED' ? 'pointer' : 'default',
+                                                                    color: apt.status === 'RESCHEDULE_REQUIRED' ? '#2563eb' : 'inherit',
+                                                                    textDecoration: apt.status === 'RESCHEDULE_REQUIRED' ? 'underline' : 'none',
+                                                                    fontWeight: '600'
+                                                                }}
+                                                            >
+                                                                {apt.patient?.full_name || "Unknown"}
+                                                            </span>
                                                         </div>
                                                     </td>
                                                     <td style={ui.td}>
@@ -409,50 +402,7 @@ function AppointmentsManagement() {
                 }}
             />
 
-            {/* Bulk Session Cancel Modal */}
-            <AnimatePresence>
-                {isSessionCancelOpen && (
-                    <div style={ui.modalOverlay}>
-                        <motion.div 
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: 20 }}
-                            style={ui.modal}
-                        >
-                            <div style={ui.modalHeader}>
-                                <h3 style={ui.modalTitle}>Cancel Doctor Session</h3>
-                                <button onClick={() => setIsSessionCancelOpen(false)} style={ui.closeBtn}><FiX /></button>
-                            </div>
-                            <div style={ui.modalBody}>
-                                <div style={ui.formGroup}>
-                                    <label style={ui.label}>Doctor</label>
-                                    <select 
-                                        style={ui.select}
-                                        value={sessionCancelData.doctorId}
-                                        onChange={(e) => setSessionCancelData(prev => ({ ...prev, doctorId: e.target.value }))}
-                                    >
-                                        <option value="">Select Doctor</option>
-                                        {doctors.map(d => <option key={d.doctor_id} value={d.doctor_id}>{d.full_name}</option>)}
-                                    </select>
-                                </div>
-                                <div style={ui.formGroup}>
-                                    <label style={ui.label}>Date</label>
-                                    <input 
-                                        type="date" 
-                                        style={ui.input}
-                                        value={sessionCancelData.date}
-                                        onChange={(e) => setSessionCancelData(prev => ({ ...prev, date: e.target.value }))}
-                                    />
-                                </div>
-                            </div>
-                            <div style={ui.modalFooter}>
-                                <button onClick={() => setIsSessionCancelOpen(false)} style={ui.btnCancel}>Discard</button>
-                                <button onClick={handleCancelSession} style={ui.btnConfirmRed}>Cancel Session</button>
-                            </div>
-                        </motion.div>
-                    </div>
-                )}
-            </AnimatePresence>
+
             
             <ConfirmDialog 
                 isOpen={isCancelDialogOpen}
@@ -465,6 +415,162 @@ function AppointmentsManagement() {
                 type="danger"
             />
 
+            {/* Patient Contact Popup — RESCHEDULE_REQUIRED only */}
+            <AnimatePresence>
+                {isPatientPopupOpen && selectedPatient && (
+                    <div style={{
+                        position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                        backgroundColor: 'rgba(15, 23, 42, 0.4)',
+                        backdropFilter: 'blur(6px)',
+                        zIndex: 2000,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        padding: '20px'
+                    }}>
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                            style={{
+                                backgroundColor: 'white',
+                                borderRadius: '24px',
+                                width: '100%',
+                                maxWidth: '440px',
+                                boxShadow: '0 25px 50px -12px rgba(15, 23, 42, 0.2)',
+                                overflow: 'hidden',
+                                border: '1px solid #f1f5f9'
+                            }}
+                        >
+                            {/* Header */}
+                            <div style={{
+                                padding: '24px 28px',
+                                borderBottom: '1px solid #f1f5f9',
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                background: 'linear-gradient(to right, #fff7ed, #ffedd5)'
+                            }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                    <div style={{
+                                        width: '44px', height: '44px', borderRadius: '14px',
+                                        background: 'linear-gradient(135deg, #f97316, #ea580c)',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        color: 'white', fontSize: '18px', fontWeight: '800'
+                                    }}>
+                                        {selectedPatient.patient?.full_name?.charAt(0)}
+                                    </div>
+                                    <div>
+                                        <h3 style={{ margin: 0, fontSize: '17px', fontWeight: '800', color: '#0f172a' }}>
+                                            {selectedPatient.patient?.full_name}
+                                        </h3>
+                                        <span style={{
+                                            display: 'inline-flex', alignItems: 'center', gap: '4px',
+                                            backgroundColor: '#fff7ed', color: '#ea580c',
+                                            border: '1px solid #fed7aa', padding: '2px 8px',
+                                            borderRadius: '9999px', fontSize: '11px', fontWeight: '700', marginTop: '4px'
+                                        }}>
+                                            <FiAlertTriangle size={10} /> Needs Reschedule
+                                        </span>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => { setIsPatientPopupOpen(false); setSelectedPatient(null); }}
+                                    style={{
+                                        width: '36px', height: '36px', borderRadius: '10px',
+                                        border: 'none', backgroundColor: '#f1f5f9',
+                                        color: '#64748b', cursor: 'pointer',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center'
+                                    }}
+                                >
+                                    <FiX size={16} />
+                                </button>
+                            </div>
+
+                            {/* Body */}
+                            <div style={{ padding: '24px 28px' }}>
+                                <p style={{ fontSize: '11px', fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 12px 0' }}>Contact Information</p>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 14px', backgroundColor: '#f8fafc', borderRadius: '12px' }}>
+                                        <FiPhone style={{ color: '#f97316', fontSize: '16px', flexShrink: 0 }} />
+                                        <span style={{ fontSize: '14px', fontWeight: '600', color: '#1e293b' }}>
+                                            {selectedPatient.patient?.user?.contact_number || 'Not available'}
+                                        </span>
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 14px', backgroundColor: '#f8fafc', borderRadius: '12px' }}>
+                                        <FiMail style={{ color: '#f97316', fontSize: '16px', flexShrink: 0 }} />
+                                        <span style={{ fontSize: '14px', fontWeight: '600', color: '#1e293b' }}>
+                                            {selectedPatient.patient?.user?.email || 'Not available'}
+                                        </span>
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 14px', backgroundColor: '#f8fafc', borderRadius: '12px' }}>
+                                        <FiUser style={{ color: '#f97316', fontSize: '16px', flexShrink: 0 }} />
+                                        <span style={{ fontSize: '14px', fontWeight: '600', color: '#1e293b' }}>
+                                            NIC: {selectedPatient.patient?.nic || 'Not available'}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <div style={{ height: '1px', backgroundColor: '#f1f5f9', margin: '0 0 16px 0' }} />
+
+                                <p style={{ fontSize: '11px', fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 12px 0' }}>Original Appointment</p>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}>
+                                        <span style={{ color: '#64748b', fontWeight: '500' }}>Doctor</span>
+                                        <span style={{ color: '#1e293b', fontWeight: '700' }}>{selectedPatient.doctor?.full_name}</span>
+                                    </div>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}>
+                                        <span style={{ color: '#64748b', fontWeight: '500' }}>Date</span>
+                                        <span style={{ color: '#1e293b', fontWeight: '700' }}>{formatDate(selectedPatient.appointment_date)}</span>
+                                    </div>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}>
+                                        <span style={{ color: '#64748b', fontWeight: '500' }}>Time</span>
+                                        <span style={{ color: '#1e293b', fontWeight: '700' }}>{selectedPatient.time_slot}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Footer */}
+                            <div style={{
+                                padding: '16px 28px',
+                                backgroundColor: '#f8fafc',
+                                borderTop: '1px solid #f1f5f9',
+                                display: 'flex',
+                                justifyContent: 'flex-end',
+                                gap: '12px'
+                            }}>
+                                <button
+                                    onClick={() => { setIsPatientPopupOpen(false); setSelectedPatient(null); }}
+                                    style={{
+                                        padding: '10px 20px', borderRadius: '10px',
+                                        border: '1px solid #e2e8f0', backgroundColor: 'white',
+                                        color: '#64748b', fontSize: '13px', fontWeight: '600', cursor: 'pointer'
+                                    }}
+                                >
+                                    Close
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setIsPatientPopupOpen(false);
+                                        setSelectedAptForReschedule(selectedPatient);
+                                        setIsBookingModalOpen(true);
+                                        setSelectedPatient(null);
+                                    }}
+                                    style={{
+                                        padding: '10px 20px', borderRadius: '10px',
+                                        border: 'none',
+                                        background: 'linear-gradient(135deg, #f97316, #ea580c)',
+                                        color: 'white', fontSize: '13px', fontWeight: '700', cursor: 'pointer',
+                                        display: 'flex', alignItems: 'center', gap: '6px',
+                                        boxShadow: '0 4px 12px rgba(249, 115, 22, 0.3)'
+                                    }}
+                                >
+                                    Reschedule →
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
             <style>
                 {`
                     .apt-row .action-btns {
@@ -472,6 +578,14 @@ function AppointmentsManagement() {
                     }
                     .apt-row:hover {
                         background-color: rgba(239, 246, 255, 0.5) !important;
+                    }
+                    @keyframes reschedule-badge-glow {
+                        0%   { box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.5); }
+                        50%  { box-shadow: 0 0 0 6px rgba(249, 115, 22, 0); }
+                        100% { box-shadow: 0 0 0 0 rgba(249, 115, 22, 0); }
+                    }
+                    .reschedule-badge {
+                        animation: reschedule-badge-glow 2s ease-in-out infinite;
                     }
                 `}
             </style>
