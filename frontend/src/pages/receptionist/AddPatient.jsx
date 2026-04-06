@@ -19,7 +19,11 @@ function AddPatient() {
     address: "",
     phoneNumber: "",
     email: "",
+    patientType: "ADULT",
     nic: "",
+    guardianName: "",
+    guardianContact: "",
+    guardianRelationship: "",
     username: "",
     password: "",
     confirmPassword: "",
@@ -50,8 +54,23 @@ function AddPatient() {
         try {
           const birthDate = new Date(value);
           const today = new Date();
+          today.setHours(0, 0, 0, 0);
+
           if (birthDate > today) return "Date of birth cannot be in the future";
-          const age = today.getFullYear() - birthDate.getFullYear();
+          
+          let age = today.getFullYear() - birthDate.getFullYear();
+          const m = today.getMonth() - birthDate.getMonth();
+          if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+            age--;
+          }
+
+          if (formData.patientType === 'ADULT' && age < 18) {
+            return "Adult patients must be 18 years or older";
+          }
+          if (formData.patientType === 'CHILD' && age >= 18) {
+            return "Child patients must be under 18 years old";
+          }
+
           return age >= 0 ? null : "Invalid date of birth";
         } catch (error) {
           return "Invalid date format";
@@ -96,8 +115,9 @@ function AddPatient() {
       }
     },
     nic: {
-      required: true,
+      required: false, // Dynamically controlled
       custom: (value) => {
+        if (formData.patientType !== 'ADULT') return null;
         if (!value) return "NIC is required";
         const nic = value.trim().toUpperCase();
         const oldNicRegex = /^[0-9]{9}[VX]$/;
@@ -111,6 +131,35 @@ function AddPatient() {
         if (/(\d)\1{8,}/.test(digitsOnly)) return "Invalid repeating pattern";
         if (/012345678|123456789|987654321/.test(digitsOnly)) return "Sequential digits not allowed";
         
+        return null;
+      }
+    },
+    guardianName: {
+      required: false,
+      custom: (value) => {
+        if (formData.patientType !== 'CHILD') return null;
+        if (!value || !value.trim()) return "Guardian name is required";
+        if (value.length < 3) return "Guardian name must be at least 3 characters";
+        if (!/^[a-zA-Z\s.]+$/.test(value)) return "Guardian name can only contain letters, spaces and periods";
+        return null;
+      }
+    },
+    guardianContact: {
+      required: false,
+      custom: (value) => {
+        if (formData.patientType !== 'CHILD') return null;
+        if (!value || !value.trim()) return "Guardian contact is required";
+        const digits = value.replace(/\D/g, "");
+        if (digits.length !== 10) return "Phone number must be exactly 10 digits";
+        if (!digits.startsWith('07')) return "Phone number must start with 07";
+        return null;
+      }
+    },
+    guardianRelationship: {
+      required: false,
+      custom: (value) => {
+        if (formData.patientType !== 'CHILD') return null;
+        if (!value || !value.trim()) return "Guardian relationship is required";
         return null;
       }
     },
@@ -184,7 +233,28 @@ function AddPatient() {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData(prev => {
+      const updated = { ...prev, [name]: value };
+      if (name === 'patientType') {
+        if (value === 'ADULT') {
+          updated.guardianName = '';
+          updated.guardianContact = '';
+          updated.guardianRelationship = '';
+        } else {
+          updated.nic = '';
+        }
+        setErrors(prev => {
+          const newErrors = { ...prev };
+          delete newErrors.nic;
+          delete newErrors.guardianName;
+          delete newErrors.guardianContact;
+          delete newErrors.guardianRelationship;
+          delete newErrors.dateOfBirth; // Force re-validation of age if type changes
+          return newErrors;
+        });
+      }
+      return updated;
+    });
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: "" }));
     }
@@ -222,7 +292,11 @@ function AddPatient() {
         email: formData.email || null,
         phone: formData.phoneNumber ? formData.phoneNumber.replace(/\D/g, "") : null,
         full_name: formData.fullName,
-        nic: formData.nic,
+        patient_type: formData.patientType,
+        nic: formData.patientType === 'ADULT' ? formData.nic : null,
+        guardian_name: formData.patientType === 'CHILD' ? formData.guardianName : null,
+        guardian_contact: formData.patientType === 'CHILD' ? formData.guardianContact : null,
+        guardian_relationship: formData.patientType === 'CHILD' ? formData.guardianRelationship : null,
         gender: formData.gender.toUpperCase(),
         date_of_birth: formData.dateOfBirth || null,
         address: formData.address || null,
@@ -284,16 +358,147 @@ function AddPatient() {
             variants={itemVariants}
             style={styles.contentCard}
           >
-            <form onSubmit={handleSubmit}>
+            <form onSubmit={handleSubmit} style={styles.form}>
+              {/* 1. Account Type Selection (Always First) */}
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                style={{
+                  ...styles.section,
+                  backgroundColor: '#f1f5f9',
+                  border: '1px solid #e2e8f0',
+                  marginBottom: '24px'
+                }}
+              >
+                <div style={styles.sectionHeader}>
+                  <div style={{...styles.sectionIcon, backgroundColor: '#2563eb'}}><FiUser /></div>
+                  <h2 style={styles.sectionTitle}>Step 1: Select Account Type</h2>
+                </div>
+                <div style={styles.formGroup}>
+                  <div style={{ display: 'flex', gap: '16px' }}>
+                    {['ADULT', 'CHILD'].map(type => (
+                      <label key={type} style={{
+                        flex: 1,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '10px',
+                        padding: '16px',
+                        borderRadius: '12px',
+                        border: `2px solid ${formData.patientType === type ? '#2563eb' : '#e2e8f0'}`,
+                        backgroundColor: formData.patientType === type ? '#ffffff' : '#f8fafc',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                        fontWeight: formData.patientType === type ? '700' : '500',
+                        color: formData.patientType === type ? '#2563eb' : '#64748b',
+                        boxShadow: formData.patientType === type ? '0 4px 6px -1px rgba(37, 99, 235, 0.1)' : 'none'
+                      }}>
+                        <input
+                          type="radio"
+                          name="patientType"
+                          value={type}
+                          checked={formData.patientType === type}
+                          onChange={handleInputChange}
+                          style={{ display: 'none' }}
+                        />
+                        {type === 'ADULT' ? ' Adults Account (Age 18+)' : 'Child Account (Under 18)'}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </motion.div>
+
+              {/* 2. Guardian Information (For Child, comes BEFORE Patient Details) */}
+              {formData.patientType === 'CHILD' && (
+                <motion.div
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  style={styles.section}
+                >
+                  <div style={styles.sectionHeader}>
+                    <div style={styles.sectionIcon}><FiUser /></div>
+                    <h2 style={styles.sectionTitle}>Guardian Information</h2>
+                  </div>
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>Guardian Name <span style={styles.required}>*</span></label>
+                    <div style={styles.inputWrapper}>
+                      <FiUser style={{...styles.inputIcon, color: focusedField === 'guardianName' ? '#2563eb' : '#94a3b8'}} />
+                      <input
+                        type="text"
+                        name="guardianName"
+                        placeholder="Enter guardian's full name"
+                        value={formData.guardianName}
+                        onChange={handleInputChange}
+                        onFocus={() => setFocusedField('guardianName')}
+                        onBlur={(e) => { handleBlur(e); setFocusedField(null); }}
+                        style={{
+                          ...styles.input,
+                          ...(focusedField === 'guardianName' ? styles.inputFocus : {}),
+                          ...(touched.guardianName && errors.guardianName ? styles.errorInput : {})
+                        }}
+                      />
+                    </div>
+                    {touched.guardianName && errors.guardianName && <div style={styles.errorText}><FiAlertCircle /> {errors.guardianName}</div>}
+                  </div>
+                  <div style={styles.formRow}>
+                    <div style={styles.formGroup}>
+                      <label style={styles.label}>Guardian Contact <span style={styles.required}>*</span></label>
+                      <div style={styles.inputWrapper}>
+                        <FiPhone style={{...styles.inputIcon, color: focusedField === 'guardianContact' ? '#2563eb' : '#94a3b8'}} />
+                        <input
+                          type="tel"
+                          name="guardianContact"
+                          placeholder="07X XXX XXXX"
+                          value={formData.guardianContact}
+                          onChange={handleInputChange}
+                          onFocus={() => setFocusedField('guardianContact')}
+                          onBlur={(e) => { handleBlur(e); setFocusedField(null); }}
+                          style={{
+                            ...styles.input,
+                            ...(focusedField === 'guardianContact' ? styles.inputFocus : {}),
+                            ...(touched.guardianContact && errors.guardianContact ? styles.errorInput : {})
+                          }}
+                        />
+                      </div>
+                      {touched.guardianContact && errors.guardianContact && <div style={styles.errorText}><FiAlertCircle /> {errors.guardianContact}</div>}
+                    </div>
+                    <div style={styles.formGroup}>
+                      <label style={styles.label}>Guardian Relationship <span style={styles.required}>*</span></label>
+                      <div style={styles.inputWrapper}>
+                        <FiUser style={{...styles.inputIcon, color: focusedField === 'guardianRelationship' ? '#2563eb' : '#94a3b8'}} />
+                        <select
+                          name="guardianRelationship"
+                          value={formData.guardianRelationship}
+                          onChange={handleInputChange}
+                          onFocus={() => setFocusedField('guardianRelationship')}
+                          onBlur={(e) => { handleBlur(e); setFocusedField(null); }}
+                          style={{
+                            ...styles.select,
+                            ...(focusedField === 'guardianRelationship' ? styles.inputFocus : {}),
+                            ...(touched.guardianRelationship && errors.guardianRelationship ? styles.errorInput : {})
+                          }}
+                        >
+                          <option value="">Select Relationship</option>
+                          <option value="Father">Father</option>
+                          <option value="Mother">Mother</option>
+                          <option value="Guardian">Guardian</option>
+                        </select>
+                      </div>
+                      {touched.guardianRelationship && errors.guardianRelationship && <div style={styles.errorText}><FiAlertCircle /> {errors.guardianRelationship}</div>}
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
+              {/* 3. Patient Details (Previously Personal Information) */}
               <motion.div
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.1 }}
                 style={styles.section}
               >
                 <div style={styles.sectionHeader}>
                   <div style={styles.sectionIcon}><FiUser /></div>
-                  <h2 style={styles.sectionTitle}>Personal Details</h2>
+                  <h2 style={styles.sectionTitle}>{formData.patientType === 'ADULT' ? "Patient Details" : "Child Patient Details"}</h2>
                 </div>
 
                 <div style={styles.formGroup}>
@@ -510,28 +715,31 @@ function AddPatient() {
                   <h2 style={styles.sectionTitle}>Security & Credentials</h2>
                 </div>
 
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>NIC Number <span style={styles.required}>*</span></label>
-                  <div style={styles.inputWrapper}>
-                    <FiCreditCard style={{...styles.inputIcon, color: focusedField === 'nic' ? '#2563eb' : '#94a3b8'}} />
-                    <input
-                      type="text"
-                      name="nic"
-                      placeholder="Enter 9 or 12 digit NIC"
-                      value={formData.nic}
-                      onChange={handleInputChange}
-                      onFocus={() => setFocusedField('nic')}
-                      onBlur={(e) => { handleBlur(e); setFocusedField(null); }}
-                      style={{
-                        ...styles.input,
-                        ...(focusedField === 'nic' ? styles.inputFocus : {}),
-                        ...(touched.nic && errors.nic ? styles.errorInput : {})
-                      }}
-                    />
-                    {touched.nic && !errors.nic && formData.nic && <div style={styles.validBadge}><FiCheck /></div>}
+                {/* Conditional: NIC for Adult ONLY in Security section now */}
+                {formData.patientType === 'ADULT' && (
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>NIC Number <span style={styles.required}>*</span></label>
+                    <div style={styles.inputWrapper}>
+                      <FiCreditCard style={{...styles.inputIcon, color: focusedField === 'nic' ? '#2563eb' : '#94a3b8'}} />
+                      <input
+                        type="text"
+                        name="nic"
+                        placeholder="Enter 9 or 12 digit NIC"
+                        value={formData.nic}
+                        onChange={handleInputChange}
+                        onFocus={() => setFocusedField('nic')}
+                        onBlur={(e) => { handleBlur(e); setFocusedField(null); }}
+                        style={{
+                          ...styles.input,
+                          ...(focusedField === 'nic' ? styles.inputFocus : {}),
+                          ...(touched.nic && errors.nic ? styles.errorInput : {})
+                        }}
+                      />
+                      {touched.nic && !errors.nic && formData.nic && <div style={styles.validBadge}><FiCheck /></div>}
+                    </div>
+                    {touched.nic && errors.nic && <div style={styles.errorText}><FiAlertCircle /> {errors.nic}</div>}
                   </div>
-                  {touched.nic && errors.nic && <div style={styles.errorText}><FiAlertCircle /> {errors.nic}</div>}
-                </div>
+                )}
 
                 <div style={styles.formGroup}>
                   <label style={styles.label}>Portal Username <span style={styles.required}>*</span></label>

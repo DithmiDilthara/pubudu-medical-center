@@ -1,4 +1,4 @@
-import { User, Doctor, Receptionist, Admin, Appointment, Payment, Patient, Availability, MedicalRecord, sequelize } from '../models/index.js';
+import { User, Doctor, Receptionist, Admin, Appointment, Payment, Patient, Adult, Availability, MedicalRecord, sequelize } from '../models/index.js';
 import { Op } from 'sequelize';
 import ReportGenerator from '../utils/ReportGenerator.js';
 import NotificationService from '../utils/NotificationService.js';
@@ -126,11 +126,14 @@ export const getPatientRegistrationReport = async (req, res) => {
 
     const patients = await Patient.findAll({
       where,
-      include: [{
-        model: User,
-        as: 'user',
-        attributes: ['email', 'contact_number']
-      }],
+      include: [
+        {
+          model: User,
+          as: 'user',
+          attributes: ['email', 'contact_number']
+        },
+        { model: Adult, as: 'adult' }
+      ],
       order: [['created_at', 'DESC']]
     });
 
@@ -153,7 +156,8 @@ export const getPatientRegistrationReport = async (req, res) => {
         chartData,
         patients: patients.map(p => ({
           name: p.full_name,
-          nic: p.nic,
+          nic: p.patient_type === 'ADULT' && p.adult ? p.adult.nic : (p.patient_type === 'CHILD' ? 'CHILD' : 'N/A'),
+          patient_type: p.patient_type,
           source: p.registration_source,
           date: p.created_at,
           contact: p.user?.contact_number || 'N/A'
@@ -318,7 +322,11 @@ export const exportReport = async (req, res) => {
       if (startDate && endDate) where.created_at = { [Op.between]: [new Date(startDate), new Date(endDate + 'T23:59:59')] };
       const patients = await Patient.findAll({
         where,
-        include: [{ model: User, as: 'user', attributes: ['email', 'contact_number'] }],
+        include: [
+          { model: User, as: 'user', attributes: ['email', 'contact_number'] },
+          { model: Adult, as: 'adult' },
+          { model: Child, as: 'child' }
+        ],
         order: [['created_at', 'DESC']]
       });
       reportData = {
@@ -329,7 +337,7 @@ export const exportReport = async (req, res) => {
         },
         patients: patients.map(p => ({
           name: p.full_name,
-          nic: p.nic,
+          nic: p.patient_type === 'ADULT' && p.adult ? p.adult.nic : (p.patient_type === 'CHILD' ? 'CHILD' : 'N/A'),
           source: p.registration_source,
           contact: p.user?.contact_number || 'N/A'
         }))

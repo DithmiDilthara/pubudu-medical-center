@@ -1,4 +1,4 @@
-import { Payment, Patient, User } from '../models/index.js';
+import { Payment, Patient, Adult, Child, User } from '../models/index.js';
 import bcrypt from 'bcryptjs';
 
 /**
@@ -86,7 +86,7 @@ export const getTransactionHistory = async (req, res) => {
 export const updatePatientDetails = async (req, res) => {
     try {
         const userId = req.user.user_id;
-        const { full_name, email, date_of_birth, gender, address, contact_number, nic } = req.body;
+        const { full_name, email, date_of_birth, gender, address, contact_number, nic, guardian_name, guardian_contact, guardian_relationship } = req.body;
 
         // Validation - Full Name
         if (full_name) {
@@ -148,7 +148,14 @@ export const updatePatientDetails = async (req, res) => {
         }
 
         const user = await User.findByPk(userId, {
-            include: [{ model: Patient, as: 'patient' }]
+            include: [{ 
+                model: Patient, 
+                as: 'patient',
+                include: [
+                    { model: Adult, as: 'adult' },
+                    { model: Child, as: 'child' }
+                ]
+            }]
         });
 
         if (!user || !user.patient) {
@@ -160,13 +167,32 @@ export const updatePatientDetails = async (req, res) => {
         if (contact_number) user.contact_number = contact_number;
         await user.save();
 
-        // Update Patient table fields
+        // Update Patient table fields (shared)
         if (full_name) user.patient.full_name = full_name;
         if (date_of_birth) user.patient.date_of_birth = date_of_birth;
         if (gender) user.patient.gender = gender;
         if (address) user.patient.address = address;
-        if (nic) user.patient.nic = nic; // NIC is usually locked in UI but editable in DB if needed
         await user.patient.save();
+
+        // Update Adult-specific fields (NIC)
+        if (nic && user.patient.patient_type === 'ADULT' && user.patient.adult) {
+            user.patient.adult.nic = nic;
+            await user.patient.adult.save();
+        }
+
+        // Update Child-specific fields (Guardian)
+        if (user.patient.patient_type === 'CHILD' && user.patient.child) {
+            if (guardian_name) user.patient.child.guardian_name = guardian_name;
+            if (guardian_contact) user.patient.child.guardian_contact = guardian_contact;
+            if (guardian_relationship) user.patient.child.guardian_relationship = guardian_relationship;
+            await user.patient.child.save();
+        }
+
+        // Build response with flattened NIC for backward compatibility
+        const patientJSON = user.patient.toJSON();
+        if (patientJSON.patient_type === 'ADULT' && patientJSON.adult) {
+            patientJSON.nic = patientJSON.adult.nic;
+        }
 
         res.status(200).json({
             success: true,
@@ -175,7 +201,7 @@ export const updatePatientDetails = async (req, res) => {
                 user_id: user.user_id,
                 email: user.email,
                 contact_number: user.contact_number,
-                profile: user.patient
+                profile: patientJSON
             }
         });
     } catch (error) {

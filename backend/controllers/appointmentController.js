@@ -1,4 +1,4 @@
-import { Appointment, Patient, Doctor, User, Availability } from '../models/index.js';
+import { Appointment, Patient, Adult, Child, Doctor, User, Availability } from '../models/index.js';
 import NotificationService from '../utils/NotificationService.js';
 import { Op } from 'sequelize';
 
@@ -203,12 +203,16 @@ export const getAppointments = async (req, res) => {
             include.push({ 
                 model: Patient, 
                 as: 'patient', 
-                attributes: ['patient_id', 'full_name', 'nic'],
-                include: [{ model: User, as: 'user', attributes: ['contact_number', 'email'] }]
+                attributes: ['patient_id', 'full_name', 'patient_type', 'date_of_birth', 'gender'],
+                include: [
+                    { model: User, as: 'user', attributes: ['contact_number', 'email'] },
+                    { model: Adult, as: 'adult', attributes: ['nic'] },
+                    { model: Child, as: 'child', attributes: ['guardian_name', 'guardian_contact', 'guardian_relationship'] }
+                ]
             });
         } else {
             // For patients looking at doctor's slots, don't return patient details for privacy
-            include.push({ model: Patient, as: 'patient', attributes: ['patient_id'] }); // Or omit
+            include.push({ model: Patient, as: 'patient', attributes: ['patient_id', 'patient_type'] }); // Or omit
         }
 
         const appointments = await Appointment.findAll({
@@ -217,7 +221,25 @@ export const getAppointments = async (req, res) => {
             order: [['appointment_id', 'DESC']]
         });
 
-        res.status(200).json({ success: true, data: appointments });
+        // Flatten patient info for backward compatibility (NIC, etc.)
+        const flattenedAppointments = appointments.map(appt => {
+            const aptJson = appt.toJSON();
+            if (aptJson.patient) {
+                if (aptJson.patient.patient_type === 'ADULT' && aptJson.patient.adult) {
+                    aptJson.patient.nic = aptJson.patient.adult.nic;
+                } else if (aptJson.patient.patient_type === 'CHILD' && aptJson.patient.child) {
+                    aptJson.patient.guardian_name = aptJson.patient.child.guardian_name;
+                    aptJson.patient.guardian_contact = aptJson.patient.child.guardian_contact;
+                    aptJson.patient.guardian_relationship = aptJson.patient.child.guardian_relationship;
+                    aptJson.patient.nic = 'CHILD'; // Optional: Use "CHILD" placeholder if legacy code expects string NIC
+                } else {
+                    aptJson.patient.nic = null;
+                }
+            }
+            return aptJson;
+        });
+
+        res.status(200).json({ success: true, data: flattenedAppointments });
 
     } catch (error) {
         console.error('Get appointments error:', error);

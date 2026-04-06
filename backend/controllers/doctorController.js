@@ -1,4 +1,4 @@
-import { Doctor, User, Availability, Appointment, Patient } from '../models/index.js';
+import { Doctor, User, Availability, Appointment, Patient, Adult } from '../models/index.js';
 
 /**
  * @desc    Get all doctors with their specializations
@@ -77,7 +77,10 @@ export const getMyPatients = async (req, res) => {
                 {
                     model: Patient,
                     as: 'patient',
-                    include: [{ model: User, as: 'user', attributes: ['email', 'contact_number'] }]
+                    include: [
+                        { model: User, as: 'user', attributes: ['email', 'contact_number'] },
+                        { model: Adult, as: 'adult' }
+                    ]
                 }
             ],
             order: [['appointment_date', 'DESC']]
@@ -98,7 +101,7 @@ export const getMyPatients = async (req, res) => {
                     gender: apt.patient.gender,
                     lastVisit: apt.status === 'COMPLETED' ? apt.appointment_date : 'N/A', // First encountered is most recent due to DESC order
                     primaryReason: apt.status === 'COMPLETED' ? 'Follow-up' : 'Consultation', // Dummy, can fetch from prescriptions if needed
-                    nic: apt.patient.nic
+                    nic: apt.patient.patient_type === 'ADULT' && apt.patient.adult ? apt.patient.adult.nic : null
                 });
             }
         });
@@ -129,7 +132,10 @@ export const getPatientDetails = async (req, res) => {
         // Optionally verify that this doctor has seen this patient (skip for simplicity if they need to fetch global records)
 
         const patient = await Patient.findByPk(patient_id, {
-            include: [{ model: User, as: 'user', attributes: ['email', 'contact_number'] }]
+            include: [
+                { model: User, as: 'user', attributes: ['email', 'contact_number'] },
+                { model: Adult, as: 'adult' }
+            ]
         });
 
         if (!patient) {
