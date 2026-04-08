@@ -33,10 +33,6 @@ const Payment = sequelize.define('payment', {
         allowNull: false,
         unique: true
     },
-    description: {
-        type: DataTypes.STRING(255),
-        allowNull: true
-    }
 }, {
     tableName: 'payment',
     timestamps: true,

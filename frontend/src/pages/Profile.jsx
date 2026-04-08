@@ -168,6 +168,8 @@ const Profile = () => {
         // Email Validation
         if (!formData.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
             errors.email = "Invalid email format";
+        } else if (!formData.email.toLowerCase().endsWith('@gmail.com')) {
+            errors.email = "Only @gmail.com emails are allowed";
         }
 
         // Date of Birth Validation

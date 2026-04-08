@@ -1,4 +1,4 @@
-import { Appointment, Patient, Adult, Child, Doctor, User, Availability } from '../models/index.js';
+import { Appointment, Patient, Adult, Child, Doctor, User, Availability, Payment, sequelize } from '../models/index.js';
 import NotificationService from '../utils/NotificationService.js';
 import { Op } from 'sequelize';
 
@@ -339,22 +339,70 @@ export const getAppointments = async (req, res) => {
  * @access  Private (Receptionist, Doctor)
  */
 export const updateStatus = async (req, res) => {
+    const t = await sequelize.transaction();
     try {
         const { id } = req.params;
-        const { status, payment_status } = req.body;
+        const { status, payment_status, payment_method } = req.body;
 
-        const appointment = await Appointment.findByPk(id);
-        if (!appointment) return res.status(404).json({ success: false, message: 'Appointment not found' });
+        const appointment = await Appointment.findByPk(id, {
+            include: [{ model: Doctor, as: 'doctor' }],
+            transaction: t
+        });
+        
+        if (!appointment) {
+            await t.rollback();
+            return res.status(404).json({ success: false, message: 'Appointment not found' });
+        }
 
+        const oldPaymentStatus = appointment.payment_status;
+
+        if (payment_status) {
+            appointment.payment_status = payment_status;
+            // Force status to CONFIRMED if paid and currently pending
+            if (payment_status === 'PAID' && appointment.status === 'PENDING') {
+                appointment.status = 'CONFIRMED';
+            }
+
+            // Create LEDGER entry for receptionist payments
+            if (payment_status === 'PAID' && oldPaymentStatus !== 'PAID') {
+                // Check if payment record already exists for this appointment
+                const existingPayment = await Payment.findOne({
+                    where: { appointment_id: id },
+                    transaction: t
+                });
+
+                if (!existingPayment) {
+                    const doctorFee = parseFloat(appointment.doctor?.doctor_fee) || 0;
+                    const centerFee = parseFloat(appointment.doctor?.center_fee) || 600;
+                    const totalAmount = doctorFee + centerFee;
+                    
+                    // Generate a professional manual transaction ID
+                    // REP - [ApptID] - [6 Random Digits]
+                    const randomId = Math.floor(100000 + Math.random() * 900000);
+                    const transactionId = `REP-${id}-${randomId}`;
+
+                    await Payment.create({
+                        patient_id: appointment.patient_id,
+                        appointment_id: id,
+                        amount: totalAmount,
+                        payment_method: payment_method || 'CASH',
+                        transaction_id: transactionId,
+                        status: 'SUCCESS'
+                    }, { transaction: t });
+                }
+            }
+        }
+        
         if (status) appointment.status = status;
-        if (payment_status) appointment.payment_status = payment_status;
 
-        await appointment.save();
+        await appointment.save({ transaction: t });
+        await t.commit();
 
-        res.status(200).json({ success: true, message: 'Status updated', data: appointment });
+        res.status(200).json({ success: true, message: 'Status updated and ledger entry created', data: appointment });
     } catch (error) {
+        if (t) await t.rollback();
         console.error('Update status error:', error);
-        res.status(500).json({ success: false, message: 'Server error' });
+        res.status(500).json({ success: false, message: 'Server error during status update' });
     }
 };
 

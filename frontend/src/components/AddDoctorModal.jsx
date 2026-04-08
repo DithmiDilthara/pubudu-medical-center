@@ -79,6 +79,7 @@ const AddDoctorModal = ({
       case 'email':
         if (!value) error = 'Email is required';
         else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) error = 'Invalid email format';
+        else if (!value.toLowerCase().endsWith('@gmail.com')) error = 'Only @gmail.com emails are allowed';
         break;
       case 'contact_number':
         if (!value) error = 'Phone number is required';

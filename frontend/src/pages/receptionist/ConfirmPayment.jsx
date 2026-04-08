@@ -62,6 +62,7 @@ function ConfirmPayment() {
         `${API_URL}/appointments/${appointment.appointment_id}/status`,
         { 
           payment_status: 'PAID',
+          status: 'CONFIRMED',
           payment_method: paymentMethod.toUpperCase()
         },
         { headers: { Authorization: `Bearer ${token}` } }

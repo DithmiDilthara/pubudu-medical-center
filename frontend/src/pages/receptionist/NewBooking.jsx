@@ -767,7 +767,10 @@ function NewBooking() {
                           return sessions.map((session) => (
                             <button
                               key={session.id}
-                              onClick={() => setSelectedSession(session)}
+                              onClick={() => {
+                                setSelectedSession(session);
+                                setSelectedTime(session.timeRange);
+                              }}
                               style={{
                                 ...styles.timeBtn,
                                 ...(selectedSession?.id === session.id ? styles.timeBtnActive : {}),

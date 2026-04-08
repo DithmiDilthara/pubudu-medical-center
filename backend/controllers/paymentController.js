@@ -131,10 +131,9 @@ export const handleNotify = async (req, res) => {
                     patient_id: patient_id,
                     appointment_id: appointment_id,
                     amount: payhere_amount,
-                    payment_method: method || 'PayHere',
-                    transaction_id: payhere_payment_id,
-                    status: 'SUCCESS',
-                    description: `Payment for appointment ${appointment_id} via PayHere`
+                    payment_method: method || 'Online',
+                    transaction_id: `ONL-${appointment_id}-${payhere_payment_id || Date.now()}`,
+                    status: 'SUCCESS'
                 });
 
                 // Send Confirmation Email
@@ -211,10 +210,9 @@ export const verifyPayment = async (req, res) => {
                     patient_id: appointment.patient_id,
                     appointment_id: appointment_id,
                     amount: amount,
-                    payment_method: 'PayHere',
-                    transaction_id: `PH_${Date.now()}`,
-                    status: 'SUCCESS',
-                    description: `Payment for appointment ${appointment_id} via PayHere Verification`
+                    payment_method: 'Online',
+                    transaction_id: `ONL-${appointment_id}-${Date.now()}`,
+                    status: 'SUCCESS'
                 });
             }
 
@@ -288,8 +286,8 @@ export const downloadReceipt = async (req, res) => {
         console.log("Appointment Doctor:", JSON.stringify(appointment.doctor, null, 2));
         console.log("Appointment Payment:", JSON.stringify(appointment.payment, null, 2));
 
-        if (appointment.payment_status !== 'PAID' || !appointment.payment) {
-            return res.status(400).json({ success: false, message: 'No payment record found for this appointment' });
+        if (appointment.payment_status !== 'PAID') {
+            return res.status(400).json({ success: false, message: 'This appointment has not been paid for yet.' });
         }
 
         // Format dates and times
@@ -309,8 +307,8 @@ export const downloadReceipt = async (req, res) => {
         const total = doctorFee + centerFee;
 
         // Force 'Online' label for PayHere
-        const rawMethod = appointment.payment.payment_method || '';
-        const displayMethod = (rawMethod.toLowerCase().includes('payhere')) 
+        const rawMethod = appointment.payment?.payment_method || '';
+        const displayMethod = (rawMethod && rawMethod.toLowerCase().includes('payhere')) 
             ? 'Online' 
             : rawMethod;
 
@@ -324,7 +322,7 @@ export const downloadReceipt = async (req, res) => {
 
         // Generate PDF Buffer
         const pdfBuffer = await ReceiptGenerator.generateReceiptBuffer({
-            receiptNumber: `REC-${appointment.appointment_id}-${appointment.payment.payment_id}`,
+            receiptNumber: `REC-${appointment.appointment_id}-${appointment.payment?.payment_id || 'MNL'}`,
             date: issueDateStr,
             time: issueTimeStr,
             patientName: appointment.patient?.full_name || 'N/A',
@@ -335,8 +333,8 @@ export const downloadReceipt = async (req, res) => {
             doctorFee: doctorFee,
             centerFee: centerFee,
             total: total,
-            paymentMethod: displayMethod,
-            transactionId: appointment.payment.transaction_id
+            paymentMethod: displayMethod || 'N/A',
+            transactionId: appointment.payment?.transaction_id || 'N/A'
         });
 
         // Send PDF

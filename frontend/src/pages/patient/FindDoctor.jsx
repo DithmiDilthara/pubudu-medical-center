@@ -70,7 +70,7 @@ function FindDoctor() {
     setSearchTerm(typedSearch);
   };
 
-  const specialties = ["All", "Cardiology", "Dermatology", "Neurology", "Orthopedic", "General", "Pediatrics"];
+  const specialties = ["All", ...new Set(doctors.map(d => d.specialization))].filter(Boolean);
 
   const filteredDoctors = doctors.filter(doctor => {
     const name = doctor.full_name || "";

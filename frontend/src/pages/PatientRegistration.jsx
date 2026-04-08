@@ -269,6 +269,8 @@ function PatientRegistration() {
           error = "Email is required";
         } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
           error = "Please enter a valid email";
+        } else if (!value.toLowerCase().endsWith('@gmail.com')) {
+          error = "Only @gmail.com emails are allowed";
         }
         break;
 

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { toast } from 'react-hot-toast';
 import { FiCalendar, FiClock, FiMapPin, FiMoreVertical, FiChevronRight, FiUser } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import doctor_m1 from '../assets/doctor_m1.png';
@@ -96,7 +97,10 @@ const AppointmentCard = ({
                             <button 
                                 onClick={() => { 
                                     if (role === 'patient') {
-                                        alert('Please contact the Pubudu Medical Center receptionist to cancel or reschedule your appointment.');
+                                        toast.error('Please contact the Pubudu Medical Center receptionist to cancel or reschedule your appointment.', {
+                                            duration: 5000,
+                                            icon: '📞'
+                                        });
                                     } else {
                                         onReschedule(appt); 
                                     }
@@ -111,7 +115,10 @@ const AppointmentCard = ({
                             <button 
                                 onClick={() => { 
                                     if (role === 'patient') {
-                                        alert('Please contact the Pubudu Medical Center receptionist to cancel or reschedule your appointment.');
+                                        toast.error('Please contact the Pubudu Medical Center receptionist to cancel or reschedule your appointment.', {
+                                            duration: 5000,
+                                            icon: '📞'
+                                        });
                                     } else {
                                         onCancel(appt.appointment_id); 
                                     }
@@ -148,8 +155,18 @@ const AppointmentCard = ({
 
       <div style={styles.cardFooter}>
         {variant === 'grid' && (
-          <div style={{...styles.statusBadge, backgroundColor: status.bg, color: status.text, border: `1px solid ${status.border}`}}>
-            {appt.status === 'RESCHEDULE_REQUIRED' ? 'Session Cancelled' : appt.status}
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <div style={{...styles.statusBadge, backgroundColor: status.bg, color: status.text, border: `1px solid ${status.border}`}}>
+              {appt.status === 'RESCHEDULE_REQUIRED' ? 'Session Cancelled' : appt.status}
+            </div>
+            <div style={{
+              ...styles.statusBadge, 
+              backgroundColor: appt.payment_status === 'PAID' ? '#f0fdf4' : '#fef2f2', 
+              color: appt.payment_status === 'PAID' ? '#166534' : '#991b1b', 
+              border: `1px solid ${appt.payment_status === 'PAID' ? '#bbf7d0' : '#fecaca'}`
+            }}>
+              {appt.payment_status}
+            </div>
           </div>
         )}
         
@@ -159,7 +176,10 @@ const AppointmentCard = ({
                 <button 
                    onClick={() => {
                         if (role === 'patient') {
-                            alert('Please contact the Pubudu Medical Center receptionist to cancel or reschedule your appointment.');
+                            toast.error('Please contact the Pubudu Medical Center receptionist to cancel or reschedule your appointment.', {
+                                duration: 5000,
+                                icon: '📞'
+                            });
                         } else if (onCancel) {
                             onCancel(appt.appointment_id);
                         }

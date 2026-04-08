@@ -419,16 +419,17 @@ function DoctorAppointments() {
                   <div style={styles.secondaryActions}>
                     <button
                       onClick={() => handleUpdateStatus(selectedAppointment.appointment_id, 'COMPLETED')}
-                      disabled={selectedAppointment.status === 'COMPLETED'}
+                      disabled={selectedAppointment.status === 'COMPLETED' || selectedAppointment.appointment_date !== todayDate}
                       style={{
                         ...styles.outlineBtn,
                         borderColor: '#10b981',
                         color: '#10b981',
-                        opacity: selectedAppointment.status === 'COMPLETED' ? 0.5 : 1
+                        opacity: (selectedAppointment.status === 'COMPLETED' || selectedAppointment.appointment_date !== todayDate) ? 0.5 : 1,
+                        cursor: (selectedAppointment.status === 'COMPLETED' || selectedAppointment.appointment_date !== todayDate) ? 'not-allowed' : 'pointer'
                       }}
                     >
                       <FiCheckCircle />
-                      Mark Completed
+                      {selectedAppointment.appointment_date !== todayDate ? 'Completed (Today Only)' : 'Mark Completed'}
                     </button>
                     <button
                       onClick={() => handleUpdateStatus(selectedAppointment.appointment_id, 'CANCELLED')}
@@ -572,7 +573,7 @@ const styles = {
   },
   aptList: {
     display: "grid",
-    gridTemplateColumns: "repeat(5, 1fr)",
+    gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
     gap: "16px"
   },
   listItemWrapper: {

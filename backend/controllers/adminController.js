@@ -463,6 +463,7 @@ export const createDoctor = async (req, res) => {
       license_no,
       doctor_fee,
       center_fee,
+      consultation_fee: (Number(doctor_fee) || 0) + (Number(center_fee) || 0),
       gender
     });
 
@@ -538,43 +539,84 @@ export const getDoctors = async (req, res) => {
 export const updateDoctor = async (req, res) => {
   try {
     const { id } = req.params;
-    const { full_name, specialization, email, contact_number, doctor_fee, center_fee, gender } = req.body;
+    const { 
+      full_name, 
+      specialization, 
+      email, 
+      contact_number, 
+      doctor_fee, 
+      center_fee, 
+      gender,
+      license_no 
+    } = req.body;
 
     const doctor = await Doctor.findByPk(id);
     if (!doctor) {
       return res.status(404).json({
         success: false,
-        message: 'Doctor not found'
+        message: 'Doctor record not found'
       });
     }
 
-    // Update doctor info
+    // Update doctor professional details
     if (full_name) doctor.full_name = full_name;
     if (specialization) doctor.specialization = specialization;
+    if (license_no) doctor.license_no = license_no;
     if (doctor_fee !== undefined) doctor.doctor_fee = doctor_fee;
     if (center_fee !== undefined) doctor.center_fee = center_fee;
     if (gender) doctor.gender = gender;
-    await doctor.save();
+    
+    // Safety check for fees
+    const dFee = parseFloat(doctor.doctor_fee) || 0;
+    const cFee = parseFloat(doctor.center_fee) || 0;
+    doctor.consultation_fee = dFee + cFee;
+    
+    try {
+      await doctor.save();
+    } catch (saveError) {
+      console.error('Doctor Save Error:', saveError);
+      return res.status(400).json({
+        success: false,
+        message: 'Failed to update doctor professional details',
+        error: saveError.message,
+        details: saveError.errors?.map(e => e.message)
+      });
+    }
 
-    // Update user info
+    // Update associated user account if details provided
     if (email || contact_number) {
-      const user = await User.findByPk(doctor.user_id);
-      if (email) user.email = email;
-      if (contact_number) user.contact_number = contact_number;
-      await user.save();
+      if (doctor.user_id) {
+        const user = await User.findByPk(doctor.user_id);
+        if (user) {
+          if (email) user.email = email;
+          if (contact_number) user.contact_number = contact_number;
+          
+          try {
+            await user.save();
+          } catch (userSaveError) {
+            console.error('User Save Error:', userSaveError);
+            return res.status(400).json({
+              success: false,
+              message: 'Failed to update user account details (Email might be in use)',
+              error: userSaveError.message,
+              details: userSaveError.errors?.map(e => e.message)
+            });
+          }
+        }
+      }
     }
 
     res.status(200).json({
       success: true,
-      message: 'Doctor updated successfully',
+      message: 'Doctor information updated successfully',
       data: doctor
     });
 
   } catch (error) {
-    console.error('Update doctor error:', error);
+    console.error('Update doctor controller crash:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error while updating doctor',
+      message: 'A server crash occurred while updating the doctor',
       error: error.message
     });
   }
