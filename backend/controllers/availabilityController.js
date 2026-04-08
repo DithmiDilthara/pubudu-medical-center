@@ -205,6 +205,81 @@ export const cancelSingleInstance = async (req, res) => {
 };
 
 /**
+ * @desc    Update an existing availability session
+ * @route   PUT /api/clinical/availability/:id
+ * @access  Private (Receptionist, Admin)
+ */
+export const updateAvailability = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { start_time, end_time, schedule_date, max_patients, status } = req.body;
+
+        const session = await Availability.findByPk(id);
+        if (!session) return res.status(404).json({ success: false, message: 'Session not found' });
+
+        // Check if patients are already booked for this session
+        const bookingCount = await Appointment.count({
+            where: {
+                schedule_id: id,
+                status: { [Op.ne]: 'CANCELLED' }
+            }
+        });
+
+        const hasBookings = bookingCount > 0;
+
+        // Validation Rules
+        if (max_patients !== undefined) {
+            if (max_patients < 20) {
+                return res.status(400).json({ success: false, message: 'Minimum patient capacity must be at least 20.' });
+            }
+            if (hasBookings && max_patients < bookingCount) {
+                return res.status(400).json({ 
+                    success: false, 
+                    message: `Cannot reduce capacity below the current ${bookingCount} booked patients.` 
+                });
+            }
+            session.max_patients = max_patients;
+        }
+
+        if (hasBookings) {
+            // Restricted Edit Mode
+            if (start_time && start_time !== session.start_time) {
+                return res.status(400).json({ success: false, message: 'Cannot change start time of an active session with patients. Please reschedule patients instead.' });
+            }
+            if (end_time && end_time !== session.end_time) {
+                // We might allow increasing end time, but reducing it is risky if it cuts off patient slots
+                if (end_time < session.end_time) {
+                    return res.status(400).json({ success: false, message: 'Cannot reduce end time of an active session with patients.' });
+                }
+                session.end_time = end_time;
+            }
+            if (schedule_date && schedule_date !== session.schedule_date) {
+                return res.status(400).json({ success: false, message: 'Cannot change date of an active session with patients. Please cancel this session and create a new one.' });
+            }
+        } else {
+            // Full Edit Mode (No bookings yet)
+            if (start_time) session.start_time = start_time;
+            if (end_time) session.end_time = end_time;
+            if (schedule_date) session.schedule_date = schedule_date;
+        }
+
+        if (status) session.status = status;
+
+        await session.save();
+
+        res.status(200).json({
+            success: true,
+            message: 'Session updated successfully',
+            data: session
+        });
+
+    } catch (error) {
+        console.error('Update availability error:', error);
+        res.status(500).json({ success: false, message: 'Server error', error: error.message });
+    }
+};
+
+/**
  * @desc    Get availability for a specific doctor
  * @route   GET /api/availability/:doctor_id
  * @access  Public/Private

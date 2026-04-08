@@ -35,6 +35,7 @@ function DoctorSchedule() {
   const [startTime, setStartTime] = useState('09:00');
   const [endTime, setEndTime] = useState('11:00');
   const [endDate, setEndDate] = useState('');
+  const [maxPatients, setMaxPatients] = useState(20);
 
   const [doctorInfo, setDoctorInfo] = useState(null);
   const [rawAvailability, setRawAvailability] = useState([]);
@@ -44,6 +45,10 @@ function DoctorSchedule() {
   // NEW: Session Exclusion Modal State
   const [showExclusionModal, setShowExclusionModal] = useState(false);
   const [activeSession, setActiveSession] = useState(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editMaxPatients, setEditMaxPatients] = useState(20);
+  const [editStartTime, setEditStartTime] = useState('');
+  const [editEndTime, setEditEndTime] = useState('');
 
   const fetchDoctorData = async () => {
     if (!doctorId) {
@@ -168,7 +173,8 @@ function DoctorSchedule() {
           day_of_week: bookingType === 'RECURRING' ? fullDays[selectedDayIndex] : null,
           start_time: startTime,
           end_time: endTime,
-          end_date: bookingType === 'RECURRING' ? endDate || null : null
+          end_date: bookingType === 'RECURRING' ? endDate || null : null,
+          max_patients: maxPatients
         }]
       };
 
@@ -232,6 +238,42 @@ function DoctorSchedule() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleUpdateSession = async () => {
+    if (!activeSession) return;
+    
+    setIsLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const payload = {
+        max_patients: editMaxPatients,
+        start_time: editStartTime,
+        end_time: editEndTime
+      };
+
+      const response = await axios.put(`${API_URL}/clinical/availability/${activeSession.schedule_id}`, payload, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (response.data.success) {
+        toast.success("Session updated successfully");
+        setShowEditModal(false);
+        fetchDoctorData();
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to update session.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const openEditModal = (session) => {
+    setActiveSession(session);
+    setEditMaxPatients(session.max_patients || 20);
+    setEditStartTime(session.start_time);
+    setEditEndTime(session.end_time);
+    setShowEditModal(true);
   };
 
   const currentDaySessions = useMemo(() => {
@@ -307,8 +349,18 @@ function DoctorSchedule() {
                           {session.is_exclusion && <span style={{ ...styles.cancelledBadge, background: '#64748b' }}>BLACKOUT</span>}
                           {session.status === 'CANCELLED' && !session.is_exclusion && <span style={styles.cancelledBadge}>CANCELLED</span>}
                           {session.day_of_week && <span style={styles.recurringLabel}>Recurring</span>}
+                          <span style={{...styles.recurringLabel, background: '#f0fdf4', color: '#16a34a', borderColor: '#bbf7d0'}}>
+                            Cap: {session.max_patients || 20}
+                          </span>
                         </div>
-                        {session.status === 'ACTIVE' && (
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <button 
+                            onClick={() => openEditModal(session)}
+                            style={{...styles.deleteBtn, color: '#2563eb'}}
+                          >
+                            Edit
+                          </button>
+                          {session.status === 'ACTIVE' && (
                           <button 
                             onClick={() => {
                               if (session.day_of_week) {
@@ -323,6 +375,7 @@ function DoctorSchedule() {
                             <FiTrash2 /> {session.day_of_week ? 'Cancel for today' : 'Cancel'}
                           </button>
                         )}
+                        </div>
                       </div>
                     )) : <p style={styles.emptyText}>No sessions scheduled.</p>}
                   </div>
@@ -363,6 +416,51 @@ function DoctorSchedule() {
               )}
             </AnimatePresence>
 
+            {/* Edit Modal */}
+            <AnimatePresence>
+              {showEditModal && (
+                <div style={styles.modalOverlay}>
+                  <motion.div 
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    style={styles.modalContent}
+                  >
+                    <div style={styles.modalHeader}>
+                      <LuStethoscope size={24} color="#2563eb" />
+                      <h3 style={styles.modalTitle}>Edit Session Properties</h3>
+                    </div>
+                    <div style={styles.modalBody}>
+                      <div style={styles.fieldGroup}>
+                        <label style={styles.label}>Max Patients (Min 20)</label>
+                        <input 
+                          type="number" 
+                          min="20"
+                          value={editMaxPatients} 
+                          onChange={e => setEditMaxPatients(parseInt(e.target.value))}
+                          style={styles.input}
+                        />
+                      </div>
+                      <div style={styles.timeGrid}>
+                        <ClockTimePicker label="Start Time" value={editStartTime} onChange={setEditStartTime} />
+                        <ClockTimePicker label="End Time" value={editEndTime} onChange={setEditEndTime} />
+                      </div>
+                      <p style={{ fontSize: '12px', color: '#64748b', marginTop: '12px' }}>
+                        <FiInfo inline style={{ marginRight: '4px' }} />
+                        Note: Start/End time cannot be changed if bookings already exist for this session.
+                      </p>
+                    </div>
+                    <div style={styles.modalActions}>
+                      <button onClick={() => setShowEditModal(false)} style={styles.cancelBtn}>Cancel</button>
+                      <button onClick={handleUpdateSession} disabled={isLoading} style={{...styles.submitBtn, padding: '10px 20px', fontSize: '14px'}}>
+                        {isLoading ? "Saving..." : "Save Changes"}
+                      </button>
+                    </div>
+                  </motion.div>
+                </div>
+              )}
+            </AnimatePresence>
+
             {/* Form */}
             <div style={styles.formCard}>
               <div style={styles.formSectionHeader}>
@@ -390,6 +488,18 @@ function DoctorSchedule() {
                 <div style={styles.timeGrid}>
                   <ClockTimePicker label="Start Time" value={startTime} onChange={setStartTime} />
                   <ClockTimePicker label="End Time" value={endTime} onChange={setEndTime} />
+                </div>
+
+                <div style={styles.fieldGroup}>
+                  <label>Max Patients (Capacity)</label>
+                  <input 
+                    type="number" 
+                    min="20"
+                    value={maxPatients} 
+                    onChange={e => setMaxPatients(parseInt(e.target.value))}
+                    placeholder="Minimum 20"
+                    style={styles.input}
+                  />
                 </div>
 
                 <button onClick={handleAddSession} disabled={isLoading} style={styles.submitBtn}>

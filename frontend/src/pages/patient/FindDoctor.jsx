@@ -137,8 +137,16 @@ function FindDoctor() {
                   onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                 />
               </div>
-              <button onClick={handleSearch} style={styles.searchBtn}>
-                Find Nearest Doctor
+              <button 
+                onClick={handleSearch} 
+                style={{
+                  ...styles.searchBtn,
+                  backgroundColor: typedSearch.trim().length > 0 ? '#1d4ed8' : '#94a3b8',
+                  boxShadow: typedSearch.trim().length > 0 ? '0 10px 15px -3px rgba(29, 78, 216, 0.4)' : 'none',
+                  transform: typedSearch.trim().length > 0 ? 'scale(1.05)' : 'scale(1)',
+                }}
+              >
+                Search
               </button>
             </div>
           </motion.section>

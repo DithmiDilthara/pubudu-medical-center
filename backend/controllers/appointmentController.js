@@ -36,6 +36,40 @@ export const createAppointment = async (req, res) => {
             return res.status(400).json({ success: false, message: 'This clinical session has been cancelled and is no longer accepting bookings.' });
         }
 
+        // --- NEW SAFETY CHECK: CAPACITY LIMIT ---
+        const activeCount = await Appointment.count({
+            where: {
+                schedule_id,
+                appointment_date,
+                status: { [Op.ne]: 'CANCELLED' }
+            }
+        });
+
+        const maxPatients = session.max_patients || 20;
+        if (activeCount >= maxPatients) {
+            return res.status(400).json({ 
+                success: false, 
+                message: `This session has reached its maximum capacity of ${maxPatients} patients.` 
+            });
+        }
+        // ------------------------------------------
+
+        // --- NEW SAFETY CHECK: ONLINE BOOKING WINDOW (30 MINS) ---
+        if (req.user.role_id === 4) { // Patient
+            const now = new Date();
+            const sessionStartTimeStr = `${appointment_date} ${session.start_time}`;
+            const sessionStartTime = new Date(sessionStartTimeStr);
+            const thirtyMinsBefore = new Date(sessionStartTime.getTime() - 30 * 60000);
+
+            if (now > thirtyMinsBefore) {
+                return res.status(400).json({ 
+                    success: false, 
+                    message: 'Online booking is not allowed within 30 minutes of the session start time. Please contact the receptionist for last-minute bookings.' 
+                });
+            }
+        }
+        // ---------------------------------------------------------
+
         // 2. Check for Specific Date Exclusions (Blackouts)
         // Even if the recurring session is active, a specific date might be blocked.
         const exclusion = await Availability.findOne({
@@ -55,10 +89,29 @@ export const createAppointment = async (req, res) => {
         // In session-based booking, multiple people can book the same session block.
         // There is no longer a check for individual 30-minute slots.
 
-        // Calculate next appointment number for this doctor and date
+        // --- NEW SAFETY CHECK: DUPLICATE BOOKING PREVENTION ---
+        const existingBooking = await Appointment.findOne({
+            where: {
+                patient_id: targetPatientId,
+                doctor_id,
+                appointment_date,
+                schedule_id,
+                status: { [Op.in]: ['PENDING', 'CONFIRMED'] }
+            }
+        });
+
+        if (existingBooking) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'You already have an active appointment for this doctor\'s session.' 
+            });
+        }
+        // -----------------------------------------------------
+
+        // Calculate next appointment number for this specific SESSION and date
         const lastAppointment = await Appointment.findOne({
             where: {
-                doctor_id,
+                schedule_id,
                 appointment_date,
                 status: { [Op.ne]: 'CANCELLED' }
             },
@@ -125,12 +178,12 @@ export const cancelAppointment = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Appointment not found' });
         }
 
-        // Authorization: Patients can only cancel their own
+        // Authorization: Patients can only cancel their own, but online cancellation is restricted.
         if (req.user.role_id === 4) {
-            const patient = await Patient.findOne({ where: { user_id: req.user.user_id } });
-            if (appointment.patient_id !== patient.patient_id) {
-                return res.status(403).json({ success: false, message: 'Unauthorized to cancel this appointment' });
-            }
+            return res.status(403).json({ 
+                success: false, 
+                message: 'Online patients are not allowed to cancel appointments. Please contact the Pubudu Medical Center receptionist to cancel your appointment.' 
+            });
         }
 
         const { cancellation_reason, is_noshow } = req.body;
@@ -157,17 +210,45 @@ export const getAppointments = async (req, res) => {
         const { role_id, user_id } = req.user;
         const { doctor_id } = req.query;
 
-        // Auto-complete past appointments
-        const todayStr = new Date().toISOString().split('T')[0];
-        await Appointment.update(
-            { status: 'COMPLETED' },
-            {
-                where: {
-                    appointment_date: { [Op.lt]: todayStr },
-                    status: { [Op.in]: ['PENDING', 'CONFIRMED'] }
-                }
-            }
-        );
+        // --- IMPROVED NO_SHOW LOGIC ---
+        // Instead of marking everything COMPLETED (which is wrong),
+        // we mark past un-attended appointments as NO_SHOW.
+        const now = new Date();
+        const todayStr = now.toISOString().split('T')[0];
+        const currentTime = now.toTimeString().split(' ')[0]; // HH:MM:SS
+
+        // Find appointments that should be marked as NO_SHOW
+        // 1. Date is in the past
+        // 2. Date is today but session end_time has passed
+        const pastAppointments = await Appointment.findAll({
+            where: {
+                status: { [Op.in]: ['PENDING', 'CONFIRMED'] },
+                [Op.or]: [
+                    { appointment_date: { [Op.lt]: todayStr } },
+                    {
+                        [Op.and]: [
+                            { appointment_date: todayStr },
+                            // We need to check availability end_time which requires a join
+                        ]
+                    }
+                ]
+            },
+            include: [{ model: Availability, as: 'availability' }]
+        });
+
+        const noShowIds = pastAppointments.filter(appt => {
+            if (appt.appointment_date < todayStr) return true;
+            if (appt.appointment_date === todayStr && appt.availability && appt.availability.end_time < currentTime) return true;
+            return false;
+        }).map(appt => appt.appointment_id);
+
+        if (noShowIds.length > 0) {
+            await Appointment.update(
+                { status: 'NO_SHOW' },
+                { where: { appointment_id: { [Op.in]: noShowIds } } }
+            );
+        }
+        // ------------------------------
 
         let where = {};
 
@@ -354,6 +435,14 @@ export const rescheduleAppointment = async (req, res) => {
     try {
         const { id } = req.params;
         const { appointment_date, time_slot, schedule_id } = req.body;
+
+        // Authorization: Patients are not allowed to reschedule online
+        if (req.user.role_id === 4) {
+            return res.status(403).json({ 
+                success: false, 
+                message: 'Online patients are not allowed to reschedule appointments. Please contact the Pubudu Medical Center receptionist.' 
+            });
+        }
 
         if (!appointment_date || !time_slot) {
             return res.status(400).json({ success: false, message: 'Date and time slot are required' });

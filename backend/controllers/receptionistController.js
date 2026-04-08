@@ -15,11 +15,12 @@ export const getDashboardStats = async (req, res) => {
             todayAppointments,
             totalPatients,
             unpaidAppointments,
-            todayPaidAppointments
+            todayPaidAppointments,
+            todayNoShows
         ] = await Promise.all([
             Appointment.count({ where: { appointment_date: today, status: { [Op.ne]: 'CANCELLED' } } }),
             Patient.count(),
-            Appointment.count({ where: { payment_status: 'UNPAID', status: { [Op.ne]: 'CANCELLED' } } }),
+            Appointment.count({ where: { payment_status: 'UNPAID', status: { [Op.in]: ['PENDING', 'CONFIRMED'] } } }),
             Appointment.findAll({
                 where: {
                     appointment_date: today,
@@ -30,7 +31,8 @@ export const getDashboardStats = async (req, res) => {
                     as: 'doctor',
                     attributes: ['center_fee']
                 }]
-            })
+            }),
+            Appointment.count({ where: { appointment_date: today, status: 'NO_SHOW' } })
         ]);
 
         const todayRevenue = todayPaidAppointments.reduce((sum, appt) => sum + parseFloat(appt.doctor?.center_fee || 0), 0);
@@ -41,7 +43,8 @@ export const getDashboardStats = async (req, res) => {
                 todayAppointments,
                 totalPatients,
                 unpaidAppointments,
-                todayRevenue
+                todayRevenue,
+                todayNoShows
             }
         });
     } catch (error) {

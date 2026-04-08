@@ -40,6 +40,11 @@ const Availability = sequelize.define('availability', {
         type: DataTypes.ENUM('ACTIVE', 'CANCELLED'),
         allowNull: false,
         defaultValue: 'ACTIVE'
+    },
+    max_patients: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 20
     }
 }, {
     tableName: 'doctor_schedule',

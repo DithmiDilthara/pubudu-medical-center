@@ -143,7 +143,8 @@ function AppointmentsManagement() {
             CONFIRMED: { bg: "#e0f2fe", text: "#0369a1" },
             PENDING: { bg: "#fef3c7", text: "#92400e" },
             COMPLETED: { bg: "#dcfce7", text: "#166534" },
-            CANCELLED: { bg: "#fee2e2", text: "#991b1b" }
+            CANCELLED: { bg: "#fee2e2", text: "#991b1b" },
+            NO_SHOW: { bg: "#f1f5f9", text: "#475569" }
         };
         const config = styleMap[status] || styleMap.PENDING;
         return (
@@ -235,6 +236,7 @@ function AppointmentsManagement() {
                                 <option value="PENDING">Pending</option>
                                 <option value="COMPLETED">Completed</option>
                                 <option value="CANCELLED">Cancelled</option>
+                                <option value="NO_SHOW">No Show / Absent</option>
                             </select>
                         </div>
 

@@ -39,7 +39,7 @@ function PaymentManagement() {
                 if (aptRes.data.success) {
                     // Filter: Unpaid + non-Cancelled, sorted by date ascending
                     const filtered = aptRes.data.data
-                        .filter(apt => apt.payment_status === 'UNPAID' && apt.status !== 'CANCELLED')
+                        .filter(apt => apt.payment_status === 'UNPAID' && ['PENDING', 'CONFIRMED'].includes(apt.status))
                         .sort((a, b) => new Date(a.appointment_date) - new Date(b.appointment_date));
                     setAppointments(filtered);
                 }

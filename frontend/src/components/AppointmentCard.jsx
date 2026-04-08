@@ -20,6 +20,7 @@ const AppointmentCard = ({
       case 'RESCHEDULED': return { bg: '#fff7ed', text: '#f97316', border: '#ffedd5' };
       case 'CANCELLED': return { bg: '#fff1f2', text: '#e11d48', border: '#ffe4e6' };
       case 'COMPLETED': return { bg: '#eff6ff', text: '#2563eb', border: '#dbeafe' };
+      case 'NO_SHOW': return { bg: '#f1f5f9', text: '#64748b', border: '#e2e8f0' };
       case 'RESCHEDULE_REQUIRED': return { bg: '#fff7ed', text: '#ea580c', border: '#fed7aa' };
       default: return { bg: '#f8fafc', text: '#64748b', border: '#f1f5f9' };
     }
@@ -91,8 +92,36 @@ const AppointmentCard = ({
                         style={styles.dropdown}
                     >
                         <button onClick={() => { onViewDetails(appt); setShowMenu(false); }} style={styles.dropItem}>View Details</button>
-                        {isUpcoming && <button onClick={() => { onReschedule(appt); setShowMenu(false); }} style={styles.dropItem}>Reschedule</button>}
-                        {isUpcoming && <button onClick={() => { onCancel(appt.appointment_id); setShowMenu(false); }} style={{...styles.dropItem, color: '#e11d48'}}>Cancel</button>}
+                        {isUpcoming && (
+                            <button 
+                                onClick={() => { 
+                                    if (role === 'patient') {
+                                        alert('Please contact the Pubudu Medical Center receptionist to cancel or reschedule your appointment.');
+                                    } else {
+                                        onReschedule(appt); 
+                                    }
+                                    setShowMenu(false); 
+                                }} 
+                                style={styles.dropItem}
+                            >
+                                Reschedule
+                            </button>
+                        )}
+                        {isUpcoming && (
+                            <button 
+                                onClick={() => { 
+                                    if (role === 'patient') {
+                                        alert('Please contact the Pubudu Medical Center receptionist to cancel or reschedule your appointment.');
+                                    } else {
+                                        onCancel(appt.appointment_id); 
+                                    }
+                                    setShowMenu(false); 
+                                }} 
+                                style={{...styles.dropItem, color: '#e11d48'}}
+                            >
+                                Cancel
+                            </button>
+                        )}
                     </motion.div>
                 )}
              </AnimatePresence>
@@ -128,7 +157,13 @@ const AppointmentCard = ({
             {isUpcoming && (
               <>
                 <button 
-                   onClick={() => onCancel && onCancel(appt.appointment_id)}
+                   onClick={() => {
+                        if (role === 'patient') {
+                            alert('Please contact the Pubudu Medical Center receptionist to cancel or reschedule your appointment.');
+                        } else if (onCancel) {
+                            onCancel(appt.appointment_id);
+                        }
+                   }}
                    style={{...styles.viewBtn, backgroundColor: '#fff1f2', color: '#e11d48'}}
                 >
                     Cancel

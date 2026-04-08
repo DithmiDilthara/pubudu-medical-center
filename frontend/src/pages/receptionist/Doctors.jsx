@@ -17,6 +17,20 @@ import ReceptionistHeader from "../../components/ReceptionistHeader";
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
+const formatTime12h = (timeString) => {
+    if (!timeString) return 'N/A';
+    const [hours, minutes] = timeString.split(':');
+    let h = parseInt(hours, 10);
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    h = h % 12 || 12;
+    return `${h}:${minutes} ${ampm}`;
+};
+
+const formatDayName = (day) => {
+    if (!day) return '';
+    return day.charAt(0).toUpperCase() + day.slice(1).toLowerCase();
+};
+
 const Doctors = () => {
     const navigate = useNavigate();
     const [doctors, setDoctors] = useState([]);
@@ -239,7 +253,7 @@ const Doctors = () => {
                                                                 {doctor.availability && doctor.availability.length > 0 ? (
                                                                     doctor.availability.slice(0, 2).map((av, idx) => (
                                                                         <span key={idx} style={{ ...styles.dayChip, backgroundColor: '#f8fafc', color: '#0f172a', border: '1px solid #e2e8f0' }}>
-                                                                            {av.start_time.substring(0, 5)} - {av.end_time.substring(0, 5)}
+                                                                            {formatDayName(av.day_of_week)}: {formatTime12h(av.start_time)} - {formatTime12h(av.end_time)}
                                                                         </span>
                                                                     ))
                                                                 ) : (

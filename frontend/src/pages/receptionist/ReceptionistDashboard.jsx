@@ -177,7 +177,11 @@ function ReceptionistDashboard() {
       case 'CANCELLED':
         return { ...base, backgroundColor: '#fee2e2', color: '#b91c1c', borderColor: '#fecaca' };
       case 'COMPLETED':
-        return { ...base, backgroundColor: '#dbeafe', color: '#1d4ed8', borderColor: '#bfdbfe' };
+        return { ...base, backgroundColor: '#dcfce7', color: '#166534', borderColor: '#bbf7d0' };
+      case 'NO_SHOW':
+        return { ...base, backgroundColor: '#f1f5f9', color: '#475569', borderColor: '#e2e8f0' };
+      case 'RESCHEDULE_REQUIRED':
+        return { ...base, backgroundColor: '#fff7ed', color: '#ea580c', borderColor: '#fed7aa' };
       default:
         return base;
     }
