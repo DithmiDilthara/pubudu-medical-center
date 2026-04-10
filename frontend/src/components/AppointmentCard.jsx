@@ -111,7 +111,7 @@ const AppointmentCard = ({
                                 Reschedule
                             </button>
                         )}
-                        {isUpcoming && (
+                        {isUpcoming && role !== 'doctor' && (
                             <button 
                                 onClick={() => { 
                                     if (role === 'patient') {
@@ -171,7 +171,7 @@ const AppointmentCard = ({
         )}
         
         <div style={styles.actionGroup}>
-            {isUpcoming && (
+            {isUpcoming && role !== 'doctor' && (
               <>
                 <button 
                    onClick={() => {

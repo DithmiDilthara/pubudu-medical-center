@@ -425,24 +425,12 @@ function DoctorAppointments() {
                         borderColor: '#10b981',
                         color: '#10b981',
                         opacity: (selectedAppointment.status === 'COMPLETED' || selectedAppointment.appointment_date !== todayDate) ? 0.5 : 1,
-                        cursor: (selectedAppointment.status === 'COMPLETED' || selectedAppointment.appointment_date !== todayDate) ? 'not-allowed' : 'pointer'
+                        cursor: (selectedAppointment.status === 'COMPLETED' || selectedAppointment.appointment_date !== todayDate) ? 'not-allowed' : 'pointer',
+                        width: '100%' // Make it full width since the other button is gone
                       }}
                     >
                       <FiCheckCircle />
                       {selectedAppointment.appointment_date !== todayDate ? 'Completed (Today Only)' : 'Mark Completed'}
-                    </button>
-                    <button
-                      onClick={() => handleUpdateStatus(selectedAppointment.appointment_id, 'CANCELLED')}
-                      disabled={selectedAppointment.status === 'CANCELLED'}
-                      style={{
-                        ...styles.outlineBtn,
-                        borderColor: '#e11d48',
-                        color: '#e11d48',
-                        opacity: selectedAppointment.status === 'CANCELLED' ? 0.5 : 1
-                      }}
-                    >
-                      <FiXCircle />
-                      Cancel
                     </button>
                   </div>
                 </div>

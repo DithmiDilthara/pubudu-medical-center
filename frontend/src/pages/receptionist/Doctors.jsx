@@ -7,13 +7,16 @@ import {
   FiCalendar, 
   FiFilter, 
   FiChevronRight,
-  FiUser,
-  FiClock
-} from 'react-icons/fi';
+   FiUser,
+   FiClock,
+   FiX,
+   FiInfo
+ } from 'react-icons/fi';
 import { LuStethoscope } from 'react-icons/lu';
 import { motion, AnimatePresence } from "framer-motion";
 import ReceptionistSidebar from "../../components/ReceptionistSidebar";
 import ReceptionistHeader from "../../components/ReceptionistHeader";
+import toast from "react-hot-toast";
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
@@ -31,6 +34,249 @@ const formatDayName = (day) => {
     return day.charAt(0).toUpperCase() + day.slice(1).toLowerCase();
 };
 
+const UpcomingSessionsModal = ({ show, onClose, doctor, sessions, loading }) => {
+    if (!show) return null;
+
+    return (
+        <AnimatePresence>
+            <div style={modalStyles.overlay} onClick={onClose}>
+                <motion.div 
+                    initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                    style={modalStyles.modal}
+                    onClick={e => e.stopPropagation()}
+                >
+                    <div style={modalStyles.header}>
+                        <div>
+                            <h2 style={modalStyles.title}>One-Month Projection</h2>
+                            <p style={modalStyles.subtitle}>Next available numbers for {doctor?.full_name}</p>
+                        </div>
+                        <button onClick={onClose} style={modalStyles.closeBtn}>
+                            <FiX size={20} />
+                        </button>
+                    </div>
+
+                    <div style={modalStyles.content}>
+                        {loading ? (
+                            <div style={modalStyles.loadingContainer}>
+                                <div className="w-8 h-8 border-4 border-blue-600/20 border-t-blue-600 rounded-full animate-spin"></div>
+                                <p>Calculating queue intelligence...</p>
+                            </div>
+                        ) : sessions.length > 0 ? (
+                            <div style={modalStyles.tableWrapper}>
+                                <table style={modalStyles.table}>
+                                    <thead>
+                                        <tr>
+                                            <th style={modalStyles.th}>Date & Day</th>
+                                            <th style={modalStyles.th}>Session Time</th>
+                                            <th style={modalStyles.th}>Next Available</th>
+                                            <th style={modalStyles.th}>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {sessions.map((session, idx) => {
+                                            const isFull = (session.next_number - 1) >= session.max_patients;
+                                            return (
+                                                <tr key={idx} style={modalStyles.tr}>
+                                                    <td style={modalStyles.td}>
+                                                        <div style={{ fontWeight: '600', color: '#0f172a' }}>
+                                                            {new Date(session.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                                        </div>
+                                                        <div style={{ fontSize: '12px', color: '#64748b' }}>{formatDayName(session.day)}</div>
+                                                    </td>
+                                                    <td style={modalStyles.td}>
+                                                        <div style={modalStyles.timeSlot}>
+                                                            <FiClock size={12} />
+                                                            {formatTime12h(session.start_time)} - {formatTime12h(session.end_time)}
+                                                        </div>
+                                                    </td>
+                                                    <td style={modalStyles.td}>
+                                                        <div style={{ 
+                                                            ...modalStyles.nextNumber,
+                                                            backgroundColor: isFull ? '#fee2e2' : '#dcfce7',
+                                                            color: isFull ? '#991b1b' : '#166534'
+                                                        }}>
+                                                            #{String(session.next_number).padStart(2, '0')}
+                                                        </div>
+                                                    </td>
+                                                    <td style={modalStyles.td}>
+                                                        <span style={{ 
+                                                            fontSize: '12px', 
+                                                            fontWeight: '600',
+                                                            color: isFull ? '#ef4444' : '#10b981'
+                                                        }}>
+                                                            {isFull ? 'Session Full' : `${session.max_patients - (session.next_number - 1)} slots left`}
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                        ) : (
+                            <div style={modalStyles.emptyState}>
+                                <FiInfo size={40} style={{ opacity: 0.2, marginBottom: '12px' }} />
+                                <p>No sessions scheduled for the next 30 days.</p>
+                            </div>
+                        )}
+                    </div>
+
+                    <div style={modalStyles.footer}>
+                        <p style={{ fontSize: '12px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <FiInfo size={14} />
+                            Provide these available numbers to the patient over the phone.
+                        </p>
+                        <button onClick={onClose} style={modalStyles.doneBtn}>Close View</button>
+                    </div>
+                </motion.div>
+            </div>
+        </AnimatePresence>
+    );
+};
+
+const modalStyles = {
+    overlay: {
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(15, 23, 42, 0.6)',
+        backdropFilter: 'blur(4px)',
+        zIndex: 1000,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '24px'
+    },
+    modal: {
+        backgroundColor: 'white',
+        borderRadius: '24px',
+        width: '100%',
+        maxWidth: '650px',
+        maxHeight: '85vh',
+        display: 'flex',
+        flexDirection: 'column',
+        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+        overflow: 'hidden'
+    },
+    header: {
+        padding: '24px 32px',
+        borderBottom: '1px solid #f1f5f9',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        background: 'linear-gradient(to right, #ffffff, #f8fafc)'
+    },
+    title: {
+        fontSize: '20px',
+        fontWeight: '800',
+        color: '#0f172a',
+        letterSpacing: '-0.5px'
+    },
+    subtitle: {
+        fontSize: '14px',
+        color: '#64748b',
+        marginTop: '2px'
+    },
+    closeBtn: {
+        backgroundColor: '#f1f5f9',
+        border: 'none',
+        width: '36px',
+        height: '36px',
+        borderRadius: '10px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        cursor: 'pointer',
+        color: '#64748b',
+        transition: 'all 0.2s'
+    },
+    content: {
+        padding: '0',
+        overflowY: 'auto',
+        flex: 1
+    },
+    loadingContainer: {
+        padding: '60px',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: '16px',
+        color: '#64748b'
+    },
+    tableWrapper: {
+        width: '100%'
+    },
+    table: {
+        width: '100%',
+        borderCollapse: 'collapse',
+        textAlign: 'left'
+    },
+    th: {
+        padding: '12px 32px',
+        backgroundColor: '#f8fafc',
+        fontSize: '11px',
+        fontWeight: '700',
+        color: '#64748b',
+        textTransform: 'uppercase',
+        letterSpacing: '0.05em',
+        position: 'sticky',
+        top: 0
+    },
+    tr: {
+        borderBottom: '1px solid #f1f5f9',
+        transition: 'background-color 0.2s'
+    },
+    td: {
+        padding: '16px 32px',
+        verticalAlign: 'middle'
+    },
+    timeSlot: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: '6px',
+        fontSize: '13px',
+        color: '#334155',
+        fontWeight: '500'
+    },
+    nextNumber: {
+        padding: '4px 10px',
+        borderRadius: '8px',
+        fontSize: '14px',
+        fontWeight: '700',
+        display: 'inline-block'
+    },
+    emptyState: {
+        padding: '80px 32px',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        color: '#64748b',
+        textAlign: 'center'
+    },
+    footer: {
+        padding: '20px 32px',
+        borderTop: '1px solid #f1f5f9',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        backgroundColor: '#f8fafc'
+    },
+    doneBtn: {
+        backgroundColor: '#0f172a',
+        color: 'white',
+        border: 'none',
+        padding: '10px 24px',
+        borderRadius: '12px',
+        fontSize: '14px',
+        fontWeight: '600',
+        cursor: 'pointer'
+    }
+};
+
 const Doctors = () => {
     const navigate = useNavigate();
     const [doctors, setDoctors] = useState([]);
@@ -42,8 +288,13 @@ const Doctors = () => {
     // Pagination
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage] = useState(8);
-    const [nextNumbers, setNextNumbers] = useState({});
     const [receptionistName, setReceptionistName] = useState("Receptionist");
+
+    // Upcoming Modal State
+    const [selectedDoctorForUpcoming, setSelectedDoctorForUpcoming] = useState(null);
+    const [showUpcomingModal, setShowUpcomingModal] = useState(false);
+    const [upcomingSessions, setUpcomingSessions] = useState([]);
+    const [loadingUpcoming, setLoadingUpcoming] = useState(false);
 
     useEffect(() => {
         fetchProfile();
@@ -74,9 +325,6 @@ const Doctors = () => {
                 
                 const specs = ["All", ...new Set(doctorsData.map(d => d.specialization).filter(Boolean))];
                 setSpecializations(specs);
-                
-                // Fetch next numbers for today for each doctor
-                fetchNextNumbers(doctorsData);
             }
         } catch (error) {
             console.error("Error fetching doctors:", error);
@@ -85,26 +333,28 @@ const Doctors = () => {
         }
     };
 
-    const fetchNextNumbers = async (doctorsList) => {
-        const today = new Date();
-        const formattedDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-        const token = localStorage.getItem('token');
-        
-        const numbers = {};
-        await Promise.all(doctorsList.map(async (doc) => {
-            try {
-                const res = await axios.get(`${API_URL}/appointments/next-number`, {
-                    params: { doctor_id: doc.doctor_id, date: formattedDate },
-                    headers: { Authorization: `Bearer ${token}` }
-                });
-                if (res.data.success) {
-                    numbers[doc.doctor_id] = res.data.nextNumber;
-                }
-            } catch (err) {
-                console.error(`Error fetching next number for doc ${doc.doctor_id}:`, err);
+    const fetchUpcomingSessions = async (doctorId) => {
+        try {
+            setLoadingUpcoming(true);
+            const token = localStorage.getItem('token');
+            const response = await axios.get(`${API_URL}/doctors/${doctorId}/upcoming`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            if (response.data.success) {
+                setUpcomingSessions(response.data.data);
             }
-        }));
-        setNextNumbers(numbers);
+        } catch (error) {
+            console.error("Error fetching upcoming sessions:", error);
+            toast.error("Failed to load upcoming sessions");
+        } finally {
+            setLoadingUpcoming(false);
+        }
+    };
+
+    const handleOpenUpcoming = (doctor) => {
+        setSelectedDoctorForUpcoming(doctor);
+        setShowUpcomingModal(true);
+        fetchUpcomingSessions(doctor.doctor_id);
     };
 
     const filteredDoctors = doctors.filter(doctor => {
@@ -261,14 +511,15 @@ const Doctors = () => {
                                                                 )}
                                                             </div>
                                                         </div>
-                                                        <div>
-                                                            <div style={styles.sectionLabelWrapper}>
-                                                                <LuStethoscope style={{ color: '#0f172a', opacity: 0.8, fontSize: '14px' }} />
-                                                                <span style={{ ...styles.sectionLabel, color: '#0f172a' }}>Next available</span>
-                                                            </div>
-                                                            <div style={{ fontSize: '18px', fontWeight: '800', color: '#0f172a' }}>
-                                                                #{nextNumbers[doctor.doctor_id] || '01'}
-                                                            </div>
+                                                        <div style={{ display: 'flex', alignItems: 'flex-end', height: '100%' }}>
+                                                            <button 
+                                                                onClick={() => handleOpenUpcoming(doctor)}
+                                                                style={styles.viewQueueBtn}
+                                                                title="View one-month session projection"
+                                                            >
+                                                                <FiActivity size={14} style={{ marginRight: '6px' }} />
+                                                                View Queue Info
+                                                            </button>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -366,6 +617,13 @@ const Doctors = () => {
                         </div>
                     )}
                 </main>
+                <UpcomingSessionsModal 
+                    show={showUpcomingModal}
+                    onClose={() => setShowUpcomingModal(false)}
+                    doctor={selectedDoctorForUpcoming}
+                    sessions={upcomingSessions}
+                    loading={loadingUpcoming}
+                />
             </motion.div>
         </div>
     );
@@ -687,6 +945,24 @@ const styles = {
         border: "1px solid #e2e8f0",
         cursor: "pointer",
         transition: "all 0.2s"
+    },
+    viewQueueBtn: {
+        width: '100%',
+        padding: '10px',
+        backgroundColor: '#f1f5f9',
+        color: '#475569',
+        border: '1px solid #e2e8f0',
+        borderRadius: '10px',
+        fontSize: '11px',
+        fontWeight: '700',
+        textTransform: 'uppercase',
+        letterSpacing: '0.025em',
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        transition: 'all 0.2s',
+        marginBottom: '4px'
     }
 };
 
