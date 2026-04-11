@@ -5,7 +5,8 @@ const ROLES = {
   ADMIN: 1,
   DOCTOR: 2,
   RECEPTIONIST: 3,
-  PATIENT: 4
+  PATIENT: 4,
+  SUPER_ADMIN: 5
 };
 
 // Check if user has required role
@@ -41,14 +42,15 @@ export const authorizeRoles = (...roles) => {
 export const authorizeRole = authorizeRoles;
 
 // Specific role middlewares for convenience
-export const isAdmin = authorizeRoles(ROLES.ADMIN);
+export const isAdmin = authorizeRoles(ROLES.ADMIN, ROLES.SUPER_ADMIN);
+export const isSuperAdmin = authorizeRoles(ROLES.SUPER_ADMIN);
 export const isDoctor = authorizeRoles(ROLES.DOCTOR);
 export const isReceptionist = authorizeRoles(ROLES.RECEPTIONIST);
 export const isPatient = authorizeRoles(ROLES.PATIENT);
 
 // Combined role checks
-export const isAdminOrDoctor = authorizeRoles(ROLES.ADMIN, ROLES.DOCTOR);
-export const isAdminOrReceptionist = authorizeRoles(ROLES.ADMIN, ROLES.RECEPTIONIST);
-export const isStaff = authorizeRoles(ROLES.ADMIN, ROLES.DOCTOR, ROLES.RECEPTIONIST);
+export const isAdminOrDoctor = authorizeRoles(ROLES.ADMIN, ROLES.DOCTOR, ROLES.SUPER_ADMIN);
+export const isAdminOrReceptionist = authorizeRoles(ROLES.ADMIN, ROLES.RECEPTIONIST, ROLES.SUPER_ADMIN);
+export const isStaff = authorizeRoles(ROLES.ADMIN, ROLES.DOCTOR, ROLES.RECEPTIONIST, ROLES.SUPER_ADMIN);
 
 export { ROLES };

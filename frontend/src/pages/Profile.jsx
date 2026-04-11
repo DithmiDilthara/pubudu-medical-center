@@ -402,6 +402,7 @@ const Profile = () => {
         
         switch (roleId) {
             case 1: // Admin
+            case 5: // Super Admin
                 return {
                     Sidebar: <AdminSidebar />,
                     Header: <AdminHeader adminName={user?.profile?.full_name} />,
@@ -445,7 +446,7 @@ const Profile = () => {
                           style={styles.headerSection}
                         >
                           <h1 style={styles.welcomeTitle}>
-                            {user?.role_id === 1 ? 'Administrator Profile' : 
+                            {(user?.role_id === 1 || user?.role_id === 5) ? 'Administrator Profile' : 
                              user?.role_id === 2 ? 'Doctor Profile' :
                              user?.role_id === 3 ? 'Receptionist Profile' : 'Patient Profile'}
                           </h1>
@@ -464,7 +465,7 @@ const Profile = () => {
                             <div style={styles.heroText}>
                               <h1 style={styles.userName}>{formData.full_name}</h1>
                               <p style={styles.userRole}>
-                                {user?.role_id === 1 ? 'Administrator' : 
+                                {(user?.role_id === 1 || user?.role_id === 5) ? 'Administrator' : 
                                  user?.role_id === 2 ? `Doctor - ${user.profile?.specialization || 'General'}` :
                                  user?.role_id === 3 ? 'Medical Receptionist' : 'Patient'}
                               </p>

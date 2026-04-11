@@ -10,7 +10,7 @@ import {
   deleteReceptionist,
   getSystemStats,
   getRevenueReport,
-  getPatientRegistrationReport,
+  getIncomeReport,
   getAppointmentReport,
   exportReport,
   getDashboardData,
@@ -40,7 +40,7 @@ router.delete('/receptionists/:id', deleteReceptionist);
 // System statistics and reports
 router.get('/stats', getSystemStats);
 router.get('/reports/revenue', getRevenueReport);
-router.get('/reports/patients', getPatientRegistrationReport);
+router.get('/reports/income', getIncomeReport);
 router.get('/reports/appointments', getAppointmentReport);
 router.get('/reports/export/:type', exportReport);
 router.get('/dashboard-data', getDashboardData);

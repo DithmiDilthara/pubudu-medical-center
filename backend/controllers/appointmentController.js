@@ -17,7 +17,9 @@ export const createAppointment = async (req, res) => {
         // If patient is booking for themselves
         if (currentUser.role_id === 4) {
             const patient = await Patient.findOne({ where: { user_id: currentUser.user_id } });
-            if (!patient) return res.status(404).json({ success: false, message: 'Patient profile not found' });
+            if (!patient) {
+                return res.status(404).json({ success: false, message: 'Patient profile not found' });
+            }
             targetPatientId = patient.patient_id;
         }
 
@@ -27,7 +29,6 @@ export const createAppointment = async (req, res) => {
 
         // --- NEW SAFETY CHECK ---
         // 1. Fetch the selected session to ensure it exists and is ACTIVE
-        const session = await Availability.findByPk(schedule_id);
         if (!session) {
             return res.status(404).json({ success: false, message: 'The selected clinical session no longer exists.' });
         }
@@ -362,7 +363,7 @@ export const getAppointments = async (req, res) => {
         }
 
         const include = [
-            { model: Doctor, as: 'doctor', attributes: ['full_name', 'specialization', 'doctor_fee', 'center_fee'] },
+            { model: Doctor, as: 'doctor', attributes: ['doctor_id', 'full_name', 'specialization', 'doctor_fee', 'center_fee'] },
             { model: Payment, as: 'payments', attributes: ['amount', 'payment_method', 'status'] },
             { model: Availability, as: 'availability' }
         ];

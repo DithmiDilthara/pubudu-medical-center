@@ -10,6 +10,7 @@ import appointmentRoutes from './routes/appointmentRoutes.js';
 import clinicalRoutes from './routes/clinicalRoutes.js';
 import doctorRoutes from './routes/doctorRoutes.js';
 import paymentRoutes from './routes/paymentRoutes.js';
+import staffRoutes from './routes/staffRoutes.js';
 
 dotenv.config();
 dotenv.config({ path: './config/.env' });
@@ -63,6 +64,7 @@ app.use('/api/appointments', appointmentRoutes);
 app.use('/api/clinical', clinicalRoutes);
 app.use('/api/doctors', doctorRoutes);
 app.use('/api/payments', paymentRoutes);
+app.use('/api/staff', staffRoutes);
 
 // Test route
 app.get('/', (req, res) => {

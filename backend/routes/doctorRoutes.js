@@ -17,6 +17,6 @@ router.get('/patient/:patient_id', protect, isDoctor, getPatientDetails);
 // Dynamic routes last — so they don't catch /my-patients or /patient/:id first
 router.get('/:doctor_id/upcoming', protect, getUpcomingSessions);
 router.get('/:doctor_id', getDoctorById);
-router.get('/:doctor_id/availability', getDoctorAvailability);
+router.get('/:doctor_id/availability', protect, getDoctorAvailability);
 
 export default router;

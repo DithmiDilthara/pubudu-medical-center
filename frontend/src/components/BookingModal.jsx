@@ -51,12 +51,16 @@ const BookingModal = ({ isOpen, onClose, appointment, onUpdate }) => {
 
     useEffect(() => {
         if (selectedDoctor?.doctor_id && isOpen) {
+            console.log("Fetching availability for Doctor ID:", selectedDoctor.doctor_id);
             fetchAvailability(selectedDoctor.doctor_id);
             // Reset selection when changing doctor
             if (selectedDoctor.doctor_id !== appointment?.doctor_id) {
                 setSelectedDate(null);
                 setSelectedSession(null);
             }
+        } else if (isOpen) {
+            console.warn("Cannot fetch availability: selectedDoctor.doctor_id is missing", selectedDoctor);
+            setDoctorAvailability([]);
         }
     }, [selectedDoctor?.doctor_id, isOpen]);
 
@@ -68,12 +72,18 @@ const BookingModal = ({ isOpen, onClose, appointment, onUpdate }) => {
 
     const fetchAvailability = async (docId) => {
         try {
-            const response = await axios.get(`${API_URL}/doctors/${docId}/availability`);
+            const token = localStorage.getItem('token');
+            const response = await axios.get(`${API_URL}/doctors/${docId}/availability`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
             if (response.data.success) {
                 setDoctorAvailability(response.data.data);
+            } else {
+                setDoctorAvailability([]);
             }
         } catch (error) {
             console.error("Error fetching availability:", error);
+            setDoctorAvailability([]);
         }
     };
 
@@ -177,16 +187,27 @@ const BookingModal = ({ isOpen, onClose, appointment, onUpdate }) => {
         const dMonth = String(dayDate.getMonth() + 1).padStart(2, '0');
         const dDay = String(dayDate.getDate()).padStart(2, '0');
         const formattedDate = `${dYear}-${dMonth}-${dDay}`;
-        const dayName = dayDate.toLocaleString('en-US', { weekday: 'long' }).toUpperCase();
+        
+        const daysMap = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
+        const dayName = daysMap[dayDate.getDay()];
 
-        const specific = doctorAvailability.find(a => a.schedule_date === formattedDate);
-        if (specific) return true;
+        const specificActive = doctorAvailability.filter(a => a.schedule_date === formattedDate && a.status === 'ACTIVE' && !a.is_exclusion);
+        const exclusions = doctorAvailability.filter(a => a.schedule_date === formattedDate && a.is_exclusion);
 
-        return doctorAvailability.some(a => 
+        if (specificActive.length > 0) return true;
+
+        const recurring = doctorAvailability.filter(a => 
             a.day_of_week?.toUpperCase() === dayName && 
             !a.schedule_date && 
+            a.status === 'ACTIVE' &&
             (!a.end_date || formattedDate <= a.end_date)
         );
+
+        const activeRecurring = recurring.filter(r => 
+            !exclusions.some(e => e.start_time === r.start_time && e.end_time === r.end_time)
+        );
+
+        return activeRecurring.length > 0;
     };
 
     const getTimeSlots = () => {
@@ -197,12 +218,20 @@ const BookingModal = ({ isOpen, onClose, appointment, onUpdate }) => {
         const formattedDate = `${tYear}-${tMonth}-${tDay}`;
         const dayName = selectedDate.toLocaleString('en-US', { weekday: 'long' }).toUpperCase();
 
-        let avails = doctorAvailability.filter(a => a.schedule_date === formattedDate);
-        if (avails.length === 0) {
-            avails = doctorAvailability.filter(a => a.day_of_week?.toUpperCase() === dayName && !a.schedule_date);
-        }
+        const specific = doctorAvailability.filter(a => a.schedule_date === formattedDate && a.status === 'ACTIVE' && !a.is_exclusion);
+        const recurring = doctorAvailability.filter(a => 
+            !a.schedule_date && 
+            a.day_of_week === dayName && 
+            a.status === 'ACTIVE' &&
+            (!a.end_date || formattedDate <= a.end_date)
+        );
+        const exclusions = doctorAvailability.filter(a => a.schedule_date === formattedDate && a.is_exclusion);
 
-        return avails.map(avail => ({
+        const daySessions = [...specific, ...recurring].filter(as => 
+            !exclusions.some(e => e.start_time === as.start_time && e.end_time === as.end_time)
+        );
+
+        return daySessions.map(avail => ({
             id: avail.schedule_id,
             timeRange: `${avail.start_time} - ${avail.end_time}`
         }));
@@ -276,16 +305,20 @@ const BookingModal = ({ isOpen, onClose, appointment, onUpdate }) => {
                                     const d = i + 1;
                                     const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), d);
                                     const isAvailable = isDateAvailable(date);
-                                    const isSelected = selectedDate?.getDate() === d && selectedDate?.getMonth() === currentMonth.getMonth();
+                                    const isSelected = selectedDate && 
+                                                      date.getDate() === selectedDate.getDate() && 
+                                                      date.getMonth() === selectedDate.getMonth() && 
+                                                      date.getFullYear() === selectedDate.getFullYear();
                                     const isPast = date < new Date().setHours(0,0,0,0);
 
                                     return (
                                         <button 
-                                            key={d}
+                                            key={i}
                                             disabled={!isAvailable || isPast}
-                                            onClick={() => setSelectedDate(date)}
+                                            onClick={() => !isPast && isAvailable && setSelectedDate(date)}
                                             style={{
                                                 ...styles.dayBtn,
+                                                ...(isAvailable && !isPast ? styles.dayAvailable : {}),
                                                 ...(isSelected ? styles.daySelected : {}),
                                                 ...(!isAvailable || isPast ? styles.dayDisabled : {})
                                             }}
@@ -508,14 +541,21 @@ const styles = {
     daySelected: {
         backgroundColor: "#2563eb",
         color: "white",
-        fontWeight: "700",
-        boxShadow: "0 4px 12px rgba(37, 99, 235, 0.3)"
+        boxShadow: "0 4px 6px -1px rgba(37, 99, 235, 0.4)",
+        border: "none"
+    },
+    dayAvailable: {
+        backgroundColor: "#eff6ff",
+        color: "#2563eb",
+        border: "1px solid #dbeafe",
+        fontWeight: "700"
     },
     dayDisabled: {
-        color: "#000000",
-        opacity: 0.2,
+        color: "#cbd5e1",
+        backgroundColor: "transparent",
         cursor: "not-allowed",
-        backgroundColor: "transparent"
+        border: "none",
+        opacity: 0.4
     },
     sectionTitle: {
         fontSize: "16px",

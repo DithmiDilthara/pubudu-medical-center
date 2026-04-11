@@ -10,7 +10,11 @@ import {
   FiUsers, 
   FiGrid,
   FiX,
-  FiArrowRight
+  FiArrowRight,
+  FiRepeat,
+  FiDollarSign,
+  FiClock,
+  FiCheckCircle
 } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
@@ -86,6 +90,11 @@ const Reports = () => {
   const handleExportPDF = async () => {
     if (!reportData) return;
     
+    if (reportType === 'income') {
+      await generateIncomePDF();
+      return;
+    }
+    
     if (reportType === 'appointments') {
       await generateAppointmentsPDF();
       return;
@@ -109,6 +118,203 @@ const Reports = () => {
     } catch (error) {
       console.error("Export error:", error);
       toast.error("Failed to export PDF");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const generateIncomePDF = async () => {
+    setIsExporting(true);
+    try {
+      const logoImg = await getCircularBase64ImageFromURL(logo);
+      await new Promise(resolve => setTimeout(resolve, 500));
+      const payChartImg = await captureComponentAsBase64(pieChartRef.current);
+      const statChartImg = await captureComponentAsBase64(barChartRef.current);
+
+      const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+      const colors = {
+        headerBg: '#6366f1',
+        titleBlue: '#312e81',
+        tableHeader: '#4f46e5',
+        borderBlue: '#e0e7ff',
+        incomeGreen: '#059669',
+        refundRed: '#dc2626',
+        centerBlue: '#2563eb',
+        labelGray: '#64748b',
+        altRow: '#f8fafc'
+      };
+
+      const docDefinition = {
+        pageSize: 'A4',
+        pageMargins: [40, 40, 40, 60],
+        content: [
+          {
+            table: {
+              widths: ['*'],
+              body: [[
+                {
+                  fillColor: colors.headerBg,
+                  columns: [
+                    { image: logoImg, width: 45, margin: [10, 10, 0, 10] },
+                    { text: 'Pubudu Medical Center', style: 'hospitalName', margin: [10, 15, 0, 0], width: '*' },
+                    {
+                      stack: [
+                        { text: 'No 46, Matara Road, Hakmana', style: 'contactInfo' },
+                        { text: 'Detailed Financial Audit', style: 'contactInfo', bold: true },
+                      ],
+                      width: 'auto', margin: [0, 15, 10, 0]
+                    }
+                  ],
+                  border: [false, false, false, false]
+                }
+              ]]
+            },
+            layout: 'noBorders', margin: [-40, -40, -40, 30]
+          },
+          { text: 'ADVANCED INCOME STATEMENT', style: 'title' },
+          { text: `Period: ${startDate} – ${endDate} | Generated: ${today}`, style: 'subtitle' },
+          { canvas: [{ type: 'line', x1: 0, y1: 5, x2: 515, y2: 5, lineWidth: 0.5, lineColor: colors.headerBg }], margin: [0, 5, 0, 20] },
+          
+          {
+            table: {
+              widths: ['50%', '50%'],
+              body: [
+                [
+                  { stack: [{ text: 'TOTAL NET CASH', style: 'kpiLabel' }, { text: `LKR ${reportData.summary.totalNetCash.toLocaleString()}`, style: 'kpiValue' }], fillColor: colors.incomeGreen, colSpan: 2 },
+                  {}
+                ],
+                [
+                  { stack: [{ text: 'GROSS CENTER INCOME', style: 'kpiLabel' }, { text: `LKR ${reportData.summary.grossCenterIncome.toLocaleString()}`, style: 'kpiValue' }], fillColor: colors.centerBlue },
+                  { stack: [{ text: 'NET DOCTOR REVENUE', style: 'kpiLabel' }, { text: `LKR ${reportData.summary.netDoctorIncome.toLocaleString()}`, style: 'kpiValue' }], fillColor: '#4338ca' }
+                ]
+              ]
+            },
+            margin: [0, 0, 0, 30]
+          },
+
+          { text: 'FINANCIAL VISUALIZATION', style: 'sectionTitle' },
+          {
+            columns: [
+              {
+                stack: [
+                  { text: 'Payment Method Breakdown', style: 'chartTitle' },
+                  { image: payChartImg, width: 220 }
+                ]
+              },
+              {
+                stack: [
+                  { text: 'Transaction Volume Breakdown', style: 'chartTitle' },
+                  { image: statChartImg, width: 250 }
+                ]
+              }
+            ]
+          },
+          
+          { text: 'DETAILED CALCULATION TABLES', style: 'sectionTitle', margin: [0, 40, 0, 10], pageBreak: 'before' },
+
+          // --- 1. Center Income Table ---
+          { text: '1. Gross Center Income Calculation (Non-Refundable Fees)', style: 'tableSubTitle' },
+          {
+            table: {
+              headerRows: 1,
+              widths: ['*', 70, 100],
+              body: [
+                [{ text: 'DOCTOR NAME', style: 'tableHeader' }, { text: 'PATIENTS', style: 'tableHeader', alignment: 'center' }, { text: 'CLINIC PROFIT', style: 'tableHeader', alignment: 'right' }],
+                ...reportData.doctorBreakdown.map((doc, i) => [
+                  { text: doc.doctorName, fillColor: i % 2 === 0 ? 'white' : colors.altRow },
+                  { text: doc.patientCount.toString(), alignment: 'center', fillColor: i % 2 === 0 ? 'white' : colors.altRow },
+                  { text: `LKR ${doc.grossCenter.toLocaleString()}`, alignment: 'right', fillColor: i % 2 === 0 ? 'white' : colors.altRow }
+                ]),
+                [{ text: 'TOTAL GROSS CENTER INCOME', bold: true, colSpan: 2 }, {}, { text: `LKR ${reportData.summary.grossCenterIncome.toLocaleString()}`, bold: true, alignment: 'right' }]
+              ]
+            },
+            margin: [0, 0, 0, 25]
+          },
+
+          // --- 2. Doctor Revenue Table ---
+          { text: '2. Gross Doctor Revenue Calculation (Initially Collected)', style: 'tableSubTitle' },
+          {
+            table: {
+              headerRows: 1,
+              widths: ['*', 100],
+              body: [
+                [{ text: 'DOCTOR NAME', style: 'tableHeader' }, { text: 'INITIAL COLLECTION', style: 'tableHeader', alignment: 'right' }],
+                ...reportData.doctorBreakdown.map((doc, i) => [
+                  { text: doc.doctorName, fillColor: i % 2 === 0 ? 'white' : colors.altRow },
+                  { text: `LKR ${doc.grossDoctor.toLocaleString()}`, alignment: 'right', fillColor: i % 2 === 0 ? 'white' : colors.altRow }
+                ]),
+                [{ text: 'TOTAL INITIAL DOCTOR COLLECTION', bold: true }, { text: `LKR ${reportData.summary.grossDoctorIncome.toLocaleString()}`, bold: true, alignment: 'right' }]
+              ]
+            },
+            margin: [0, 0, 0, 25]
+          },
+
+          // --- 3. Refunds Table ---
+          { text: '3. Total Refunds Processed (Amount returned to patients)', style: 'tableSubTitle' },
+          {
+            table: {
+              headerRows: 1,
+              widths: ['*', 100],
+              body: [
+                [{ text: 'REFUND CATEGORY (BY DOCTOR)', style: 'tableHeader' }, { text: 'REFUNDED AMOUNT', style: 'tableHeader', alignment: 'right' }],
+                ...reportData.doctorBreakdown.filter(d => d.refunds > 0).map((doc, i) => [
+                  { text: `Refunds for ${doc.doctorName}`, fillColor: i % 2 === 0 ? 'white' : colors.altRow },
+                  { text: `LKR ${doc.refunds.toLocaleString()}`, color: colors.refundRed, alignment: 'right', fillColor: i % 2 === 0 ? 'white' : colors.altRow }
+                ]),
+                [{ text: 'TOTAL REFUNDS ISSUED', bold: true }, { text: `- LKR ${reportData.summary.totalRefunds.toLocaleString()}`, bold: true, color: colors.refundRed, alignment: 'right' }]
+              ]
+            },
+            margin: [0, 0, 0, 25]
+          },
+
+          // --- 4. Net Summary Table ---
+          { text: '4. Final Net Settlement (Reconciliation Summary)', style: 'tableSubTitle' },
+          {
+            table: {
+              widths: ['*', 120],
+              body: [
+                [{ text: 'CALCULATION STEP', style: 'tableHeader' }, { text: 'RESULTING VALUE', style: 'tableHeader', alignment: 'right' }],
+                ['Net Doctor Revenue (Gross - Refunds)', { text: `LKR ${reportData.summary.netDoctorIncome.toLocaleString()}`, alignment: 'right' }],
+                ['Center Retained Income (100% Commission)', { text: `LKR ${reportData.summary.grossCenterIncome.toLocaleString()}`, alignment: 'right' }],
+                [{ text: 'TOTAL NET CASH HELD', bold: true, fillColor: colors.incomeGreen, color: 'white' }, { text: `LKR ${reportData.summary.totalNetCash.toLocaleString()}`, bold: true, alignment: 'right', fillColor: colors.incomeGreen, color: 'white' }]
+              ]
+            }
+          }
+        ],
+        footer: (currentPage, pageCount) => {
+          return {
+            stack: [
+              { canvas: [{ type: 'line', x1: 40, y1: 0, x2: 555, y2: 0, lineWidth: 0.5, lineColor: colors.borderBlue }] },
+              {
+                columns: [
+                  { text: `* Clinically Audited Income Statement | Period: ${startDate} – ${endDate}`, style: 'footer' },
+                  { text: `Page ${currentPage} of ${pageCount}`, style: 'footer', alignment: 'right' }
+                ],
+                margin: [40, 10, 40, 0]
+              }
+            ]
+          };
+        },
+        styles: {
+          hospitalName: { fontSize: 18, bold: true, color: 'white' },
+          contactInfo: { fontSize: 9, color: 'white', alignment: 'right' },
+          title: { fontSize: 18, bold: true, color: colors.titleBlue, alignment: 'center' },
+          subtitle: { fontSize: 10, color: '#64748b', alignment: 'center', margin: [0, 5, 0, 0] },
+          kpiLabel: { fontSize: 8, color: 'white', bold: true, margin: [10, 10, 10, 2] },
+          kpiValue: { fontSize: 13, color: 'white', bold: true, margin: [10, 0, 10, 10] },
+          sectionTitle: { fontSize: 13, bold: true, color: colors.titleBlue, margin: [0, 10, 0, 10] },
+          tableSubTitle: { fontSize: 10, bold: true, color: colors.labelGray, margin: [0, 10, 0, 5] },
+          tableHeader: { fontSize: 9, bold: true, color: 'white', fillColor: colors.tableHeader, padding: 5 },
+          chartTitle: { fontSize: 10, bold: true, alignment: 'center', margin: [0, 0, 0, 10] },
+          footer: { fontSize: 8, color: colors.labelGray }
+        }
+      };
+
+      pdfMake.createPdf(docDefinition).download(`Income_Statement_${startDate}_${endDate}.pdf`);
+      toast.success("Advanced Income Report Generated!");
+    } catch (error) {
+      console.error("Income PDF error:", error);
+      toast.error("Failed to generate Income PDF");
     } finally {
       setIsExporting(false);
     }
@@ -393,8 +599,8 @@ const Reports = () => {
                   value={reportType}
                   onChange={(e) => setReportType(e.target.value)}
                 >
-                  <option value="revenue">Revenue Report</option>
-                  <option value="patients">Patient Registration Report</option>
+                  <option value="revenue">Revenue Stats (Summary)</option>
+                  <option value="income">Advanced Income Report</option>
                   <option value="appointments">Appointment Reports</option>
                 </select>
               </div>
@@ -461,7 +667,7 @@ const Reports = () => {
                   <div>
                     <h3 style={styles.resultsTitle}>
                       {reportType === 'revenue' ? 'Revenue Analytics' : 
-                       reportType === 'patients' ? 'Patient Demographics' : 'Appointment Trends'}
+                       reportType === 'income' ? 'Financial Income Statement' : 'Appointment Trends'}
                     </h3>
                     <p style={styles.resultsPeriod}>Period: {startDate} to {endDate}</p>
                   </div>
@@ -486,26 +692,63 @@ const Reports = () => {
 
                 {/* Summary Cards */}
                 <div style={styles.summaryGrid}>
-                  <motion.div variants={itemVariants} style={styles.summaryCard}>
-                    <p style={styles.summaryLabel}>Total Revenue</p>
-                    <h4 style={styles.summaryValue}>LKR {reportData.totalRevenue?.toLocaleString() || '178,000'}</h4>
-                    <div style={styles.trendUp}>
-                      <FiTrendingUp size={12} />
-                      <span>+12.5% vs Prev</span>
-                    </div>
-                  </motion.div>
+                  {reportType === 'income' ? (
+                    <>
+                      <motion.div variants={itemVariants} style={{...styles.summaryCard, borderLeft: '5px solid #059669'}}>
+                        <p style={styles.summaryLabel}>Total net cash</p>
+                        <h4 style={{...styles.summaryValue, color: '#059669'}}>LKR {reportData.summary.totalNetCash?.toLocaleString()}</h4>
+                        <div style={styles.summaryIconBox}><FiDollarSign color="#059669" /></div>
+                      </motion.div>
+                      <motion.div variants={itemVariants} style={{...styles.summaryCard, borderLeft: '5px solid #2563eb'}}>
+                        <p style={styles.summaryLabel}>Center Revenue (Retained)</p>
+                        <h4 style={{...styles.summaryValue, color: '#2563eb'}}>LKR {reportData.summary.grossCenterIncome?.toLocaleString()}</h4>
+                        <div style={styles.summaryIconBox}><FiGrid color="#2563eb" /></div>
+                      </motion.div>
+                      <motion.div variants={itemVariants} style={{...styles.summaryCard, borderLeft: '5px solid #dc2626'}}>
+                        <p style={styles.summaryLabel}>Total Refunds Given</p>
+                        <h4 style={{...styles.summaryValue, color: '#dc2626'}}>LKR {reportData.summary.totalRefunds?.toLocaleString()}</h4>
+                        <div style={styles.summaryIconBox}><FiRepeat color="#dc2626" /></div>
+                      </motion.div>
+                      <motion.div variants={itemVariants} style={styles.summaryCard}>
+                        <p style={styles.summaryLabel}>Net Doctor Income</p>
+                        <h4 style={styles.summaryValue}>LKR {reportData.summary.netDoctorIncome?.toLocaleString()}</h4>
+                        <div style={styles.summaryIconBox}><FiUsers color="#2563eb" /></div>
+                      </motion.div>
+                      <motion.div variants={itemVariants} style={styles.summaryCard}>
+                        <p style={styles.summaryLabel}>Total Bookings</p>
+                        <h4 style={styles.summaryValue}>{reportData.summary.totalBookings}</h4>
+                        <div style={styles.summaryIconBox}><FiCheckCircle color="#2563eb" /></div>
+                      </motion.div>
+                      <motion.div variants={itemVariants} style={styles.summaryCard}>
+                        <p style={styles.summaryLabel}>No-Show Collections</p>
+                        <h4 style={styles.summaryValue}>{reportData.summary.noShowCount}</h4>
+                        <div style={styles.summaryIconBox}><FiClock color="#2563eb" /></div>
+                      </motion.div>
+                    </>
+                  ) : (
+                    <>
+                      <motion.div variants={itemVariants} style={styles.summaryCard}>
+                        <p style={styles.summaryLabel}>Total Revenue</p>
+                        <h4 style={styles.summaryValue}>LKR {reportData.totalRevenue?.toLocaleString() || '178,000'}</h4>
+                        <div style={styles.trendUp}>
+                          <FiTrendingUp size={12} />
+                          <span>+12.5% vs Prev</span>
+                        </div>
+                      </motion.div>
 
-                  <motion.div variants={itemVariants} style={styles.summaryCard}>
-                    <p style={styles.summaryLabel}>Total Patients</p>
-                    <h4 style={styles.summaryValue}>{reportData.appointmentCount || '73'}</h4>
-                    <div style={styles.summaryIconBox}><FiUsers color="#2563eb" /></div>
-                  </motion.div>
+                      <motion.div variants={itemVariants} style={styles.summaryCard}>
+                        <p style={styles.summaryLabel}>Total Patients</p>
+                        <h4 style={styles.summaryValue}>{reportData.appointmentCount || '73'}</h4>
+                        <div style={styles.summaryIconBox}><FiUsers color="#2563eb" /></div>
+                      </motion.div>
 
-                  <motion.div variants={itemVariants} style={styles.summaryCard}>
-                    <p style={styles.summaryLabel}>Top Department</p>
-                    <h4 style={{...styles.summaryValue, color: '#059669'}}>Pediatrics</h4>
-                    <div style={styles.summaryIconBox}><FiGrid color="#059669" /></div>
-                  </motion.div>
+                      <motion.div variants={itemVariants} style={styles.summaryCard}>
+                        <p style={styles.summaryLabel}>Top Department</p>
+                        <h4 style={{...styles.summaryValue, color: '#059669'}}>Pediatrics</h4>
+                        <div style={styles.summaryIconBox}><FiGrid color="#059669" /></div>
+                      </motion.div>
+                    </>
+                  )}
                 </div>
 
                 {/* Chart Section */}
@@ -515,6 +758,51 @@ const Reports = () => {
                      reportType === 'patients' ? 'Patient Registrations by Source' : 'Appointment Volume per Doctor'}
                   </h4>
                   <div style={{ width: '100%', height: 400 }}>
+                    {reportType === 'income' && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '40px', alignItems: 'center' }}>
+                        <div style={{ width: '100%', height: 400 }}>
+                          <h5 style={{ textAlign: 'center', color: '#64748b', fontSize: '14px', marginBottom: '15px' }}>Income Breakdown (Appointment Status)</h5>
+                          <div ref={barChartRef} style={{ width: '100%', height: '360px' }}>
+                            <ResponsiveContainer width="100%" height="100%">
+                              <BarChart data={reportData.charts.appointmentStatus} margin={{ top: 10, right: 30, left: 20, bottom: 20 }}>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 11 }} />
+                                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#3b82f6', fontSize: 12 }} />
+                                <Tooltip cursor={{ fill: '#f8fafc' }} />
+                                <Legend verticalAlign="top" align="right" />
+                                <Bar dataKey="value" name="Volume" fill="#4f46e5" radius={[6, 6, 0, 0]} barSize={50} isAnimationActive={false} />
+                              </BarChart>
+                            </ResponsiveContainer>
+                          </div>
+                        </div>
+                        
+                        <div style={{ width: '100%', maxWidth: '600px', minHeight: '450px', padding: '20px', borderTop: '1px solid #f1f5f9' }}>
+                          <h5 style={{ textAlign: 'center', color: '#64748b', fontSize: '14px', marginBottom: '20px' }}>Payment Method Reconciliation</h5>
+                          <div ref={pieChartRef} style={{ width: '100%', height: '350px' }}>
+                            <ResponsiveContainer width="100%" height="100%">
+                              <PieChart>
+                                <Pie
+                                  data={reportData.charts.paymentMethods}
+                                  innerRadius={70}
+                                  outerRadius={110}
+                                  paddingAngle={5}
+                                  dataKey="value"
+                                  labelLine={false}
+                                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                                  isAnimationActive={false}
+                                >
+                                  <Cell fill="#10b981" />
+                                  <Cell fill="#3b82f6" />
+                                </Pie>
+                                <Tooltip />
+                                <Legend verticalAlign="bottom" height={50} iconType="rect" iconSize={14} />
+                              </PieChart>
+                            </ResponsiveContainer>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                     {reportType === 'revenue' && (
                       <ResponsiveContainer>
                         <BarChart data={reportData.chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
@@ -565,24 +853,6 @@ const Reports = () => {
                       </ResponsiveContainer>
                     )}
 
-                    {reportType === 'patients' && (
-                      <ResponsiveContainer>
-                        <BarChart data={reportData.chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                          <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} />
-                          <YAxis axisLine={false} tickLine={false} tick={{ fill: '#0ea5e9', fontSize: 12 }} />
-                          <Tooltip cursor={{ fill: '#f8fafc' }} />
-                          <Legend />
-                          <Bar 
-                            dataKey="count" 
-                            name="Registration Count" 
-                            fill="#0ea5e9" 
-                            radius={[6, 6, 0, 0]} 
-                            barSize={60} 
-                          />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    )}
 
                     {reportType === 'appointments' && (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '40px', alignItems: 'center' }}>

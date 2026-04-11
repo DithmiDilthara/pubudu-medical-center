@@ -32,6 +32,7 @@ import ConfirmPayment from './pages/receptionist/ConfirmPayment';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import ManageDoctors from './pages/admin/ManageDoctors';
 import ManageReceptionist from './pages/admin/ManageReceptionist';
+import ManageAdmins from './pages/admin/ManageAdmins';
 import Reports from './pages/admin/Reports';
 
 import Doctors from './pages/receptionist/Doctors';
@@ -77,6 +78,7 @@ function App() {
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
           <Route path="/admin/doctors" element={<ManageDoctors />} />
           <Route path="/admin/receptionist" element={<ManageReceptionist />} />
+          <Route path="/admin/manage-admins" element={<ManageAdmins />} />
           <Route path="/admin/reports" element={<Reports />} />
 
         </Routes>

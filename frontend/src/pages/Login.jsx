@@ -125,7 +125,8 @@ const Login = () => {
             1: '/admin/dashboard',
             2: '/doctor/dashboard',
             3: '/receptionist/dashboard',
-            4: '/patient/dashboard'
+            4: '/patient/dashboard',
+            5: '/admin/dashboard'
           };
 
           navigate(roleRoutes[roleId] || '/patient/dashboard');

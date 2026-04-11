@@ -217,11 +217,26 @@ export const AuthProvider = ({ children }) => {
     // Check if user has specific role
     const hasRole = (requiredRoles) => {
         if (!user) return false;
-        if (typeof requiredRoles === 'string') {
-            return user.role === requiredRoles;
+        
+        // Handle Role IDs (preferred)
+        if (typeof requiredRoles === 'number') {
+            return user.role_id === requiredRoles;
         }
-        return requiredRoles.includes(user.role);
+        
+        if (Array.isArray(requiredRoles)) {
+            return requiredRoles.includes(user.role_id) || requiredRoles.includes(user.role?.role_name);
+        }
+
+        // Handle Role Names (legacy)
+        if (typeof requiredRoles === 'string') {
+            return user.role?.role_name === requiredRoles || user.role === requiredRoles;
+        }
+        
+        return false;
     };
+
+    // Helper to check for Super Admin explicitly
+    const isSuperAdmin = user?.role_id === 5 || user?.role?.role_name === 'Super Admin';
 
     // Check if user is authenticated
     const isAuthenticated = () => {
@@ -241,6 +256,7 @@ export const AuthProvider = ({ children }) => {
         logout,
         getProfile,
         hasRole,
+        isSuperAdmin,
         isAuthenticated,
         api
     };

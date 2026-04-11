@@ -109,63 +109,140 @@ export const getRevenueReport = async (req, res) => {
 };
 
 /**
- * @desc    Get Patient Registration Report
- * @route   GET /api/admin/reports/patients
+ * @desc    Get Advanced Income Report
+ * @route   GET /api/admin/reports/income
  * @access  Private/Admin
  */
-export const getPatientRegistrationReport = async (req, res) => {
+export const getIncomeReport = async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
-    const where = {};
-
+    
+    // Filter for payments in the range
+    const paymentWhere = {};
     if (startDate && endDate) {
-      where.created_at = {
+      paymentWhere.created_at = {
         [Op.between]: [new Date(startDate), new Date(endDate + 'T23:59:59')]
       };
     }
 
-    const patients = await Patient.findAll({
-      where,
+    const payments = await Payment.findAll({
+      where: paymentWhere,
       include: [
         {
-          model: User,
-          as: 'user',
-          attributes: ['email', 'contact_number']
-        },
-        { model: Adult, as: 'adult' }
-      ],
-      order: [['created_at', 'DESC']]
+          model: Appointment,
+          as: 'appointment',
+          include: [{ model: Doctor, as: 'doctor', attributes: ['doctor_fee', 'center_fee', 'full_name'] }]
+        }
+      ]
     });
 
-    const summary = {
-      total: patients.length,
-      online: patients.filter(p => p.registration_source === 'ONLINE').length,
-      receptionist: patients.filter(p => p.registration_source === 'RECEPTIONIST').length
-    };
+    // Calculations
+    const processedAppointments = new Set();
+    const paymentMethodStats = { CASH: 0, ONLINE: 0 };
+    const statusStats = { COMPLETED: 0, CANCELLED: 0, PENDING: 0, NO_SHOW: 0, OTHER: 0 };
+    const doctorStatsMap = {};
+    
+    let grossCenterIncome = 0;
+    let grossDoctorIncome = 0;
+    let totalRefunds = 0;
 
-    // Chart Data: Registration Source
-    const chartData = [
-      { name: 'Online', count: summary.online },
-      { name: 'Receptionist', count: summary.receptionist }
+    payments.forEach(p => {
+      const amount = parseFloat(p.amount);
+      const appt = p.appointment;
+      
+      // 1. Payment Method Breakdown (Cash vs Online)
+      const method = (p.payment_method || 'CASH').toUpperCase();
+      if (method.includes('PAYHERE') || method.includes('ONLINE') || method.includes('REFUND_CREDIT')) {
+        paymentMethodStats.ONLINE += amount;
+      } else {
+        paymentMethodStats.CASH += amount;
+      }
+
+      // Initialize Doctor Stat if appointment exists
+      let docStats = null;
+      if (appt) {
+        const docId = appt.doctor_id || 'unknown';
+        if (!doctorStatsMap[docId]) {
+          doctorStatsMap[docId] = {
+            doctorName: appt.doctor?.full_name || 'Unknown',
+            patientCount: 0,
+            grossCenter: 0,
+            grossDoctor: 0,
+            refunds: 0
+          };
+        }
+        docStats = doctorStatsMap[docId];
+      }
+
+      // 2. Transaction Type Logic
+      if (p.transaction_type === 'REFUND') {
+        const absRefund = Math.abs(amount);
+        totalRefunds += absRefund;
+        if (docStats) docStats.refunds += absRefund;
+      } else if (p.transaction_type === 'PAYMENT') {
+        if (appt && !processedAppointments.has(p.appointment_id)) {
+          const cFee = parseFloat(appt.doctor?.center_fee || 0);
+          const dFee = parseFloat(appt.doctor?.doctor_fee || 0);
+          
+          grossCenterIncome += cFee;
+          grossDoctorIncome += dFee;
+          
+          if (docStats) {
+            docStats.patientCount++;
+            docStats.grossCenter += cFee;
+            docStats.grossDoctor += dFee;
+          }
+          
+          processedAppointments.add(p.appointment_id);
+          
+          // Status Tracking
+          const status = appt.status;
+          if (statusStats[status] !== undefined) {
+            statusStats[status]++;
+          } else {
+            statusStats.OTHER++;
+          }
+        }
+      }
+    });
+
+    const netDoctorIncome = grossDoctorIncome - totalRefunds;
+    const totalNetCash = grossCenterIncome + netDoctorIncome;
+    const doctorBreakdown = Object.values(doctorStatsMap);
+
+    // Chart Data Conversions
+    const paymentChartData = [
+      { name: 'Cash', value: paymentMethodStats.CASH },
+      { name: 'Online', value: paymentMethodStats.ONLINE }
     ];
+
+    const statusChartData = Object.entries(statusStats)
+      .filter(([_, value]) => value > 0)
+      .map(([name, value]) => ({ name, value }));
 
     res.status(200).json({
       success: true,
       data: {
-        summary,
-        chartData,
-        patients: patients.map(p => ({
-          name: p.full_name,
-          nic: p.patient_type === 'ADULT' && p.adult ? p.adult.nic : (p.patient_type === 'CHILD' ? 'CHILD' : 'N/A'),
-          patient_type: p.patient_type,
-          source: p.registration_source,
-          date: p.created_at,
-          contact: p.user?.contact_number || 'N/A'
-        }))
+        summary: {
+          totalBookings: processedAppointments.size,
+          grossCenterIncome,
+          grossDoctorIncome,
+          totalRefunds,
+          netDoctorIncome,
+          totalNetCash,
+          noShowCount: statusStats.NO_SHOW
+        },
+        doctorBreakdown,
+        charts: {
+          paymentMethods: paymentChartData,
+          appointmentStatus: statusChartData
+        },
+        period: { startDate, endDate }
       }
     });
+
   } catch (error) {
-    console.error('Patient report error:', error);
+    console.error('Income report error:', error);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };
@@ -315,30 +392,45 @@ export const exportReport = async (req, res) => {
           revenue: grandTotalRevenue
         }
       };
-    } else if (type === 'patients') {
-      const where = {};
-      if (startDate && endDate) where.created_at = { [Op.between]: [new Date(startDate), new Date(endDate + 'T23:59:59')] };
-      const patients = await Patient.findAll({
-        where,
+    } else if (type === 'income') {
+      const paymentWhere = {};
+      if (startDate && endDate) {
+        paymentWhere.created_at = {
+          [Op.between]: [new Date(startDate), new Date(endDate + 'T23:59:59')]
+        };
+      }
+      const payments = await Payment.findAll({
+        where: paymentWhere,
         include: [
-          { model: User, as: 'user', attributes: ['email', 'contact_number'] },
-          { model: Adult, as: 'adult' },
-          { model: Child, as: 'child' }
-        ],
-        order: [['created_at', 'DESC']]
+          {
+            model: Appointment,
+            as: 'appointment',
+            include: [{ model: Doctor, as: 'doctor', attributes: ['doctor_fee', 'center_fee', 'full_name'] }]
+          }
+        ]
       });
+
+      const processedAppointments = new Set();
+      let grossCenter = 0, grossDoc = 0, refunds = 0;
+      
+      payments.forEach(p => {
+        if (p.transaction_type === 'REFUND') refunds += Math.abs(parseFloat(p.amount));
+        else if (p.transaction_type === 'PAYMENT' && p.appointment && !processedAppointments.has(p.appointment_id)) {
+          grossCenter += parseFloat(p.appointment.doctor?.center_fee || 0);
+          grossDoc += parseFloat(p.appointment.doctor?.doctor_fee || 0);
+          processedAppointments.add(p.appointment_id);
+        }
+      });
+
       reportData = {
         summary: {
-          total: patients.length,
-          online: patients.filter(p => p.registration_source === 'ONLINE').length,
-          receptionist: patients.filter(p => p.registration_source === 'RECEPTIONIST').length
-        },
-        patients: patients.map(p => ({
-          name: p.full_name,
-          nic: p.patient_type === 'ADULT' && p.adult ? p.adult.nic : (p.patient_type === 'CHILD' ? 'CHILD' : 'N/A'),
-          source: p.registration_source,
-          contact: p.user?.contact_number || 'N/A'
-        }))
+          totalBookings: processedAppointments.size,
+          grossCenter,
+          grossDoc,
+          refunds,
+          netDoc: grossDoc - refunds,
+          netTotal: grossCenter + (grossDoc - refunds)
+        }
       };
     } else if (type === 'appointments') {
       const where = {};

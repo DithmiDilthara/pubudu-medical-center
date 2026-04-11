@@ -129,9 +129,17 @@ const ChannelDoctor = () => {
 
         if (relevantAvails.length === 0) return [];
 
+        const now = new Date();
+
         // Build slot objects that carry schedule_id — required for backend safety check
         return relevantAvails.map(avail => {
             if (avail.start_time && avail.end_time) {
+                // Safety: Check if this session is starting in < 30 mins
+                const sessionStartTime = new Date(`${formattedDate} ${avail.start_time}`);
+                const thirtyMinsBefore = new Date(sessionStartTime.getTime() - 30 * 60000);
+                
+                if (now > thirtyMinsBefore) return null; // Too late to book online
+
                 const start = new Date(`2000-01-01 ${avail.start_time}`).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
                 const end = new Date(`2000-01-01 ${avail.end_time}`).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
                 return {
@@ -158,7 +166,7 @@ const ChannelDoctor = () => {
                 time_slot: selectedTime,
                 schedule_id: selectedScheduleId,
                 notes: "",
-                skipNotification: payNow // Skip initial email/SMS if paying online (sent after success)
+                skipNotification: payNow
             }, {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -186,7 +194,9 @@ const ChannelDoctor = () => {
                 }
             }
         } catch (error) {
-            toast.error("Failed to book appointment", { id: toastId });
+            console.error("Booking error:", error);
+            const errMsg = error.response?.data?.message || "Failed to book appointment";
+            toast.error(errMsg, { id: toastId });
         } finally {
             setIsLoading(false);
         }
