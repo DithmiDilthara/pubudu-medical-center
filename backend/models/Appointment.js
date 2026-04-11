@@ -34,9 +34,13 @@ const Appointment = sequelize.define('appointment', {
         defaultValue: 'PENDING'
     },
     payment_status: {
-        type: DataTypes.ENUM('UNPAID', 'PAID', 'PARTIAL'),
+        type: DataTypes.ENUM('UNPAID', 'PAID', 'PARTIAL', 'REFUNDED', 'REFUND_DISMISSED'),
         allowNull: false,
         defaultValue: 'UNPAID'
+    },
+    cancelled_at: {
+        type: DataTypes.DATE,
+        allowNull: true
     },
     appointment_number: {
         type: DataTypes.INTEGER,

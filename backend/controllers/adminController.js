@@ -16,7 +16,7 @@ export const getSystemStats = async (req, res) => {
       Receptionist.count(),
       Appointment.count(),
       Appointment.findAll({
-        where: { payment_status: 'PAID' },
+        where: { payment_status: { [Op.in]: ['PAID', 'REFUNDED', 'PARTIAL'] } },
         include: [{ model: Doctor, as: 'doctor', attributes: ['center_fee'] }]
       })
     ]);
@@ -44,7 +44,7 @@ export const getRevenueReport = async (req, res) => {
     const { startDate, endDate } = req.query;
     
     const where = {
-      payment_status: 'PAID'
+      payment_status: { [Op.in]: ['PAID', 'REFUNDED', 'PARTIAL'] }
     };
 
     if (startDate && endDate) {
@@ -271,7 +271,7 @@ export const exportReport = async (req, res) => {
     let reportData = {};
     
     if (type === 'revenue') {
-      const where = { payment_status: 'PAID' };
+      const where = { payment_status: { [Op.in]: ['PAID', 'REFUNDED', 'PARTIAL'] } };
       if (startDate && endDate) where.appointment_date = { [Op.between]: [startDate, endDate] };
       const appointments = await Appointment.findAll({
         where,

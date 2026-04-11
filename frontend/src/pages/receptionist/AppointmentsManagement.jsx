@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { 
     FiSearch, FiPlus, FiCalendar, 
-    FiFilter, FiUser, FiAlertTriangle, FiPhone, FiMail, FiX
+    FiFilter, FiUser, FiAlertTriangle, FiPhone, FiMail, FiX, FiArrowLeft
 } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
@@ -22,6 +22,7 @@ function AppointmentsManagement() {
     const [searchQuery, setSearchQuery] = useState("");
     const [statusFilter, setStatusFilter] = useState("ALL");
     const [dateFilter, setDateFilter] = useState("");
+    const [viewMode, setViewMode] = useState("ALL"); // "ALL" or "REFUNDS"
     
     // Pagination
     const [currentPage, setCurrentPage] = useState(1);
@@ -38,6 +39,10 @@ function AppointmentsManagement() {
     // Cancellation Confirmation
     const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
     const [aptToCancel, setAptToCancel] = useState(null);
+    const [isRefundDialogOpen, setIsRefundDialogOpen] = useState(false);
+    const [aptToRefund, setAptToRefund] = useState(null);
+    const [isDismissDialogOpen, setIsDismissDialogOpen] = useState(false);
+    const [aptToDismiss, setAptToDismiss] = useState(null);
 
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
@@ -62,20 +67,37 @@ function AppointmentsManagement() {
         fetchData();
     }, []);
 
+    const checkRefundEligibility = (apt) => {
+        if (apt.payment_status !== 'PAID' || apt.status !== 'CANCELLED' || !apt.cancelled_at || !apt.availability) {
+            return false;
+        }
+        
+        const sessionEndDateStr = `${apt.appointment_date} ${apt.availability.end_time}`;
+        const sessionEndTime = new Date(sessionEndDateStr);
+        const cancelledAt = new Date(apt.cancelled_at);
+        
+        return cancelledAt <= sessionEndTime;
+    };
+
+    const refundableAppointments = useMemo(() => {
+        return appointments.filter(apt => checkRefundEligibility(apt));
+    }, [appointments]);
+
     const filteredAppointments = useMemo(() => {
-        return appointments.filter(apt => {
+        const sourceList = viewMode === "REFUNDS" ? refundableAppointments : appointments;
+        
+        return sourceList.filter(apt => {
             const matchesSearch = 
                 (apt.patient?.full_name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
                 (apt.doctor?.full_name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
                 (apt.appointment_id || "").toString().includes(searchQuery);
             
-            const matchesStatus = statusFilter === "ALL" || apt.status === statusFilter;
-
+            const matchesStatus = viewMode === "REFUNDS" ? true : (statusFilter === "ALL" || apt.status === statusFilter);
             const matchesDate = !dateFilter || apt.appointment_date === dateFilter;
             
             return matchesSearch && matchesStatus && matchesDate;
         }).sort((a, b) => b.appointment_id - a.appointment_id);
-    }, [appointments, searchQuery, statusFilter, dateFilter]);
+    }, [appointments, refundableAppointments, searchQuery, statusFilter, dateFilter, viewMode]);
 
     // Reset pagination when filter changes
     useEffect(() => {
@@ -93,6 +115,66 @@ function AppointmentsManagement() {
     const handleCancelAppointment = (apt) => {
         setAptToCancel(apt);
         setIsCancelDialogOpen(true);
+    };
+
+    const handleProcessRefund = (apt) => {
+        setAptToRefund(apt);
+        setIsRefundDialogOpen(true);
+    };
+
+    const confirmRefund = async () => {
+        if (!aptToRefund) return;
+        
+        const apt = aptToRefund;
+        const toastId = toast.loading("Processing refund...");
+        try {
+            const token = localStorage.getItem('token');
+            const res = await axios.post(`${API_URL}/appointments/${apt.appointment_id}/refund`, {}, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+
+            if (res.data.success) {
+                toast.success(res.data.message, { id: toastId });
+                // Refresh list
+                const aptRes = await axios.get(`${API_URL}/appointments`, { headers: { Authorization: `Bearer ${token}` } });
+                if (aptRes.data.success) setAppointments(aptRes.data.data);
+            }
+        } catch (error) {
+            toast.error(error.response?.data?.message || "Refund failed", { id: toastId });
+        } finally {
+            setIsRefundDialogOpen(false);
+            setAptToRefund(null);
+        }
+    };
+
+    const handleDismissRefund = (apt) => {
+        setAptToDismiss(apt);
+        setIsDismissDialogOpen(true);
+    };
+
+    const confirmDismissRefund = async () => {
+        if (!aptToDismiss) return;
+        
+        const apt = aptToDismiss;
+        const toastId = toast.loading("Dismissing refund...");
+        try {
+            const token = localStorage.getItem('token');
+            const res = await axios.post(`${API_URL}/appointments/${apt.appointment_id}/dismiss-refund`, {}, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+
+            if (res.data.success) {
+                toast.success(res.data.message, { id: toastId });
+                // Refresh list
+                const aptRes = await axios.get(`${API_URL}/appointments`, { headers: { Authorization: `Bearer ${token}` } });
+                if (aptRes.data.success) setAppointments(aptRes.data.data);
+            }
+        } catch (error) {
+            toast.error(error.response?.data?.message || "Dismissal failed", { id: toastId });
+        } finally {
+            setIsDismissDialogOpen(false);
+            setAptToDismiss(null);
+        }
     };
 
     const confirmCancelAppointment = async () => {
@@ -220,10 +302,35 @@ function AppointmentsManagement() {
                     {/* Page Header */}
                     <motion.header variants={itemVariants} style={ui.headerSection}>
                         <div style={ui.headerTitleSection}>
-                            <h1 style={ui.welcomeTitle}>Appointment Management</h1>
-                            <p style={ui.welcomeSubtitle}>Manage all patient bookings and schedules efficiently.</p>
+                            <h1 style={ui.welcomeTitle}>
+                                {viewMode === 'REFUNDS' ? 'Refund Processing Queue' : 'Appointment Management'}
+                            </h1>
+                            <p style={ui.welcomeSubtitle}>
+                                {viewMode === 'REFUNDS' 
+                                    ? `Review and process ${refundableAppointments.length} pending refund requests.` 
+                                    : 'Manage all patient bookings and schedules efficiently.'}
+                            </p>
                         </div>
                         <div style={ui.headerRight}>
+                            <motion.button 
+                                whileHover={{ y: -4 }}
+                                onClick={() => setViewMode(viewMode === 'REFUNDS' ? 'ALL' : 'REFUNDS')}
+                                style={{
+                                    ...ui.btnHeaderSecondary,
+                                    backgroundColor: viewMode === 'REFUNDS' ? '#f1f5f9' : '#fff7ed',
+                                    color: viewMode === 'REFUNDS' ? '#64748b' : '#f97316',
+                                    border: `1px solid ${viewMode === 'REFUNDS' ? '#e2e8f0' : '#fed7aa'}`,
+                                    position: 'relative'
+                                }}
+                            >
+                                {viewMode === 'REFUNDS' ? <FiArrowLeft style={{marginRight: '8px'}} /> : <FiAlertTriangle style={{marginRight: '8px'}} />}
+                                {viewMode === 'REFUNDS' ? 'Back to All Appts' : 'Refund Requests'}
+                                
+                                {viewMode !== 'REFUNDS' && refundableAppointments.length > 0 && (
+                                    <span style={ui.badgeCount}>{refundableAppointments.length}</span>
+                                )}
+                            </motion.button>
+
                             <motion.button 
                                 whileHover={{ y: -4 }}
                                 onClick={() => navigate("/receptionist/appointments/new")}
@@ -249,22 +356,24 @@ function AppointmentsManagement() {
                                 onBlur={(e) => e.target.parentElement.style.borderColor = "#e2e8f0"}
                             />
                         </div>
-                        <div style={ui.filterSelectWrapper}>
-                            <FiFilter style={ui.filterIcon} />
-                            <select 
-                                style={ui.filterSelect}
-                                value={statusFilter}
-                                onChange={(e) => setStatusFilter(e.target.value)}
-                            >
-                                <option value="ALL">All Statuses</option>
-                                <option value="RESCHEDULE_REQUIRED">⚠️ Needs Reschedule</option>
-                                <option value="CONFIRMED">Confirmed</option>
-                                <option value="PENDING">Pending</option>
-                                <option value="COMPLETED">Completed</option>
-                                <option value="CANCELLED">Cancelled</option>
-                                <option value="NO_SHOW">No Show / Absent</option>
-                            </select>
-                        </div>
+                        {viewMode !== 'REFUNDS' && (
+                            <div style={ui.filterSelectWrapper}>
+                                <FiFilter style={ui.filterIcon} />
+                                <select 
+                                    style={ui.filterSelect}
+                                    value={statusFilter}
+                                    onChange={(e) => setStatusFilter(e.target.value)}
+                                >
+                                    <option value="ALL">All Statuses</option>
+                                    <option value="RESCHEDULE_REQUIRED">⚠️ Needs Reschedule</option>
+                                    <option value="CONFIRMED">Confirmed</option>
+                                    <option value="PENDING">Pending</option>
+                                    <option value="COMPLETED">Completed</option>
+                                    <option value="CANCELLED">Cancelled</option>
+                                    <option value="NO_SHOW">No Show / Absent</option>
+                                </select>
+                            </div>
+                        )}
 
                         {/* Date Filter */}
                         <div style={ui.dateFilterWrapper}>
@@ -299,8 +408,10 @@ function AppointmentsManagement() {
                                         <th style={ui.th}>ID</th>
                                         <th style={ui.th}>Patient</th>
                                         <th style={ui.th}>Doctor</th>
-                                        <th style={ui.th}>Date & Time</th>
-                                        <th style={ui.th}>Fee (LKR)</th>
+                                        <th style={ui.th}>
+                                            {viewMode === 'REFUNDS' ? 'Cancellation' : 'Date & Time'}
+                                        </th>
+                                        <th style={ui.th}>{viewMode === 'REFUNDS' ? 'Refundable' : 'Fee (LKR)'}</th>
                                         <th style={ui.th}>Status</th>
                                         <th style={{ ...ui.th, textAlign: "right" }}>Actions</th>
                                     </tr>
@@ -343,39 +454,71 @@ function AppointmentsManagement() {
                                                         {apt.doctor?.full_name || "N/A"}
                                                     </td>
                                                     <td style={ui.td}>
-                                                        <div>
-                                                            <div style={ui.dateText}>{formatDate(apt.appointment_date)}</div>
-                                                            <div style={ui.timeText}>{apt.time_slot}</div>
-                                                        </div>
+                                                        {viewMode === 'REFUNDS' ? (
+                                                            <div>
+                                                                <div style={ui.dateText}>{formatDate(apt.cancelled_at)}</div>
+                                                                <div style={ui.timeText}>{new Date(apt.cancelled_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
+                                                            </div>
+                                                        ) : (
+                                                            <div>
+                                                                <div style={ui.dateText}>{formatDate(apt.appointment_date)}</div>
+                                                                <div style={ui.timeText}>{apt.time_slot}</div>
+                                                            </div>
+                                                        )}
                                                     </td>
-                                                    <td style={{ ...ui.td, fontWeight: "600" }}>
-                                                        {(Number(apt.doctor?.doctor_fee || 0) + Number(apt.doctor?.center_fee || 600)).toLocaleString()}
+                                                    <td style={{ ...ui.td, fontWeight: "600", color: viewMode === 'REFUNDS' ? '#16a34a' : 'inherit' }}>
+                                                        {viewMode === 'REFUNDS' 
+                                                            ? Number(apt.doctor?.doctor_fee || 0).toLocaleString()
+                                                            : (Number(apt.doctor?.doctor_fee || 0) + Number(apt.doctor?.center_fee || 600)).toLocaleString()
+                                                        }
                                                     </td>
                                                     <td style={ui.td}>
                                                         {getStatusBadge(apt)}
                                                     </td>
                                                     <td style={ui.td}>
                                                         <div style={ui.actionWrapper} className="action-btns">
-                                                            {apt.status !== 'CANCELLED' && apt.status !== 'COMPLETED' && (
+                                                            {viewMode === 'REFUNDS' ? (
                                                                 <>
                                                                     <motion.button 
                                                                         whileHover={{ y: -2 }}
-                                                                        onClick={() => {
-                                                                            setSelectedAptForReschedule(apt);
-                                                                            setIsBookingModalOpen(true);
-                                                                        }}
-                                                                        style={ui.rescheduleBtn}
+                                                                        onClick={() => handleProcessRefund(apt)}
+                                                                        style={ui.refundBtn}
                                                                     >
-                                                                        Reschedule
+                                                                        Process Refund
                                                                     </motion.button>
                                                                     <motion.button 
                                                                         whileHover={{ y: -2 }}
-                                                                        onClick={() => handleCancelAppointment(apt)}
-                                                                        style={ui.cancelBtn}
+                                                                        onClick={() => handleDismissRefund(apt)}
+                                                                        style={ui.dismissBtn}
                                                                     >
-                                                                        Cancel
+                                                                        Dismiss
                                                                     </motion.button>
                                                                 </>
+                                                            ) : (
+                                                                apt.status !== 'CANCELLED' && apt.status !== 'COMPLETED' && apt.status !== 'NO_SHOW' && (
+                                                                    <>
+                                                                        <motion.button 
+                                                                            whileHover={{ y: -2 }}
+                                                                            onClick={() => {
+                                                                                setSelectedAptForReschedule(apt);
+                                                                                setIsBookingModalOpen(true);
+                                                                            }}
+                                                                            style={ui.rescheduleBtn}
+                                                                        >
+                                                                            Reschedule
+                                                                        </motion.button>
+                                                                        <motion.button 
+                                                                            whileHover={{ y: -2 }}
+                                                                            onClick={() => handleCancelAppointment(apt)}
+                                                                            style={ui.cancelBtn}
+                                                                        >
+                                                                            Cancel
+                                                                        </motion.button>
+                                                                    </>
+                                                                )
+                                                            )}
+                                                            {apt.payment_status === 'REFUNDED' && (
+                                                                <span style={ui.refundedLabel}>Refunded</span>
                                                             )}
                                                         </div>
                                                     </td>
@@ -466,6 +609,28 @@ function AppointmentsManagement() {
                 message={`Are you sure you want to cancel the appointment for ${aptToCancel?.patient?.full_name}? This action will notify the patient.`}
                 confirmLabel="Yes, Cancel"
                 cancelLabel="Keep Appointment"
+                type="danger"
+            />
+
+            <ConfirmDialog 
+                isOpen={isRefundDialogOpen}
+                onClose={() => setIsRefundDialogOpen(false)}
+                onConfirm={confirmRefund}
+                title="Confirm Policy-Driven Refund"
+                message={`Process refund for ${aptToRefund?.patient?.full_name}? \n\nLKR ${Number(aptToRefund?.doctor?.doctor_fee || 0).toLocaleString()} (Doctor Fee) will be refunded. \n\nLKR ${Number(aptToRefund?.doctor?.center_fee || 600).toLocaleString()} (Hospital Fee) is non-refundable.`}
+                confirmLabel="Confirm Refund"
+                cancelLabel="Cancel"
+                type="warning"
+            />
+
+            <ConfirmDialog 
+                isOpen={isDismissDialogOpen}
+                onClose={() => setIsDismissDialogOpen(false)}
+                onConfirm={confirmDismissRefund}
+                title="Dismiss Refund Request"
+                message={`Are you sure you want to dismiss the refund for ${aptToDismiss?.patient?.full_name}? \n\nThis will permanently remove the request from the queue and the Center will keep the Doctor Fee.`}
+                confirmLabel="Yes, Dismiss"
+                cancelLabel="No, Keep Request"
                 type="danger"
             />
 
@@ -680,7 +845,36 @@ const ui = {
     },
     headerRight: {
         display: "flex",
-        gap: "12px"
+        gap: "12px",
+        alignItems: "center"
+    },
+    btnHeaderSecondary: {
+        padding: "12px 20px",
+        borderRadius: "14px",
+        fontSize: "14px",
+        fontWeight: "700",
+        cursor: "pointer",
+        display: "flex",
+        alignItems: "center",
+        transition: "all 0.2s"
+    },
+    badgeCount: {
+        position: "absolute",
+        top: "-8px",
+        right: "-8px",
+        backgroundColor: "#ef4444",
+        color: "white",
+        fontSize: "11px",
+        fontWeight: "700",
+        minWidth: "20px",
+        height: "20px",
+        borderRadius: "10px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "0 4px",
+        border: "2px solid white",
+        boxShadow: "0 2px 8px rgba(239, 68, 68, 0.3)"
     },
     btnPrimary: {
         background: "linear-gradient(135deg, #2563eb 0%, #1e40af 100%)",
@@ -888,6 +1082,39 @@ const ui = {
         border: "none",
         borderRadius: "8px",
         cursor: "pointer"
+    },
+    refundBtn: {
+        padding: "6px 14px",
+        fontSize: "12px",
+        fontWeight: "700",
+        color: "#16a34a",
+        backgroundColor: "#f0fdf4",
+        border: "1px solid #bbf7d0",
+        borderRadius: "8px",
+        cursor: "pointer",
+        display: "flex",
+        alignItems: "center"
+    },
+    refundedLabel: {
+        padding: "4px 10px",
+        backgroundColor: "#f8fafc",
+        color: "#64748b",
+        borderRadius: "9999px",
+        fontSize: "11px",
+        fontWeight: "700",
+        border: "1px dashed #cbd5e1"
+    },
+    dismissBtn: {
+        padding: "6px 14px",
+        fontSize: "12px",
+        fontWeight: "600",
+        color: "#64748b",
+        backgroundColor: "#f1f5f9",
+        border: "1px solid #e2e8f0",
+        borderRadius: "8px",
+        cursor: "pointer",
+        display: "flex",
+        alignItems: "center"
     },
     emptyContainer: {
         padding: "80px 24px"

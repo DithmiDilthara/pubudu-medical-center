@@ -188,6 +188,7 @@ export const cancelAppointment = async (req, res) => {
 
         const { cancellation_reason, is_noshow } = req.body;
         appointment.status = 'CANCELLED';
+        appointment.cancelled_at = new Date();
         if (cancellation_reason) appointment.cancellation_reason = cancellation_reason;
         if (is_noshow !== undefined) appointment.is_noshow = is_noshow;
         await appointment.save();
@@ -197,6 +198,128 @@ export const cancelAppointment = async (req, res) => {
     } catch (error) {
         console.error('Cancel appointment error:', error);
         res.status(500).json({ success: false, message: 'Server error' });
+    }
+};
+
+/**
+ * @desc    Process a refund for a cancelled appointment
+ * @route   POST /api/appointments/:id/refund
+ * @access  Private (Receptionist, Admin)
+ */
+export const processRefund = async (req, res) => {
+    const t = await sequelize.transaction();
+    try {
+        const { id } = req.params;
+        const currentUser = req.user;
+
+        const appointment = await Appointment.findByPk(id, {
+            include: [
+                { model: Doctor, as: 'doctor' },
+                { model: Availability, as: 'availability' }
+            ],
+            transaction: t
+        });
+
+        if (!appointment) {
+            await t.rollback();
+            return res.status(404).json({ success: false, message: 'Appointment not found' });
+        }
+
+        if (appointment.status !== 'CANCELLED') {
+            await t.rollback();
+            return res.status(400).json({ success: false, message: 'Only cancelled appointments can be refunded' });
+        }
+
+        if (appointment.payment_status !== 'PAID') {
+            await t.rollback();
+            return res.status(400).json({ success: false, message: 'This appointment is not marked as PAID' });
+        }
+
+        // --- STRICT RULE: CHECK CANCELLATION TIME ---
+        if (!appointment.cancelled_at || !appointment.availability) {
+            await t.rollback();
+            return res.status(400).json({ success: false, message: 'Cancellation timestamp or session info missing' });
+        }
+
+        const sessionEndDateStr = `${appointment.appointment_date} ${appointment.availability.end_time}`;
+        const sessionEndTime = new Date(sessionEndDateStr);
+        const cancelledAt = new Date(appointment.cancelled_at);
+
+        if (cancelledAt > sessionEndTime) {
+            await t.rollback();
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Refund period has expired. This appointment was cancelled after the session ended.' 
+            });
+        }
+
+        // --- CALCULATE REFUND (Doctor Fee Only) ---
+        const doctorFee = parseFloat(appointment.doctor?.doctor_fee) || 0;
+        
+        if (doctorFee <= 0) {
+            await t.rollback();
+            return res.status(400).json({ success: false, message: 'No refundable doctor fee found' });
+        }
+
+        // Create REFUND entry
+        const transactionId = `REF-${id}-${Date.now()}`;
+        await Payment.create({
+            patient_id: appointment.patient_id,
+            appointment_id: id,
+            amount: -doctorFee, // Store as negative for accounting
+            payment_method: 'REFUND_CREDIT',
+            transaction_id: transactionId,
+            status: 'SUCCESS',
+            transaction_type: 'REFUND',
+            reason: 'CANCELLED',
+            processed_by: currentUser.user_id
+        }, { transaction: t });
+
+        // Update Appointment Payment Status
+        appointment.payment_status = 'REFUNDED';
+        await appointment.save({ transaction: t });
+
+        await t.commit();
+
+        res.status(200).json({ 
+            success: true, 
+            message: `Refund of ${doctorFee} LKR processed successfully. Center Fee (non-refundable) retained.`,
+            data: { refundAmount: doctorFee }
+        });
+
+    } catch (error) {
+        if (t) await t.rollback();
+        console.error('Process refund error:', error);
+        res.status(500).json({ success: false, message: 'Server error during refund processing' });
+    }
+};
+
+/**
+ * @desc    Dismiss/Ignore a refund request
+ * @route   POST /api/appointments/:id/dismiss-refund
+ * @access  Private (Receptionist/Admin)
+ */
+export const dismissRefund = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const appointment = await Appointment.findByPk(id);
+
+        if (!appointment) return res.status(404).json({ success: false, message: 'Appointment not found' });
+
+        // Ensure it's eligible to be dismissed (Paid and Cancelled)
+        if (appointment.payment_status !== 'PAID') {
+            return res.status(400).json({ success: false, message: 'Only PAID appointments can have refunds dismissed' });
+        }
+
+        await appointment.update({ payment_status: 'REFUND_DISMISSED' });
+
+        res.status(200).json({
+            success: true,
+            message: 'Refund request dismissed. Appointment removed from queue.'
+        });
+    } catch (error) {
+        console.error('Dismiss refund error:', error);
+        res.status(500).json({ success: false, message: 'Internal Server Error' });
     }
 };
 
@@ -240,8 +363,10 @@ export const getAppointments = async (req, res) => {
 
         const include = [
             { model: Doctor, as: 'doctor', attributes: ['full_name', 'specialization', 'doctor_fee', 'center_fee'] },
-            { model: Payment, as: 'payments', attributes: ['amount', 'payment_method', 'status'] }
+            { model: Payment, as: 'payments', attributes: ['amount', 'payment_method', 'status'] },
+            { model: Availability, as: 'availability' }
         ];
+        
 
         // Only include patient info if it's NOT a patient looking at another doctor's slots
         if (role_id !== 4 || !doctor_id) {
@@ -520,7 +645,9 @@ export const rescheduleAppointment = async (req, res) => {
                         amount: difference,
                         payment_method: payment_method || 'CASH',
                         status: 'SUCCESS',
-                        transaction_id: `TRNF-COL-${Date.now()}`
+                        transaction_id: `TRNF-COL-${Date.now()}`,
+                        transaction_type: 'PAYMENT',
+                        processed_by: req.user.user_id
                     }, { transaction: t });
                 } else if (transfer_action === 'PAY_LATER') {
                     appointment.payment_status = 'PARTIAL';
@@ -532,7 +659,10 @@ export const rescheduleAppointment = async (req, res) => {
                     amount: difference, // difference is negative
                     payment_method: 'RESCHEDULE_ADJUSTMENT',
                     status: 'SUCCESS',
-                    transaction_id: `TRNF-REF-${Date.now()}`
+                    transaction_id: `TRNF-REF-${Date.now()}`,
+                    transaction_type: 'REFUND',
+                    reason: 'TRANSFER_DOWNGRADE',
+                    processed_by: req.user.user_id
                 }, { transaction: t });
             }
         }
