@@ -500,15 +500,18 @@ const Doctors = () => {
                                                                 <span style={{ ...styles.sectionLabel, color: '#0f172a' }}>Available Times</span>
                                                             </div>
                                                             <div style={styles.daysWrapper}>
-                                                                {doctor.availability && doctor.availability.length > 0 ? (
-                                                                    doctor.availability.slice(0, 2).map((av, idx) => (
-                                                                        <span key={idx} style={{ ...styles.dayChip, backgroundColor: '#f8fafc', color: '#0f172a', border: '1px solid #e2e8f0' }}>
-                                                                            {formatDayName(av.day_of_week)}: {formatTime12h(av.start_time)} - {formatTime12h(av.end_time)}
-                                                                        </span>
-                                                                    ))
-                                                                ) : (
-                                                                    <span style={{ fontSize: '12px', color: 'var(--slate-400)' }}>Not set</span>
-                                                                )}
+                                                                {(() => {
+                                                                    const activeAvail = doctor.availability ? doctor.availability.filter(a => a.status === 'ACTIVE' && !a.is_exclusion && a.day_of_week) : [];
+                                                                    return activeAvail.length > 0 ? (
+                                                                        activeAvail.slice(0, 2).map((av, idx) => (
+                                                                            <span key={idx} style={{ ...styles.dayChip, backgroundColor: '#f8fafc', color: '#0f172a', border: '1px solid #e2e8f0' }}>
+                                                                                {formatDayName(av.day_of_week)}: {formatTime12h(av.start_time)} - {formatTime12h(av.end_time)}
+                                                                            </span>
+                                                                        ))
+                                                                    ) : (
+                                                                        <span style={{ fontSize: '12px', color: 'var(--slate-400)' }}>Not set</span>
+                                                                    );
+                                                                })()}
                                                             </div>
                                                         </div>
                                                         <div style={{ display: 'flex', alignItems: 'flex-end', height: '100%' }}>

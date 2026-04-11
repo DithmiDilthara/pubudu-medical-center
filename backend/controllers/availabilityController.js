@@ -310,11 +310,10 @@ export const getDoctorAvailability = async (req, res) => {
 
         // Filter: Staff see all, Patients/Public only see ACTIVE
         const where = { doctor_id };
+        // Filter: Staff see all, Patients/Public only see ACTIVE
+        // REMOVED: where.status = 'ACTIVE' for public/patient.
+        // We MUST return CANCELLED/exclusions to the frontend so calendars can properly black them out.
         const currentUser = req.user;
-        
-        if (!currentUser || currentUser.role_id === 4) { // Public or Patient
-          where.status = 'ACTIVE';
-        }
 
         const availability = await Availability.findAll({
             where,

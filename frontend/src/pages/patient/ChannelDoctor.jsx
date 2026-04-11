@@ -46,7 +46,9 @@ const ChannelDoctor = () => {
 
         const fetchAvailability = async () => {
             try {
-                const response = await axios.get(`${API_URL}/doctors/${doctor.doctor_id}/availability`);
+                const token = localStorage.getItem('token');
+                const headers = token ? { Authorization: `Bearer ${token}` } : {};
+                const response = await axios.get(`${API_URL}/doctors/${doctor.doctor_id}/availability`, { headers });
                 if (response.data.success) {
                     setAvailabilities(response.data.data);
                 }

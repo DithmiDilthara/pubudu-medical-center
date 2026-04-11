@@ -407,15 +407,17 @@ function NewBooking() {
     const days = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
     const dayName = days[date.getDay()];
 
-    // Check specific date overrides first
-    const specific = doctorAvailability.find(a => a.schedule_date === formattedDate);
-    if (specific) {
-      return true;
-    }
+    // 1. Check for specific date entries first (Overrides/Exclusions)
+    const specificActive = doctorAvailability.filter(a => a.schedule_date === formattedDate && a.status === 'ACTIVE' && !a.is_exclusion);
+    const exclusions = doctorAvailability.filter(a => a.schedule_date === formattedDate && a.is_exclusion && a.status === 'CANCELLED');
 
-    // Fallback to recurring
+    if (exclusions.length > 0) return false; // Hard block for cancelled days
+    if (specificActive.length > 0) return true; // Available for specific date
+
+    // 2. Check for recurring slots
     return doctorAvailability.some(a => {
       if (!a.day_of_week || a.day_of_week.toUpperCase() !== dayName || a.schedule_date) return false;
+      if (a.status !== 'ACTIVE') return false; // Ensure recurring is ACTIVE
       if (a.end_date) {
         return formattedDate <= a.end_date;
       }
@@ -434,13 +436,14 @@ function NewBooking() {
 
     // Specific date overrides take precedence
     let dayAvails = doctorAvailability.filter(a =>
-      a.schedule_date === formattedDate
+      a.schedule_date === formattedDate && a.status === 'ACTIVE' && !a.is_exclusion
     );
 
     // If no specific override, use recurring
     if (dayAvails.length === 0) {
       dayAvails = doctorAvailability.filter(a => {
         if (!a.day_of_week || a.day_of_week.toUpperCase() !== dayName || a.schedule_date) return false;
+        if (a.status !== 'ACTIVE') return false; // Ensure recurring is ACTIVE
         if (a.end_date) {
           return formattedDate <= a.end_date;
         }

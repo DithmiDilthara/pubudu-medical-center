@@ -55,7 +55,9 @@ function DoctorAvailability() {
           setUserRole(profileRes.data.data.role_id);
         }
         const doctorId = profileRes.data.data?.profile?.doctor_id;
-        const availabilityRes = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/doctors/${doctorId}/availability`);
+        const availabilityRes = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/doctors/${doctorId}/availability`, {
+            headers: { Authorization: `Bearer ${token}` }
+        });
 
         if (availabilityRes.data.success) {
           setRawAvailability(availabilityRes.data.data);

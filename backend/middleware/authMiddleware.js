@@ -64,6 +64,37 @@ export const protect = async (req, res, next) => {
   }
 };
 
+// Optional protect - verifies token if present, but allows guest access if absent
+export const optionalProtect = async (req, res, next) => {
+  try {
+    let token;
+    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+      token = req.headers.authorization.split(' ')[1];
+    }
+
+    if (!token) {
+      req.user = null;
+      return next();
+    }
+
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const user = await User.findByPk(decoded.user_id, {
+        attributes: ['user_id', 'username', 'email', 'role_id'],
+        include: [{ model: Role, as: 'role', attributes: ['role_name'] }]
+      });
+      req.user = user || null;
+      next();
+    } catch (error) {
+      req.user = null;
+      next();
+    }
+  } catch (error) {
+    req.user = null;
+    next();
+  }
+};
+
 // Verify user is authenticated (alias for protect)
 // Verify user has any of the specified roles
 export const authorizeRoles = (...roles) => {

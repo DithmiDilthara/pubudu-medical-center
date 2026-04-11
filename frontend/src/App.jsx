@@ -23,6 +23,7 @@ import DoctorAppointments from './pages/doctor/DoctorAppointments';
 import PatientDetailsDoctor from './pages/doctor/PatientDetailsDoctor';
 import DoctorPatients from './pages/doctor/DoctorPatients';
 import DoctorAvailability from './pages/doctor/DoctorAvailability';
+import DoctorRevenue from './pages/doctor/DoctorRevenue';
 import ReceptionistDashboard from './pages/receptionist/ReceptionistDashboard';
 import AddPatient from './pages/receptionist/AddPatient';
 import NewBooking from './pages/receptionist/NewBooking';
@@ -63,6 +64,7 @@ function App() {
 
           <Route path="/doctor/dashboard" element={<DoctorDashboard />} />
           <Route path="/doctor/appointments" element={<DoctorAppointments />} />
+          <Route path="/doctor/revenue" element={<DoctorRevenue />} />
           <Route path="/doctor/patient-details" element={<PatientDetailsDoctor />} />
           <Route path="/doctor/patients" element={<DoctorPatients />} />
           <Route path="/doctor/availability" element={<DoctorAvailability />} />
