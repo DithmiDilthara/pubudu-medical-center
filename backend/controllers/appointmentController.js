@@ -210,45 +210,8 @@ export const getAppointments = async (req, res) => {
         const { role_id, user_id } = req.user;
         const { doctor_id } = req.query;
 
-        // --- IMPROVED NO_SHOW LOGIC ---
-        // Instead of marking everything COMPLETED (which is wrong),
-        // we mark past un-attended appointments as NO_SHOW.
-        const now = new Date();
-        const todayStr = now.toISOString().split('T')[0];
-        const currentTime = now.toTimeString().split(' ')[0]; // HH:MM:SS
-
-        // Find appointments that should be marked as NO_SHOW
-        // 1. Date is in the past
-        // 2. Date is today but session end_time has passed
-        const pastAppointments = await Appointment.findAll({
-            where: {
-                status: { [Op.in]: ['PENDING', 'CONFIRMED'] },
-                [Op.or]: [
-                    { appointment_date: { [Op.lt]: todayStr } },
-                    {
-                        [Op.and]: [
-                            { appointment_date: todayStr },
-                            // We need to check availability end_time which requires a join
-                        ]
-                    }
-                ]
-            },
-            include: [{ model: Availability, as: 'availability' }]
-        });
-
-        const noShowIds = pastAppointments.filter(appt => {
-            if (appt.appointment_date < todayStr) return true;
-            if (appt.appointment_date === todayStr && appt.availability && appt.availability.end_time < currentTime) return true;
-            return false;
-        }).map(appt => appt.appointment_id);
-
-        if (noShowIds.length > 0) {
-            await Appointment.update(
-                { status: 'NO_SHOW' },
-                { where: { appointment_id: { [Op.in]: noShowIds } } }
-            );
-        }
-        // ------------------------------
+        // The automatic NO_SHOW logic has been removed as per clinic workflow requirements.
+        // Appointments will remain PENDING or CONFIRMED until the doctor/receptionist manually marks them COMPLETED or NO_SHOW.
 
         let where = {};
 
@@ -276,7 +239,8 @@ export const getAppointments = async (req, res) => {
         }
 
         const include = [
-            { model: Doctor, as: 'doctor', attributes: ['full_name', 'specialization', 'doctor_fee', 'center_fee'] }
+            { model: Doctor, as: 'doctor', attributes: ['full_name', 'specialization', 'doctor_fee', 'center_fee'] },
+            { model: Payment, as: 'payments', attributes: ['amount', 'payment_method', 'status'] }
         ];
 
         // Only include patient info if it's NOT a patient looking at another doctor's slots
@@ -365,26 +329,25 @@ export const updateStatus = async (req, res) => {
 
             // Create LEDGER entry for receptionist payments
             if (payment_status === 'PAID' && oldPaymentStatus !== 'PAID') {
-                // Check if payment record already exists for this appointment
-                const existingPayment = await Payment.findOne({
+                const allPayments = await Payment.findAll({
                     where: { appointment_id: id },
                     transaction: t
                 });
-
-                if (!existingPayment) {
-                    const doctorFee = parseFloat(appointment.doctor?.doctor_fee) || 0;
-                    const centerFee = parseFloat(appointment.doctor?.center_fee) || 600;
-                    const totalAmount = doctorFee + centerFee;
-                    
-                    // Generate a professional manual transaction ID
-                    // REP - [ApptID] - [6 Random Digits]
+                
+                const alreadyPaid = allPayments.reduce((sum, p) => sum + parseFloat(p.amount), 0);
+                const doctorFee = parseFloat(appointment.doctor?.doctor_fee) || 0;
+                const centerFee = parseFloat(appointment.doctor?.center_fee) || 600;
+                const totalAmount = doctorFee + centerFee;
+                const balanceDue = totalAmount - alreadyPaid;
+                
+                if (balanceDue > 0) {
                     const randomId = Math.floor(100000 + Math.random() * 900000);
                     const transactionId = `REP-${id}-${randomId}`;
 
                     await Payment.create({
                         patient_id: appointment.patient_id,
                         appointment_id: id,
-                        amount: totalAmount,
+                        amount: balanceDue,
                         payment_method: payment_method || 'CASH',
                         transaction_id: transactionId,
                         status: 'SUCCESS'
@@ -480,12 +443,15 @@ export const cancelDoctorSession = async (req, res) => {
  * @access  Private (Receptionist)
  */
 export const rescheduleAppointment = async (req, res) => {
+    let t;
     try {
+        t = await sequelize.transaction();
         const { id } = req.params;
-        const { appointment_date, time_slot, schedule_id } = req.body;
+        const { appointment_date, time_slot, schedule_id, new_doctor_id, transfer_action, payment_method } = req.body;
 
         // Authorization: Patients are not allowed to reschedule online
         if (req.user.role_id === 4) {
+            await t.rollback();
             return res.status(403).json({ 
                 success: false, 
                 message: 'Online patients are not allowed to reschedule appointments. Please contact the Pubudu Medical Center receptionist.' 
@@ -493,44 +459,105 @@ export const rescheduleAppointment = async (req, res) => {
         }
 
         if (!appointment_date || !time_slot) {
+            await t.rollback();
             return res.status(400).json({ success: false, message: 'Date and time slot are required' });
         }
 
-        const appointment = await Appointment.findByPk(id);
+        const appointment = await Appointment.findByPk(id, { transaction: t });
         if (!appointment) {
+            await t.rollback();
             return res.status(404).json({ success: false, message: 'Appointment not found' });
         }
 
-        // In session-based booking, multiple people can book the same time range.
-        // We will no longer block rescheduling based on time_slot existence.
+        const oldDoctor = await Doctor.findByPk(appointment.doctor_id, { transaction: t });
+        let targetDoctorId = appointment.doctor_id;
+        let finalDoctor = oldDoctor;
 
-        // Handle appointment number if date changed
-        if (appointment_date !== appointment.appointment_date) {
+        // Specialization Security Check / Cross-Doctor Transfer
+        if (new_doctor_id && parseInt(new_doctor_id) !== oldDoctor.doctor_id) {
+            finalDoctor = await Doctor.findByPk(new_doctor_id, { transaction: t });
+            if (!finalDoctor) {
+                await t.rollback();
+                return res.status(404).json({ success: false, message: 'New doctor not found' });
+            }
+            if (oldDoctor.specialization !== finalDoctor.specialization) {
+                await t.rollback();
+                return res.status(400).json({ success: false, message: 'Cannot transfer to a doctor with a different specialization.' });
+            }
+            targetDoctorId = finalDoctor.doctor_id;
+        }
+
+        // Handle appointment number generation if date or doctor changed
+        if (appointment_date !== appointment.appointment_date || targetDoctorId !== appointment.doctor_id) {
             const lastAppointment = await Appointment.findOne({
                 where: {
-                    doctor_id: appointment.doctor_id,
+                    doctor_id: targetDoctorId,
                     appointment_date,
                     status: { [Op.ne]: 'CANCELLED' }
                 },
-                order: [['appointment_number', 'DESC']]
+                order: [['appointment_number', 'DESC']],
+                transaction: t
             });
             appointment.appointment_number = lastAppointment ? (lastAppointment.appointment_number || 0) + 1 : 1;
         }
 
+        // Financial Ledger Update
+        if (appointment.payment_status === 'PAID') {
+            const payments = await Payment.findAll({
+                where: { appointment_id: id },
+                transaction: t
+            });
+            
+            const amountPaid = payments.reduce((sum, p) => sum + parseFloat(p.amount), 0);
+            const newTotalFee = parseFloat(finalDoctor.doctor_fee || 0) + parseFloat(finalDoctor.center_fee || 0);
+            const difference = newTotalFee - amountPaid;
+
+            if (difference > 0) {
+                if (transfer_action === 'COLLECT_DIFFERENCE') {
+                    await Payment.create({
+                        patient_id: appointment.patient_id,
+                        appointment_id: appointment.appointment_id,
+                        amount: difference,
+                        payment_method: payment_method || 'CASH',
+                        status: 'SUCCESS',
+                        transaction_id: `TRNF-COL-${Date.now()}`
+                    }, { transaction: t });
+                } else if (transfer_action === 'PAY_LATER') {
+                    appointment.payment_status = 'PARTIAL';
+                }
+            } else if (difference < 0) {
+                await Payment.create({
+                    patient_id: appointment.patient_id,
+                    appointment_id: appointment.appointment_id,
+                    amount: difference, // difference is negative
+                    payment_method: 'RESCHEDULE_ADJUSTMENT',
+                    status: 'SUCCESS',
+                    transaction_id: `TRNF-REF-${Date.now()}`
+                }, { transaction: t });
+            }
+        }
+
+        appointment.doctor_id = targetDoctorId;
         appointment.appointment_date = appointment_date;
         appointment.time_slot = time_slot;
         if (schedule_id) appointment.schedule_id = schedule_id;
-        appointment.status = 'CONFIRMED'; // Auto-confirm when rescheduled by staff
-        await appointment.save();
 
-        // Send reschedule notification (Async)
+        // Auto-confirm logic fix
+        if (appointment.payment_status === 'PAID') {
+            appointment.status = 'CONFIRMED';
+        } else {
+            appointment.status = 'PENDING';
+        }
+
+        await appointment.save({ transaction: t });
+        await t.commit();
+
         try {
             const patient = await Patient.findByPk(appointment.patient_id, { include: [{ model: User, as: 'user' }] });
-            const doctor = await Doctor.findByPk(appointment.doctor_id);
             if (patient && (patient.user?.email || patient.user?.contact_number)) {
                 NotificationService.sendRescheduleNotice(patient.user?.email, patient.user?.contact_number, {
                     patientName: patient.full_name,
-                    doctorName: doctor.full_name,
+                    doctorName: finalDoctor.full_name,
                     date: appointment_date,
                     time: time_slot,
                     appointmentNumber: appointment.appointment_number
@@ -540,13 +567,9 @@ export const rescheduleAppointment = async (req, res) => {
             console.error('Failed to trigger reschedule notification:', notifyError);
         }
 
-        res.status(200).json({ 
-            success: true, 
-            message: 'Appointment rescheduled successfully', 
-            data: appointment 
-        });
-
+        res.status(200).json({ success: true, message: 'Appointment rescheduled successfully', data: appointment });
     } catch (error) {
+        if (t) await t.rollback();
         console.error('Reschedule appointment error:', error);
         res.status(500).json({ success: false, message: 'Server error' });
     }

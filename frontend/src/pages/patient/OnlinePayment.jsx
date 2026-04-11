@@ -42,6 +42,12 @@ function OnlinePayment() {
             const payData = response.data.data;
 
             if (payData.merchant_id) {
+                if (!window.payhere) {
+                    toast.error("PayHere gateway could not be loaded. Please disable ad-blockers or check your connection.");
+                    setIsProcessing(false);
+                    return;
+                }
+
                 const payment = {
                     sandbox: payData.sandbox,
                     merchant_id: payData.merchant_id,
@@ -95,7 +101,7 @@ function OnlinePayment() {
             }
         }
     } catch (error) {
-        toast.error("Failed to initiate secure tunnel", { id: toastId });
+        toast.error(error.response?.data?.message || error.message || "Payment Gateway Error: Check server logs", { id: toastId });
         setIsProcessing(false);
     }
   };

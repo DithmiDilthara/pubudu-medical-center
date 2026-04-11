@@ -46,7 +46,7 @@ export const getDoctorsBySpecialization = async (req, res) => {
         const { specialization } = req.params;
         const doctors = await Doctor.findAll({
             where: { specialization },
-            attributes: ['doctor_id', 'full_name', 'specialization']
+            attributes: ['doctor_id', 'full_name', 'specialization', 'doctor_fee', 'center_fee']
         });
 
         res.status(200).json({ success: true, data: doctors });

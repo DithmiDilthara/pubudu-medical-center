@@ -119,9 +119,13 @@ function AppointmentsManagement() {
 
 
 
-    const getStatusBadge = (status) => {
+    const getStatusBadge = (apt) => {
+        const status = apt.status;
+        const paymentStatus = apt.payment_status;
+
+        let statusElement = null;
         if (status === 'RESCHEDULE_REQUIRED') {
-            return (
+            statusElement = (
                 <span className="reschedule-badge" style={{
                     display: 'inline-flex',
                     alignItems: 'center',
@@ -138,26 +142,48 @@ function AppointmentsManagement() {
                     Needs Reschedule
                 </span>
             );
+        } else {
+            const styleMap = {
+                CONFIRMED: { bg: "#e0f2fe", text: "#0369a1" },
+                PENDING: { bg: "#fef3c7", text: "#92400e" },
+                COMPLETED: { bg: "#dcfce7", text: "#166534" },
+                CANCELLED: { bg: "#fee2e2", text: "#991b1b" },
+                NO_SHOW: { bg: "#f1f5f9", text: "#475569" }
+            };
+            const config = styleMap[status] || styleMap.PENDING;
+            statusElement = (
+                <span style={{
+                    backgroundColor: config.bg,
+                    color: config.text,
+                    padding: "4px 10px",
+                    borderRadius: "9999px",
+                    fontSize: "12px",
+                    fontWeight: "600"
+                }}>
+                    {status}
+                </span>
+            );
         }
-        const styleMap = {
-            CONFIRMED: { bg: "#e0f2fe", text: "#0369a1" },
-            PENDING: { bg: "#fef3c7", text: "#92400e" },
-            COMPLETED: { bg: "#dcfce7", text: "#166534" },
-            CANCELLED: { bg: "#fee2e2", text: "#991b1b" },
-            NO_SHOW: { bg: "#f1f5f9", text: "#475569" }
-        };
-        const config = styleMap[status] || styleMap.PENDING;
+
         return (
-            <span style={{
-                backgroundColor: config.bg,
-                color: config.text,
-                padding: "4px 10px",
-                borderRadius: "9999px",
-                fontSize: "12px",
-                fontWeight: "600"
-            }}>
-                {status}
-            </span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'flex-start' }}>
+                {statusElement}
+                {(paymentStatus === 'PARTIAL' || paymentStatus === 'UNPAID') && status !== 'CANCELLED' && status !== 'COMPLETED' && status !== 'NO_SHOW' && (
+                    <span style={{
+                        backgroundColor: '#fee2e2',
+                        color: '#991b1b',
+                        padding: '3px 8px',
+                        borderRadius: '6px',
+                        fontSize: '11px',
+                        fontWeight: '700',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px'
+                    }}>
+                        Balance Due
+                    </span>
+                )}
+            </div>
         );
     };
 
@@ -326,7 +352,7 @@ function AppointmentsManagement() {
                                                         {(Number(apt.doctor?.doctor_fee || 0) + Number(apt.doctor?.center_fee || 600)).toLocaleString()}
                                                     </td>
                                                     <td style={ui.td}>
-                                                        {getStatusBadge(apt.status)}
+                                                        {getStatusBadge(apt)}
                                                     </td>
                                                     <td style={ui.td}>
                                                         <div style={ui.actionWrapper} className="action-btns">

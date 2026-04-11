@@ -153,68 +153,109 @@ const AppointmentCard = ({
         </div>
       </div>
 
-      <div style={styles.cardFooter}>
-        {variant === 'grid' && (
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            <div style={{...styles.statusBadge, backgroundColor: status.bg, color: status.text, border: `1px solid ${status.border}`}}>
-              {appt.status === 'RESCHEDULE_REQUIRED' ? 'Session Cancelled' : appt.status}
+      <div style={{...styles.cardFooter, flexDirection: 'column', alignItems: 'stretch', gap: '16px'}}>
+        {appt.payment_status === 'PARTIAL' && (
+          <motion.div 
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            style={{
+              padding: '12px 18px',
+              backgroundColor: '#fef2f2',
+              border: '1px solid #fecaca',
+              borderRadius: '16px',
+              fontSize: '13px',
+              color: '#991b1b',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              width: '100%',
+              boxSizing: 'border-box'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontWeight: '800' }}>
+              <span style={{ fontSize: '16px' }}>⚠️</span>
+              <span style={{ letterSpacing: '0.5px' }}>BALANCE DUE:</span>
             </div>
-            <div style={{
-              ...styles.statusBadge, 
-              backgroundColor: appt.payment_status === 'PAID' ? '#f0fdf4' : '#fef2f2', 
-              color: appt.payment_status === 'PAID' ? '#166534' : '#991b1b', 
-              border: `1px solid ${appt.payment_status === 'PAID' ? '#bbf7d0' : '#fecaca'}`
-            }}>
-              {appt.payment_status}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <span style={{ fontWeight: '900', fontSize: '15px' }}>
+                LKR {(() => {
+                  const total = Number(appt.doctor?.doctor_fee || 0) + Number(appt.doctor?.center_fee || 600);
+                  const paid = (appt.payments || []).reduce((sum, p) => sum + parseFloat(p.amount), 0);
+                  return (total - paid).toLocaleString();
+                })()}
+              </span>
+              <div style={{ height: '14px', width: '1px', backgroundColor: '#fca5a5' }} />
+              <span style={{ fontSize: '11px', fontWeight: '500', opacity: 0.8 }}>
+                Pay at counter
+              </span>
             </div>
-          </div>
+          </motion.div>
         )}
-        
-        <div style={styles.actionGroup}>
-            {isUpcoming && role !== 'doctor' && (
-              <>
-                <button 
-                   onClick={() => {
-                        if (role === 'patient') {
-                            toast.error('Please contact the Pubudu Medical Center receptionist to cancel or reschedule your appointment.', {
-                                duration: 5000,
-                                icon: '📞'
-                            });
-                        } else if (onCancel) {
-                            onCancel(appt.appointment_id);
-                        }
-                   }}
-                   style={{...styles.viewBtn, backgroundColor: '#fff1f2', color: '#e11d48'}}
-                >
-                    Cancel
-                </button>
-                {appt.payment_status !== 'PAID' && (
-                  <button 
-                     onClick={() => onViewDetails && onViewDetails(appt)}
-                     style={{...styles.viewBtn, padding: '8px 12px'}}
-                  >
-                      Pay Now
-                      <FiChevronRight style={{ marginLeft: '4px' }} />
-                  </button>
-                )}
-              </>
-            )}
 
-            {appt.status === 'COMPLETED' && (
-              <button 
-                 onClick={() => onViewDetails && onViewDetails(appt)}
-                 style={{...styles.viewBtn, width: '100%', justifyContent: 'center'}}
-              >
-                  Medical History
-                  <FiChevronRight style={{ marginLeft: '4px' }} />
-              </button>
-            )}
-            
-            {/* Cancelled appointments show no action buttons */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+          {variant === 'grid' && (
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              <div style={{...styles.statusBadge, backgroundColor: status.bg, color: status.text, border: `1px solid ${status.border}`}}>
+                {appt.status === 'RESCHEDULE_REQUIRED' ? 'Session Cancelled' : appt.status}
+              </div>
+              <div style={{
+                ...styles.statusBadge, 
+                backgroundColor: appt.payment_status === 'PAID' ? '#f0fdf4' : (appt.payment_status === 'PARTIAL' ? '#fffbeb' : '#fef2f2'), 
+                color: appt.payment_status === 'PAID' ? '#166534' : (appt.payment_status === 'PARTIAL' ? '#92400e' : '#991b1b'), 
+                border: `1px solid ${appt.payment_status === 'PAID' ? '#bbf7d0' : (appt.payment_status === 'PARTIAL' ? '#fde68a' : '#fecaca')}`
+              }}>
+                {appt.payment_status}
+              </div>
+            </div>
+          )}
+          
+          <div style={styles.actionGroup}>
+              {isUpcoming && role !== 'doctor' && (
+                <>
+                  <button 
+                    onClick={() => {
+                          if (role === 'patient') {
+                              toast.error('Please contact the Pubudu Medical Center receptionist to cancel or reschedule your appointment.', {
+                                  duration: 5000,
+                                  icon: '📞'
+                              });
+                          } else if (onCancel) {
+                              onCancel(appt.appointment_id);
+                          }
+                    }}
+                    style={{...styles.viewBtn, backgroundColor: '#fff1f2', color: '#e11d48'}}
+                  >
+                      Cancel
+                  </button>
+                  {appt.payment_status !== 'PAID' && (
+                    <button 
+                      onClick={() => onViewDetails && onViewDetails(appt)}
+                      style={{...styles.viewBtn, padding: '8px 12px'}}
+                    >
+                        Pay Now
+                        <FiChevronRight style={{ marginLeft: '4px' }} />
+                    </button>
+                  )}
+                </>
+              )}
+
+              {appt.status === 'COMPLETED' && (
+                <button 
+                  onClick={() => onViewDetails && onViewDetails(appt)}
+                  style={{...styles.viewBtn, width: '100%', justifyContent: 'center'}}
+                >
+                    Medical History
+                    <FiChevronRight style={{ marginLeft: '4px' }} />
+                </button>
+              )}
+              
+              {/* Cancelled appointments show no action buttons */}
+          </div>
         </div>
+
         {appt.status === 'RESCHEDULE_REQUIRED' && (
           <div style={{
-            marginTop: '12px',
+            marginTop: '4px',
             padding: '10px 14px',
             backgroundColor: '#fff7ed',
             border: '1px solid #fed7aa',
