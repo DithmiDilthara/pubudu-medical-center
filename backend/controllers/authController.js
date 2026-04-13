@@ -129,7 +129,7 @@ export const login = async (req, res) => {
       }]
     });
 
-    if (!user) {
+    if (!user || user.username !== username) {
       return res.status(401).json({ success: false, message: 'Invalid username or password.' });
     }
 
@@ -326,6 +326,40 @@ export const logout = async (req, res) => {
     res.status(200).json({ success: true, message: 'Logged out successfully' });
 };
 
+/**
+ * @desc    Check if email or NIC already exists
+ * @route   POST /api/auth/check-availability
+ * @access  Public
+ */
+export const checkAvailability = async (req, res) => {
+    try {
+        const { type, value } = req.body;
+        if (!type || !value) {
+            return res.status(400).json({ success: false, message: 'Type and value are required' });
+        }
+
+        if (type === 'email') {
+            const user = await User.findOne({ where: { email: value } });
+            return res.status(200).json({ success: true, exists: !!user, message: user ? 'This email is already registered' : 'Email is available' });
+        }
+
+        if (type === 'nic') {
+            const adult = await Adult.findOne({ where: { nic: value.trim().toUpperCase() } });
+            return res.status(200).json({ success: true, exists: !!adult, message: adult ? 'This NIC is already registered' : 'NIC is available' });
+        }
+
+        if (type === 'username') {
+            const user = await User.findOne({ where: { username: value } });
+            return res.status(200).json({ success: true, exists: !!user, message: user ? 'This username is already taken' : 'Username is available' });
+        }
+
+        return res.status(400).json({ success: false, message: 'Invalid check type. Must be email, nic, or username.' });
+    } catch (error) {
+        console.error('Check availability error:', error);
+        res.status(500).json({ success: false, message: 'Server error during availability check' });
+    }
+};
+
 // @desc    Register a new patient (Public)
 export const registerPatient = async (req, res) => {
     const transaction = await sequelize.transaction();
@@ -348,6 +382,19 @@ export const registerPatient = async (req, res) => {
         if (!['ADULT', 'CHILD'].includes(type)) {
             await transaction.rollback();
             return res.status(400).json({ success: false, message: 'Patient type must be ADULT or CHILD.' });
+        }
+
+        // --- NEW: Email & Username Uniqueness Checks ---
+        const existingEmail = await User.findOne({ where: { email }, transaction });
+        if (existingEmail) {
+            await transaction.rollback();
+            return res.status(400).json({ success: false, message: 'This email is already registered.' });
+        }
+
+        const existingUsername = await User.findOne({ where: { username }, transaction });
+        if (existingUsername) {
+            await transaction.rollback();
+            return res.status(400).json({ success: false, message: 'This username is already taken.' });
         }
 
         // --- Conditional Validation ---
@@ -694,5 +741,6 @@ export default {
     getTokens,
     verifyAuth,
     verifyEmail,
-    resendOtp
+    resendOtp,
+    checkAvailability
 };

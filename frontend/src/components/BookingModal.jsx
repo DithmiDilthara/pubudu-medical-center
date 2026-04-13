@@ -41,6 +41,10 @@ const BookingModal = ({ isOpen, onClose, appointment, onUpdate }) => {
 
     useEffect(() => {
         if (isChangingDoctor && appointment?.doctor?.specialization) {
+            // When switching to transfer mode, clear the selected doctor so availability resets
+            setSelectedDoctor(null);
+            setDoctorAvailability([]);
+            
             axios.get(`${API_URL}/doctors/specialization/${appointment.doctor.specialization}`)
                 .then(res => setAltDoctors(res.data.data.filter(d => d.doctor_id !== appointment.doctor_id)))
                 .catch(err => console.error(err));
@@ -162,13 +166,18 @@ const BookingModal = ({ isOpen, onClose, appointment, onUpdate }) => {
     };
 
     const getFinancialSummary = () => {
-        if (!appointment || appointment.payment_status !== 'PAID' || !isChangingDoctor || !selectedDoctor) return null;
+        if (!appointment || !isChangingDoctor || !selectedDoctor) return null;
         
+        // Show calculations based on original fee requirement vs new doctor requirement
         const oldFee = Number(appointment.doctor?.doctor_fee || 0) + Number(appointment.doctor?.center_fee || 600);
         const newFee = Number(selectedDoctor.doctor_fee || 0) + Number(selectedDoctor.center_fee || 600);
-        const diff = newFee - oldFee;
+        
+        // If already paid, we calculate balance/refund
+        // if unpaid, we just show the new total
+        const amountPaid = appointment.payment_status === 'PAID' ? oldFee : 0;
+        const diff = newFee - amountPaid;
 
-        return { oldFee, newFee, diff };
+        return { oldFee, newFee, diff, amountPaid };
     };
 
     const finSummary = getFinancialSummary();
@@ -290,6 +299,56 @@ const BookingModal = ({ isOpen, onClose, appointment, onUpdate }) => {
                         )}
                     </div>
 
+                    {/* NEW: Financial Summary (Moved up for visibility) */}
+                    {finSummary && (
+                        <div style={{ backgroundColor: finSummary.diff > 0 ? '#fffbeb' : finSummary.diff < 0 ? '#ecfdf5' : '#f8fafc', padding: '20px', borderRadius: '16px', border: `1px solid ${finSummary.diff > 0 ? '#fde68a' : finSummary.diff < 0 ? '#a7f3d0' : '#e2e8f0'}` }}>
+                            <h4 style={{ margin: '0 0 12px 0', fontSize: '16px', color: '#0f172a', fontWeight: '800' }}>Financial Impact</h4>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '14px', color: '#64748b' }}>
+                                <span>{appointment.payment_status === 'PAID' ? 'Amount Already Paid:' : 'Original Total Fee:'}</span> <span>LKR {(finSummary.amountPaid > 0 ? finSummary.amountPaid : finSummary.oldFee).toLocaleString()}</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '14px', color: '#64748b' }}>
+                                <span>New Doctor Total Fee:</span> <span>LKR {finSummary.newFee.toLocaleString()}</span>
+                            </div>
+                            
+                            {finSummary.diff !== 0 && (
+                                <div style={{ margin: '12px 0', borderTop: '1px dashed #cbd5e1' }}></div>
+                            )}
+                            
+                            {finSummary.diff > 0 && (
+                                <>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px', fontSize: '16px', fontWeight: '800', color: '#b45309' }}>
+                                        <span>{appointment.payment_status === 'PAID' ? 'Balance to Collect:' : 'Requirement Increase:'}</span> <span>LKR {finSummary.diff.toLocaleString()}</span>
+                                    </div>
+                                    <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                                        <select value={transferAction} onChange={(e) => setTransferAction(e.target.value)} style={{ padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px' }}>
+                                            <option value="PAY_LATER">Transfer & Pay Later</option>
+                                            <option value="COLLECT_DIFFERENCE">Collect & Transfer Now</option>
+                                        </select>
+                                        {transferAction === 'COLLECT_DIFFERENCE' && (
+                                            <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} style={{ padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px' }}>
+                                                <option value="CASH">Cash</option>
+                                                <option value="CARD">Card</option>
+                                            </select>
+                                        )}
+                                    </div>
+                                </>
+                            )}
+                            {finSummary.diff < 0 && (
+                                <>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '16px', fontWeight: '800', color: '#059669' }}>
+                                        <span>Refund to Patient:</span> <span>LKR {Math.abs(finSummary.diff).toLocaleString()}</span>
+                                    </div>
+                                    <div style={{ fontSize: '13px', color: '#059669' }}>Please hand the cash difference to the patient at the desk.</div>
+                                </>
+                            )}
+                            {finSummary.diff === 0 && appointment.payment_status === 'PAID' && (
+                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '16px', fontWeight: '800', color: '#0f172a' }}>
+                                    <span>Fees are identical. No balance due.</span>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
                     {/* Step 2: Calendar & Time */}
                     <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: "48px" }}>
                         <div style={styles.calendarSection}>
@@ -350,52 +409,7 @@ const BookingModal = ({ isOpen, onClose, appointment, onUpdate }) => {
                         </div>
                     </div>
 
-                    {/* Step 3: Financial Summary */}
-                    {finSummary && selectedDate && selectedSession && (
-                        <div style={{ backgroundColor: finSummary.diff > 0 ? '#fffbeb' : finSummary.diff < 0 ? '#ecfdf5' : '#f8fafc', padding: '20px', borderRadius: '16px', border: `1px solid ${finSummary.diff > 0 ? '#fde68a' : finSummary.diff < 0 ? '#a7f3d0' : '#e2e8f0'}` }}>
-                            <h4 style={{ margin: '0 0 12px 0', fontSize: '16px', color: '#0f172a' }}>Financial Summary</h4>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '14px', color: '#64748b' }}>
-                                <span>Original Payment (`PAID`):</span> <span>LKR {finSummary.oldFee.toLocaleString()}</span>
-                            </div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '14px', color: '#64748b' }}>
-                                <span>New Doctor Fee:</span> <span>LKR {finSummary.newFee.toLocaleString()}</span>
-                            </div>
-                            <div style={{ margin: '12px 0', borderTop: '1px dashed #cbd5e1' }}></div>
-                            
-                            {finSummary.diff > 0 && (
-                                <>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px', fontSize: '16px', fontWeight: '700', color: '#b45309' }}>
-                                        <span>Balance to Pay:</span> <span>LKR {finSummary.diff.toLocaleString()}</span>
-                                    </div>
-                                    <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-                                        <select value={transferAction} onChange={(e) => setTransferAction(e.target.value)} style={{ padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }}>
-                                            <option value="PAY_LATER">Transfer & Pay Later</option>
-                                            <option value="COLLECT_DIFFERENCE">Collect & Transfer Now</option>
-                                        </select>
-                                        {transferAction === 'COLLECT_DIFFERENCE' && (
-                                            <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} style={{ padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }}>
-                                                <option value="CASH">Cash</option>
-                                                <option value="CARD">Card</option>
-                                            </select>
-                                        )}
-                                    </div>
-                                </>
-                            )}
-                            {finSummary.diff < 0 && (
-                                <>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '16px', fontWeight: '700', color: '#059669' }}>
-                                        <span>Refund Due:</span> <span>LKR {Math.abs(finSummary.diff).toLocaleString()}</span>
-                                    </div>
-                                    <div style={{ fontSize: '13px', color: '#059669' }}>The system will record a RESCHEDULE_ADJUSTMENT. Please hand the cash difference to the patient.</div>
-                                </>
-                            )}
-                            {finSummary.diff === 0 && (
-                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '16px', fontWeight: '700', color: '#0f172a' }}>
-                                    <span>No financial difference.</span>
-                                </div>
-                            )}
-                        </div>
-                    )}
+                    {/* Step 3: Financial Summary removed from here and moved up */}
                 </div>
 
                 <div style={styles.footer}>

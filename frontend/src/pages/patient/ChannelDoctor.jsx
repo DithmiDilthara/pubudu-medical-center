@@ -403,6 +403,16 @@ const ChannelDoctor = () => {
                                             <p style={styles.cardSubtitle}>Available appointments for {monthNames[month]} {selectedDate}</p>
                                         </div>
 
+                                        {/* NEW: Booking Restriction Notice Banner */}
+                                        <div style={styles.restrictionBanner}>
+                                            <div style={styles.bannerIcon}><FiInfo /></div>
+                                            <div style={styles.bannerText}>
+                                                <strong>Last-minute booking?</strong> 
+                                                Sessions starting in less than 30 minutes are only bookable via the receptionist. 
+                                                Please contact us at <strong>071-8050917</strong> for help.
+                                            </div>
+                                        </div>
+
                                          <div style={styles.slotsGrid}>
                                             {getTimeSlots().map((slot, i) => (
                                                 <button
@@ -1041,6 +1051,26 @@ const styles = {
         alignItems: "center",
         justifyContent: "center",
         gap: "10px"
+    },
+    restrictionBanner: {
+        display: "flex",
+        alignItems: "flex-start",
+        gap: "16px",
+        padding: "16px 20px",
+        backgroundColor: "#eff6ff",
+        borderRadius: "16px",
+        border: "1px solid #dbeafe",
+        color: "#1e40af",
+        fontSize: "13px",
+        lineHeight: "1.5"
+    },
+    bannerIcon: {
+        fontSize: "18px",
+        color: "#2563eb",
+        marginTop: "2px"
+    },
+    bannerText: {
+        flex: 1
     }
 };
 

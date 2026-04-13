@@ -461,6 +461,9 @@ function PatientRegistration() {
           ...prev,
           [name]: error
         }));
+      } else if ((name === 'email' || name === 'nic' || name === 'username') && formData[name]) {
+        // Trigger async availability check if frontend validation passed
+        checkDatabaseAvailability(name, formData[name]);
       }
     } catch (error) {
       console.error("Error in handleBlur:", error);
@@ -499,6 +502,23 @@ function PatientRegistration() {
       console.error("Validation error:", error);
       setGeneralError("An error occurred during validation");
       return false;
+    }
+  };
+
+  const checkDatabaseAvailability = async (type, value) => {
+    try {
+      // Don't check if basic validation already failed
+      if (errors[type]) return;
+
+      const response = await axios.post(`${API_URL}/auth/check-availability`, { type, value });
+      if (response.data.success && response.data.exists) {
+        setErrors(prev => ({
+          ...prev,
+          [type]: response.data.message
+        }));
+      }
+    } catch (err) {
+      console.error(`Availability check failed for ${type}:`, err);
     }
   };
 

@@ -437,7 +437,14 @@ export const updateStatus = async (req, res) => {
         const { status, payment_status, payment_method } = req.body;
 
         const appointment = await Appointment.findByPk(id, {
-            include: [{ model: Doctor, as: 'doctor' }],
+            include: [
+                { model: Doctor, as: 'doctor' },
+                { 
+                    model: Patient, 
+                    as: 'patient',
+                    include: [{ model: User, as: 'user', attributes: ['email', 'contact_number'] }]
+                }
+            ],
             transaction: t
         });
         
@@ -447,6 +454,8 @@ export const updateStatus = async (req, res) => {
         }
 
         const oldPaymentStatus = appointment.payment_status;
+        let isReceivingFinalPayment = false;
+        let finalTransactionId = null;
 
         if (payment_status) {
             appointment.payment_status = payment_status;
@@ -457,6 +466,7 @@ export const updateStatus = async (req, res) => {
 
             // Create LEDGER entry for receptionist payments
             if (payment_status === 'PAID' && oldPaymentStatus !== 'PAID') {
+                isReceivingFinalPayment = true;
                 const allPayments = await Payment.findAll({
                     where: { appointment_id: id },
                     transaction: t
@@ -470,16 +480,17 @@ export const updateStatus = async (req, res) => {
                 
                 if (balanceDue > 0) {
                     const randomId = Math.floor(100000 + Math.random() * 900000);
-                    const transactionId = `REP-${id}-${randomId}`;
+                    finalTransactionId = `REP-${id}-${randomId}`;
 
                     await Payment.create({
                         patient_id: appointment.patient_id,
                         appointment_id: id,
                         amount: balanceDue,
                         payment_method: payment_method || 'CASH',
-                        transaction_id: transactionId,
+                        transaction_id: finalTransactionId,
                         status: 'SUCCESS',
-                        processed_by: req.user.user_id
+                        processed_by: req.user.user_id,
+                        transaction_type: 'PAYMENT'
                     }, { transaction: t });
                 }
             }
@@ -490,7 +501,33 @@ export const updateStatus = async (req, res) => {
         await appointment.save({ transaction: t });
         await t.commit();
 
-        res.status(200).json({ success: true, message: 'Status updated and ledger entry created', data: appointment });
+        // --- NEW: Trigger Notifications for Manual Payments ---
+        if (isReceivingFinalPayment && appointment.patient?.user) {
+            try {
+                const totalAmount = (parseFloat(appointment.doctor?.doctor_fee) || 0) + (parseFloat(appointment.doctor?.center_fee) || 600);
+                
+                NotificationService.sendPaymentSuccess(
+                    appointment.patient.user.email,
+                    appointment.patient.user.contact_number,
+                    {
+                        patientName: appointment.patient.full_name,
+                        doctorName: appointment.doctor?.full_name,
+                        date: appointment.appointment_date,
+                        time: appointment.time_slot,
+                        total: totalAmount,
+                        appointmentId: appointment.appointment_id,
+                        appointmentNumber: appointment.appointment_number,
+                        method: payment_method || 'CASH',
+                        transactionId: finalTransactionId || `REP-FIX-${id}`
+                    }
+                );
+            } catch (notifyError) {
+                console.error('Manual payment notification error:', notifyError);
+            }
+        }
+        // ------------------------------------------------------
+
+        res.status(200).json({ success: true, message: 'Status updated and notification triggered', data: appointment });
     } catch (error) {
         if (t) await t.rollback();
         console.error('Update status error:', error);

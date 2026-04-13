@@ -1,6 +1,12 @@
 import { Availability, Doctor, User, Appointment, Patient, sequelize } from '../models/index.js';
 import { Op } from 'sequelize';
 
+const parseToMinutes = (timeStr) => {
+    if (!timeStr) return 0;
+    const [hours, minutes] = timeStr.split(':').map(Number);
+    return hours * 60 + (minutes || 0);
+};
+
 /**
  * @desc    Set/Update doctor availability
  * @route   POST /api/availability
@@ -27,31 +33,39 @@ export const setAvailability = async (req, res) => {
         const todayStr = today.toISOString().split('T')[0];
 
         for (const slot of availability) {
-            // Check time logic
-            if (slot.start_time >= slot.end_time) {
+            // CHECK 1: Overnight session — minute-based (catches 21:00 → 08:00 overnight)
+            const startMinutes = parseToMinutes(slot.start_time);
+            const endMinutes = parseToMinutes(slot.end_time);
+            const durationMinutes = endMinutes - startMinutes;
+
+            if (startMinutes >= endMinutes) {
                 return res.status(400).json({
                     success: false,
-                    message: `Invalid time range: ${slot.start_time} - ${slot.end_time}. End time must be after start time.`
+                    message: "End time cannot be before or equal to start time. Sessions cannot span overnight."
                 });
             }
 
-            // ENFORCE OPERATING HOURS: 07:00 - 21:00
-            if (slot.start_time < '07:00' || slot.end_time > '21:00') {
+            // CHECK 2: Operating hours 07:00 – 21:00
+            if (startMinutes < parseToMinutes('07:00') || endMinutes > parseToMinutes('21:00')) {
               return res.status(400).json({
                   success: false,
-                  message: "Session times must be within operating hours (07:00–21:00)"
+                  message: "Session times must be within operating hours (07:00–21:00)."
               });
             }
 
-            // ENFORCE MINIMUM DURATION: 1 HOUR (60 MINUTES)
-            const start = new Date(`1970-01-01T${slot.start_time}`);
-            const end = new Date(`1970-01-01T${slot.end_time}`);
-            const durationMinutes = (end - start) / (1000 * 60);
-            
+            // CHECK 3: Minimum 1 hour
             if (durationMinutes < 60) {
               return res.status(400).json({
                   success: false,
-                  message: "Session must be at least 1 hour long"
+                  message: "Session must be at least 1 hour long."
+              });
+            }
+
+            // CHECK 4: Maximum 4 hours
+            if (durationMinutes > 240) {
+              return res.status(400).json({
+                  success: false,
+                  message: "Session duration cannot exceed 4 hours."
               });
             }
 
@@ -262,6 +276,35 @@ export const updateAvailability = async (req, res) => {
             if (end_time) session.end_time = end_time;
             if (schedule_date) session.schedule_date = schedule_date;
         }
+
+        // --- NEW: RE-VALIDATE DURATION & OPERATING HOURS AFTER EDIT ---
+        const finalStart = session.start_time;
+        const finalEnd = session.end_time;
+        const finalStartMinutes = parseToMinutes(finalStart);
+        const finalEndMinutes = parseToMinutes(finalEnd);
+        const finalDurationMinutes = finalEndMinutes - finalStartMinutes;
+
+        if (finalStart < '07:00' || finalEnd > '21:00') {
+            return res.status(400).json({
+                success: false,
+                message: "Session times must be within operating hours (07:00–21:00)"
+            });
+        }
+
+        if (finalDurationMinutes < 60) {
+            return res.status(400).json({
+                success: false,
+                message: "Session must be at least 1 hour long"
+            });
+        }
+
+        if (finalDurationMinutes > 240) {
+            return res.status(400).json({
+                success: false,
+                message: "Session duration cannot exceed 4 hours."
+            });
+        }
+        // ----------------------------------------------------------------
 
         if (status) session.status = status;
 

@@ -32,6 +32,10 @@ const TransactionHistory = () => {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [type, setType] = useState("ALL");
+
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
   
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
@@ -76,7 +80,11 @@ const TransactionHistory = () => {
       });
 
       if (response.data.success) {
-        setTransactions(response.data.data);
+        // Sort newest first
+        const sorted = [...response.data.data].sort(
+          (a, b) => new Date(b.created_at) - new Date(a.created_at)
+        );
+        setTransactions(sorted);
       }
     } catch (error) {
       console.error("Error fetching history:", error);
@@ -93,6 +101,18 @@ const TransactionHistory = () => {
     }, 500);
     return () => clearTimeout(timer);
   }, [patientName, startDate, endDate, type]);
+
+  // Reset to page 1 when any filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [patientName, startDate, endDate, type]);
+
+  // Paginated slice
+  const paginatedTransactions = transactions.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
+  const totalPages = Math.ceil(transactions.length / ITEMS_PER_PAGE);
 
   const handleDownloadReceipt = async (appointmentId) => {
     if (!appointmentId) return;
@@ -271,7 +291,7 @@ const TransactionHistory = () => {
             <div style={{ overflowX: 'auto' }}>
               <table style={styles.table}>
                 <thead>
-                  <tr>
+                  <tr style={styles.tableHeaderRow}>
                     <th style={styles.th}>Timestamp</th>
                     <th style={styles.th}>Patient</th>
                     <th style={styles.th}>Consultation with</th>
@@ -284,7 +304,7 @@ const TransactionHistory = () => {
                 <tbody>
                   <AnimatePresence>
                     {transactions.length > 0 ? (
-                      transactions.map((t, idx) => (
+                      paginatedTransactions.map((t, idx) => (
                         <motion.tr 
                           key={t.payment_id}
                           initial={{ opacity: 0 }}
@@ -357,6 +377,44 @@ const TransactionHistory = () => {
                 </tbody>
               </table>
             </div>
+
+            {/* Pagination Footer */}
+            {!isLoading && transactions.length > 0 && (
+              <div style={styles.paginationFooter}>
+                <div style={styles.paginationInfo}>
+                  Showing <span style={{ fontWeight: '700' }}>{(currentPage - 1) * ITEMS_PER_PAGE + 1}</span> to <span style={{ fontWeight: '700' }}>{Math.min(transactions.length, currentPage * ITEMS_PER_PAGE)}</span> of <span style={{ fontWeight: '700' }}>{transactions.length}</span> records
+                </div>
+                <div style={styles.paginationControls}>
+                  <button
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    style={{ ...styles.pageBtn, opacity: currentPage === 1 ? 0.5 : 1, cursor: currentPage === 1 ? 'not-allowed' : 'pointer' }}
+                  >Previous</button>
+
+                  <div style={styles.pageNumbers}>
+                    {[...Array(totalPages)].map((_, i) => (
+                      <button
+                        key={i + 1}
+                        onClick={() => setCurrentPage(i + 1)}
+                        style={{
+                          ...styles.pageNumber,
+                          backgroundColor: currentPage === i + 1 ? '#2563eb' : 'white',
+                          color: currentPage === i + 1 ? 'white' : '#475569',
+                          borderColor: currentPage === i + 1 ? '#2563eb' : '#e2e8f0',
+                          cursor: 'pointer'
+                        }}
+                      >{i + 1}</button>
+                    ))}
+                  </div>
+
+                  <button
+                    disabled={currentPage === totalPages}
+                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                    style={{ ...styles.pageBtn, opacity: currentPage === totalPages ? 0.5 : 1, cursor: currentPage === totalPages ? 'not-allowed' : 'pointer' }}
+                  >Next</button>
+                </div>
+              </div>
+            )}
           </div>
         </motion.main>
       </div>
@@ -515,10 +573,13 @@ const styles = {
   tableCard: {
     backgroundColor: "white",
     borderRadius: "24px",
-    border: "1px solid #eff6ff",
+    border: "2px solid #3b82f6",
     boxShadow: "0 10px 15px -3px rgba(0,0,0,0.03)",
     overflow: "hidden",
     minHeight: "400px"
+  },
+  tableHeaderRow: {
+    background: "linear-gradient(to right, #2563eb, #4f46e5)"
   },
   refreshBtn: {
     display: "flex",
@@ -538,14 +599,57 @@ const styles = {
     borderCollapse: "collapse"
   },
   th: {
-    padding: "16px 24px",
-    backgroundColor: "#f8fafc",
-    color: "#64748b",
-    fontSize: "12px",
-    fontWeight: "700",
+    padding: "14px 24px",
+    backgroundColor: "transparent",
+    color: "white",
+    fontSize: "13px",
+    fontWeight: "600",
     textTransform: "uppercase",
-    letterSpacing: "0.05em",
-    borderBottom: "1px solid #f1f5f9"
+    letterSpacing: "0.5px",
+    textAlign: "left"
+  },
+  paginationFooter: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: "20px 24px",
+    backgroundColor: "#f8fafc",
+    borderTop: "1px solid #e2e8f0"
+  },
+  paginationInfo: {
+    fontSize: "14px",
+    color: "#64748b"
+  },
+  paginationControls: {
+    display: "flex",
+    alignItems: "center",
+    gap: "12px"
+  },
+  pageNumbers: {
+    display: "flex",
+    gap: "6px"
+  },
+  pageBtn: {
+    padding: "8px 16px",
+    fontSize: "13px",
+    fontWeight: "600",
+    color: "#2563eb",
+    backgroundColor: "white",
+    border: "1px solid #e2e8f0",
+    borderRadius: "8px",
+    transition: "all 0.2s"
+  },
+  pageNumber: {
+    width: "36px",
+    height: "36px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "13px",
+    fontWeight: "600",
+    borderRadius: "8px",
+    border: "1px solid #e2e8f0",
+    transition: "all 0.2s"
   },
   td: {
     padding: "18px 24px",

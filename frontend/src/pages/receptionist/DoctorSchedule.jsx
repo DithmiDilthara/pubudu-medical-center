@@ -22,6 +22,12 @@ import { toast } from 'react-hot-toast';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
+const parseToMinutes = (timeStr) => {
+  if (!timeStr) return 0;
+  const [hours, minutes] = timeStr.split(':').map(Number);
+  return hours * 60 + (minutes || 0);
+};
+
 function DoctorSchedule() {
   const { doctorId } = useParams();
   const navigate = useNavigate();
@@ -42,13 +48,18 @@ function DoctorSchedule() {
   const [isLoading, setIsLoading] = useState(false);
   const [receptionistName, setReceptionistName] = useState("Receptionist");
   
-  // NEW: Session Exclusion Modal State
+  // Session Modal States
   const [showExclusionModal, setShowExclusionModal] = useState(false);
   const [activeSession, setActiveSession] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editMaxPatients, setEditMaxPatients] = useState(20);
   const [editStartTime, setEditStartTime] = useState('');
   const [editEndTime, setEditEndTime] = useState('');
+  const [editMode, setEditMode] = useState('SERIES'); // 'TODAY' or 'SERIES'
+  
+  // Custom Delete Confirm Modal state
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [sessionToDelete, setSessionToDelete] = useState(null);
 
   const fetchDoctorData = async () => {
     if (!doctorId) {
@@ -150,7 +161,7 @@ function DoctorSchedule() {
         dateKey,
         isPast: dateObj < today,
         sessions,
-        status: sessions.some(s => s.status === 'CANCELLED') ? 'CANCELLED' : (sessions.length > 0 ? 'ACTIVE' : 'NONE'),
+        status: sessions.some(s => s.status === 'ACTIVE' && !s.is_exclusion) ? 'ACTIVE' : 'NONE',
         isSelected: selectedDate === dateKey
       });
     }
@@ -160,6 +171,33 @@ function DoctorSchedule() {
   const handleAddSession = async () => {
     if (bookingType === 'ONE-TIME' && !selectedDate) {
       toast.error("Please select a date on the calendar!");
+      return;
+    }
+
+    // CHECK 1: Overnight session (minute-based — catches 9PM → 8AM)
+    const startMins = parseToMinutes(startTime);
+    const endMins = parseToMinutes(endTime);
+    if (startMins >= endMins) {
+      toast.error("End time cannot be before or equal to start time. Sessions cannot span overnight.");
+      return;
+    }
+
+    // CHECK 2: Operating hours — 07:00 to 21:00
+    if (startMins < parseToMinutes('07:00') || endMins > parseToMinutes('21:00')) {
+      toast.error("Sessions must be within operating hours (7:00 AM – 9:00 PM).");
+      return;
+    }
+
+    // CHECK 3: Minimum 1 hour duration
+    const duration = endMins - startMins;
+    if (duration < 60) {
+      toast.error("Session duration must be at least 1 hour.");
+      return;
+    }
+
+    // CHECK 4: Maximum 4 hours
+    if (duration > 240) {
+      toast.error("Session duration cannot exceed 4 hours.");
       return;
     }
 
@@ -194,15 +232,23 @@ function DoctorSchedule() {
   };
 
   const handleDeleteSession = async (id) => {
-    if (!window.confirm("Permanent Action: This will stop this clinic rule entirely. Affected appointments will be flagged. Proceed?")) return;
+    // This is now called from the Custom Modal
+    setSessionToDelete(id);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDeleteSession = async () => {
+    if (!sessionToDelete) return;
     
     setIsLoading(true);
     try {
       const token = localStorage.getItem('token');
-      await axios.delete(`${API_URL}/clinical/availability/${id}`, {
+      await axios.delete(`${API_URL}/clinical/availability/${sessionToDelete}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       toast.success("Clinic series stopping. Affected appointments flagged.");
+      setShowDeleteModal(false);
+      setSessionToDelete(null);
       fetchDoctorData();
     } catch (error) {
       toast.error("Failed to cancel session.");
@@ -242,6 +288,36 @@ function DoctorSchedule() {
 
   const handleUpdateSession = async () => {
     if (!activeSession) return;
+
+    // CHECK 1: Overnight session (minute-based — catches 9PM → 8AM)
+    const startMins = parseToMinutes(editStartTime);
+    const endMins = parseToMinutes(editEndTime);
+    if (startMins >= endMins) {
+      toast.error("End time cannot be before or equal to start time. Sessions cannot span overnight.");
+      return;
+    }
+
+    // CHECK 2: Operating hours — 07:00 to 21:00
+    if (startMins < parseToMinutes('07:00') || endMins > parseToMinutes('21:00')) {
+      toast.error("Sessions must be within operating hours (7:00 AM – 9:00 PM).");
+      return;
+    }
+
+    // CHECK 4: Maximum 4 hours
+    const duration = endMins - startMins;
+    if (duration < 60) {
+      toast.error("Session duration must be at least 1 hour.");
+      return;
+    }
+    if (duration > 240) {
+      toast.error("Session duration cannot exceed 4 hours.");
+      return;
+    }
+
+    // Dispatch based on edit mode
+    if (activeSession.day_of_week && editMode === 'TODAY') {
+      return handleUpdateThisDayOnly();
+    }
     
     setIsLoading(true);
     try {
@@ -268,11 +344,49 @@ function DoctorSchedule() {
     }
   };
 
+  // Handle Edit This Day Only (for recurring sessions)
+  const handleUpdateThisDayOnly = async () => {
+    if (!activeSession || !selectedDate) return;
+    setIsLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+
+      // Step 1: Create exclusion (cancel recurring for this date only)
+      await axios.post(`${API_URL}/clinical/availability/cancel-instance`, {
+        doctor_id: doctorId,
+        schedule_date: selectedDate,
+        start_time: activeSession.start_time,
+        end_time: activeSession.end_time
+      }, { headers: { Authorization: `Bearer ${token}` } });
+
+      // Step 2: Create a new one-time session for this date with updated details
+      await axios.post(`${API_URL}/clinical/availability`, {
+        doctor_id: doctorId,
+        availability: [{
+          schedule_date: selectedDate,
+          day_of_week: null,
+          start_time: editStartTime,
+          end_time: editEndTime,
+          max_patients: editMaxPatients
+        }]
+      }, { headers: { Authorization: `Bearer ${token}` } });
+
+      toast.success(`Session for ${selectedDate} updated successfully.`);
+      setShowEditModal(false);
+      fetchDoctorData();
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to update session for this day. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const openEditModal = (session) => {
     setActiveSession(session);
     setEditMaxPatients(session.max_patients || 20);
     setEditStartTime(session.start_time);
     setEditEndTime(session.end_time);
+    setEditMode('SERIES'); // default to full series edit
     setShowEditModal(true);
   };
 
@@ -283,7 +397,8 @@ function DoctorSchedule() {
     return [
       ...(availabilityMap[dayOfWeekName] || []),
       ...(availabilityMap[selectedDate] || [])
-    ].sort((a, b) => a.start_time.localeCompare(b.start_time));
+    ].filter(s => s.status === 'ACTIVE' && !s.is_exclusion)
+     .sort((a, b) => a.start_time.localeCompare(b.start_time));
   }, [selectedDate, availabilityMap]);
 
   return (
@@ -321,15 +436,20 @@ function DoctorSchedule() {
                     item.type === 'empty' ? <div key={item.id} /> : (
                       <button
                         key={item.dateKey}
-                        onClick={() => setSelectedDate(item.dateKey)}
+                        onClick={() => !item.isPast && setSelectedDate(item.dateKey)}
                         style={{
                           ...styles.dayCell,
                           ...(item.isSelected ? styles.selectedCell : {}),
-                          ...(item.status === 'CANCELLED' ? styles.cancelledDay : (item.status === 'ACTIVE' ? styles.activeDay : {}))
+                          ...(item.status === 'CANCELLED' ? styles.cancelledDay : (item.status === 'ACTIVE' ? styles.activeDay : {})),
+                          ...(item.isPast ? { opacity: 0.4, cursor: 'not-allowed', backgroundColor: '#f1f5f9' } : {})
                         }}
                       >
                         <span style={{ fontWeight: '700' }}>{item.day}</span>
-                        {item.sessions.length > 0 && <div style={styles.sessionCount}>{item.sessions.length}</div>}
+                        {item.sessions.filter(s => s.status === 'ACTIVE' && !s.is_exclusion).length > 0 && (
+                          <div style={styles.sessionCount}>
+                            {item.sessions.filter(s => s.status === 'ACTIVE' && !s.is_exclusion).length}
+                          </div>
+                        )}
                       </button>
                     )
                   ))}
@@ -383,7 +503,7 @@ function DoctorSchedule() {
               )}
             </div>
 
-            {/* Exclusion Modal */}
+            {/* Recurring Cancel Modal — Two Options */}
             <AnimatePresence>
               {showExclusionModal && (
                 <div style={styles.modalOverlay}>
@@ -395,21 +515,45 @@ function DoctorSchedule() {
                   >
                     <div style={styles.modalHeader}>
                       <FiAlertCircle size={24} color="#ef4444" />
-                      <h3 style={styles.modalTitle}>Cancel Session Instance</h3>
+                      <h3 style={styles.modalTitle}>Cancel Recurring Session</h3>
                     </div>
                     <p style={styles.modalText}>
-                      You are about to cancel this specific session on <strong>{selectedDate}</strong>. 
-                      Future occurrences of this weekly clinic will remain active.
+                      How would you like to cancel this recurring session for <strong>Dr. {doctorInfo?.full_name}</strong>?
                     </p>
                     <div style={styles.modalInfo}>
-                      <p><strong>Doctor:</strong> Dr. {doctorInfo?.full_name}</p>
                       <p><strong>Time:</strong> {activeSession?.start_time} - {activeSession?.end_time}</p>
+                      <p><strong>Day:</strong> {activeSession?.day_of_week}</p>
+                      <p><strong>Selected Date:</strong> {selectedDate}</p>
                     </div>
-                    <div style={styles.modalActions}>
-                      <button onClick={() => setShowExclusionModal(false)} style={styles.cancelBtn}>Close</button>
-                      <button onClick={handleCancelInstance} disabled={isLoading} style={styles.confirmExclusionBtn}>
-                        {isLoading ? "Processing..." : "Cancel This Day Only"}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      {/* Option 1: Cancel This Day Only */}
+                      <button
+                        onClick={handleCancelInstance}
+                        disabled={isLoading}
+                        style={styles.confirmExclusionBtn}
+                      >
+                        {isLoading ? 'Processing...' : '📅 Cancel This Day Only'}
                       </button>
+                      <p style={{ fontSize: '12px', color: '#64748b', margin: '0 0 4px 0', textAlign: 'center' }}>
+                        Only {selectedDate} will be cancelled. Future occurrences continue as normal.
+                      </p>
+
+                      {/* Option 2: Delete Entire Series */}
+                      <button
+                        onClick={() => {
+                          setShowExclusionModal(false);
+                          handleDeleteSession(activeSession.schedule_id);
+                        }}
+                        disabled={isLoading}
+                        style={{ ...styles.confirmExclusionBtn, backgroundColor: '#7f1d1d', marginTop: '8px' }}
+                      >
+                        ⚠️ Delete Entire Recurring Series
+                      </button>
+                      <p style={{ fontSize: '12px', color: '#64748b', margin: '0 0 4px 0', textAlign: 'center' }}>
+                        Permanently removes all future occurrences. All patient appointments will be flagged.
+                      </p>
+
+                      <button onClick={() => setShowExclusionModal(false)} style={{ ...styles.cancelBtn, width: '100%', textAlign: 'center' }}>Close</button>
                     </div>
                   </motion.div>
                 </div>
@@ -431,12 +575,37 @@ function DoctorSchedule() {
                       <h3 style={styles.modalTitle}>Edit Session Properties</h3>
                     </div>
                     <div style={styles.modalBody}>
+                      {/* Edit Mode Toggle — only for Recurring sessions */}
+                      {activeSession?.day_of_week && (
+                        <div style={{ marginBottom: '20px' }}>
+                          <label style={{ ...styles.label, marginBottom: '8px', display: 'block' }}>Edit Scope</label>
+                          <div style={styles.toggleGroup}>
+                            <button
+                              onClick={() => setEditMode('TODAY')}
+                              style={{ ...styles.toggleBtn, ...(editMode === 'TODAY' ? styles.activeToggle : {}) }}
+                            >
+                              📅 This Day Only
+                            </button>
+                            <button
+                              onClick={() => setEditMode('SERIES')}
+                              style={{ ...styles.toggleBtn, ...(editMode === 'SERIES' ? styles.activeToggle : {}) }}
+                            >
+                              🔄 Entire Series
+                            </button>
+                          </div>
+                          <p style={{ fontSize: '12px', color: '#64748b', marginTop: '8px' }}>
+                            {editMode === 'TODAY'
+                              ? `Only ${selectedDate} will be updated. All other ${activeSession.day_of_week}s remain unchanged.`
+                              : `All future ${activeSession.day_of_week} sessions will be updated.`}
+                          </p>
+                        </div>
+                      )}
                       <div style={styles.fieldGroup}>
                         <label style={styles.label}>Max Patients (Min 20)</label>
-                        <input 
-                          type="number" 
+                        <input
+                          type="number"
                           min="20"
-                          value={editMaxPatients} 
+                          value={editMaxPatients}
                           onChange={e => setEditMaxPatients(parseInt(e.target.value))}
                           style={styles.input}
                         />
@@ -454,6 +623,57 @@ function DoctorSchedule() {
                       <button onClick={() => setShowEditModal(false)} style={styles.cancelBtn}>Cancel</button>
                       <button onClick={handleUpdateSession} disabled={isLoading} style={{...styles.submitBtn, padding: '10px 20px', fontSize: '14px'}}>
                         {isLoading ? "Saving..." : "Save Changes"}
+                      </button>
+                    </div>
+                  </motion.div>
+                </div>
+              )}
+            </AnimatePresence>
+
+            {/* Custom Delete Confirmation Modal */}
+            <AnimatePresence>
+              {showDeleteModal && (
+                <div style={styles.modalOverlay}>
+                  <motion.div 
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    style={styles.modalContent}
+                  >
+                    <div style={styles.modalHeader}>
+                      <div style={{ background: '#fef2f2', padding: '12px', borderRadius: '12px' }}>
+                        <FiAlertCircle size={28} color="#ef4444" />
+                      </div>
+                      <h3 style={styles.modalTitle}>Confirm Cancellation</h3>
+                    </div>
+                    
+                    <div style={{ margin: '20px 0' }}>
+                      <p style={{ ...styles.modalText, color: '#1e293b', fontWeight: '600', marginBottom: '8px' }}>
+                        Are you sure you want to stop this clinic series?
+                      </p>
+                      <ul style={{ ...styles.modalText, paddingLeft: '20px', fontSize: '14px' }}>
+                        <li>This rule will be permanently removed from the schedule.</li>
+                        <li><strong>Note:</strong> All associated patient appointments will be flagged for rescheduling.</li>
+                        <li>Patients will be notified of the cancellation.</li>
+                      </ul>
+                    </div>
+
+                    <div style={styles.modalActions}>
+                      <button 
+                        onClick={() => {
+                          setShowDeleteModal(false);
+                          setSessionToDelete(null);
+                        }} 
+                        style={styles.cancelBtn}
+                      >
+                        Nevermind
+                      </button>
+                      <button 
+                        onClick={confirmDeleteSession} 
+                        disabled={isLoading} 
+                        style={{ ...styles.confirmExclusionBtn, padding: '12px 24px' }}
+                      >
+                        {isLoading ? "Stopping..." : "Yes, Stop Series"}
                       </button>
                     </div>
                   </motion.div>
@@ -532,7 +752,7 @@ const styles = {
   todayBtn: { background: 'white', color: '#2563eb', border: 'none', padding: '8px 16px', fontWeight: '600', borderRadius: '10px', cursor: 'pointer' },
   calendarGrid: { padding: '24px', display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '12px' },
   dayHeaderCell: { textAlign: 'center', fontSize: '12px', fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase' },
-  dayCell: { aspectRatio: '1', borderRadius: '14px', border: '1px solid #e2e8f0', background: 'white', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', position: 'relative' },
+  dayCell: { aspectRatio: '1', borderRadius: '14px', border: '1px solid #e2e8f0', background: 'white', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', position: 'relative', outline: 'none' },
   selectedCell: { borderColor: '#2563eb', background: '#eff6ff', borderWidth: '2px' },
   activeDay: { background: '#eff6ff', borderColor: '#bfdbfe' },
   cancelledDay: { background: '#fef2f2', borderColor: '#fecaca' },

@@ -260,11 +260,34 @@ function AddPatient() {
     }
   };
 
+  const checkDatabaseAvailability = async (type, value) => {
+    try {
+      // Don't check if basic validation already failed
+      if (errors[type]) return;
+
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+      const response = await axios.post(`${apiUrl}/auth/check-availability`, { type, value });
+      if (response.data.success && response.data.exists) {
+        setErrors(prev => ({
+          ...prev,
+          [type]: response.data.message
+        }));
+      }
+    } catch (err) {
+      console.error(`Availability check failed for ${type}:`, err);
+    }
+  };
+
   const handleBlur = (e) => {
     const { name, value } = e.target;
     setTouched(prev => ({ ...prev, [name]: true }));
     const error = validateField(name, value);
     setErrors(prev => ({ ...prev, [name]: error }));
+
+    if (!error && (name === 'email' || name === 'nic' || name === 'username') && value) {
+      // Trigger async availability check if frontend validation passed
+      checkDatabaseAvailability(name, value);
+    }
   };
 
   const handleSubmit = async (e) => {

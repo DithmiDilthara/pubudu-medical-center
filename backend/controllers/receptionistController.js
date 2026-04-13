@@ -232,6 +232,13 @@ export const registerPatient = async (req, res) => {
             });
         }
 
+        // --- NEW: Email Uniqueness Check ---
+        const existingEmail = await User.findOne({ where: { email }, transaction });
+        if (existingEmail) {
+            await transaction.rollback();
+            return res.status(400).json({ success: false, message: 'This email is already registered.' });
+        }
+
         // --- Conditional Validation ---
         if (type === 'ADULT') {
             if (!nic || !nic.trim()) {
