@@ -1,9 +1,0 @@
-{
-  "status": 201,
-  "data": {
-    "success": true,
-    "message": "Patient registered successfully. OTP sent to your email.",
-    "otpToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJvdHAiOiI3NDg3MTciLCJ1c2VySWQiOjM5LCJpYXQiOjE3NzU1MDAyMTYsImV4cCI6MTc3NTUwMDgxNn0.ByPQpO-nXcdcUFAQGO1jlHhQ6dG7Ds32tEqvSj8zoAk",
-    "email": "child_1775500216133@test.com"
-  }
-}
