@@ -86,8 +86,8 @@ const DoctorRevenue = () => {
       const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
       const today = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
       const colors = {
-        headerBg: '#4f46e5',
-        titleBlue: '#312e81',
+        headerBg: '#60a5fa',
+        titleBlue: '#1e40af',
         tableHeader: '#4338ca',
         borderBlue: '#e0e7ff',
         incomeBlue: '#2563eb',
@@ -113,7 +113,7 @@ const DoctorRevenue = () => {
                     {
                       stack: [
                         { text: 'No 46, Matara Road, Hakmana', style: 'contactInfo' },
-                        { text: 'Doctor Financial Statement', style: 'contactInfo', bold: true },
+                        { text: '071-8050917 / 076-9659767 / 076-6880179', style: 'contactInfo' },
                       ],
                       width: 'auto', margin: [0, 15, 10, 0]
                     }

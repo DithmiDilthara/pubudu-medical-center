@@ -97,7 +97,7 @@ class ReportGenerator {
                     doc.moveDown(0.5);
 
                     const tableY = doc.y;
-                    const tableCols = [140, 110, 70, 80, 100];
+                    const tableCols = [140, 105, 60, 80, 110];
                     const tableWidth = contentWidth;
 
                     // Header

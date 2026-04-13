@@ -56,7 +56,7 @@ export const getMyRevenue = async (req, res) => {
 
             const sessionStats = sessionMap.get(sessionKey);
             
-            const docFee = (appt.payments && appt.payments.length > 0) ? Number(appt.payments[0].doctor_amount) : Number(doctor.doctor_fee);
+            const docFee = Number(doctor.doctor_fee) || 0;
 
             // Gross fee calculations: Add COMPLETED appointments as Gross
             if (appt.status === 'COMPLETED' && appt.payment_status === 'PAID') {

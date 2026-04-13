@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
+import { toast } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FiArrowLeft, FiUser, FiPhone, FiMail, FiMapPin, 
@@ -146,7 +147,7 @@ function PatientDetailsDoctor() {
 
   const handleSaveConsultation = async () => {
     if (!consultationData.diagnosis && consultationData.prescription.every(p => !p.name)) {
-      alert("Please add at least a diagnosis or a prescription.");
+      toast.error("Please add at least a diagnosis or a prescription.");
       return;
     }
 
@@ -169,7 +170,7 @@ function PatientDetailsDoctor() {
         }, {
           headers: { Authorization: `Bearer ${token}` }
         });
-        alert("Record updated successfully!");
+        toast.success("Record updated successfully!");
       } else {
         // CREATE new record
         const payload = {
@@ -183,15 +184,15 @@ function PatientDetailsDoctor() {
         await axios.post(`${API_URL}/clinical/record`, payload, {
           headers: { Authorization: `Bearer ${token}` }
         });
-        alert("Consultation records saved successfully!");
+        toast.success("Consultation records saved successfully!");
       }
 
       resetForm();
       setShowMedicalHistoryModal(false);
-      window.location.reload();
+      setTimeout(() => window.location.reload(), 1200);
     } catch (error) {
       console.error("Error saving consultation:", error);
-      alert(error.response?.data?.message || "Failed to save consultation records.");
+      toast.error(error.response?.data?.message || "Failed to save consultation records.");
     } finally {
       setIsSaving(false);
     }
@@ -203,12 +204,12 @@ function PatientDetailsDoctor() {
       await axios.delete(`${API_URL}/clinical/record/${recordId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      alert("Record deleted successfully!");
+      toast.success("Record deleted successfully!");
       setShowDeleteConfirm(null);
-      window.location.reload();
+      setTimeout(() => window.location.reload(), 1200);
     } catch (error) {
       console.error("Error deleting record:", error);
-      alert(error.response?.data?.message || "Failed to delete record.");
+      toast.error(error.response?.data?.message || "Failed to delete record.");
     }
   };
 
@@ -246,11 +247,11 @@ function PatientDetailsDoctor() {
         { status: 'COMPLETED' },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      alert("Appointment marked as completed!");
+      toast.success("Appointment marked as completed!");
       setAppointmentStatus('COMPLETED');
     } catch (error) {
       console.error("Error marking complete:", error);
-      alert("Failed to mark appointment as complete.");
+      toast.error("Failed to mark appointment as complete.");
     }
   };
 

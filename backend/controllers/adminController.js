@@ -43,41 +43,62 @@ export const getRevenueReport = async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
     
-    const where = {
-      payment_status: { [Op.in]: ['PAID', 'REFUNDED', 'PARTIAL'] }
-    };
-
+    // Unifying logic: Query Payments based on created_at range
+    const paymentWhere = { transaction_type: 'PAYMENT' };
     if (startDate && endDate) {
-      where.appointment_date = {
-        [Op.between]: [startDate, endDate]
+      paymentWhere.created_at = {
+        [Op.between]: [new Date(startDate), new Date(endDate + 'T23:59:59')]
       };
     }
 
-    const appointments = await Appointment.findAll({
-      where,
+    const payments = await Payment.findAll({
+      where: paymentWhere,
       include: [
         {
-          model: Doctor,
-          as: 'doctor',
-          attributes: ['center_fee', 'full_name']
-        },
-        {
-          model: Patient,
-          as: 'patient',
-          attributes: ['full_name']
+          model: Appointment,
+          as: 'appointment',
+          include: [
+            {
+              model: Doctor,
+              as: 'doctor',
+              attributes: ['center_fee', 'full_name']
+            },
+            {
+              model: Patient,
+              as: 'patient',
+              attributes: ['full_name']
+            }
+          ]
         }
       ]
     });
 
-    const totalCenterRevenue = appointments.reduce((sum, appt) => sum + parseFloat(appt.doctor?.center_fee || 0), 0);
-
-    // Group by Doctor for Chart
+    const processedAppointments = new Set();
+    let totalCenterRevenue = 0;
     const doctorStats = {};
-    appointments.forEach(a => {
-      const docName = a.doctor?.full_name || 'Unknown';
-      if (!doctorStats[docName]) doctorStats[docName] = { revenue: 0, patients: 0 };
-      doctorStats[docName].revenue += parseFloat(a.doctor?.center_fee || 0);
-      doctorStats[docName].patients += 1;
+    const processedApptDetails = [];
+
+    payments.forEach(p => {
+      const appt = p.appointment;
+      if (appt && !processedAppointments.has(p.appointment_id)) {
+        processedAppointments.add(p.appointment_id);
+        const centerFee = parseFloat(appt.doctor?.center_fee || 0);
+        
+        totalCenterRevenue += centerFee;
+
+        const docName = appt.doctor?.full_name || 'Unknown';
+        if (!doctorStats[docName]) doctorStats[docName] = { revenue: 0, patients: 0 };
+        doctorStats[docName].revenue += centerFee;
+        doctorStats[docName].patients += 1;
+
+        processedApptDetails.push({
+          appointment_id: appt.appointment_id,
+          patient_name: appt.patient?.full_name,
+          doctor_name: appt.doctor?.full_name,
+          date: appt.appointment_date,
+          center_fee: centerFee
+        });
+      }
     });
 
     const chartData = Object.entries(doctorStats).map(([name, stats]) => ({
@@ -90,15 +111,9 @@ export const getRevenueReport = async (req, res) => {
       success: true,
       data: {
         totalRevenue: totalCenterRevenue,
-        appointmentCount: appointments.length,
+        appointmentCount: processedAppointments.size,
         chartData,
-        appointments: appointments.map(a => ({
-          appointment_id: a.appointment_id,
-          patient_name: a.patient?.full_name,
-          doctor_name: a.doctor?.full_name,
-          date: a.appointment_date,
-          center_fee: parseFloat(a.doctor?.center_fee || 0)
-        }))
+        appointments: processedApptDetails
       }
     });
 
@@ -128,6 +143,7 @@ export const getIncomeReport = async (req, res) => {
     const payments = await Payment.findAll({
       where: paymentWhere,
       include: [
+        { model: Patient, as: 'patient', attributes: ['full_name'] },
         {
           model: Appointment,
           as: 'appointment',
@@ -141,6 +157,7 @@ export const getIncomeReport = async (req, res) => {
     const paymentMethodStats = { CASH: 0, ONLINE: 0 };
     const statusStats = { COMPLETED: 0, CANCELLED: 0, PENDING: 0, NO_SHOW: 0, OTHER: 0 };
     const doctorStatsMap = {};
+    const individualRefunds = []; // Track refunds
     
     let grossCenterIncome = 0;
     let grossDoctorIncome = 0;
@@ -179,6 +196,11 @@ export const getIncomeReport = async (req, res) => {
         const absRefund = Math.abs(amount);
         totalRefunds += absRefund;
         if (docStats) docStats.refunds += absRefund;
+        
+        individualRefunds.push({
+          patientName: p.patient?.full_name || 'Individual Patient',
+          amount: absRefund
+        });
       } else if (p.transaction_type === 'PAYMENT') {
         if (appt && !processedAppointments.has(p.appointment_id)) {
           const cFee = parseFloat(appt.doctor?.center_fee || 0);
@@ -233,6 +255,7 @@ export const getIncomeReport = async (req, res) => {
           noShowCount: statusStats.NO_SHOW
         },
         doctorBreakdown,
+        individualRefunds,
         charts: {
           paymentMethods: paymentChartData,
           appointmentStatus: statusChartData
@@ -348,39 +371,56 @@ export const exportReport = async (req, res) => {
     let reportData = {};
     
     if (type === 'revenue') {
-      const where = { payment_status: { [Op.in]: ['PAID', 'REFUNDED', 'PARTIAL'] } };
-      if (startDate && endDate) where.appointment_date = { [Op.between]: [startDate, endDate] };
-      const appointments = await Appointment.findAll({
-        where,
+      const paymentWhere = { transaction_type: 'PAYMENT' };
+      if (startDate && endDate) {
+        paymentWhere.created_at = {
+          [Op.between]: [new Date(startDate), new Date(endDate + 'T23:59:59')]
+        };
+      }
+      
+      const payments = await Payment.findAll({
+        where: paymentWhere,
         include: [
-          { model: Doctor, as: 'doctor', attributes: ['center_fee', 'full_name', 'specialization'] },
-          { model: Patient, as: 'patient', attributes: ['full_name'] }
+          {
+            model: Appointment,
+            as: 'appointment',
+            include: [
+              { model: Doctor, as: 'doctor', attributes: ['center_fee', 'full_name', 'specialization'] },
+              { model: Patient, as: 'patient', attributes: ['full_name'] }
+            ]
+          }
         ]
       });
+
       // Aggregate by Doctor
       const doctorAggregation = {};
       let grandTotalVolume = 0;
       let grandTotalRevenue = 0;
+      const processedAppointments = new Set();
 
-      appointments.forEach(appt => {
-        const docId = appt.doctor_id || 'unknown';
-        const doc = appt.doctor;
-        const centerFee = parseFloat(doc?.center_fee || 0);
+      payments.forEach(p => {
+        const appt = p.appointment;
+        if (appt && !processedAppointments.has(p.appointment_id)) {
+          processedAppointments.add(p.appointment_id);
+          const docId = appt.doctor_id || 'unknown';
+          const doc = appt.doctor;
+          const centerFee = parseFloat(doc?.center_fee || 0);
 
-        if (!doctorAggregation[docId]) {
-          doctorAggregation[docId] = {
-            doctor_name: doc?.full_name || 'Unknown',
-            specialisation: doc?.specialization || 'General',
-            patient_volume: 0,
-            center_fee: centerFee,
-            total_revenue: 0
-          };
+          if (!doctorAggregation[docId]) {
+            doctorAggregation[docId] = {
+              doctor_name: doc?.full_name || 'Unknown',
+              specialisation: doc?.specialization || 'General',
+              patient_volume: 0,
+              center_fee: centerFee,
+              total_revenue: 0
+            };
+          }
+
+          doctorAggregation[docId].patient_volume += 1;
+          doctorAggregation[docId].total_revenue += centerFee;
+          grandTotalVolume += 1;
+          grandTotalRevenue += centerFee;
         }
-
-        doctorAggregation[docId].patient_volume += 1;
-        doctorAggregation[docId].total_revenue += centerFee;
-        grandTotalVolume += 1;
-        grandTotalRevenue += centerFee;
       });
 
       reportData = {

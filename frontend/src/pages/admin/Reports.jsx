@@ -135,8 +135,8 @@ const Reports = () => {
       const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
       const today = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
       const colors = {
-        headerBg: '#6366f1',
-        titleBlue: '#312e81',
+        headerBg: '#60a5fa',
+        titleBlue: '#1e40af',
         tableHeader: '#4f46e5',
         borderBlue: '#e0e7ff',
         incomeGreen: '#059669',
@@ -162,7 +162,7 @@ const Reports = () => {
                     {
                       stack: [
                         { text: 'No 46, Matara Road, Hakmana', style: 'contactInfo' },
-                        { text: 'Detailed Financial Audit', style: 'contactInfo', bold: true },
+                        { text: '071-8050917 / 076-9659767 / 076-6880179', style: 'contactInfo' },
                       ],
                       width: 'auto', margin: [0, 15, 10, 0]
                     }
@@ -173,7 +173,7 @@ const Reports = () => {
             },
             layout: 'noBorders', margin: [-40, -40, -40, 30]
           },
-          { text: 'ADVANCED INCOME STATEMENT', style: 'title' },
+          { text: 'ADVANCED INCOME REPORT', style: 'title' },
           { text: `Period: ${startDate} – ${endDate} | Generated: ${today} at ${timeStr}`, style: 'subtitle' },
           { canvas: [{ type: 'line', x1: 0, y1: 5, x2: 515, y2: 5, lineWidth: 0.5, lineColor: colors.headerBg }], margin: [0, 5, 0, 20] },
           
@@ -234,7 +234,7 @@ const Reports = () => {
           },
 
           // --- 2. Doctor Revenue Table ---
-          { text: '2. Gross Doctor Revenue Calculation (Initially Collected)', style: 'tableSubTitle' },
+          { text: '2. Gross Doctor Revenue Calculation', style: 'tableSubTitle' },
           {
             table: {
               headerRows: 1,
@@ -258,11 +258,13 @@ const Reports = () => {
               headerRows: 1,
               widths: ['*', 100],
               body: [
-                [{ text: 'REFUND CATEGORY (BY DOCTOR)', style: 'tableHeader' }, { text: 'REFUNDED AMOUNT', style: 'tableHeader', alignment: 'right' }],
-                ...reportData.doctorBreakdown.filter(d => d.refunds > 0).map((doc, i) => [
-                  { text: `Refunds for ${doc.doctorName}`, fillColor: i % 2 === 0 ? 'white' : colors.altRow },
-                  { text: `LKR ${doc.refunds.toLocaleString()}`, color: colors.refundRed, alignment: 'right', fillColor: i % 2 === 0 ? 'white' : colors.altRow }
-                ]),
+                [{ text: 'REFUND DETAILS (BY PATIENT)', style: 'tableHeader' }, { text: 'REFUNDED AMOUNT', style: 'tableHeader', alignment: 'right' }],
+                ...(reportData.individualRefunds && reportData.individualRefunds.length > 0 
+                  ? reportData.individualRefunds.map((refund, i) => [
+                    { text: `Refund for ${refund.patientName}`, fillColor: i % 2 === 0 ? 'white' : colors.altRow },
+                    { text: `LKR ${refund.amount.toLocaleString()}`, color: colors.refundRed, alignment: 'right', fillColor: i % 2 === 0 ? 'white' : colors.altRow }
+                  ]) 
+                  : [['No refunds processed in this period', { text: 'LKR 0', alignment: 'right' }]]),
                 [{ text: 'TOTAL REFUNDS ISSUED', bold: true }, { text: `- LKR ${reportData.summary.totalRefunds.toLocaleString()}`, bold: true, color: colors.refundRed, alignment: 'right' }]
               ]
             },
@@ -276,8 +278,8 @@ const Reports = () => {
               widths: ['*', 120],
               body: [
                 [{ text: 'CALCULATION STEP', style: 'tableHeader' }, { text: 'RESULTING VALUE', style: 'tableHeader', alignment: 'right' }],
-                ['Net Doctor Revenue (Gross - Refunds)', { text: `LKR ${reportData.summary.netDoctorIncome.toLocaleString()}`, alignment: 'right' }],
-                ['Center Retained Income (100% Commission)', { text: `LKR ${reportData.summary.grossCenterIncome.toLocaleString()}`, alignment: 'right' }],
+                ['Net Doctor Revenue', { text: `LKR ${reportData.summary.netDoctorIncome.toLocaleString()}`, alignment: 'right' }],
+                ['Center Retained Income', { text: `LKR ${reportData.summary.grossCenterIncome.toLocaleString()}`, alignment: 'right' }],
                 [{ text: 'TOTAL NET CASH HELD', bold: true, fillColor: colors.incomeGreen, color: 'white' }, { text: `LKR ${reportData.summary.totalNetCash.toLocaleString()}`, bold: true, alignment: 'right', fillColor: colors.incomeGreen, color: 'white' }]
               ]
             }
