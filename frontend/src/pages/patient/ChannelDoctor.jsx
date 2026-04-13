@@ -25,6 +25,7 @@ const ChannelDoctor = () => {
     const [currentMonth, setCurrentMonth] = useState(new Date());
     const [selectedDate, setSelectedDate] = useState(null);
     const [availabilities, setAvailabilities] = useState([]);
+    const [bookingCounts, setBookingCounts] = useState([]);
 
     // Step 2: Time Slot State
     const [selectedTime, setSelectedTime] = useState(null);
@@ -51,6 +52,7 @@ const ChannelDoctor = () => {
                 const response = await axios.get(`${API_URL}/doctors/${doctor.doctor_id}/availability`, { headers });
                 if (response.data.success) {
                     setAvailabilities(response.data.data);
+                    setBookingCounts(response.data.bookingCounts || []);
                 }
             } catch (error) {
                 console.error("Error fetching availability:", error);
@@ -105,6 +107,29 @@ const ChannelDoctor = () => {
         );
     };
 
+    const isDateFull = (day) => {
+        if (!day) return false;
+        const dateObj = new Date(year, month, day);
+        const formattedDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const dayName = dayNames[dateObj.getDay()];
+
+        const relevantAvails = availabilities.filter(a =>
+            a.status === 'ACTIVE' &&
+            !a.is_exclusion &&
+            (a.day_of_week === dayName || a.schedule_date === formattedDate)
+        );
+
+        if (relevantAvails.length === 0) return false;
+
+        // A date is full if ALL its active sessions are full
+        return relevantAvails.every(avail => {
+            const bookedData = bookingCounts.find(c => c.schedule_id === avail.schedule_id && c.date === formattedDate);
+            const count = bookedData ? bookedData.count : 0;
+            const max = avail.max_patients || 20;
+            return count >= max;
+        });
+    };
+
     const handleDateClick = (day) => {
         if (!day) return;
         const isPast = new Date(year, month, day) < new Date().setHours(0,0,0,0);
@@ -144,10 +169,18 @@ const ChannelDoctor = () => {
 
                 const start = new Date(`2000-01-01 ${avail.start_time}`).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
                 const end = new Date(`2000-01-01 ${avail.end_time}`).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+                
+                const bookedData = bookingCounts.find(c => c.schedule_id === avail.schedule_id && c.date === formattedDate);
+                const currentCount = bookedData ? bookedData.count : 0;
+                const capacity = avail.max_patients || 20;
+
                 return {
                     time: `${start} - ${end}`,
                     schedule_id: avail.schedule_id,
-                    isBooked: false
+                    isBooked: false,
+                    isFull: currentCount >= capacity,
+                    nextToken: currentCount + 1,
+                    remaining: capacity - currentCount
                 };
             }
             return null;
@@ -315,9 +348,10 @@ const ChannelDoctor = () => {
                                                 {Array(firstDay).fill(null).map((_, i) => <div key={`empty-${i}`} />)}
                                                 {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(d => {
                                                     const available = isDateAvailable(d);
+                                                    const isFull = available && isDateFull(d);
                                                     const isPast = new Date(year, month, d) < new Date().setHours(0,0,0,0);
                                                     const selected = selectedDate === d;
-                                                    const canSelect = available && !isPast;
+                                                    const canSelect = available && !isPast && !isFull;
 
                                                     return (
                                                         <div
@@ -325,15 +359,17 @@ const ChannelDoctor = () => {
                                                             onClick={() => canSelect && handleDateClick(d)}
                                                             style={{
                                                                 ...styles.calDay,
-                                                                backgroundColor: selected ? '#2563eb' : (canSelect ? '#eff6ff' : 'transparent'),
-                                                                color: selected ? 'white' : (canSelect ? '#2563eb' : '#cbd5e1'),
-                                                                cursor: canSelect ? 'pointer' : 'default',
-                                                                border: selected ? 'none' : (canSelect ? '1px solid #dbeafe' : 'none'),
-                                                                fontWeight: canSelect ? '700' : '500',
-                                                                opacity: isPast ? 0.4 : 1
+                                                                backgroundColor: selected ? '#2563eb' : (isFull ? '#fee2e2' : (canSelect ? '#eff6ff' : 'transparent')),
+                                                                color: selected ? 'white' : (isFull ? '#dc2626' : (canSelect ? '#2563eb' : '#cbd5e1')),
+                                                                cursor: canSelect ? 'pointer' : (isFull ? 'not-allowed' : 'default'),
+                                                                border: selected ? 'none' : (isFull ? '1px solid #fecaca' : (canSelect ? '1px solid #dbeafe' : 'none')),
+                                                                fontWeight: canSelect || isFull ? '700' : '500',
+                                                                opacity: isPast ? 0.4 : 1,
+                                                                position: 'relative'
                                                             }}
                                                         >
                                                             {d}
+                                                            {isFull && <span style={{ position: 'absolute', bottom: '2px', fontSize: '7px', textTransform: 'uppercase', color: '#dc2626' }}>Full</span>}
                                                         </div>
                                                     );
                                                 })}
@@ -372,19 +408,40 @@ const ChannelDoctor = () => {
                                                 <button
                                                     key={i}
                                                     onClick={() => {
-                                                        setSelectedTime(slot.time);
-                                                        setSelectedScheduleId(slot.schedule_id);
+                                                        if (!slot.isFull) {
+                                                            setSelectedTime(slot.time);
+                                                            setSelectedScheduleId(slot.schedule_id);
+                                                        }
                                                     }}
                                                     style={{
                                                         ...styles.slotBtn,
                                                         backgroundColor: selectedTime === slot.time ? '#2563eb' : 'white',
-                                                        color: selectedTime === slot.time ? 'white' : '#1e293b',
-                                                        borderColor: selectedTime === slot.time ? '#2563eb' : '#e2e8f0',
-                                                        gridColumn: 'span 2' // Make it wider for range text
+                                                        color: selectedTime === slot.time ? 'white' : (slot.isFull ? '#94a3b8' : '#1e293b'),
+                                                        borderColor: selectedTime === slot.time ? '#2563eb' : (slot.isFull ? '#f1f5f9' : '#e2e8f0'),
+                                                        gridColumn: 'span 2',
+                                                        opacity: slot.isFull ? 0.6 : 1,
+                                                        cursor: slot.isFull ? 'not-allowed' : 'pointer',
+                                                        display: 'flex',
+                                                        flexDirection: 'column',
+                                                        gap: '4px',
+                                                        height: 'auto',
+                                                        padding: '12px'
                                                     }}
+                                                    disabled={slot.isFull}
                                                 >
-                                                    <FiClock style={{ marginRight: '8px', opacity: 0.5 }} />
-                                                    {slot.time}
+                                                    <div style={{ display: 'flex', alignItems: 'center', fontWeight: '700' }}>
+                                                        <FiClock style={{ marginRight: '8px', opacity: 0.5 }} />
+                                                        {slot.time}
+                                                    </div>
+                                                    {!slot.isFull ? (
+                                                        <span style={{ fontSize: '11px', color: selectedTime === slot.time ? 'rgba(255,255,255,0.8)' : '#059669', fontWeight: '600' }}>
+                                                            Expected Token: #{slot.nextToken} ({slot.remaining} left)
+                                                        </span>
+                                                    ) : (
+                                                        <span style={{ fontSize: '11px', color: '#dc2626', fontWeight: '600' }}>
+                                                            Fully Booked
+                                                        </span>
+                                                    )}
                                                 </button>
                                             ))}
                                         </div>

@@ -10,7 +10,7 @@ import StatsCard from "../../components/StatsCard";
 import WeeklyAppointmentsChart from "../../components/WeeklyAppointmentsChart";
 import PatientRegistrationModal from "../../components/PatientRegistrationModal";
 import RevenueBreakdownModal from "../../components/RevenueBreakdownModal";
-import RevenueTrendChart from "../../components/RevenueTrendChart";
+import RegistrationChannelChart from "../../components/RegistrationChannelChart";
 import { FiDollarSign } from "react-icons/fi";
 
 function AdminDashboard() {
@@ -185,7 +185,7 @@ function AdminDashboard() {
           </motion.section>
 
           <motion.section variants={itemVariants} style={styles.dashboardSection}>
-            <RevenueTrendChart />
+            <RegistrationChannelChart />
           </motion.section>
         </main>
       </motion.div>

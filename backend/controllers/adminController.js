@@ -607,7 +607,8 @@ export const getDoctors = async (req, res) => {
           as: 'user',
           attributes: ['user_id', 'username', 'email', 'contact_number']
         }
-      ]
+      ],
+      order: [['doctor_id', 'DESC']]
     });
 
     res.status(200).json({
@@ -890,7 +891,8 @@ export const getReceptionists = async (req, res) => {
           as: 'user',
           attributes: ['user_id', 'username', 'email', 'contact_number']
         }
-      ]
+      ],
+      order: [['receptionist_id', 'DESC']]
     });
 
     res.status(200).json({
@@ -1056,47 +1058,33 @@ export const getDashboardData = async (req, res) => {
       }))
       .sort((a, b) => new Date(a.fullDate) - new Date(b.fullDate));
 
-    // 2. Revenue Breakdown by Doctor (Based on Period)
-    let startDate = new Date();
-    if (period === 'Daily') {
-      startDate.setHours(0, 0, 0, 0);
-    } else if (period === 'Monthly') {
-      startDate.setDate(1);
-    } else { // Default Weekly
-      startDate.setDate(startDate.getDate() - 7);
-    }
-
-    // 2. Revenue Trend based on Period
-    const revenueTrendData = await Appointment.findAll({
-      where: {
-        payment_status: 'PAID',
-        appointment_date: { [Op.gte]: startDate.toISOString().split('T')[0] }
-      },
-      include: [{ model: Doctor, as: 'doctor', attributes: ['full_name', 'center_fee'] }],
-      attributes: ['appointment_date', 'created_at'], 
-      raw: true,
-      nest: true
+    // 2. Registration Channel Breakdown (Based on Patient Registration Source)
+    const channelData = await Appointment.findAll({
+      include: [
+        {
+          model: Patient,
+          as: 'patient',
+          attributes: ['registration_source']
+        }
+      ],
+      attributes: [
+        [sequelize.col('patient.registration_source'), 'channel'],
+        [sequelize.fn('COUNT', sequelize.col('appointment.appointment_id')), 'count']
+      ],
+      group: ['patient.registration_source'],
+      raw: true
     });
 
-    // Group by Doctor for the specified Period
-    const doctorMap = {};
-    revenueTrendData.forEach(appt => {
-      const docName = appt.doctor?.full_name || 'Unknown';
-      if (!doctorMap[docName]) {
-        doctorMap[docName] = 0;
-      }
-      doctorMap[docName] += parseFloat(appt.doctor?.center_fee || 0);
-    });
-
-    const revenueTrend = Object.entries(doctorMap)
-      .map(([name, revenue]) => ({ name, revenue }))
-      .sort((a, b) => b.revenue - a.revenue); // Sort by highest revenue
+    const registrationChannel = channelData.map(c => ({
+      name: c.channel === 'ONLINE' ? 'Online Portal' : 'Reception Desk',
+      value: parseInt(c['count']) || 0
+    }));
 
     res.status(200).json({
       success: true,
       data: {
         weeklyTrend,
-        revenueTrend
+        registrationChannel
       }
     });
 

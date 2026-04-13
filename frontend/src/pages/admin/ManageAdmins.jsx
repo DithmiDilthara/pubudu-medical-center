@@ -356,7 +356,8 @@ const styles = {
     fontWeight: "800",
     color: "#0f172a",
     margin: "0 0 4px 0",
-    letterSpacing: "-0.5px"
+    letterSpacing: "-0.5px",
+    fontFamily: "var(--font-accent)",
   },
   pageSubtitle: {
     fontSize: "15px",
@@ -434,21 +435,22 @@ const styles = {
     textAlign: 'left'
   },
   th: {
-    padding: '18px 24px',
-    background: '#f8fafc',
-    fontSize: '11px',
+    padding: '20px 24px',
+    background: 'linear-gradient(to right, #2563eb, #1d4ed8)',
+    fontSize: '12px',
     fontWeight: '800',
-    color: '#64748b',
+    color: 'white',
     textTransform: 'uppercase',
     letterSpacing: '1px',
-    borderBottom: '1px solid #f1f5f9'
+    borderBottom: 'none',
+    fontFamily: 'var(--font-accent)',
   },
   tr: {
     borderBottom: '1px solid #f1f5f9',
     transition: 'background-color 0.2s'
   },
   td: {
-    padding: '18px 24px',
+    padding: '20px 24px',
     verticalAlign: 'middle'
   },
   personInfo: {

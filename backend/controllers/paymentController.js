@@ -1,4 +1,5 @@
 import { Appointment, Patient, Doctor, Payment, User } from '../models/index.js';
+import { Op } from 'sequelize';
 import { generateHash, verifyNotifyHash } from '../utils/payhere.js';
 import NotificationService from '../utils/NotificationService.js';
 import ReceiptGenerator from '../utils/ReceiptGenerator.js';
@@ -266,7 +267,7 @@ export const downloadReceipt = async (req, res) => {
             include: [
                 { model: Doctor, as: 'doctor' },
                 { model: Patient, as: 'patient' },
-                { model: Payment, as: 'payment' }
+                { model: Payment, as: 'payments' }
             ]
         });
 
@@ -284,7 +285,7 @@ export const downloadReceipt = async (req, res) => {
 
         // Debug info
         console.log("Appointment Doctor:", JSON.stringify(appointment.doctor, null, 2));
-        console.log("Appointment Payment:", JSON.stringify(appointment.payment, null, 2));
+        console.log("Appointment Payments:", JSON.stringify(appointment.payments, null, 2));
 
         if (appointment.payment_status !== 'PAID') {
             return res.status(400).json({ success: false, message: 'This appointment has not been paid for yet.' });
@@ -306,8 +307,11 @@ export const downloadReceipt = async (req, res) => {
         const centerFee = Number(rawCenterFee) || 600;
         const total = doctorFee + centerFee;
 
+        // Get the latest success payment record
+        const payment = appointment.payments?.find(p => p.status === 'SUCCESS') || appointment.payments?.[0];
+
         // Force 'Online' label for PayHere
-        const rawMethod = appointment.payment?.payment_method || '';
+        const rawMethod = payment?.payment_method || '';
         const displayMethod = (rawMethod && rawMethod.toLowerCase().includes('payhere')) 
             ? 'Online' 
             : rawMethod;
@@ -322,7 +326,7 @@ export const downloadReceipt = async (req, res) => {
 
         // Generate PDF Buffer
         const pdfBuffer = await ReceiptGenerator.generateReceiptBuffer({
-            receiptNumber: `REC-${appointment.appointment_id}-${appointment.payment?.payment_id || 'MNL'}`,
+            receiptNumber: `REC-${appointment.appointment_id}-${payment?.payment_id || 'MNL'}`,
             date: issueDateStr,
             time: issueTimeStr,
             patientName: appointment.patient?.full_name || 'N/A',
@@ -334,7 +338,7 @@ export const downloadReceipt = async (req, res) => {
             centerFee: centerFee,
             total: total,
             paymentMethod: displayMethod || 'N/A',
-            transactionId: appointment.payment?.transaction_id || 'N/A'
+            transactionId: payment?.transaction_id || 'N/A'
         });
 
         // Send PDF
@@ -344,6 +348,67 @@ export const downloadReceipt = async (req, res) => {
 
     } catch (error) {
         console.error('Download receipt error:', error);
+        res.status(500).json({ success: false, message: 'Server error', error: error.message });
+    }
+};
+/**
+ * @desc    Get transaction history (Payments and Refunds)
+ * @route   GET /api/payments/history
+ * @access  Private (Admin, Receptionist)
+ */
+export const getTransactionHistory = async (req, res) => {
+    try {
+        const { patientName, startDate, endDate, type } = req.query;
+        
+        const where = {};
+        
+        // Date range filter
+        if (startDate && endDate) {
+            where.created_at = {
+                [Op.between]: [new Date(startDate), new Date(endDate + 'T23:59:59')]
+            };
+        }
+        
+        // Transaction Type Filter (PAYMENT or REFUND)
+        if (type && type !== 'ALL') {
+            where.transaction_type = type.toUpperCase();
+        }
+
+        const include = [
+            {
+                model: Patient,
+                as: 'patient',
+                attributes: ['full_name', 'patient_id'],
+                where: patientName ? {
+                    full_name: { [Op.like]: `%${patientName}%` }
+                } : undefined
+            },
+            {
+                model: Appointment,
+                as: 'appointment',
+                include: [
+                    {
+                        model: Doctor,
+                        as: 'doctor',
+                        attributes: ['full_name']
+                    }
+                ]
+            }
+        ];
+
+        const payments = await Payment.findAll({
+            where,
+            include,
+            order: [['created_at', 'DESC']]
+        });
+
+        res.status(200).json({
+            success: true,
+            data: payments
+        });
+
+    } catch (error) {
+        console.error('Get transaction history error:', error);
         res.status(500).json({ success: false, message: 'Server error', error: error.message });
     }
 };

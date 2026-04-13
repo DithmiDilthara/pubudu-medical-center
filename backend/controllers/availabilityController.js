@@ -1,4 +1,4 @@
-import { Availability, Doctor, User, Appointment, Patient } from '../models/index.js';
+import { Availability, Doctor, User, Appointment, Patient, sequelize } from '../models/index.js';
 import { Op } from 'sequelize';
 
 /**
@@ -328,7 +328,32 @@ export const getDoctorAvailability = async (req, res) => {
         // If a patient is viewing, we don't return both the recurring slot AND the exclusion for the same date.
         // The frontend mapping will treat is_exclusion: true + status: CANCELLED as a blackout.
 
-        res.status(200).json({ success: true, data: availability });
+        // AGGREGATED BOOKING COUNTS FOR PROACTIVE CALENDAR
+        // We need to know how many people are booked for each schedule_id on each specific date
+        const bookingCounts = await Appointment.findAll({
+            attributes: [
+                'schedule_id',
+                'appointment_date',
+                [sequelize.fn('COUNT', sequelize.col('appointment_id')), 'count']
+            ],
+            where: {
+                doctor_id,
+                appointment_date: { [Op.gte]: todayStr },
+                status: { [Op.ne]: 'CANCELLED' }
+            },
+            group: ['schedule_id', 'appointment_date'],
+            raw: true
+        });
+
+        res.status(200).json({ 
+            success: true, 
+            data: availability,
+            bookingCounts: bookingCounts.map(c => ({
+                schedule_id: c.schedule_id,
+                date: c.appointment_date,
+                count: parseInt(c.count)
+            }))
+        });
     } catch (error) {
         console.error('Get availability error:', error);
         res.status(500).json({ success: false, message: 'Server error' });

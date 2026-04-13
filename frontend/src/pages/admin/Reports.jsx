@@ -131,7 +131,9 @@ const Reports = () => {
       const payChartImg = await captureComponentAsBase64(pieChartRef.current);
       const statChartImg = await captureComponentAsBase64(barChartRef.current);
 
-      const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+      const today = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
       const colors = {
         headerBg: '#6366f1',
         titleBlue: '#312e81',
@@ -172,7 +174,7 @@ const Reports = () => {
             layout: 'noBorders', margin: [-40, -40, -40, 30]
           },
           { text: 'ADVANCED INCOME STATEMENT', style: 'title' },
-          { text: `Period: ${startDate} – ${endDate} | Generated: ${today}`, style: 'subtitle' },
+          { text: `Period: ${startDate} – ${endDate} | Generated: ${today} at ${timeStr}`, style: 'subtitle' },
           { canvas: [{ type: 'line', x1: 0, y1: 5, x2: 515, y2: 5, lineWidth: 0.5, lineColor: colors.headerBg }], margin: [0, 5, 0, 20] },
           
           {
@@ -287,7 +289,7 @@ const Reports = () => {
               { canvas: [{ type: 'line', x1: 40, y1: 0, x2: 555, y2: 0, lineWidth: 0.5, lineColor: colors.borderBlue }] },
               {
                 columns: [
-                  { text: `* Clinically Audited Income Statement | Period: ${startDate} – ${endDate}`, style: 'footer' },
+                  { text: `* Clinically Audited Income Statement | Issued: ${today} at ${timeStr}`, style: 'footer' },
                   { text: `Page ${currentPage} of ${pageCount}`, style: 'footer', alignment: 'right' }
                 ],
                 margin: [40, 10, 40, 0]
@@ -332,7 +334,9 @@ const Reports = () => {
       const barChartImg = await captureComponentAsBase64(barChartRef.current);
       const pieChartImg = await captureComponentAsBase64(pieChartRef.current);
 
-      const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+      const today = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
       
       // 2. Define colors from palette
       const colors = {
@@ -393,7 +397,7 @@ const Reports = () => {
 
           // --- Title Section ---
           { text: 'APPOINTMENTS REPORT', style: 'title' },
-          { text: `Period: ${startDate} – ${endDate}  |  Generated: ${today}`, style: 'subtitle' },
+          { text: `Period: ${startDate} – ${endDate}  |  Generated: ${today} at ${timeStr}`, style: 'subtitle' },
           { canvas: [{ type: 'line', x1: 0, y1: 5, x2: 515, y2: 5, lineWidth: 0.5, lineColor: colors.headerBg }], margin: [0, 5, 0, 20] },
 
           // --- KPI Cards (Refactored to Table for reliable Background Rendering) ---
@@ -516,7 +520,7 @@ const Reports = () => {
               { canvas: [{ type: 'line', x1: 40, y1: 0, x2: 555, y2: 0, lineWidth: 0.5, lineColor: colors.borderBlue }] },
               {
                 columns: [
-                  { text: `* No-Show = appointments where is_noshow flag is true. | Period: ${startDate} – ${endDate}`, style: 'footer' },
+                  { text: `* Audited Appointment Summary | Issued: ${today} at ${timeStr}`, style: 'footer' },
                   { text: `Page ${currentPage} of ${pageCount}`, style: 'footer', alignment: 'right' }
                 ],
                 margin: [40, 10, 40, 0]
@@ -761,15 +765,27 @@ const Reports = () => {
                     {reportType === 'income' && (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '40px', alignItems: 'center' }}>
                         <div style={{ width: '100%', height: 400 }}>
-                          <h5 style={{ textAlign: 'center', color: '#64748b', fontSize: '14px', marginBottom: '15px' }}>Income Breakdown (Appointment Status)</h5>
+                          <h5 style={{ textAlign: 'center', color: '#1e293b', fontSize: '15px', fontWeight: '700', marginBottom: '20px' }}>Appointment Status Distribution</h5>
                           <div ref={barChartRef} style={{ width: '100%', height: '360px' }}>
                             <ResponsiveContainer width="100%" height="100%">
-                              <BarChart data={reportData.charts.appointmentStatus} margin={{ top: 10, right: 30, left: 20, bottom: 20 }}>
+                              <BarChart data={reportData.charts.appointmentStatus} margin={{ top: 10, right: 30, left: 40, bottom: 40 }}>
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 11 }} />
-                                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#3b82f6', fontSize: 12 }} />
+                                <XAxis 
+                                    dataKey="name" 
+                                    axisLine={false} 
+                                    tickLine={false} 
+                                    tick={{ fill: '#64748b', fontSize: 11 }}
+                                    label={{ value: 'Status Type', position: 'insideBottom', offset: -25, fill: '#64748b', fontSize: 11, fontWeight: '600' }}
+                                />
+                                <YAxis 
+                                    axisLine={false} 
+                                    tickLine={false} 
+                                    tick={{ fill: '#3b82f6', fontSize: 12 }} 
+                                    allowDecimals={false}
+                                    label={{ value: 'Number of Patients', angle: -90, position: 'insideLeft', offset: -25, fill: '#3b82f6', fontSize: 11, fontWeight: '600' }}
+                                />
                                 <Tooltip cursor={{ fill: '#f8fafc' }} />
-                                <Legend verticalAlign="top" align="right" />
+                                <Legend verticalAlign="top" align="right" wrapperStyle={{ paddingBottom: '20px' }} />
                                 <Bar dataKey="value" name="Volume" fill="#4f46e5" radius={[6, 6, 0, 0]} barSize={50} isAnimationActive={false} />
                               </BarChart>
                             </ResponsiveContainer>
@@ -867,11 +883,18 @@ const Reports = () => {
                                   axisLine={false} 
                                   tickLine={false} 
                                   tick={{ fill: '#64748b', fontSize: 11 }} 
-                                  angle={-60}
+                                  angle={-45}
                                   textAnchor="end"
                                   interval={0}
+                                  label={{ value: 'Doctor Name', position: 'insideBottomRight', offset: -10, fill: '#64748b', fontSize: 11, fontWeight: '600' }}
                                 />
-                                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#3b82f6', fontSize: 12 }} />
+                                <YAxis 
+                                    axisLine={false} 
+                                    tickLine={false} 
+                                    tick={{ fill: '#3b82f6', fontSize: 12 }} 
+                                    allowDecimals={false}
+                                    label={{ value: 'Appt. Count', angle: -90, position: 'insideLeft', offset: -10, fill: '#3b82f6', fontSize: 11, fontWeight: '600' }}
+                                />
                                 <Tooltip cursor={{ fill: '#f8fafc' }} />
                                 <Legend verticalAlign="top" align="right" />
                                 <Bar 

@@ -82,7 +82,9 @@ const DoctorRevenue = () => {
     try {
       const logoImg = await getCircularBase64ImageFromURL(logo);
 
-      const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+      const today = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
       const colors = {
         headerBg: '#4f46e5',
         titleBlue: '#312e81',
@@ -123,7 +125,7 @@ const DoctorRevenue = () => {
             layout: 'noBorders', margin: [-40, -40, -40, 30]
           },
           { text: 'MY REVENUE STATEMENT', style: 'title' },
-          { text: `Doctor: ${doctorName} | Period: ${startDate} – ${endDate}`, style: 'subtitle' },
+          { text: `Doctor: ${doctorName} | Period: ${startDate} – ${endDate} | Issued: ${today} at ${timeStr}`, style: 'subtitle' },
           { canvas: [{ type: 'line', x1: 0, y1: 5, x2: 515, y2: 5, lineWidth: 0.5, lineColor: colors.headerBg }], margin: [0, 5, 0, 20] },
           
           {
@@ -131,9 +133,9 @@ const DoctorRevenue = () => {
               widths: ['33%', '33%', '34%'],
               body: [
                 [
-                  { stack: [{ text: 'GROSS EARNINGS', style: 'kpiLabel' }, { text: `LKR ${reportData.totalGross.toLocaleString()}`, style: 'kpiValue' }], fillColor: colors.incomeBlue },
-                  { stack: [{ text: 'REFUND DEDUCTIONS', style: 'kpiLabel' }, { text: `- LKR ${reportData.totalRefunds.toLocaleString()}`, style: 'kpiValue' }], fillColor: colors.refundRed },
-                  { stack: [{ text: 'NET PAYOUT', style: 'kpiLabel' }, { text: `LKR ${reportData.totalNet.toLocaleString()}`, style: 'kpiValue' }], fillColor: colors.netGreen }
+                  { stack: [{ text: 'GROSS EARNINGS', style: 'kpiLabel' }, { text: `LKR ${(reportData.totalGross || 0).toLocaleString()}`, style: 'kpiValue' }], fillColor: colors.incomeBlue },
+                  { stack: [{ text: 'REFUND DEDUCTIONS', style: 'kpiLabel' }, { text: `- LKR ${(reportData.totalRefunds || 0).toLocaleString()}`, style: 'kpiValue' }], fillColor: colors.refundRed },
+                  { stack: [{ text: 'NET PAYOUT', style: 'kpiLabel' }, { text: `LKR ${(reportData.totalNet || 0).toLocaleString()}`, style: 'kpiValue' }], fillColor: colors.netGreen }
                 ]
               ]
             },
@@ -158,19 +160,19 @@ const DoctorRevenue = () => {
                 ...reportData.breakdown.map((session, i) => [
                   { text: session.date, fillColor: i % 2 === 0 ? 'white' : colors.altRow, fontSize: 9 },
                   { text: session.time_slot, fillColor: i % 2 === 0 ? 'white' : colors.altRow, fontSize: 9 },
-                  { text: session.completed_patients.toString(), alignment: 'center', fillColor: i % 2 === 0 ? 'white' : colors.altRow, fontSize: 9 },
-                  { text: `LKR ${session.gross_fee.toLocaleString()}`, alignment: 'right', fillColor: i % 2 === 0 ? 'white' : colors.altRow, fontSize: 9 },
-                  { text: session.refunded_patients.toString(), alignment: 'center', fillColor: i % 2 === 0 ? 'white' : colors.altRow, fontSize: 9, color: session.refunded_patients > 0 ? colors.refundRed : 'black' },
-                  { text: `LKR ${session.net_payout.toLocaleString()}`, alignment: 'right', fillColor: i % 2 === 0 ? 'white' : colors.altRow, fontSize: 9, bold: true }
+                  { text: (session.completed_patients || 0).toString(), alignment: 'center', fillColor: i % 2 === 0 ? 'white' : colors.altRow, fontSize: 9 },
+                  { text: `LKR ${(session.gross_fee || 0).toLocaleString()}`, alignment: 'right', fillColor: i % 2 === 0 ? 'white' : colors.altRow, fontSize: 9 },
+                  { text: (session.refunded_patients || 0).toString(), alignment: 'center', fillColor: i % 2 === 0 ? 'white' : colors.altRow, fontSize: 9, color: session.refunded_patients > 0 ? colors.refundRed : 'black' },
+                  { text: `LKR ${(session.net_payout || 0).toLocaleString()}`, alignment: 'right', fillColor: i % 2 === 0 ? 'white' : colors.altRow, fontSize: 9, bold: true }
                 ]),
                 // Final Total Row
                 [
                    { text: 'TOTALS', bold: true, colSpan: 2 },
                    {},
                    { text: reportData.breakdown.reduce((sum, s) => sum + s.completed_patients, 0).toString(), bold: true, alignment: 'center' },
-                   { text: `LKR ${reportData.totalGross.toLocaleString()}`, bold: true, alignment: 'right' },
+                   { text: `LKR ${(reportData.totalGross || 0).toLocaleString()}`, bold: true, alignment: 'right' },
                    { text: reportData.breakdown.reduce((sum, s) => sum + s.refunded_patients, 0).toString(), bold: true, alignment: 'center', color: colors.refundRed },
-                   { text: `LKR ${reportData.totalNet.toLocaleString()}`, bold: true, alignment: 'right', color: colors.netGreen }
+                   { text: `LKR ${(reportData.totalNet || 0).toLocaleString()}`, bold: true, alignment: 'right', color: colors.netGreen }
                 ]
               ]
             },
@@ -183,7 +185,7 @@ const DoctorRevenue = () => {
               { canvas: [{ type: 'line', x1: 40, y1: 0, x2: 555, y2: 0, lineWidth: 0.5, lineColor: colors.borderBlue }] },
               {
                 columns: [
-                  { text: `* Note: No-Show patients are entirely excluded from these financial calculations.`, style: 'footer' },
+                  { text: `* Note: No-Show patients are excluded. | Issued: ${today} at ${timeStr}`, style: 'footer' },
                   { text: `Page ${currentPage} of ${pageCount}`, style: 'footer', alignment: 'right' }
                 ],
                 margin: [40, 10, 40, 0]
@@ -361,12 +363,12 @@ const DoctorRevenue = () => {
                             <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9', backgroundColor: idx % 2 === 0 ? 'white' : '#f8fafc' }}>
                                 <td style={styles.td}>{session.date}</td>
                                 <td style={styles.td}>{session.time_slot}</td>
-                                <td style={{...styles.td, textAlign: 'center'}}>{session.completed_patients}</td>
-                                <td style={{...styles.td, textAlign: 'right'}}>LKR {session.gross_fee.toLocaleString()}</td>
+                                <td style={{...styles.td, textAlign: 'center'}}>{session.completed_patients || 0}</td>
+                                <td style={{...styles.td, textAlign: 'right'}}>LKR {(session.gross_fee || 0).toLocaleString()}</td>
                                 <td style={{...styles.td, textAlign: 'center', color: session.refunded_patients > 0 ? '#dc2626' : '#64748b'}}>
-                                {session.refunded_patients}
+                                {session.refunded_patients || 0}
                                 </td>
-                                <td style={{...styles.td, textAlign: 'right', fontWeight: 'bold', color: '#0f172a'}}>LKR {session.net_payout.toLocaleString()}</td>
+                                <td style={{...styles.td, textAlign: 'right', fontWeight: 'bold', color: '#0f172a'}}>LKR {(session.net_payout || 0).toLocaleString()}</td>
                             </tr>
                             ))
                         ) : (

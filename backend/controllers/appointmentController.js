@@ -29,6 +29,8 @@ export const createAppointment = async (req, res) => {
 
         // --- NEW SAFETY CHECK ---
         // 1. Fetch the selected session to ensure it exists and is ACTIVE
+        const session = await Availability.findByPk(schedule_id);
+
         if (!session) {
             return res.status(404).json({ success: false, message: 'The selected clinical session no longer exists.' });
         }
@@ -476,7 +478,8 @@ export const updateStatus = async (req, res) => {
                         amount: balanceDue,
                         payment_method: payment_method || 'CASH',
                         transaction_id: transactionId,
-                        status: 'SUCCESS'
+                        status: 'SUCCESS',
+                        processed_by: req.user.user_id
                     }, { transaction: t });
                 }
             }

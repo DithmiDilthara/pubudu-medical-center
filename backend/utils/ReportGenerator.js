@@ -62,9 +62,12 @@ class ReportGenerator {
                 doc.fillColor('#1e40af').fontSize(18).font('Helvetica-Bold')
                    .text(title, margin, 100, { align: 'center' });
 
-                const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+                const now = new Date();
+                const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+                const dateStr = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+                
                 doc.fillColor('#64748b').fontSize(10).font('Helvetica')
-                   .text(`Period: ${startDate} – ${endDate}  |  Generated: ${today}`, margin, 125, { align: 'center' });
+                   .text(`Period: ${startDate} – ${endDate}  |  Issued: ${dateStr} at ${timeStr}`, margin, 125, { align: 'center' });
 
                 doc.strokeColor('#60a5fa').lineWidth(0.5).moveTo(margin, 145).lineTo(doc.page.width - margin, 145).stroke();
 
@@ -171,15 +174,29 @@ class ReportGenerator {
         // Chart Background & Grid
         doc.rect(margin, chartY, chartWidth, chartHeight).fill('#FFFFFF');
         doc.strokeColor('#bfdbfe').dash(2, { space: 2 }).lineWidth(0.5);
+        
+        // DRAW Y-AXIS SCALE
+        const maxRevenue = Math.max(...doctors.map(d => d.total_revenue), 1000);
         for (let i = 0; i <= 5; i++) {
             const h = chartY + (chartHeight / 5) * i;
             doc.moveTo(margin, h).lineTo(margin + chartWidth, h).stroke();
+            
+            // Y-Axis Labels (Numerical Scale)
+            const labelValue = (maxRevenue - (maxRevenue / 5) * i).toFixed(0);
+            doc.fillColor('#94a3b8').fontSize(7).font('Helvetica')
+               .text(labelValue, margin - 45, h - 3, { width: 40, align: 'right' });
         }
         doc.undash();
 
+        // Y-AXIS TITLE (Vertical)
+        doc.save()
+           .rotate(-90, { origin: [margin - 48, chartY + (chartHeight / 2)] })
+           .fillColor('#64748b').fontSize(8).font('Helvetica-Bold')
+           .text('REVENUE (LKR)', margin - 48, chartY + (chartHeight / 2), { width: chartHeight, align: 'center' })
+           .restore();
+
         if (doctors.length === 0) return;
 
-        const maxRevenue = Math.max(...doctors.map(d => d.total_revenue), 1000);
         const maxVolume = Math.max(...doctors.map(d => d.patient_volume), 10);
         const barAreaWidth = chartWidth / doctors.length;
         const barWidth = Math.min(barAreaWidth * 0.4, 25);
@@ -206,6 +223,10 @@ class ReportGenerator {
         doc.fillColor('#1e40af').fontSize(8).text('Revenue', doc.page.width - margin - 135, legendY + 1);
         doc.fillColor('#93c5fd').rect(doc.page.width - margin - 80, legendY, 10, 10).fill();
         doc.fillColor('#1e40af').text('Volume', doc.page.width - margin - 65, legendY + 1);
+
+        // X-AXIS TITLE (Bottom)
+        doc.fillColor('#64748b').fontSize(8).font('Helvetica-Bold')
+           .text('DOCTOR NAME', margin, chartY + chartHeight + 20, { align: 'center', width: chartWidth });
     }
 }
 
