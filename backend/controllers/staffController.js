@@ -1,6 +1,7 @@
 import { User, Role, Admin, Doctor, Receptionist, sequelize } from '../models/index.js';
 import { Op } from 'sequelize';
 import bcrypt from 'bcryptjs';
+import { isValidPassword, isValidDoctorUsername, isValidReceptionistUsername, isValidAdminUsername } from '../utils/validators.js';
 
 /**
  * @desc    Get all administrative staff (Admins and Super Admins)
@@ -37,6 +38,24 @@ export const createStaff = async (req, res) => {
   const transaction = await sequelize.transaction();
   try {
     const { username, email, password, role_id, phone, full_name, ...profileData } = req.body;
+
+    // Validate inputs based on role
+    const pwdValidation = isValidPassword(password);
+    if (!pwdValidation.valid) {
+      await transaction.rollback();
+      return res.status(400).json({ success: false, message: pwdValidation.message });
+    }
+
+    if (role_id === 2 && !isValidDoctorUsername(username)) {
+      await transaction.rollback();
+      return res.status(400).json({ success: false, message: "Username must start with 'Doc_' followed by a Capital letter" });
+    } else if (role_id === 3 && !isValidReceptionistUsername(username)) {
+      await transaction.rollback();
+      return res.status(400).json({ success: false, message: "Username must start with 'Rep_' followed by a Capital letter" });
+    } else if ((role_id === 1 || role_id === 5) && !isValidAdminUsername(username)) {
+      await transaction.rollback();
+      return res.status(400).json({ success: false, message: "Admin username must be at least 3 characters and contain an underscore '_'" });
+    }
 
     // Check if user already exists
     const existingUser = await User.findOne({ where: { [Op.or]: [{ username }, { email }] }, transaction });
@@ -96,6 +115,27 @@ export const updateStaff = async (req, res) => {
   try {
     const { id } = req.params;
     const { username, email, password, role_id, phone, full_name, is_active, ...profileData } = req.body;
+
+    if (password) {
+      const pwdValidation = isValidPassword(password);
+      if (!pwdValidation.valid) {
+        await transaction.rollback();
+        return res.status(400).json({ success: false, message: pwdValidation.message });
+      }
+    }
+
+    if (username) {
+      if (role_id === 2 && !isValidDoctorUsername(username)) {
+        await transaction.rollback();
+        return res.status(400).json({ success: false, message: "Username must start with 'Doc_' followed by a Capital letter" });
+      } else if (role_id === 3 && !isValidReceptionistUsername(username)) {
+        await transaction.rollback();
+        return res.status(400).json({ success: false, message: "Username must start with 'Rep_' followed by a Capital letter" });
+      } else if ((role_id === 1 || role_id === 5) && !isValidAdminUsername(username)) {
+        await transaction.rollback();
+        return res.status(400).json({ success: false, message: "Admin username must be at least 3 characters and contain an underscore '_'" });
+      }
+    }
 
     const user = await User.findByPk(id, { transaction });
     if (!user) {

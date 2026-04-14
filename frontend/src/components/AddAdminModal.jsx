@@ -61,11 +61,13 @@ const AddAdminModal = ({
         break;
       case 'username':
         if (!editingAdmin && !value) error = 'Username is required';
-        else if (value && value.length < 3) error = 'Username too short';
+        else if (value && value.length < 3) error = 'Username too short, minimum 3 characters required';
+        else if (value && !/^[A-Za-z0-9_]*_[A-Za-z0-9_]*$/.test(value)) error = "Admin username must contain an underscore '_' (e.g., Admin_01)";
         break;
       case 'password':
         if (!editingAdmin && !value) error = 'Password is required';
         else if (value && value.length < 8) error = 'Password must be at least 8 characters';
+        else if (value && !/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]*$/.test(value)) error = 'Password requires at least 1 uppercase, 1 lowercase, 1 number, and 1 special character';
         break;
       default:
         break;

@@ -87,9 +87,12 @@ const AddReceptionistModal = ({
         break;
       case 'username':
         if (!editingReceptionist && !value) error = 'Username is required';
+        else if (value && !/^Rep_[A-Z][A-Za-z0-9]*$/.test(value)) error = "Username must start with 'Rep_' followed by a Capital letter (e.g., Rep_Sarah)";
         break;
       case 'password':
         if (!editingReceptionist && !value) error = 'Password is required';
+        else if (value && value.length < 8) error = 'Password must be at least 8 characters';
+        else if (value && !/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]*$/.test(value)) error = 'Password requires at least 1 uppercase, 1 lowercase, 1 number, and 1 special character';
         break;
       default:
         break;
