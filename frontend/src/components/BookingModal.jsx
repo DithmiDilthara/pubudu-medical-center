@@ -271,7 +271,7 @@ const BookingModal = ({ isOpen, onClose, appointment, onUpdate }) => {
                         <div style={{ display: 'flex', gap: '20px', marginBottom: '16px', flexWrap: 'wrap' }}>
                             <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: !isChangingDoctor ? '700' : '500', color: !isChangingDoctor ? '#2563eb' : '#64748b' }}>
                                 <input type="radio" checked={!isChangingDoctor} onChange={() => setIsChangingDoctor(false)} />
-                                Keep Dr. {appointment?.doctor?.full_name}
+                                Keep {appointment?.doctor?.full_name}
                             </label>
                             <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: isChangingDoctor ? '700' : '500', color: isChangingDoctor ? '#2563eb' : '#64748b' }}>
                                 <input type="radio" checked={isChangingDoctor} onChange={() => setIsChangingDoctor(true)} />
@@ -289,7 +289,7 @@ const BookingModal = ({ isOpen, onClose, appointment, onUpdate }) => {
                                     >
                                         <option value="" disabled>Select a new {appointment?.doctor?.specialization}</option>
                                         {altDoctors.map(d => (
-                                            <option key={d.doctor_id} value={d.doctor_id}>Dr. {d.full_name} ({d.specialization}) - Fee: LKR {(Number(d.doctor_fee || 0) + Number(d.center_fee || 600)).toLocaleString()}</option>
+                                            <option key={d.doctor_id} value={d.doctor_id}> {d.full_name} ({d.specialization}) - Fee: LKR {(Number(d.doctor_fee || 0) + Number(d.center_fee || 600)).toLocaleString()}</option>
                                         ))}
                                     </select>
                                 ) : (

@@ -420,7 +420,7 @@ function ReceptionistDashboard() {
                           <span style={styles.patientNameText}>{apt.patient?.full_name}</span>
                         </td>
                         <td style={styles.schedTd}>
-                          <span style={styles.doctorNameText}>Dr. {apt.doctor?.full_name.split(' ').pop()}</span>
+                          <span style={styles.doctorNameText}>{apt.doctor?.full_name.split(' ').pop()}</span>
                         </td>
                         <td style={styles.schedTd}>
                           <span style={getBadgeStyle(apt.status)}>
