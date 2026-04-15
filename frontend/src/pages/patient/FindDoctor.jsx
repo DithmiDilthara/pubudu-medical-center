@@ -70,7 +70,7 @@ function FindDoctor() {
     setSearchTerm(typedSearch);
   };
 
-  const specialties = ["All", "Cardiology", "Dermatology", "Neurology", "Orthopedic", "General", "Pediatrics"];
+  const specialties = ["All", ...new Set(doctors.map(d => d.specialization))].filter(Boolean);
 
   const filteredDoctors = doctors.filter(doctor => {
     const name = doctor.full_name || "";
@@ -137,8 +137,16 @@ function FindDoctor() {
                   onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                 />
               </div>
-              <button onClick={handleSearch} style={styles.searchBtn}>
-                Find Nearest Doctor
+              <button 
+                onClick={handleSearch} 
+                style={{
+                  ...styles.searchBtn,
+                  backgroundColor: typedSearch.trim().length > 0 ? '#1d4ed8' : '#94a3b8',
+                  boxShadow: typedSearch.trim().length > 0 ? '0 10px 15px -3px rgba(29, 78, 216, 0.4)' : 'none',
+                  transform: typedSearch.trim().length > 0 ? 'scale(1.05)' : 'scale(1)',
+                }}
+              >
+                Search
               </button>
             </div>
           </motion.section>
@@ -225,9 +233,7 @@ function FindDoctor() {
                             ? `${doctor.availability[0].day_of_week}, ${doctor.availability[0].start_time}` 
                             : 'No schedule set'}
                         </span></span>
-                        <span style={{ fontSize: '12px', color: '#2563eb', fontWeight: '600' }}>
-                          Next Appointment No: {doctor.next_appointment_number || 1}
-                        </span>
+                        
                       </div>
                     </div>
 

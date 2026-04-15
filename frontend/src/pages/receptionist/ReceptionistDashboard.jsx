@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import { FiUserPlus, FiCalendar, FiClock, FiPlus, FiUsers, FiCreditCard, FiTrendingUp, FiZap, FiActivity, FiDollarSign, FiFileText, FiCheckCircle } from "react-icons/fi";
+import { FiUserPlus, FiCalendar, FiClock, FiPlus, FiUsers, FiCreditCard, FiTrendingUp, FiZap, FiActivity, FiDollarSign, FiFileText, FiCheckCircle, FiAlertTriangle } from "react-icons/fi";
 import { motion } from "framer-motion";
 import ReceptionistSidebar from "../../components/ReceptionistSidebar";
 import ReceptionistHeader from "../../components/ReceptionistHeader";
@@ -15,6 +15,7 @@ function ReceptionistDashboard() {
   const [searchSpec, setSearchSpec] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [appointments, setAppointments] = useState([]);
+  const [needsRescheduleCount, setNeedsRescheduleCount] = useState(0);
   const [stats, setStats] = useState({
     todayAppointments: 0,
     totalPatients: 0,
@@ -75,9 +76,13 @@ function ReceptionistDashboard() {
           headers: { Authorization: `Bearer ${token}` }
         });
         if (response.data.success) {
+          const allApts = response.data.data;
           const today = new Date().toISOString().split('T')[0];
-          const todayApts = response.data.data.filter(apt => apt.appointment_date === today);
+          const todayApts = allApts.filter(apt => apt.appointment_date === today);
           setAppointments(todayApts);
+          // Count all future RESCHEDULE_REQUIRED appointments
+          const rescheduleCount = allApts.filter(apt => apt.status === 'RESCHEDULE_REQUIRED' && apt.appointment_date >= today).length;
+          setNeedsRescheduleCount(rescheduleCount);
         }
       } catch (error) {
         console.error("Error fetching appointments:", error);
@@ -172,7 +177,11 @@ function ReceptionistDashboard() {
       case 'CANCELLED':
         return { ...base, backgroundColor: '#fee2e2', color: '#b91c1c', borderColor: '#fecaca' };
       case 'COMPLETED':
-        return { ...base, backgroundColor: '#dbeafe', color: '#1d4ed8', borderColor: '#bfdbfe' };
+        return { ...base, backgroundColor: '#dcfce7', color: '#166534', borderColor: '#bbf7d0' };
+      case 'NO_SHOW':
+        return { ...base, backgroundColor: '#f1f5f9', color: '#475569', borderColor: '#e2e8f0' };
+      case 'RESCHEDULE_REQUIRED':
+        return { ...base, backgroundColor: '#fff7ed', color: '#ea580c', borderColor: '#fed7aa' };
       default:
         return base;
     }
@@ -273,6 +282,32 @@ function ReceptionistDashboard() {
                 onClick={card.onClick}
               />
             ))}
+
+            {/* Needs Reschedule — StatsCard + Double Animation */}
+            <div style={{ position: 'relative' }} className={needsRescheduleCount > 0 ? 'reschedule-pulse-card' : ''}>
+              {needsRescheduleCount > 0 && (
+                <span className="reschedule-dot" style={{
+                  position: 'absolute',
+                  top: '-6px',
+                  right: '-6px',
+                  width: '14px',
+                  height: '14px',
+                  borderRadius: '50%',
+                  backgroundColor: '#f97316',
+                  border: '2px solid white',
+                  zIndex: 10
+                }} />
+              )}
+              <StatsCard
+                title="Needs Reschedule"
+                value={needsRescheduleCount}
+                icon={<FiAlertTriangle style={{ fontSize: '20px' }} />}
+                gradient="linear-gradient(135deg, #f97316 0%, #ea580c 100%)"
+                shadow="rgba(249, 115, 22, 0.25)"
+                delay={0.4}
+                onClick={() => navigate("/receptionist/appointments", { state: { filterStatus: 'RESCHEDULE_REQUIRED' } })}
+              />
+            </div>
           </motion.div>
 
           {/* Section 3: Quick Actions Grid */}
@@ -426,13 +461,29 @@ function ReceptionistDashboard() {
               }
               @media (max-width: 1024px) {
                 .stats-grid-responsive {
-                  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)) !important;
+                  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)) !important;
                 }
               }
               @media (max-width: 640px) {
                 .stats-grid-responsive {
                   grid-template-columns: 1fr !important;
                 }
+              }
+              @keyframes reschedule-glow {
+                0%   { box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.4); }
+                50%  { box-shadow: 0 0 0 10px rgba(249, 115, 22, 0); }
+                100% { box-shadow: 0 0 0 0 rgba(249, 115, 22, 0); }
+              }
+              .reschedule-pulse-card {
+                animation: reschedule-glow 2s ease-in-out infinite;
+                border-radius: 24px;
+              }
+              @keyframes dot-blink {
+                0%, 100% { opacity: 1; }
+                50%       { opacity: 0; }
+              }
+              .reschedule-dot {
+                animation: dot-blink 1s ease-in-out infinite;
               }
             `}
           </style>

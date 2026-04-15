@@ -16,10 +16,10 @@ const Patient = sequelize.define('patient', {
     type: DataTypes.STRING(100),
     allowNull: false
   },
-  nic: {
-    type: DataTypes.STRING(15),
+  patient_type: {
+    type: DataTypes.ENUM('ADULT', 'CHILD'),
     allowNull: false,
-    unique: 'patient_nic_unique'
+    defaultValue: 'ADULT'
   },
   gender: {
     type: DataTypes.ENUM('MALE', 'FEMALE', 'OTHER'),

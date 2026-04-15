@@ -12,7 +12,8 @@ import {
   resetPassword, 
   getTokens,
   verifyEmail,
-  resendOtp
+  resendOtp,
+  checkAvailability
 } from '../controllers/authController.js';
 import { verifyToken } from '../middleware/authMiddleware.js';
 import { authorizeRole } from '../middleware/roleMiddleware.js';
@@ -32,6 +33,7 @@ router.post('/register', register);
  * @access  Public
  */
 router.post('/register-patient', registerPatient);
+router.post('/check-availability', checkAvailability);
 router.post('/verify-email', verifyEmail);
 router.post('/resend-otp', resendOtp);
 

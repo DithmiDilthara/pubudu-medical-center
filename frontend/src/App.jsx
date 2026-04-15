@@ -23,18 +23,22 @@ import DoctorAppointments from './pages/doctor/DoctorAppointments';
 import PatientDetailsDoctor from './pages/doctor/PatientDetailsDoctor';
 import DoctorPatients from './pages/doctor/DoctorPatients';
 import DoctorAvailability from './pages/doctor/DoctorAvailability';
+import DoctorRevenue from './pages/doctor/DoctorRevenue';
 import ReceptionistDashboard from './pages/receptionist/ReceptionistDashboard';
 import AddPatient from './pages/receptionist/AddPatient';
 import NewBooking from './pages/receptionist/NewBooking';
 import AppointmentsManagement from './pages/receptionist/AppointmentsManagement';
 import PaymentManagement from './pages/receptionist/PaymentManagement';
 import ConfirmPayment from './pages/receptionist/ConfirmPayment';
+import TransactionHistory from './pages/receptionist/TransactionHistory';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import ManageDoctors from './pages/admin/ManageDoctors';
 import ManageReceptionist from './pages/admin/ManageReceptionist';
+import ManageAdmins from './pages/admin/ManageAdmins';
 import Reports from './pages/admin/Reports';
 
 import Doctors from './pages/receptionist/Doctors';
+import DoctorSchedule from './pages/receptionist/DoctorSchedule';
 
 function App() {
   return (
@@ -61,6 +65,7 @@ function App() {
 
           <Route path="/doctor/dashboard" element={<DoctorDashboard />} />
           <Route path="/doctor/appointments" element={<DoctorAppointments />} />
+          <Route path="/doctor/revenue" element={<DoctorRevenue />} />
           <Route path="/doctor/patient-details" element={<PatientDetailsDoctor />} />
           <Route path="/doctor/patients" element={<DoctorPatients />} />
           <Route path="/doctor/availability" element={<DoctorAvailability />} />
@@ -71,10 +76,13 @@ function App() {
           <Route path="/receptionist/appointments/new" element={<NewBooking />} />
           <Route path="/receptionist/payment" element={<PaymentManagement />} />
           <Route path="/receptionist/payment/confirm" element={<ConfirmPayment />} />
+          <Route path="/receptionist/transactions" element={<TransactionHistory />} />
           <Route path="/receptionist/doctors" element={<Doctors />} />
+          <Route path="/receptionist/doctors/:doctorId/schedule" element={<DoctorSchedule />} />
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
           <Route path="/admin/doctors" element={<ManageDoctors />} />
           <Route path="/admin/receptionist" element={<ManageReceptionist />} />
+          <Route path="/admin/manage-admins" element={<ManageAdmins />} />
           <Route path="/admin/reports" element={<Reports />} />
 
         </Routes>

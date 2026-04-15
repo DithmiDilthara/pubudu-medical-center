@@ -35,7 +35,7 @@ function DoctorAppointments() {
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(5);
+  const [itemsPerPage] = useState(10);
 
   // Fetch profile on mount
   useEffect(() => {
@@ -219,8 +219,8 @@ function DoctorAppointments() {
             </div>
           </div>
 
-          <div style={styles.splitLayout}>
-            {/* Left Panel: Appointment List */}
+          <div style={styles.fullLayout}>
+            {/* Full-width Appointment List */}
             <div style={styles.listPanel}>
               <div style={styles.tabsContainer}>
                 {['Today', 'Upcoming', 'Past'].map((tab) => (
@@ -257,11 +257,7 @@ function DoctorAppointments() {
                                 <div 
                                     key={apt.appointment_id} 
                                     onClick={() => setSelectedAppointment(apt)}
-                                    style={{
-                                        ...styles.listItemWrapper,
-                                        borderLeft: selectedAppointment?.appointment_id === apt.appointment_id ? '4px solid #2563eb' : 'none',
-                                        backgroundColor: selectedAppointment?.appointment_id === apt.appointment_id ? '#eff6ff' : 'transparent'
-                                    }}
+                                    style={styles.listItemWrapper}
                                 >
                                     <AppointmentCard 
                                         appt={apt} 
@@ -324,120 +320,125 @@ function DoctorAppointments() {
                 )}
               </div>
             </div>
-
-            {/* Right Panel: Detail View */}
-            <div style={styles.detailPanel}>
-              {selectedAppointment ? (
-                <motion.div 
-                    key={selectedAppointment.appointment_id}
-                    initial={{ opacity: 0, scale: 0.98 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    style={styles.detailContent}
-                >
-                    <motion.div 
-                        style={styles.patientHero}
-                        whileHover={{ backgroundColor: '#f8fafc', x: 4 }}
-                        onClick={() => navigate('/doctor/patient-details', { 
-                            state: { 
-                                patientId: selectedAppointment.patient_id,
-                                patient: selectedAppointment.patient,
-                                appointment_id: selectedAppointment.appointment_id 
-                            } 
-                        })}
-                    >
-                        <div style={styles.patientAvatar}>
-                            {selectedAppointment.patient?.full_name?.charAt(0)}
-                        </div>
-                        <div style={styles.heroText}>
-                            <h2 style={styles.detailName}>{selectedAppointment.patient?.full_name}</h2>
-                            <p style={styles.detailId}>PHE-{selectedAppointment.patient_id}</p>
-                            <span style={{
-                                ...styles.statusBadge,
-                                ...getStatusStyle(selectedAppointment.status)
-                            }}>
-                                {selectedAppointment.status}
-                            </span>
-                        </div>
-                    </motion.div>
-
-                    <div style={styles.infoGrid}>
-                        <div style={styles.infoCard}>
-                            <FiCalendar style={styles.cardIcon} />
-                            <div>
-                                <p style={styles.cardLabel}>Date</p>
-                                <p style={styles.cardValue}>
-                                    {new Date(selectedAppointment.appointment_date).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-                                </p>
-                            </div>
-                        </div>
-                        <div style={styles.infoCard}>
-                            <FiClock style={styles.cardIcon} />
-                            <div>
-                                <p style={styles.cardLabel}>Time Slot</p>
-                                <p style={styles.cardValue}>{selectedAppointment.time_slot}</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div style={styles.detailSection}>
-                        <h4 style={styles.sectionHeading}>Actions & Care</h4>
-                        <div style={styles.actionStack}>
-                            <button 
-                                onClick={() => navigate('/doctor/patient-details', { 
-                                    state: { 
-                                        patientId: selectedAppointment.patient_id,
-                                        patient: selectedAppointment.patient,
-                                        appointment_id: selectedAppointment.appointment_id 
-                                    } 
-                                })}
-                                style={styles.primaryAction}
-                            >
-                                <FiActivity />
-                                Start Consultation / View Records
-                                <FiChevronRight />
-                            </button>
-
-                            <div style={styles.secondaryActions}>
-                                <button 
-                                    onClick={() => handleUpdateStatus(selectedAppointment.appointment_id, 'COMPLETED')}
-                                    disabled={selectedAppointment.status === 'COMPLETED'}
-                                    style={{
-                                        ...styles.outlineBtn,
-                                        borderColor: '#10b981',
-                                        color: '#10b981',
-                                        opacity: selectedAppointment.status === 'COMPLETED' ? 0.5 : 1
-                                    }}
-                                >
-                                    <FiCheckCircle />
-                                    Mark Completed
-                                </button>
-                                <button 
-                                    onClick={() => handleUpdateStatus(selectedAppointment.appointment_id, 'CANCELLED')}
-                                    disabled={selectedAppointment.status === 'CANCELLED'}
-                                    style={{
-                                        ...styles.outlineBtn,
-                                        borderColor: '#e11d48',
-                                        color: '#e11d48',
-                                        opacity: selectedAppointment.status === 'CANCELLED' ? 0.5 : 1
-                                    }}
-                                >
-                                    <FiXCircle />
-                                    Cancel
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </motion.div>
-              ) : (
-                <div style={styles.detailPlaceholder}>
-                    <FiCalendar style={styles.placeholderIcon} />
-                    <p style={styles.placeholderText}>Select an appointment to view details</p>
-                </div>
-              )}
-            </div>
           </div>
         </motion.main>
       </div>
+
+      {/* ── Appointment Detail Popup Modal ── */}
+      <AnimatePresence>
+        {selectedAppointment && (
+          <motion.div
+            key="modal-backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            style={styles.modalBackdrop}
+            onClick={() => setSelectedAppointment(null)}
+          >
+            <motion.div
+              key="modal-box"
+              initial={{ opacity: 0, scale: 0.95, y: 24 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 24 }}
+              transition={{ duration: 0.22, ease: 'easeOut' }}
+              style={styles.modalBox}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Close Button */}
+              <button
+                onClick={() => setSelectedAppointment(null)}
+                style={styles.modalCloseBtn}
+              >
+                ✕
+              </button>
+
+              {/* Patient Hero */}
+              <motion.div
+                style={styles.patientHero}
+                whileHover={{ backgroundColor: '#f8fafc' }}
+                onClick={() => navigate('/doctor/patient-details', {
+                  state: {
+                    patientId: selectedAppointment.patient_id,
+                    patient: selectedAppointment.patient,
+                    appointment_id: selectedAppointment.appointment_id
+                  }
+                })}
+              >
+                <div style={styles.patientAvatar}>
+                  {selectedAppointment.patient?.full_name?.charAt(0)}
+                </div>
+                <div style={styles.heroText}>
+                  <h2 style={styles.detailName}>{selectedAppointment.patient?.full_name}</h2>
+                  <p style={styles.detailId}>PHE-{selectedAppointment.patient_id}</p>
+                  <span style={{ ...styles.statusBadge, ...getStatusStyle(selectedAppointment.status) }}>
+                    {selectedAppointment.status}
+                  </span>
+                </div>
+              </motion.div>
+
+              {/* Date & Time cards */}
+              <div style={styles.infoGrid}>
+                <div style={styles.infoCard}>
+                  <FiCalendar style={styles.cardIcon} />
+                  <div>
+                    <p style={styles.cardLabel}>Date</p>
+                    <p style={styles.cardValue}>
+                      {new Date(selectedAppointment.appointment_date).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+                    </p>
+                  </div>
+                </div>
+                <div style={styles.infoCard}>
+                  <FiClock style={styles.cardIcon} />
+                  <div>
+                    <p style={styles.cardLabel}>Time Slot</p>
+                    <p style={styles.cardValue}>{selectedAppointment.time_slot}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div style={styles.detailSection}>
+                <h4 style={styles.sectionHeading}>Actions & Care</h4>
+                <div style={styles.actionStack}>
+                  <button
+                    onClick={() => navigate('/doctor/patient-details', {
+                      state: {
+                        patientId: selectedAppointment.patient_id,
+                        patient: selectedAppointment.patient,
+                        appointment_id: selectedAppointment.appointment_id
+                      }
+                    })}
+                    style={styles.primaryAction}
+                  >
+                    <FiActivity />
+                    Start Consultation / View Records
+                    <FiChevronRight />
+                  </button>
+
+                  <div style={styles.secondaryActions}>
+                    <button
+                      onClick={() => handleUpdateStatus(selectedAppointment.appointment_id, 'COMPLETED')}
+                      disabled={selectedAppointment.status === 'COMPLETED' || selectedAppointment.appointment_date !== todayDate}
+                      style={{
+                        ...styles.outlineBtn,
+                        borderColor: '#10b981',
+                        color: '#10b981',
+                        opacity: (selectedAppointment.status === 'COMPLETED' || selectedAppointment.appointment_date !== todayDate) ? 0.5 : 1,
+                        cursor: (selectedAppointment.status === 'COMPLETED' || selectedAppointment.appointment_date !== todayDate) ? 'not-allowed' : 'pointer',
+                        width: '100%' // Make it full width since the other button is gone
+                      }}
+                    >
+                      <FiCheckCircle />
+                      {selectedAppointment.appointment_date !== todayDate ? 'Completed (Today Only)' : 'Mark Completed'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -514,10 +515,10 @@ const styles = {
     },
     fontFamily: "'Inter', sans-serif"
   },
-  splitLayout: {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: "32px",
+  fullLayout: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "24px",
     flex: 1,
     minHeight: 0
   },
@@ -559,8 +560,8 @@ const styles = {
     paddingRight: "8px"
   },
   aptList: {
-    display: "flex",
-    flexDirection: "column",
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
     gap: "16px"
   },
   listItemWrapper: {
@@ -827,6 +828,50 @@ const styles = {
     border: "1px solid #e2e8f0",
     cursor: "pointer",
     transition: "all 0.2s"
+  },
+  modalBackdrop: {
+    position: "fixed",
+    inset: 0,
+    backgroundColor: "rgba(15, 23, 42, 0.55)",
+    backdropFilter: "blur(4px)",
+    zIndex: 1000,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "24px"
+  },
+  modalBox: {
+    backgroundColor: "white",
+    borderRadius: "32px",
+    padding: "40px",
+    width: "100%",
+    maxWidth: "560px",
+    maxHeight: "88vh",
+    overflowY: "auto",
+    position: "relative",
+    boxShadow: "0 30px 80px -10px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(0,0,0,0.04)",
+    display: "flex",
+    flexDirection: "column",
+    gap: "32px"
+  },
+  modalCloseBtn: {
+    position: "absolute",
+    top: "20px",
+    right: "20px",
+    width: "36px",
+    height: "36px",
+    borderRadius: "50%",
+    border: "none",
+    backgroundColor: "#f1f5f9",
+    color: "#64748b",
+    fontSize: "16px",
+    fontWeight: "700",
+    cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    transition: "all 0.2s",
+    lineHeight: 1
   }
 };
 

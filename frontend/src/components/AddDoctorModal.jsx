@@ -79,6 +79,7 @@ const AddDoctorModal = ({
       case 'email':
         if (!value) error = 'Email is required';
         else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) error = 'Invalid email format';
+        else if (!value.toLowerCase().endsWith('@gmail.com')) error = 'Only @gmail.com emails are allowed';
         break;
       case 'contact_number':
         if (!value) error = 'Phone number is required';
@@ -112,9 +113,12 @@ const AddDoctorModal = ({
         break;
       case 'username':
         if (!editingDoctor && !value) error = 'Username is required';
+        else if (value && !/^Doc_[A-Z][A-Za-z0-9]*$/.test(value)) error = "Username must start with 'Doc_' followed by a Capital letter (e.g., Doc_Smith)";
         break;
       case 'password':
         if (!editingDoctor && !value) error = 'Password is required';
+        else if (value && value.length < 8) error = 'Password must be at least 8 characters';
+        else if (value && !/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]*$/.test(value)) error = 'Password requires at least 1 uppercase, 1 lowercase, 1 number, and 1 special character';
         break;
       case 'gender':
         if (!value) error = 'Gender selection is required';

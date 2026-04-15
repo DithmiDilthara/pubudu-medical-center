@@ -16,8 +16,6 @@ import {
 } from 'react-icons/fi';
 import DoctorHeader from '../../components/DoctorHeader';
 import DoctorSidebar from '../../components/DoctorSidebar';
-import ClockTimePicker from '../../components/ClockTimePicker';
-import ConfirmationModal from '../../components/ConfirmationModal';
 import { toast } from 'react-hot-toast';
 
 function DoctorAvailability() {
@@ -26,17 +24,12 @@ function DoctorAvailability() {
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   
-  // New Add Session State
-  const [bookingType, setBookingType] = useState('ONE-TIME'); // 'ONE-TIME' or 'RECURRING'
-  const [selectedDayIndex, setSelectedDayIndex] = useState(0); // For recurring
-  const [startTime, setStartTime] = useState('09:00');
-  const [endTime, setEndTime] = useState('11:00');
-  const [endDate, setEndDate] = useState(''); // For recurring end
 
   const [doctorName, setDoctorName] = useState('Doctor');
   const [rawAvailability, setRawAvailability] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState(null);
+  const [userRole, setUserRole] = useState(null);
 
   const fetchAvailability = async () => {
     try {
@@ -46,9 +39,17 @@ function DoctorAvailability() {
       });
 
       if (profileRes.data.success) {
-        setDoctorName(profileRes.data.data.profile.full_name);
-        const doctorId = profileRes.data.data.profile.doctor_id;
-        const availabilityRes = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/doctors/${doctorId}/availability`);
+        setDoctorName(profileRes.data.data?.profile?.full_name || 'Doctor');
+        if (profileRes.data.data?.user) {
+          setUserRole(profileRes.data.data.user.role_id);
+        } else if (profileRes.data.data?.role_id) {
+          // Fallback if role_id is top-level
+          setUserRole(profileRes.data.data.role_id);
+        }
+        const doctorId = profileRes.data.data?.profile?.doctor_id;
+        const availabilityRes = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/doctors/${doctorId}/availability`, {
+            headers: { Authorization: `Bearer ${token}` }
+        });
 
         if (availabilityRes.data.success) {
           setRawAvailability(availabilityRes.data.data);
@@ -84,19 +85,15 @@ function DoctorAvailability() {
   // Process raw availability for calendar view
   const availabilityMap = useMemo(() => {
     const map = {};
-    const todayStr = today.toISOString().split('T')[0];
-    
     rawAvailability.forEach(a => {
-      if (a.schedule_date) {
-        if (!map[a.schedule_date]) map[a.schedule_date] = [];
-        map[a.schedule_date].push(a);
-      } else if (a.day_of_week) {
-        if (!map[a.day_of_week]) map[a.day_of_week] = [];
-        map[a.day_of_week].push(a);
+      const key = a.schedule_date || a.day_of_week;
+      if (key) {
+        if (!map[key]) map[key] = [];
+        map[key].push(a);
       }
     });
     return map;
-  }, [rawAvailability, today]);
+  }, [rawAvailability]);
 
   const calendarDays = useMemo(() => {
     const daysInMonth = getDaysInMonth(selectedMonth, selectedYear);
@@ -115,14 +112,23 @@ function DoctorAvailability() {
       
       const specific = availabilityMap[dateKey] || [];
       const recurring = availabilityMap[dayOfWeekName] || [];
-      
+      const allSessions = [...recurring, ...specific];
+
+      // Determine day status
+      const hasActive = allSessions.some(s => s.status === 'ACTIVE' && !s.is_exclusion);
+      const hasRecurringActive = recurring.some(s => s.status === 'ACTIVE' && !s.is_exclusion);
+      const isCancelled = allSessions.length > 0 && allSessions.every(s => s.status === 'CANCELLED' || s.is_exclusion);
+
       days.push({
         type: 'day',
         day,
         dateKey,
         dateObj,
         isPast: dateObj < today,
-        sessions: [...recurring, ...specific],
+        sessions: allSessions,
+        hasActive,
+        hasRecurringActive,
+        isCancelled,
         isSelected: selectedDate === dateKey
       });
     }
@@ -149,84 +155,6 @@ function DoctorAvailability() {
     setSelectedDate(null);
   };
 
-  const handleAddSession = async () => {
-    if (bookingType === 'ONE-TIME' && !selectedDate) {
-      toast.error("Please select a date on the calendar first!");
-      return;
-    }
-
-    if (startTime >= endTime) {
-      toast.error("End time must be after start time.");
-      return;
-    }
-
-    // ENFORCE OPERATING HOURS: 07:00 - 21:00
-    if (startTime < '07:00' || endTime > '21:00') {
-      toast.error("Sessions must be within operating hours (7:00 AM – 9:00 PM)");
-      return;
-    }
-
-    // ENFORCE MINIMUM DURATION: 1 HOUR
-    const start = new Date(`1970-01-01T${startTime}`);
-    const end = new Date(`1970-01-01T${endTime}`);
-    const durationMinutes = (end - start) / (1000 * 60);
-    
-    if (durationMinutes < 60) {
-      toast.error("Session duration must be at least 1 hour");
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      const token = localStorage.getItem('token');
-      const payload = {
-        availability: [{
-          schedule_date: bookingType === 'ONE-TIME' ? selectedDate : null,
-          day_of_week: bookingType === 'RECURRING' ? fullDays[selectedDayIndex] : null,
-          start_time: startTime,
-          end_time: endTime,
-          end_date: bookingType === 'RECURRING' ? endDate || null : null
-        }]
-      };
-
-      const response = await axios.post(
-        `${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/clinical/availability`,
-        payload,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      if (response.data.success) {
-        toast.success("Session added successfully");
-        await fetchAvailability();
-      }
-    } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to add session.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleDeleteSession = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this session?")) return;
-    
-    setIsLoading(true);
-    try {
-      const token = localStorage.getItem('token');
-      const response = await axios.delete(
-        `${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/clinical/availability/${id}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      if (response.data.success) {
-        toast.success("Session deleted");
-        await fetchAvailability();
-      }
-    } catch (error) {
-      toast.error("Failed to delete session");
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const handleLogout = () => {
     localStorage.clear();
@@ -256,13 +184,15 @@ function DoctorAvailability() {
           <div style={styles.headerRow}>
             <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}>
               <h1 style={styles.pageTitle}>Schedule & Availability</h1>
-              <p style={styles.pageSubtitle}>Precision management of multiple clinical sessions</p>
+              <p style={styles.pageSubtitle}>
+                View your clinical sessions as managed by the receptionist staff.
+              </p>
             </motion.div>
           </div>
 
           <div style={styles.gridContainer}>
-            {/* Left: Calendar & Session List */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+            {/* Left: Calendar & Legend */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
               <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} style={styles.calendarCard}>
                 <div style={styles.calendarHeader}>
                   <h2 style={styles.monthTitle}>{monthNames[selectedMonth]} {selectedYear}</h2>
@@ -284,16 +214,26 @@ function DoctorAvailability() {
                           ...styles.dayCell,
                           ...(item.isPast ? styles.pastCell : {}),
                           ...(item.isSelected ? styles.selectedCell : {}),
-                          ...(item.sessions.length > 0 && !item.isSelected ? (
-                            item.sessions.some(s => !s.schedule_date) ? styles.recurringDay : styles.availableDay
-                          ) : {})
+                          ...(item.hasActive && !item.isSelected ? (
+                            item.hasRecurringActive ? styles.recurringDay : styles.availableDay
+                          ) : {}),
+                          ...(item.isCancelled && !item.isSelected ? styles.cancelledDay : {})
                         }}
                       >
-                        <span style={{ fontSize: '13px', fontWeight: '700', color: item.isSelected ? '#1d4ed8' : (item.isPast ? '#94a3b8' : '#1e293b') }}>{item.day}</span>
-                        {item.sessions.length > 0 && <div style={styles.sessionCount}>{item.sessions.length}</div>}
+                        <span style={{ fontSize: '13px', fontWeight: '700', color: item.isSelected ? '#1d4ed8' : (item.isPast ? '#94a3b8' : (item.isCancelled ? '#ef4444' : '#1e293b')) }}>{item.day}</span>
+                        {item.sessions.filter(s => s.status !== 'CANCELLED').length > 0 && (
+                          <div style={styles.sessionCount}>{item.sessions.filter(s => s.status !== 'CANCELLED').length}</div>
+                        )}
                       </motion.button>
                     )
                   ))}
+                </div>
+
+                {/* VISUAL LEGEND */}
+                <div style={styles.legendContainer}>
+                  <div style={styles.legendItem}><div style={{...styles.legendColor, ...styles.availableDay}}></div> <span>One-Time Session</span></div>
+                  <div style={styles.legendItem}><div style={{...styles.legendColor, ...styles.recurringDay}}></div> <span>Weekly Recurring</span></div>
+                  <div style={styles.legendItem}><div style={{...styles.legendColor, ...styles.cancelledDay}}></div> <span>Cancelled / Unavailable</span></div>
                 </div>
               </motion.div>
 
@@ -308,16 +248,23 @@ function DoctorAvailability() {
                     
                     <div style={styles.sessionsList}>
                       {currentDaySessions.length > 0 ? currentDaySessions.map(session => (
-                        <div key={session.schedule_id} style={styles.sessionItem}>
+                        <div key={session.schedule_id} style={{
+                          ...styles.sessionItem,
+                          ...(session.status === 'CANCELLED' ? { opacity: 0.6, backgroundColor: '#fdf2f2' } : {})
+                        }}>
                           <div style={styles.sessionTime}>
-                            <FiClock style={{ color: '#2563eb' }} />
-                            <span>{session.start_time} - {session.end_time}</span>
+                            <FiClock style={{ color: session.status === 'CANCELLED' ? '#ef4444' : '#2563eb' }} />
+                            <span style={{ textDecoration: session.status === 'CANCELLED' ? 'line-through' : 'none' }}>
+                                {session.start_time} - {session.end_time}
+                            </span>
                             {!session.schedule_date && <span style={styles.recurringBadge}>Recurring</span>}
                           </div>
                           <div style={styles.sessionInfo}>
-                            <button onClick={() => handleDeleteSession(session.schedule_id)} style={styles.deleteIconButton} title="Delete Session">
-                              <FiTrash2 />
-                            </button>
+                             {session.status === 'CANCELLED' && (
+                               <span style={{ color: '#ef4444', fontWeight: '800', fontSize: '11px', textTransform: 'uppercase' }}>
+                                 <FiAlertCircle inline /> Cancelled
+                               </span>
+                             )}
                           </div>
                         </div>
                       )) : (
@@ -329,72 +276,6 @@ function DoctorAvailability() {
               </AnimatePresence>
             </div>
 
-            {/* Right: Add Session Form */}
-            <div style={styles.settingsColumn}>
-              <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} style={styles.settingsCard}>
-                <div style={styles.cardHeader}>
-                  <div style={{ ...styles.cardIconBox, background: '#eff6ff', color: '#2563eb' }}><FiPlus size={20} /></div>
-                  <h3 style={styles.cardTitle}>Add New Session</h3>
-                </div>
-
-                <div style={styles.toggleGroup}>
-                  <button 
-                    onClick={() => setBookingType('ONE-TIME')} 
-                    style={{...styles.toggleBtn, ...(bookingType === 'ONE-TIME' ? styles.toggleBtnActive : {})}}
-                  >One-time</button>
-                  <button 
-                    onClick={() => setBookingType('RECURRING')} 
-                    style={{...styles.toggleBtn, ...(bookingType === 'RECURRING' ? styles.toggleBtnActive : {})}}
-                  >Recurring</button>
-                </div>
-
-                <div style={styles.formStack}>
-                  {bookingType === 'RECURRING' ? (
-                    <>
-                      <div style={styles.inputGroup}>
-                        <label style={styles.label}>Day of Week</label>
-                        <select 
-                          style={styles.select} 
-                          value={selectedDayIndex} 
-                          onChange={(e) => setSelectedDayIndex(parseInt(e.target.value))}
-                        >
-                          {daysOfWeek.map((day, idx) => <option key={day} value={idx}>{fullDays[idx]}</option>)}
-                        </select>
-                      </div>
-                      <div style={styles.inputGroup}>
-                        <label style={styles.label}>End Recurring Date (Optional)</label>
-                        <input 
-                          type="date" 
-                          style={styles.input} 
-                          value={endDate} 
-                          onChange={(e) => setEndDate(e.target.value)}
-                        />
-                      </div>
-                    </>
-                  ) : (
-                    <div style={styles.infoBox}>
-                      <FiInfo />
-                      <span>{selectedDate ? `Selected: ${selectedDate}` : "Select a date on the calendar first"}</span>
-                    </div>
-                  )}
-
-                  <div style={styles.timeGrid}>
-                    <ClockTimePicker label="Start Time" value={startTime} onChange={setStartTime} />
-                    <ClockTimePicker label="End Time" value={endTime} onChange={setEndTime} />
-                  </div>
-
-
-
-                  <button 
-                    onClick={handleAddSession} 
-                    disabled={isLoading || (bookingType === 'ONE-TIME' && !selectedDate)} 
-                    style={styles.addBtn}
-                  >
-                    {isLoading ? 'Adding...' : <><FiPlus /> Add Session</>}
-                  </button>
-                </div>
-              </motion.div>
-            </div>
           </div>
         </main>
       </div>
@@ -443,8 +324,9 @@ const styles = {
   },
   gridContainer: {
     display: 'grid',
-    gridTemplateColumns: '1.6fr 1fr',
-    gap: '32px'
+    gridTemplateColumns: 'minmax(0, 1fr) 380px',
+    gap: '32px',
+    alignItems: 'start'
   },
   calendarCard: {
     backgroundColor: 'white',
@@ -519,8 +401,31 @@ const styles = {
   emptyCell: { aspectDay: '1', opacity: 0 },
   pastCell: { backgroundColor: '#f8fafc', cursor: 'not-allowed', opacity: 0.5 },
   selectedCell: { borderColor: '#2563eb', borderWidth: '2px', backgroundColor: '#eff6ff' },
-  availableDay: { backgroundColor: '#eff6ff', borderColor: '#3b82f6' },
-  recurringDay: { backgroundColor: '#fffbeb', borderColor: '#f59e0b' },
+  availableDay: { backgroundColor: '#dbeafe', borderColor: '#2563eb' },
+  recurringDay: { backgroundColor: '#fef3c7', borderColor: '#d97706' },
+  cancelledDay: { backgroundColor: '#f1f5f9', borderColor: '#ef4444', borderStyle: 'dotted', borderWidth: '2px' },
+  legendContainer: {
+    padding: '16px 24px',
+    backgroundColor: '#f8fafc',
+    borderTop: '1px solid #e2e8f0',
+    display: 'flex',
+    gap: '24px',
+    justifyContent: 'center'
+  },
+  legendItem: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    fontSize: '12px',
+    fontWeight: '600',
+    color: '#64748b'
+  },
+  legendColor: {
+    width: '12px',
+    height: '12px',
+    borderRadius: '4px',
+    border: '1px solid currentColor'
+  },
   sessionCount: {
     position: 'absolute',
     bottom: '4px',

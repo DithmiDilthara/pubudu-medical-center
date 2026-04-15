@@ -2,7 +2,7 @@ import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import nodemailer from 'nodemailer';
 import bcrypt from 'bcryptjs';
-import { User, Role, Patient, Doctor, Receptionist, Admin, Token } from '../models/index.js';
+import { User, Role, Patient, Adult, Child, Doctor, Receptionist, Admin, Token } from '../models/index.js';
 import sequelize from '../config/database.js';
 import NotificationService from '../utils/NotificationService.js';
 
@@ -54,11 +54,36 @@ const getUserProfile = async (userId, roleId) => {
       userData.profile = receptionist;
       break;
     case 4: // Patient
-      const patient = await Patient.findOne({ where: { user_id: userId } });
-      userData.profile = patient;
+      try {
+        const patient = await Patient.findOne({
+          where: { user_id: userId },
+          include: [
+            { model: Adult, as: 'adult' },
+            { model: Child, as: 'child' }
+          ]
+        });
+        if (patient) {
+          const patientJSON = patient.toJSON();
+          // Flatten NIC for backward compatibility
+          if (patientJSON.patient_type === 'ADULT' && patientJSON.adult) {
+            patientJSON.nic = patientJSON.adult.nic;
+          } else {
+            patientJSON.nic = null;
+          }
+          userData.profile = patientJSON;
+        } else {
+          userData.profile = null;
+        }
+      } catch (err) {
+        console.error(`Error fetching patient profile for user ${userId}:`, err);
+        userData.profile = null;
+      }
       break;
   }
 
+  // Ensure userData has a profile property even if null, to avoid crashes on frontend
+  userData.profile = userData.profile || null;
+  
   return userData;
 };
 
@@ -104,7 +129,7 @@ export const login = async (req, res) => {
       }]
     });
 
-    if (!user) {
+    if (!user || user.username !== username) {
       return res.status(401).json({ success: false, message: 'Invalid username or password.' });
     }
 
@@ -301,28 +326,135 @@ export const logout = async (req, res) => {
     res.status(200).json({ success: true, message: 'Logged out successfully' });
 };
 
+/**
+ * @desc    Check if email or NIC already exists
+ * @route   POST /api/auth/check-availability
+ * @access  Public
+ */
+export const checkAvailability = async (req, res) => {
+    try {
+        const { type, value } = req.body;
+        if (!type || !value) {
+            return res.status(400).json({ success: false, message: 'Type and value are required' });
+        }
+
+        if (type === 'email') {
+            const user = await User.findOne({ where: { email: value } });
+            return res.status(200).json({ success: true, exists: !!user, message: user ? 'This email is already registered' : 'Email is available' });
+        }
+
+        if (type === 'nic') {
+            const adult = await Adult.findOne({ where: { nic: value.trim().toUpperCase() } });
+            return res.status(200).json({ success: true, exists: !!adult, message: adult ? 'This NIC is already registered' : 'NIC is available' });
+        }
+
+        if (type === 'username') {
+            const user = await User.findOne({ where: { username: value } });
+            return res.status(200).json({ success: true, exists: !!user, message: user ? 'This username is already taken' : 'Username is available' });
+        }
+
+        return res.status(400).json({ success: false, message: 'Invalid check type. Must be email, nic, or username.' });
+    } catch (error) {
+        console.error('Check availability error:', error);
+        res.status(500).json({ success: false, message: 'Server error during availability check' });
+    }
+};
+
 // @desc    Register a new patient (Public)
 export const registerPatient = async (req, res) => {
     const transaction = await sequelize.transaction();
     try {
-        const { username, email, password, full_name, nic, phone, contact_number, date_of_birth, gender, address, blood_group, allergies } = req.body;
+        const { 
+            username, email, password, full_name, 
+            patient_type, nic, 
+            guardian_name, guardian_contact, guardian_relationship,
+            phone, contact_number, date_of_birth, gender, address, blood_group, allergies 
+        } = req.body;
         const targetPhone = phone || contact_number;
+        const type = (patient_type || 'ADULT').toUpperCase();
 
+        // --- Basic Validation ---
         if (!username || !email || !password) {
             await transaction.rollback();
             return res.status(400).json({ success: false, message: 'Username, email, and password are required.' });
+        }
+
+        if (!['ADULT', 'CHILD'].includes(type)) {
+            await transaction.rollback();
+            return res.status(400).json({ success: false, message: 'Patient type must be ADULT or CHILD.' });
+        }
+
+        // --- NEW: Email & Username Uniqueness Checks ---
+        const existingEmail = await User.findOne({ where: { email }, transaction });
+        if (existingEmail) {
+            await transaction.rollback();
+            return res.status(400).json({ success: false, message: 'This email is already registered.' });
+        }
+
+        const existingUsername = await User.findOne({ where: { username }, transaction });
+        if (existingUsername) {
+            await transaction.rollback();
+            return res.status(400).json({ success: false, message: 'This username is already taken.' });
+        }
+
+        // --- Conditional Validation ---
+        if (type === 'ADULT') {
+            if (!nic || !nic.trim()) {
+                await transaction.rollback();
+                return res.status(400).json({ success: false, message: 'NIC is required for adult patients.' });
+            }
+            const nicStr = nic.trim().toUpperCase();
+            if (!/^[0-9]{9}[VX]$/.test(nicStr) && !/^[0-9]{12}$/.test(nicStr)) {
+                await transaction.rollback();
+                return res.status(400).json({ success: false, message: 'Invalid NIC format.' });
+            }
+            // Check for duplicate NIC
+            const existingNIC = await Adult.findOne({ where: { nic: nicStr }, transaction });
+            if (existingNIC) {
+                await transaction.rollback();
+                return res.status(400).json({ success: false, message: 'This NIC is already registered.' });
+            }
+        }
+
+        if (type === 'CHILD') {
+            if (!guardian_name || !guardian_contact || !guardian_relationship) {
+                await transaction.rollback();
+                return res.status(400).json({ success: false, message: 'Guardian name, contact, and relationship are required for child patients.' });
+            }
         }
 
         if (date_of_birth) {
             const dob = new Date(date_of_birth);
             const today = new Date();
             today.setHours(0, 0, 0, 0);
+            
             if (dob > today) {
                 await transaction.rollback();
                 return res.status(400).json({ success: false, message: 'Date of birth cannot be in the future' });
             }
+
+            // Calculate age
+            let age = today.getFullYear() - dob.getFullYear();
+            const m = today.getMonth() - dob.getMonth();
+            if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) {
+                age--;
+            }
+
+            // Validate age against patient type
+            if (type === 'ADULT' && age < 18) {
+                await transaction.rollback();
+                return res.status(400).json({ success: false, message: 'Adult patients must be 18 years or older.' });
+            }
+            if (type === 'CHILD' && age >= 18) {
+                await transaction.rollback();
+                return res.status(400).json({ success: false, message: 'Child patients must be under 18 years old.' });
+            }
+        } else {
+            await transaction.rollback();
+            return res.status(400).json({ success: false, message: 'Date of birth is required.' });
         }
 
+        // --- STEP 1: Create User ---
         const role = await Role.findOne({ where: { role_name: 'Patient' }, transaction });
         const newUser = await User.create({ username, email, password_hash: password, role_id: role.role_id, contact_number: targetPhone, is_active: true }, { transaction });
         
@@ -336,10 +468,11 @@ export const registerPatient = async (req, res) => {
             { expiresIn: '10m' }
         );
 
+        // --- STEP 2: Create Patient ---
         const newPatient = await Patient.create({ 
             user_id: newUser.user_id, 
             full_name, 
-            nic, 
+            patient_type: type,
             date_of_birth, 
             gender, 
             address, 
@@ -348,6 +481,21 @@ export const registerPatient = async (req, res) => {
             registration_source: 'ONLINE',
             is_verified: false
         }, { transaction });
+
+        // --- STEP 3: Create Adult or Child detail ---
+        if (type === 'ADULT') {
+            await Adult.create({
+                patient_id: newPatient.patient_id,
+                nic: nic.trim().toUpperCase()
+            }, { transaction });
+        } else {
+            await Child.create({
+                patient_id: newPatient.patient_id,
+                guardian_name,
+                guardian_contact,
+                guardian_relationship
+            }, { transaction });
+        }
 
         await transaction.commit();
 
@@ -593,5 +741,6 @@ export default {
     getTokens,
     verifyAuth,
     verifyEmail,
-    resendOtp
+    resendOtp,
+    checkAvailability
 };

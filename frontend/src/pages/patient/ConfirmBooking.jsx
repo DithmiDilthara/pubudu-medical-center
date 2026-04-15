@@ -84,7 +84,8 @@ function ConfirmBooking() {
         });
       }
     } catch (error) {
-      toast.error("Booking initialization failed", { id: toastId });
+      const errMsg = error.response?.data?.message || "Booking initialization failed";
+      toast.error(errMsg, { id: toastId });
     } finally {
       setIsLoading(false);
     }
@@ -112,7 +113,8 @@ function ConfirmBooking() {
         navigate("/patient/appointments");
       }
     } catch (error) {
-      toast.error("Confirmation failed", { id: toastId });
+      const errMsg = error.response?.data?.message || "Confirmation failed";
+      toast.error(errMsg, { id: toastId });
     } finally {
       setIsLoading(false);
     }

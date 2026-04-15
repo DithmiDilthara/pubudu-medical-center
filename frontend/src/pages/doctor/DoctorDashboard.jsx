@@ -18,7 +18,6 @@ import DoctorHeader from '../../components/DoctorHeader';
 import DoctorSidebar from '../../components/DoctorSidebar';
 import AppointmentCard from '../../components/AppointmentCard';
 import AppointmentCalendar from '../../components/AppointmentCalendar';
-import RevenueChart from '../../components/RevenueChart';
 import StatsCard from '../../components/StatsCard';
 
 function DoctorDashboard() {
@@ -34,12 +33,6 @@ function DoctorDashboard() {
     completedToday: 0
   });
 
-  const [revenueData, setRevenueData] = useState({
-    daily: 0,
-    weekly: 0,
-    monthly: 0,
-    total: 0
-  });
 
   const getLocalDateString = (date) => {
     const offset = date.getTimezoneOffset() * 60000;
@@ -105,40 +98,6 @@ function DoctorDashboard() {
             completedToday: completedTodayCnt
           });
 
-          // Calculate Real Revenue
-          const paidAppts = appts.filter(appt => appt.payment_status === 'PAID');
-          
-          const getPastDate = (days) => {
-            const d = new Date();
-            d.setDate(d.getDate() - days);
-            return getLocalDateString(d);
-          };
-
-          const weekStart = getPastDate(7);
-          const monthStart = getPastDate(30);
-
-          const dailyRev = paidAppts
-            .filter(a => a.appointment_date === todayDate)
-            .reduce((sum, a) => sum + Number(a.doctor?.doctor_fee || 0), 0);
-
-          const weeklyRev = paidAppts
-            .filter(a => a.appointment_date >= weekStart && a.appointment_date <= todayDate)
-            .reduce((sum, a) => sum + Number(a.doctor?.doctor_fee || 0), 0);
-
-          const monthlyRev = paidAppts
-            .filter(a => a.appointment_date >= monthStart && a.appointment_date <= todayDate)
-            .reduce((sum, a) => sum + Number(a.doctor?.doctor_fee || 0), 0);
-
-          const totalRev = paidAppts
-            .reduce((sum, a) => sum + Number(a.doctor?.doctor_fee || 0), 0);
-
-          setRevenueData({
-            daily: dailyRev,
-            weekly: weeklyRev,
-            monthly: monthlyRev,
-            total: totalRev,
-            appointments: appts // Pass all appointments for detailed chart calculation
-          });
         }
       } catch (error) {
         console.error("Error fetching dashboard data:", error);
@@ -295,10 +254,47 @@ function DoctorDashboard() {
               </div>
             </div>
 
-            {/* Right Column: Revenue Breakdown */}
+            {/* Right Column: Financial Quick Actions */}
             <div style={styles.calendarColumn}>
+              <div style={styles.sectionHeader}>
+                <h2 style={styles.sectionTitle}>Financials</h2>
+              </div>
               <div style={styles.chartSection}>
-                 <RevenueChart revenueData={revenueData} />
+                 <motion.div 
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => navigate('/doctor/revenue')}
+                    style={{
+                      ...styles.statCard, 
+                      background: "linear-gradient(135deg, #1e293b 0%, #0f172a 100%)",
+                      color: "white",
+                      cursor: "pointer",
+                      border: "none",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "flex-start",
+                      padding: "32px",
+                      boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)"
+                    }}
+                 >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginBottom: '24px' }}>
+                      <div style={{ ...styles.statIconWrapper, backgroundColor: "rgba(255,255,255,0.1)", color: "white" }}>
+                        <FiBarChart2 style={styles.statIcon} />
+                      </div>
+                      <div style={{ backgroundColor: 'rgba(255,255,255,0.2)', padding: '6px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: '600' }}>
+                        View Detailed Report
+                      </div>
+                    </div>
+                    <div>
+                      <h3 style={{ margin: '0 0 8px 0', fontSize: '24px', fontWeight: '800', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>My Revenue</h3>
+                      <p style={{ margin: 0, fontSize: '14px', color: '#cbd5e1', opacity: 0.9 }}>
+                        Track your earnings, monitor completed sessions, and view refund deductions accurately.
+                      </p>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '24px', color: '#38bdf8', fontSize: '14px', fontWeight: '700' }}>
+                      Open Report Dashboard <FiChevronRight />
+                    </div>
+                 </motion.div>
               </div>
             </div>
           </motion.div>

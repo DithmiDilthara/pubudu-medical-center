@@ -10,7 +10,11 @@ import {
   FiUsers, 
   FiGrid,
   FiX,
-  FiArrowRight
+  FiArrowRight,
+  FiRepeat,
+  FiDollarSign,
+  FiClock,
+  FiCheckCircle
 } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
@@ -86,6 +90,11 @@ const Reports = () => {
   const handleExportPDF = async () => {
     if (!reportData) return;
     
+    if (reportType === 'income') {
+      await generateIncomePDF();
+      return;
+    }
+    
     if (reportType === 'appointments') {
       await generateAppointmentsPDF();
       return;
@@ -114,6 +123,207 @@ const Reports = () => {
     }
   };
 
+  const generateIncomePDF = async () => {
+    setIsExporting(true);
+    try {
+      const logoImg = await getCircularBase64ImageFromURL(logo);
+      await new Promise(resolve => setTimeout(resolve, 500));
+      const payChartImg = await captureComponentAsBase64(pieChartRef.current);
+      const statChartImg = await captureComponentAsBase64(barChartRef.current);
+
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+      const today = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+      const colors = {
+        headerBg: '#60a5fa',
+        titleBlue: '#1e40af',
+        tableHeader: '#4f46e5',
+        borderBlue: '#e0e7ff',
+        incomeGreen: '#059669',
+        refundRed: '#dc2626',
+        centerBlue: '#2563eb',
+        labelGray: '#64748b',
+        altRow: '#f8fafc'
+      };
+
+      const docDefinition = {
+        pageSize: 'A4',
+        pageMargins: [40, 40, 40, 60],
+        content: [
+          {
+            table: {
+              widths: ['*'],
+              body: [[
+                {
+                  fillColor: colors.headerBg,
+                  columns: [
+                    { image: logoImg, width: 45, margin: [10, 10, 0, 10] },
+                    { text: 'Pubudu Medical Center', style: 'hospitalName', margin: [10, 15, 0, 0], width: '*' },
+                    {
+                      stack: [
+                        { text: 'No 46, Matara Road, Hakmana', style: 'contactInfo' },
+                        { text: '071-8050917 / 076-9659767 / 076-6880179', style: 'contactInfo' },
+                      ],
+                      width: 'auto', margin: [0, 15, 10, 0]
+                    }
+                  ],
+                  border: [false, false, false, false]
+                }
+              ]]
+            },
+            layout: 'noBorders', margin: [-40, -40, -40, 30]
+          },
+          { text: 'ADVANCED INCOME REPORT', style: 'title' },
+          { text: `Period: ${startDate} – ${endDate} | Generated: ${today} at ${timeStr}`, style: 'subtitle' },
+          { canvas: [{ type: 'line', x1: 0, y1: 5, x2: 515, y2: 5, lineWidth: 0.5, lineColor: colors.headerBg }], margin: [0, 5, 0, 20] },
+          
+          {
+            table: {
+              widths: ['50%', '50%'],
+              body: [
+                [
+                  { stack: [{ text: 'TOTAL NET CASH', style: 'kpiLabel' }, { text: `LKR ${reportData.summary.totalNetCash.toLocaleString()}`, style: 'kpiValue' }], fillColor: colors.incomeGreen, colSpan: 2 },
+                  {}
+                ],
+                [
+                  { stack: [{ text: 'GROSS CENTER INCOME', style: 'kpiLabel' }, { text: `LKR ${reportData.summary.grossCenterIncome.toLocaleString()}`, style: 'kpiValue' }], fillColor: colors.centerBlue },
+                  { stack: [{ text: 'NET DOCTOR REVENUE', style: 'kpiLabel' }, { text: `LKR ${reportData.summary.netDoctorIncome.toLocaleString()}`, style: 'kpiValue' }], fillColor: '#4338ca' }
+                ]
+              ]
+            },
+            margin: [0, 0, 0, 30]
+          },
+
+          { text: 'FINANCIAL VISUALIZATION', style: 'sectionTitle' },
+          {
+            columns: [
+              {
+                stack: [
+                  { text: 'Payment Method Breakdown', style: 'chartTitle' },
+                  { image: payChartImg, width: 220 }
+                ]
+              },
+              {
+                stack: [
+                  { text: 'Transaction Volume Breakdown', style: 'chartTitle' },
+                  { image: statChartImg, width: 250 }
+                ]
+              }
+            ]
+          },
+          
+          { text: 'DETAILED CALCULATION TABLES', style: 'sectionTitle', margin: [0, 40, 0, 10], pageBreak: 'before' },
+
+          // --- 1. Center Income Table ---
+          { text: '1. Gross Center Income Calculation (Non-Refundable Fees)', style: 'tableSubTitle' },
+          {
+            table: {
+              headerRows: 1,
+              widths: ['*', 70, 100],
+              body: [
+                [{ text: 'DOCTOR NAME', style: 'tableHeader' }, { text: 'PATIENTS', style: 'tableHeader', alignment: 'center' }, { text: 'CLINIC PROFIT', style: 'tableHeader', alignment: 'right' }],
+                ...reportData.doctorBreakdown.map((doc, i) => [
+                  { text: doc.doctorName, fillColor: i % 2 === 0 ? 'white' : colors.altRow },
+                  { text: doc.patientCount.toString(), alignment: 'center', fillColor: i % 2 === 0 ? 'white' : colors.altRow },
+                  { text: `LKR ${doc.grossCenter.toLocaleString()}`, alignment: 'right', fillColor: i % 2 === 0 ? 'white' : colors.altRow }
+                ]),
+                [{ text: 'TOTAL GROSS CENTER INCOME', bold: true, colSpan: 2 }, {}, { text: `LKR ${reportData.summary.grossCenterIncome.toLocaleString()}`, bold: true, alignment: 'right' }]
+              ]
+            },
+            margin: [0, 0, 0, 25]
+          },
+
+          // --- 2. Doctor Revenue Table ---
+          { text: '2. Gross Doctor Revenue Calculation', style: 'tableSubTitle' },
+          {
+            table: {
+              headerRows: 1,
+              widths: ['*', 100],
+              body: [
+                [{ text: 'DOCTOR NAME', style: 'tableHeader' }, { text: 'INITIAL COLLECTION', style: 'tableHeader', alignment: 'right' }],
+                ...reportData.doctorBreakdown.map((doc, i) => [
+                  { text: doc.doctorName, fillColor: i % 2 === 0 ? 'white' : colors.altRow },
+                  { text: `LKR ${doc.grossDoctor.toLocaleString()}`, alignment: 'right', fillColor: i % 2 === 0 ? 'white' : colors.altRow }
+                ]),
+                [{ text: 'TOTAL INITIAL DOCTOR COLLECTION', bold: true }, { text: `LKR ${reportData.summary.grossDoctorIncome.toLocaleString()}`, bold: true, alignment: 'right' }]
+              ]
+            },
+            margin: [0, 0, 0, 25]
+          },
+
+          // --- 3. Refunds Table ---
+          { text: '3. Total Refunds Processed (Amount returned to patients)', style: 'tableSubTitle' },
+          {
+            table: {
+              headerRows: 1,
+              widths: ['*', 100],
+              body: [
+                [{ text: 'REFUND DETAILS (BY PATIENT)', style: 'tableHeader' }, { text: 'REFUNDED AMOUNT', style: 'tableHeader', alignment: 'right' }],
+                ...(reportData.individualRefunds && reportData.individualRefunds.length > 0 
+                  ? reportData.individualRefunds.map((refund, i) => [
+                    { text: `Refund for ${refund.patientName}`, fillColor: i % 2 === 0 ? 'white' : colors.altRow },
+                    { text: `LKR ${refund.amount.toLocaleString()}`, color: colors.refundRed, alignment: 'right', fillColor: i % 2 === 0 ? 'white' : colors.altRow }
+                  ]) 
+                  : [['No refunds processed in this period', { text: 'LKR 0', alignment: 'right' }]]),
+                [{ text: 'TOTAL REFUNDS ISSUED', bold: true }, { text: `- LKR ${reportData.summary.totalRefunds.toLocaleString()}`, bold: true, color: colors.refundRed, alignment: 'right' }]
+              ]
+            },
+            margin: [0, 0, 0, 25]
+          },
+
+          // --- 4. Net Summary Table ---
+          { text: '4. Final Net Settlement (Reconciliation Summary)', style: 'tableSubTitle' },
+          {
+            table: {
+              widths: ['*', 120],
+              body: [
+                [{ text: 'CALCULATION STEP', style: 'tableHeader' }, { text: 'RESULTING VALUE', style: 'tableHeader', alignment: 'right' }],
+                ['Net Doctor Revenue', { text: `LKR ${reportData.summary.netDoctorIncome.toLocaleString()}`, alignment: 'right' }],
+                ['Center Retained Income', { text: `LKR ${reportData.summary.grossCenterIncome.toLocaleString()}`, alignment: 'right' }],
+                [{ text: 'TOTAL NET CASH HELD', bold: true, fillColor: colors.incomeGreen, color: 'white' }, { text: `LKR ${reportData.summary.totalNetCash.toLocaleString()}`, bold: true, alignment: 'right', fillColor: colors.incomeGreen, color: 'white' }]
+              ]
+            }
+          }
+        ],
+        footer: (currentPage, pageCount) => {
+          return {
+            stack: [
+              { canvas: [{ type: 'line', x1: 40, y1: 0, x2: 555, y2: 0, lineWidth: 0.5, lineColor: colors.borderBlue }] },
+              {
+                columns: [
+                  { text: `* Clinically Audited Income Statement | Issued: ${today} at ${timeStr}`, style: 'footer' },
+                  { text: `Page ${currentPage} of ${pageCount}`, style: 'footer', alignment: 'right' }
+                ],
+                margin: [40, 10, 40, 0]
+              }
+            ]
+          };
+        },
+        styles: {
+          hospitalName: { fontSize: 18, bold: true, color: 'white' },
+          contactInfo: { fontSize: 9, color: 'white', alignment: 'right' },
+          title: { fontSize: 18, bold: true, color: colors.titleBlue, alignment: 'center' },
+          subtitle: { fontSize: 10, color: '#64748b', alignment: 'center', margin: [0, 5, 0, 0] },
+          kpiLabel: { fontSize: 8, color: 'white', bold: true, margin: [10, 10, 10, 2] },
+          kpiValue: { fontSize: 13, color: 'white', bold: true, margin: [10, 0, 10, 10] },
+          sectionTitle: { fontSize: 13, bold: true, color: colors.titleBlue, margin: [0, 10, 0, 10] },
+          tableSubTitle: { fontSize: 10, bold: true, color: colors.labelGray, margin: [0, 10, 0, 5] },
+          tableHeader: { fontSize: 9, bold: true, color: 'white', fillColor: colors.tableHeader, padding: 5 },
+          chartTitle: { fontSize: 10, bold: true, alignment: 'center', margin: [0, 0, 0, 10] },
+          footer: { fontSize: 8, color: colors.labelGray }
+        }
+      };
+
+      pdfMake.createPdf(docDefinition).download(`Income_Statement_${startDate}_${endDate}.pdf`);
+      toast.success("Advanced Income Report Generated!");
+    } catch (error) {
+      console.error("Income PDF error:", error);
+      toast.error("Failed to generate Income PDF");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const generateAppointmentsPDF = async () => {
     setIsExporting(true);
     try {
@@ -126,7 +336,9 @@ const Reports = () => {
       const barChartImg = await captureComponentAsBase64(barChartRef.current);
       const pieChartImg = await captureComponentAsBase64(pieChartRef.current);
 
-      const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+      const today = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
       
       // 2. Define colors from palette
       const colors = {
@@ -187,13 +399,13 @@ const Reports = () => {
 
           // --- Title Section ---
           { text: 'APPOINTMENTS REPORT', style: 'title' },
-          { text: `Period: ${startDate} – ${endDate}  |  Generated: ${today}`, style: 'subtitle' },
+          { text: `Period: ${startDate} – ${endDate}  |  Generated: ${today} at ${timeStr}`, style: 'subtitle' },
           { canvas: [{ type: 'line', x1: 0, y1: 5, x2: 515, y2: 5, lineWidth: 0.5, lineColor: colors.headerBg }], margin: [0, 5, 0, 20] },
 
-          // --- KPI Cards (Refactored to Table for reliable Background Rendering) ---
+          // --- KPI Cards: Row 1 (4 boxes) ---
           {
             table: {
-              widths: ['20%', '20%', '20%', '20%', '20%'],
+              widths: ['25%', '25%', '25%', '25%'],
               body: [[
                 {
                   stack: [
@@ -215,13 +427,30 @@ const Reports = () => {
                 },
                 {
                   stack: [
+                    { text: 'CONFIRMED', style: 'kpiLabel' },
+                    { text: reportData.totalConfirmed.toString(), style: 'kpiValue' }
+                  ],
+                  fillColor: '#0891b2',
+                  border: [false, false, true, false],
+                  borderColor: ['white', 'white', 'white', 'white']
+                },
+                {
+                  stack: [
                     { text: 'CANCELLED', style: 'kpiLabel' },
                     { text: reportData.totalCancelled.toString(), style: 'kpiValue' }
                   ],
                   fillColor: colors.cancelled,
-                  border: [false, false, true, false],
-                  borderColor: ['white', 'white', 'white', 'white']
-                },
+                  border: [false, false, false, false]
+                }
+              ]]
+            },
+            margin: [0, 0, 0, 4]
+          },
+          // --- KPI Cards: Row 2 (3 boxes) ---
+          {
+            table: {
+              widths: ['33.3%', '33.3%', '33.4%'],
+              body: [[
                 {
                   stack: [
                     { text: 'NO-SHOW (ABSENT)', style: 'kpiLabel' },
@@ -237,6 +466,15 @@ const Reports = () => {
                     { text: reportData.totalPending.toString(), style: 'kpiValue' }
                   ],
                   fillColor: colors.pending,
+                  border: [false, false, true, false],
+                  borderColor: ['white', 'white', 'white', 'white']
+                },
+                {
+                  stack: [
+                    { text: 'RESCHEDULE REQUIRED', style: 'kpiLabel' },
+                    { text: reportData.totalRescheduleRequired.toString(), style: 'kpiValue' }
+                  ],
+                  fillColor: '#7c3aed',
                   border: [false, false, false, false]
                 }
               ]]
@@ -249,23 +487,29 @@ const Reports = () => {
           {
             table: {
               headerRows: 1,
-              widths: ['*', '*', 50, 60, 60, 50],
+              widths: ['*', '*', 34, 40, 40, 38, 38, 38, 44],
               body: [
                 [
                   { text: 'DOCTOR', style: 'tableHeader' },
                   { text: 'SPECIALISATION', style: 'tableHeader' },
                   { text: 'TOTAL', style: 'tableHeader', alignment: 'center' },
-                  { text: 'COMPLETED', style: 'tableHeader', alignment: 'center' },
-                  { text: 'CANCELLED', style: 'tableHeader', alignment: 'center' },
-                  { text: 'NO-SHOW', style: 'tableHeader', alignment: 'center' }
+                  { text: 'DONE', style: 'tableHeader', alignment: 'center' },
+                  { text: 'CONFIRMED', style: 'tableHeader', alignment: 'center' },
+                  { text: 'CANCEL', style: 'tableHeader', alignment: 'center' },
+                  { text: 'NO-SHOW', style: 'tableHeader', alignment: 'center' },
+                  { text: 'PENDING', style: 'tableHeader', alignment: 'center' },
+                  { text: 'RESCHEDULE', style: 'tableHeader', alignment: 'center' }
                 ],
                 ...reportData.doctors.map((doc, i) => [
                   { text: doc.doctor_name, style: 'tableCell', fillColor: i % 2 === 0 ? '#fff' : colors.altRow },
                   { text: doc.specialisation, style: 'tableCell', fillColor: i % 2 === 0 ? '#fff' : colors.altRow },
                   { text: doc.total.toString(), style: 'tableCell', alignment: 'center', fillColor: i % 2 === 0 ? '#fff' : colors.altRow },
                   { text: doc.completed.toString(), style: 'tableCell', alignment: 'center', bold: true, color: colors.completed, fillColor: i % 2 === 0 ? '#fff' : colors.altRow },
+                  { text: (doc.confirmed || 0).toString(), style: 'tableCell', alignment: 'center', bold: true, color: '#0891b2', fillColor: i % 2 === 0 ? '#fff' : colors.altRow },
                   { text: doc.cancelled.toString(), style: 'tableCell', alignment: 'center', bold: true, color: colors.cancelled, fillColor: i % 2 === 0 ? '#fff' : colors.altRow },
-                  { text: doc.noshow.toString(), style: 'tableCell', alignment: 'center', bold: true, color: colors.noshow, fillColor: i % 2 === 0 ? '#fff' : colors.altRow }
+                  { text: doc.noshow.toString(), style: 'tableCell', alignment: 'center', bold: true, color: colors.noshow, fillColor: i % 2 === 0 ? '#fff' : colors.altRow },
+                  { text: (doc.pending || 0).toString(), style: 'tableCell', alignment: 'center', bold: true, color: colors.pending, fillColor: i % 2 === 0 ? '#fff' : colors.altRow },
+                  { text: (doc.reschedule_required || 0).toString(), style: 'tableCell', alignment: 'center', bold: true, color: '#7c3aed', fillColor: i % 2 === 0 ? '#fff' : colors.altRow }
                 ]),
                 // Total Row
                 [
@@ -273,8 +517,11 @@ const Reports = () => {
                   {},
                   { text: reportData.totalAppointments.toString(), style: 'tableFooter', alignment: 'center' },
                   { text: reportData.totalCompleted.toString(), style: 'tableFooter', alignment: 'center' },
+                  { text: reportData.totalConfirmed.toString(), style: 'tableFooter', alignment: 'center' },
                   { text: reportData.totalCancelled.toString(), style: 'tableFooter', alignment: 'center' },
-                  { text: reportData.totalNoShow.toString(), style: 'tableFooter', alignment: 'center' }
+                  { text: reportData.totalNoShow.toString(), style: 'tableFooter', alignment: 'center' },
+                  { text: reportData.totalPending.toString(), style: 'tableFooter', alignment: 'center' },
+                  { text: reportData.totalRescheduleRequired.toString(), style: 'tableFooter', alignment: 'center' }
                 ]
               ]
             },
@@ -283,10 +530,10 @@ const Reports = () => {
               vLineWidth: (i, node) => 0.5,
               hLineColor: (i, node) => colors.borderBlue,
               vLineColor: (i, node) => colors.borderBlue,
-              paddingLeft: (i) => 8,
-              paddingRight: (i) => 8,
-              paddingTop: (i) => 6,
-              paddingBottom: (i) => 6
+              paddingLeft: (i) => 4,
+              paddingRight: (i) => 4,
+              paddingTop: (i) => 5,
+              paddingBottom: (i) => 5
             },
             margin: [0, 0, 0, 30]
           },
@@ -310,7 +557,7 @@ const Reports = () => {
               { canvas: [{ type: 'line', x1: 40, y1: 0, x2: 555, y2: 0, lineWidth: 0.5, lineColor: colors.borderBlue }] },
               {
                 columns: [
-                  { text: `* No-Show = appointments where is_noshow flag is true. | Period: ${startDate} – ${endDate}`, style: 'footer' },
+                  { text: `* Audited Appointment Summary | Issued: ${today} at ${timeStr}`, style: 'footer' },
                   { text: `Page ${currentPage} of ${pageCount}`, style: 'footer', alignment: 'right' }
                 ],
                 margin: [40, 10, 40, 0]
@@ -393,8 +640,8 @@ const Reports = () => {
                   value={reportType}
                   onChange={(e) => setReportType(e.target.value)}
                 >
-                  <option value="revenue">Revenue Report</option>
-                  <option value="patients">Patient Registration Report</option>
+                  <option value="revenue">Revenue Stats (Summary)</option>
+                  <option value="income">Advanced Income Report</option>
                   <option value="appointments">Appointment Reports</option>
                 </select>
               </div>
@@ -461,7 +708,7 @@ const Reports = () => {
                   <div>
                     <h3 style={styles.resultsTitle}>
                       {reportType === 'revenue' ? 'Revenue Analytics' : 
-                       reportType === 'patients' ? 'Patient Demographics' : 'Appointment Trends'}
+                       reportType === 'income' ? 'Financial Income Statement' : 'Appointment Trends'}
                     </h3>
                     <p style={styles.resultsPeriod}>Period: {startDate} to {endDate}</p>
                   </div>
@@ -486,26 +733,63 @@ const Reports = () => {
 
                 {/* Summary Cards */}
                 <div style={styles.summaryGrid}>
-                  <motion.div variants={itemVariants} style={styles.summaryCard}>
-                    <p style={styles.summaryLabel}>Total Revenue</p>
-                    <h4 style={styles.summaryValue}>LKR {reportData.totalRevenue?.toLocaleString() || '178,000'}</h4>
-                    <div style={styles.trendUp}>
-                      <FiTrendingUp size={12} />
-                      <span>+12.5% vs Prev</span>
-                    </div>
-                  </motion.div>
+                  {reportType === 'income' ? (
+                    <>
+                      <motion.div variants={itemVariants} style={{...styles.summaryCard, borderLeft: '5px solid #059669'}}>
+                        <p style={styles.summaryLabel}>Total net cash</p>
+                        <h4 style={{...styles.summaryValue, color: '#059669'}}>LKR {reportData.summary.totalNetCash?.toLocaleString()}</h4>
+                        <div style={styles.summaryIconBox}><FiDollarSign color="#059669" /></div>
+                      </motion.div>
+                      <motion.div variants={itemVariants} style={{...styles.summaryCard, borderLeft: '5px solid #2563eb'}}>
+                        <p style={styles.summaryLabel}>Center Revenue (Retained)</p>
+                        <h4 style={{...styles.summaryValue, color: '#2563eb'}}>LKR {reportData.summary.grossCenterIncome?.toLocaleString()}</h4>
+                        <div style={styles.summaryIconBox}><FiGrid color="#2563eb" /></div>
+                      </motion.div>
+                      <motion.div variants={itemVariants} style={{...styles.summaryCard, borderLeft: '5px solid #dc2626'}}>
+                        <p style={styles.summaryLabel}>Total Refunds Given</p>
+                        <h4 style={{...styles.summaryValue, color: '#dc2626'}}>LKR {reportData.summary.totalRefunds?.toLocaleString()}</h4>
+                        <div style={styles.summaryIconBox}><FiRepeat color="#dc2626" /></div>
+                      </motion.div>
+                      <motion.div variants={itemVariants} style={styles.summaryCard}>
+                        <p style={styles.summaryLabel}>Net Doctor Income</p>
+                        <h4 style={styles.summaryValue}>LKR {reportData.summary.netDoctorIncome?.toLocaleString()}</h4>
+                        <div style={styles.summaryIconBox}><FiUsers color="#2563eb" /></div>
+                      </motion.div>
+                      <motion.div variants={itemVariants} style={styles.summaryCard}>
+                        <p style={styles.summaryLabel}>Total Bookings</p>
+                        <h4 style={styles.summaryValue}>{reportData.summary.totalBookings}</h4>
+                        <div style={styles.summaryIconBox}><FiCheckCircle color="#2563eb" /></div>
+                      </motion.div>
+                      <motion.div variants={itemVariants} style={styles.summaryCard}>
+                        <p style={styles.summaryLabel}>No-Show Collections</p>
+                        <h4 style={styles.summaryValue}>{reportData.summary.noShowCount}</h4>
+                        <div style={styles.summaryIconBox}><FiClock color="#2563eb" /></div>
+                      </motion.div>
+                    </>
+                  ) : (
+                    <>
+                      <motion.div variants={itemVariants} style={styles.summaryCard}>
+                        <p style={styles.summaryLabel}>Total Revenue</p>
+                        <h4 style={styles.summaryValue}>LKR {reportData.totalRevenue?.toLocaleString() || '178,000'}</h4>
+                        <div style={styles.trendUp}>
+                          <FiTrendingUp size={12} />
+                          <span>+12.5% vs Prev</span>
+                        </div>
+                      </motion.div>
 
-                  <motion.div variants={itemVariants} style={styles.summaryCard}>
-                    <p style={styles.summaryLabel}>Total Patients</p>
-                    <h4 style={styles.summaryValue}>{reportData.appointmentCount || '73'}</h4>
-                    <div style={styles.summaryIconBox}><FiUsers color="#2563eb" /></div>
-                  </motion.div>
+                      <motion.div variants={itemVariants} style={styles.summaryCard}>
+                        <p style={styles.summaryLabel}>Total Patients</p>
+                        <h4 style={styles.summaryValue}>{reportData.appointmentCount || '73'}</h4>
+                        <div style={styles.summaryIconBox}><FiUsers color="#2563eb" /></div>
+                      </motion.div>
 
-                  <motion.div variants={itemVariants} style={styles.summaryCard}>
-                    <p style={styles.summaryLabel}>Top Department</p>
-                    <h4 style={{...styles.summaryValue, color: '#059669'}}>Pediatrics</h4>
-                    <div style={styles.summaryIconBox}><FiGrid color="#059669" /></div>
-                  </motion.div>
+                      <motion.div variants={itemVariants} style={styles.summaryCard}>
+                        <p style={styles.summaryLabel}>Top Department</p>
+                        <h4 style={{...styles.summaryValue, color: '#059669'}}>Pediatrics</h4>
+                        <div style={styles.summaryIconBox}><FiGrid color="#059669" /></div>
+                      </motion.div>
+                    </>
+                  )}
                 </div>
 
                 {/* Chart Section */}
@@ -515,6 +799,63 @@ const Reports = () => {
                      reportType === 'patients' ? 'Patient Registrations by Source' : 'Appointment Volume per Doctor'}
                   </h4>
                   <div style={{ width: '100%', height: 400 }}>
+                    {reportType === 'income' && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '40px', alignItems: 'center' }}>
+                        <div style={{ width: '100%', height: 400 }}>
+                          <h5 style={{ textAlign: 'center', color: '#1e293b', fontSize: '15px', fontWeight: '700', marginBottom: '20px' }}>Appointment Status Distribution</h5>
+                          <div ref={barChartRef} style={{ width: '100%', height: '360px' }}>
+                            <ResponsiveContainer width="100%" height="100%">
+                              <BarChart data={reportData.charts.appointmentStatus} margin={{ top: 10, right: 30, left: 40, bottom: 40 }}>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                <XAxis 
+                                    dataKey="name" 
+                                    axisLine={false} 
+                                    tickLine={false} 
+                                    tick={{ fill: '#64748b', fontSize: 11 }}
+                                    label={{ value: 'Status Type', position: 'insideBottom', offset: -25, fill: '#64748b', fontSize: 11, fontWeight: '600' }}
+                                />
+                                <YAxis 
+                                    axisLine={false} 
+                                    tickLine={false} 
+                                    tick={{ fill: '#3b82f6', fontSize: 12 }} 
+                                    allowDecimals={false}
+                                    label={{ value: 'Number of Patients', angle: -90, position: 'insideLeft', offset: -25, fill: '#3b82f6', fontSize: 11, fontWeight: '600' }}
+                                />
+                                <Tooltip cursor={{ fill: '#f8fafc' }} />
+                                <Legend verticalAlign="top" align="right" wrapperStyle={{ paddingBottom: '20px' }} />
+                                <Bar dataKey="value" name="Volume" fill="#4f46e5" radius={[6, 6, 0, 0]} barSize={50} isAnimationActive={false} />
+                              </BarChart>
+                            </ResponsiveContainer>
+                          </div>
+                        </div>
+                        
+                        <div style={{ width: '100%', maxWidth: '600px', minHeight: '450px', padding: '20px', borderTop: '1px solid #f1f5f9' }}>
+                          <h5 style={{ textAlign: 'center', color: '#64748b', fontSize: '14px', marginBottom: '20px' }}>Payment Method Reconciliation</h5>
+                          <div ref={pieChartRef} style={{ width: '100%', height: '350px' }}>
+                            <ResponsiveContainer width="100%" height="100%">
+                              <PieChart>
+                                <Pie
+                                  data={reportData.charts.paymentMethods}
+                                  innerRadius={70}
+                                  outerRadius={110}
+                                  paddingAngle={5}
+                                  dataKey="value"
+                                  labelLine={false}
+                                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                                  isAnimationActive={false}
+                                >
+                                  <Cell fill="#10b981" />
+                                  <Cell fill="#3b82f6" />
+                                </Pie>
+                                <Tooltip />
+                                <Legend verticalAlign="bottom" height={50} iconType="rect" iconSize={14} />
+                              </PieChart>
+                            </ResponsiveContainer>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                     {reportType === 'revenue' && (
                       <ResponsiveContainer>
                         <BarChart data={reportData.chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
@@ -565,24 +906,6 @@ const Reports = () => {
                       </ResponsiveContainer>
                     )}
 
-                    {reportType === 'patients' && (
-                      <ResponsiveContainer>
-                        <BarChart data={reportData.chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                          <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} />
-                          <YAxis axisLine={false} tickLine={false} tick={{ fill: '#0ea5e9', fontSize: 12 }} />
-                          <Tooltip cursor={{ fill: '#f8fafc' }} />
-                          <Legend />
-                          <Bar 
-                            dataKey="count" 
-                            name="Registration Count" 
-                            fill="#0ea5e9" 
-                            radius={[6, 6, 0, 0]} 
-                            barSize={60} 
-                          />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    )}
 
                     {reportType === 'appointments' && (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '40px', alignItems: 'center' }}>
@@ -597,11 +920,18 @@ const Reports = () => {
                                   axisLine={false} 
                                   tickLine={false} 
                                   tick={{ fill: '#64748b', fontSize: 11 }} 
-                                  angle={-60}
+                                  angle={-45}
                                   textAnchor="end"
                                   interval={0}
+                                  label={{ value: 'Doctor Name', position: 'insideBottomRight', offset: -10, fill: '#64748b', fontSize: 11, fontWeight: '600' }}
                                 />
-                                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#3b82f6', fontSize: 12 }} />
+                                <YAxis 
+                                    axisLine={false} 
+                                    tickLine={false} 
+                                    tick={{ fill: '#3b82f6', fontSize: 12 }} 
+                                    allowDecimals={false}
+                                    label={{ value: 'Appt. Count', angle: -90, position: 'insideLeft', offset: -10, fill: '#3b82f6', fontSize: 11, fontWeight: '600' }}
+                                />
                                 <Tooltip cursor={{ fill: '#f8fafc' }} />
                                 <Legend verticalAlign="top" align="right" />
                                 <Bar 

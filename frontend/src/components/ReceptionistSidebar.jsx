@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { FiHome, FiUsers, FiCalendar, FiCreditCard, FiLogOut, FiActivity, FiUser, FiChevronRight } from "react-icons/fi";
+import { FiHome, FiUsers, FiCalendar, FiCreditCard, FiLogOut, FiActivity, FiUser, FiChevronRight, FiFileText } from "react-icons/fi";
 import { motion } from "framer-motion";
 
 function ReceptionistSidebar({ onLogout }) {
@@ -11,6 +11,7 @@ function ReceptionistSidebar({ onLogout }) {
     { path: "/receptionist/doctors", label: "Doctors", icon: FiActivity },
     { path: "/receptionist/appointments", label: "Appointments", icon: FiCalendar },
     { path: "/receptionist/payment", label: "Payments", icon: FiCreditCard },
+    { path: "/receptionist/transactions", label: "History", icon: FiFileText },
     { path: "/profile", label: "My Profile", icon: FiUser }
   ];
 

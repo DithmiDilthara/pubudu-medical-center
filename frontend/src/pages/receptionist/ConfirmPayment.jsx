@@ -51,6 +51,10 @@ function ConfirmPayment() {
   const doctorFee = Number(appointment.doctor?.doctor_fee || 0);
   const centerFee = Number(appointment.doctor?.center_fee || 600);
   const totalAmount = doctorFee + centerFee;
+  
+  // Calculate top-up balance
+  const alreadyPaid = (appointment.payments || []).reduce((sum, p) => sum + parseFloat(p.amount), 0);
+  const balanceDue = totalAmount - alreadyPaid;
 
   const handleConfirmPayment = async () => {
     setIsSubmitting(true);
@@ -62,6 +66,7 @@ function ConfirmPayment() {
         `${API_URL}/appointments/${appointment.appointment_id}/status`,
         { 
           payment_status: 'PAID',
+          status: 'CONFIRMED',
           payment_method: paymentMethod.toUpperCase()
         },
         { headers: { Authorization: `Bearer ${token}` } }
@@ -140,15 +145,15 @@ function ConfirmPayment() {
                     </div>
                     <div style={styles.infoItem}>
                       <span style={styles.infoLabel}>Patient ID</span>
-                      <span style={styles.infoValue}>#{appointment.patient?.patient_id}</span>
+                      <span style={styles.infoValue}>#{appointment.patient_id || 'N/A'}</span>
                     </div>
                     <div style={styles.infoItem}>
                       <span style={styles.infoLabel}>Phone</span>
-                      <span style={styles.infoValue}>{appointment.patient?.phone || "N/A"}</span>
+                      <span style={styles.infoValue}>{appointment.patient?.user?.contact_number || "N/A"}</span>
                     </div>
                     <div style={styles.infoItem}>
                       <span style={styles.infoLabel}>Email</span>
-                      <span style={styles.infoValue}>{appointment.patient?.email || "N/A"}</span>
+                      <span style={styles.infoValue}>{appointment.patient?.user?.email || "N/A"}</span>
                     </div>
                   </div>
                 </motion.section>
@@ -185,19 +190,19 @@ function ConfirmPayment() {
                   <h2 style={styles.breakdownTitle}>Financial Summary</h2>
                   
                   <div style={styles.breakdownRow}>
-                    <span>Doctor Consultation Fee</span>
-                    <span>LKR {doctorFee.toLocaleString()}</span>
+                    <span>Subtotal</span>
+                    <span>LKR {totalAmount.toLocaleString()}</span>
                   </div>
                   <div style={styles.breakdownRow}>
-                    <span>Center Service Charge</span>
-                    <span>LKR {centerFee.toLocaleString()}</span>
+                    <span style={{ color: '#10b981', fontWeight: '600' }}>Amount Already Paid</span>
+                    <span style={{ color: '#10b981', fontWeight: '600' }}>- LKR {alreadyPaid.toLocaleString()}</span>
                   </div>
                   
                   <div style={styles.divider}></div>
                   
                   <div style={styles.totalRow}>
-                    <span>Total Payable</span>
-                    <span>LKR {totalAmount.toLocaleString()}</span>
+                    <span>Balance to Pay</span>
+                    <span>LKR {balanceDue.toLocaleString()}</span>
                   </div>
 
                   <div style={styles.paymentMethodSection}>

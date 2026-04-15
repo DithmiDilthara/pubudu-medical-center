@@ -15,6 +15,19 @@ export const addMedicalRecord = async (req, res) => {
         const doctor = await Doctor.findOne({ where: { user_id: userId } });
         if (!doctor) return res.status(404).json({ success: false, message: 'Doctor record not found for this user' });
 
+        // Force Payment Rule: No Receipt = No Medical Record
+        if (appointment_id) {
+            const appointment = await Appointment.findByPk(appointment_id);
+            if (!appointment) return res.status(404).json({ success: false, message: 'Appointment not found' });
+            
+            if (appointment.payment_status !== 'PAID') {
+                return res.status(403).json({ 
+                    success: false, 
+                    message: 'Payment Required: This patient has not settled their center fees. Please refer them to the reception desk before continuing.' 
+                });
+            }
+        }
+
         // Create the Medical Record
         const medicalRecord = await MedicalRecord.create({
             patient_id,

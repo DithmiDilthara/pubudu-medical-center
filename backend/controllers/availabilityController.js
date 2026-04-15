@@ -1,5 +1,11 @@
-import { Availability, Doctor, User, Appointment, Patient } from '../models/index.js';
+import { Availability, Doctor, User, Appointment, Patient, sequelize } from '../models/index.js';
 import { Op } from 'sequelize';
+
+const parseToMinutes = (timeStr) => {
+    if (!timeStr) return 0;
+    const [hours, minutes] = timeStr.split(':').map(Number);
+    return hours * 60 + (minutes || 0);
+};
 
 /**
  * @desc    Set/Update doctor availability
@@ -8,10 +14,17 @@ import { Op } from 'sequelize';
  */
 export const setAvailability = async (req, res) => {
     try {
-        const { availability } = req.body; // Array of {day_of_week, start_time, end_time}
-        const userId = req.user.user_id;
+        const { availability, doctor_id } = req.body; // Array of {day_of_week, start_time, end_time}
+        const currentUser = req.user;
 
-        const doctor = await Doctor.findOne({ where: { user_id: userId } });
+        let doctor;
+        if (currentUser.role_id === 1 || currentUser.role_id === 3) { // Admin or Receptionist
+          if (!doctor_id) return res.status(400).json({ success: false, message: 'Doctor ID is required for staff' });
+          doctor = await Doctor.findByPk(doctor_id);
+        } else {
+          doctor = await Doctor.findOne({ where: { user_id: currentUser.user_id } });
+        }
+
         if (!doctor) return res.status(404).json({ success: false, message: 'Doctor profile not found' });
 
         // Validate all slots
@@ -20,31 +33,39 @@ export const setAvailability = async (req, res) => {
         const todayStr = today.toISOString().split('T')[0];
 
         for (const slot of availability) {
-            // Check time logic
-            if (slot.start_time >= slot.end_time) {
+            // CHECK 1: Overnight session — minute-based (catches 21:00 → 08:00 overnight)
+            const startMinutes = parseToMinutes(slot.start_time);
+            const endMinutes = parseToMinutes(slot.end_time);
+            const durationMinutes = endMinutes - startMinutes;
+
+            if (startMinutes >= endMinutes) {
                 return res.status(400).json({
                     success: false,
-                    message: `Invalid time range: ${slot.start_time} - ${slot.end_time}. End time must be after start time.`
+                    message: "End time cannot be before or equal to start time. Sessions cannot span overnight."
                 });
             }
 
-            // ENFORCE OPERATING HOURS: 07:00 - 21:00
-            if (slot.start_time < '07:00' || slot.end_time > '21:00') {
+            // CHECK 2: Operating hours 07:00 – 21:00
+            if (startMinutes < parseToMinutes('07:00') || endMinutes > parseToMinutes('21:00')) {
               return res.status(400).json({
                   success: false,
-                  message: "Session times must be within operating hours (07:00–21:00)"
+                  message: "Session times must be within operating hours (07:00–21:00)."
               });
             }
 
-            // ENFORCE MINIMUM DURATION: 1 HOUR (60 MINUTES)
-            const start = new Date(`1970-01-01T${slot.start_time}`);
-            const end = new Date(`1970-01-01T${slot.end_time}`);
-            const durationMinutes = (end - start) / (1000 * 60);
-            
+            // CHECK 3: Minimum 1 hour
             if (durationMinutes < 60) {
               return res.status(400).json({
                   success: false,
-                  message: "Session must be at least 1 hour long"
+                  message: "Session must be at least 1 hour long."
+              });
+            }
+
+            // CHECK 4: Maximum 4 hours
+            if (durationMinutes > 240) {
+              return res.status(400).json({
+                  success: false,
+                  message: "Session duration cannot exceed 4 hours."
               });
             }
 
@@ -59,6 +80,7 @@ export const setAvailability = async (req, res) => {
             // --- CHANGE 2: OVERLAP CHECK ---
             const whereClause = {
                 doctor_id: doctor.doctor_id,
+                status: 'ACTIVE' // Only check overlap with ACTIVE sessions
             };
 
             if (slot.schedule_date) {
@@ -80,6 +102,42 @@ export const setAvailability = async (req, res) => {
                 }
             }
         }
+
+        // --- NEW: AUTOMATIC EXCLUSION SWEEP ---
+        // Find all future exclusions for this doctor
+        const futureExclusions = await Availability.findAll({
+            where: {
+                doctor_id: doctor.doctor_id,
+                is_exclusion: true,
+                schedule_date: { [Op.gte]: todayStr }
+            }
+        });
+
+        const toDeleteIds = [];
+        
+        for (const exclusion of futureExclusions) {
+            const exDate = new Date(exclusion.schedule_date);
+            const exDayName = exDate.toLocaleDateString('en-US', { weekday: 'long' }).toUpperCase();
+            
+            // Check if this exclusion overlaps with any of the new slots being added
+            for (const slot of availability) {
+                const datesMatch = (slot.day_of_week && slot.day_of_week === exDayName) || 
+                                   (slot.schedule_date && slot.schedule_date === exclusion.schedule_date);
+                                   
+                if (datesMatch) {
+                    // Check if times overlap (start < existEnd AND end > existStart)
+                    if (slot.start_time < exclusion.end_time && slot.end_time > exclusion.start_time) {
+                        toDeleteIds.push(exclusion.schedule_id);
+                        break; // Already matched for this exclusion, move to next exclusion
+                    }
+                }
+            }
+        }
+
+        if (toDeleteIds.length > 0) {
+            await Availability.destroy({ where: { schedule_id: toDeleteIds } });
+        }
+        // --------------------------------------
 
         // Add the sessions (Additive approach)
         const sessionsToCreate = availability.map(slot => {
@@ -113,27 +171,35 @@ export const setAvailability = async (req, res) => {
     }
 };
 
-/**
- * @desc    Delete a specific availability slot
- * @route   DELETE /api/availability/:id
- * @access  Private (Doctor)
- */
 export const deleteAvailability = async (req, res) => {
     try {
         const { id } = req.params;
-        const userId = req.user.user_id;
+        const currentUser = req.user;
 
-        const doctor = await Doctor.findOne({ where: { user_id: userId } });
-        if (!doctor) return res.status(404).json({ success: false, message: 'Doctor profile not found' });
+        let doctor;
+        let slot;
 
-        const slot = await Availability.findOne({
-            where: {
-                schedule_id: id,
-                doctor_id: doctor.doctor_id
-            }
-        });
+        if (currentUser.role_id === 1 || currentUser.role_id === 3) { // Admin or Receptionist
+          // Staff can find any slot
+          slot = await Availability.findByPk(id);
+          if (slot) {
+            doctor = await Doctor.findByPk(slot.doctor_id);
+          }
+        } else {
+          // Doctor can only find their own slot (Backwards compatibility safeguard)
+          doctor = await Doctor.findOne({ where: { user_id: currentUser.user_id } });
+          if (doctor) {
+            slot = await Availability.findOne({
+                where: {
+                    schedule_id: id,
+                    doctor_id: doctor.doctor_id
+                }
+            });
+          }
+        }
 
-        if (!slot) return res.status(404).json({ success: false, message: 'Availability slot not found' });
+        if (!slot || !doctor) return res.status(404).json({ success: false, message: 'Availability slot or Doctor not found' });
+        if (slot.status === 'CANCELLED') return res.status(400).json({ success: false, message: 'Slot is already cancelled' });
 
         // Handle cancellation cascade if it was a confirmed/pending slot on that day
         if (slot.schedule_date) {
@@ -142,12 +208,153 @@ export const deleteAvailability = async (req, res) => {
             await cancelAffectedAppointments(doctor.doctor_id, { day_of_week: [slot.day_of_week] });
         }
 
-        await slot.destroy();
+        await slot.update({ status: 'CANCELLED' });
 
-        res.status(200).json({ success: true, message: 'Availability slot removed' });
+        res.status(200).json({ success: true, message: 'Availability slot cancelled safely' });
     } catch (error) {
         console.error('Delete availability error:', error);
         res.status(500).json({ success: false, message: 'Server error' });
+    }
+};
+
+/**
+ * @desc    Cancel a single day of a recurring session (Exclusion)
+ * @route   POST /api/availability/cancel-instance
+ * @access  Private (Receptionist, Admin)
+ */
+export const cancelSingleInstance = async (req, res) => {
+    try {
+        const { doctor_id, schedule_date, start_time, end_time } = req.body;
+
+        if (!doctor_id || !schedule_date || !start_time || !end_time) {
+            return res.status(400).json({ success: false, message: 'Doctor, Date, and Time range are required' });
+        }
+
+        // 1. Create the exclusion record
+        const exclusion = await Availability.create({
+            doctor_id,
+            schedule_date,
+            start_time,
+            end_time,
+            is_exclusion: true,
+            status: 'CANCELLED'
+        });
+
+        // 2. Move affected appointments to RESCHEDULE_REQUIRED
+        await cancelAffectedAppointments(doctor_id, { schedule_date: [schedule_date] });
+
+        res.status(201).json({
+            success: true,
+            message: 'Single session instance cancelled successfully.',
+            data: exclusion
+        });
+    } catch (error) {
+        console.error('Cancel single instance error:', error);
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+};
+
+/**
+ * @desc    Update an existing availability session
+ * @route   PUT /api/clinical/availability/:id
+ * @access  Private (Receptionist, Admin)
+ */
+export const updateAvailability = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { start_time, end_time, schedule_date, max_patients, status } = req.body;
+
+        const session = await Availability.findByPk(id);
+        if (!session) return res.status(404).json({ success: false, message: 'Session not found' });
+
+        // Check if patients are already booked for this session
+        const bookingCount = await Appointment.count({
+            where: {
+                schedule_id: id,
+                status: { [Op.ne]: 'CANCELLED' }
+            }
+        });
+
+        const hasBookings = bookingCount > 0;
+
+        // Validation Rules
+        if (max_patients !== undefined) {
+            if (max_patients < 20) {
+                return res.status(400).json({ success: false, message: 'Minimum patient capacity must be at least 20.' });
+            }
+            if (hasBookings && max_patients < bookingCount) {
+                return res.status(400).json({ 
+                    success: false, 
+                    message: `Cannot reduce capacity below the current ${bookingCount} booked patients.` 
+                });
+            }
+            session.max_patients = max_patients;
+        }
+
+        if (hasBookings) {
+            // Restricted Edit Mode
+            if (start_time && start_time !== session.start_time) {
+                return res.status(400).json({ success: false, message: 'Cannot change start time of an active session with patients. Please reschedule patients instead.' });
+            }
+            if (end_time && end_time !== session.end_time) {
+                // We might allow increasing end time, but reducing it is risky if it cuts off patient slots
+                if (end_time < session.end_time) {
+                    return res.status(400).json({ success: false, message: 'Cannot reduce end time of an active session with patients.' });
+                }
+                session.end_time = end_time;
+            }
+            if (schedule_date && schedule_date !== session.schedule_date) {
+                return res.status(400).json({ success: false, message: 'Cannot change date of an active session with patients. Please cancel this session and create a new one.' });
+            }
+        } else {
+            // Full Edit Mode (No bookings yet)
+            if (start_time) session.start_time = start_time;
+            if (end_time) session.end_time = end_time;
+            if (schedule_date) session.schedule_date = schedule_date;
+        }
+
+        // --- NEW: RE-VALIDATE DURATION & OPERATING HOURS AFTER EDIT ---
+        const finalStart = session.start_time;
+        const finalEnd = session.end_time;
+        const finalStartMinutes = parseToMinutes(finalStart);
+        const finalEndMinutes = parseToMinutes(finalEnd);
+        const finalDurationMinutes = finalEndMinutes - finalStartMinutes;
+
+        if (finalStart < '07:00' || finalEnd > '21:00') {
+            return res.status(400).json({
+                success: false,
+                message: "Session times must be within operating hours (07:00–21:00)"
+            });
+        }
+
+        if (finalDurationMinutes < 60) {
+            return res.status(400).json({
+                success: false,
+                message: "Session must be at least 1 hour long"
+            });
+        }
+
+        if (finalDurationMinutes > 240) {
+            return res.status(400).json({
+                success: false,
+                message: "Session duration cannot exceed 4 hours."
+            });
+        }
+        // ----------------------------------------------------------------
+
+        if (status) session.status = status;
+
+        await session.save();
+
+        res.status(200).json({
+            success: true,
+            message: 'Session updated successfully',
+            data: session
+        });
+
+    } catch (error) {
+        console.error('Update availability error:', error);
+        res.status(500).json({ success: false, message: 'Server error', error: error.message });
     }
 };
 
@@ -169,19 +376,63 @@ export const getDoctorAvailability = async (req, res) => {
             '-' +
             String(today.getDate()).padStart(2, '0');
 
-        await Availability.destroy({
-            where: {
-                doctor_id,
-                schedule_date: { [Op.lt]: todayStr }
+        await Availability.update(
+            { status: 'CANCELLED' },
+            {
+                where: {
+                    doctor_id,
+                    schedule_date: { [Op.lt]: todayStr },
+                    status: 'ACTIVE'
+                }
             }
-        });
+        );
+
+        // Filter: Staff see all, Patients/Public only see ACTIVE
+        const where = { doctor_id };
+        // Filter: Staff see all, Patients/Public only see ACTIVE
+        // REMOVED: where.status = 'ACTIVE' for public/patient.
+        // We MUST return CANCELLED/exclusions to the frontend so calendars can properly black them out.
+        const currentUser = req.user;
 
         const availability = await Availability.findAll({
-            where: { doctor_id },
-            order: [['day_of_week', 'ASC'], ['start_time', 'ASC']]
+            where,
+            order: [
+                ['schedule_date', 'DESC'], // Specific dates first for override priority
+                ['day_of_week', 'ASC'], 
+                ['start_time', 'ASC']
+            ]
         });
 
-        res.status(200).json({ success: true, data: availability });
+        // MASKING LOGIC (Handled in the resolution engine)
+        // If a patient is viewing, we don't return both the recurring slot AND the exclusion for the same date.
+        // The frontend mapping will treat is_exclusion: true + status: CANCELLED as a blackout.
+
+        // AGGREGATED BOOKING COUNTS FOR PROACTIVE CALENDAR
+        // We need to know how many people are booked for each schedule_id on each specific date
+        const bookingCounts = await Appointment.findAll({
+            attributes: [
+                'schedule_id',
+                'appointment_date',
+                [sequelize.fn('COUNT', sequelize.col('appointment_id')), 'count']
+            ],
+            where: {
+                doctor_id,
+                appointment_date: { [Op.gte]: todayStr },
+                status: { [Op.ne]: 'CANCELLED' }
+            },
+            group: ['schedule_id', 'appointment_date'],
+            raw: true
+        });
+
+        res.status(200).json({ 
+            success: true, 
+            data: availability,
+            bookingCounts: bookingCounts.map(c => ({
+                schedule_id: c.schedule_id,
+                date: c.appointment_date,
+                count: parseInt(c.count)
+            }))
+        });
     } catch (error) {
         console.error('Get availability error:', error);
         res.status(500).json({ success: false, message: 'Server error' });
@@ -219,7 +470,7 @@ async function cancelAffectedAppointments(doctorId, filter) {
     if (toCancel.length > 0) {
         const { default: NotificationService } = await import('../utils/NotificationService.js');
         for (const appt of toCancel) {
-            appt.status = 'CANCELLED';
+            appt.status = 'RESCHEDULE_REQUIRED';
             await appt.save();
 
             if (appt.patient?.user?.email || appt.patient?.user?.contact_number) {

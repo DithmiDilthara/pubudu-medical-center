@@ -26,13 +26,34 @@ export const isValidUsername = (username) => {
   return usernameRegex.test(username);
 };
 
-// Validate password strength
+// Validate password strength (Strict Policy)
 export const isValidPassword = (password) => {
-  // Minimum 6 characters
-  if (password.length < 6) {
-    return { valid: false, message: 'Password must be at least 6 characters' };
+  if (password.length < 8) {
+    return { valid: false, message: 'Password must be at least 8 characters' };
+  }
+  const strictRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+  if (!strictRegex.test(password)) {
+    return { valid: false, message: 'Password requires at least 1 uppercase, 1 lowercase, 1 number, and 1 special character' };
   }
   return { valid: true };
+};
+
+// Validate Doctor Username
+export const isValidDoctorUsername = (username) => {
+  const doctorRegex = /^Doc_[A-Z][A-Za-z0-9]*$/;
+  return doctorRegex.test(username);
+};
+
+// Validate Receptionist Username
+export const isValidReceptionistUsername = (username) => {
+  const repRegex = /^Rep_[A-Z][A-Za-z0-9]*$/;
+  return repRegex.test(username);
+};
+
+// Validate Admin Username
+export const isValidAdminUsername = (username) => {
+  const adminRegex = /^[A-Za-z0-9_]*_[A-Za-z0-9_]*$/;
+  return username.length >= 3 && adminRegex.test(username);
 };
 
 // Validate date format (YYYY-MM-DD)

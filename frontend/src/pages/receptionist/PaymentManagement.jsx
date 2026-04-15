@@ -37,9 +37,9 @@ function PaymentManagement() {
                 // Fetch Appointments
                 const aptRes = await axios.get(`${API_URL}/appointments`, { headers });
                 if (aptRes.data.success) {
-                    // Filter: Unpaid + non-Cancelled, sorted by date ascending
+                    // Filter: Unpaid or Partial + non-Cancelled, sorted by date ascending
                     const filtered = aptRes.data.data
-                        .filter(apt => apt.payment_status === 'UNPAID' && apt.status !== 'CANCELLED')
+                        .filter(apt => (apt.payment_status === 'UNPAID' || apt.payment_status === 'PARTIAL') && ['PENDING', 'CONFIRMED'].includes(apt.status))
                         .sort((a, b) => new Date(a.appointment_date) - new Date(b.appointment_date));
                     setAppointments(filtered);
                 }
@@ -77,8 +77,11 @@ function PaymentManagement() {
 
     const stats = useMemo(() => {
         const pendingCount = appointments.length;
-        const totalAmount = appointments.reduce((sum, apt) => 
-            sum + (Number(apt.doctor?.doctor_fee || 0) + Number(apt.doctor?.center_fee || 600)), 0);
+        const totalAmount = appointments.reduce((sum, apt) => {
+            const totalFee = Number(apt.doctor?.doctor_fee || 0) + Number(apt.doctor?.center_fee || 600);
+            const paidAmount = (apt.payments || []).reduce((pSum, p) => pSum + parseFloat(p.amount), 0);
+            return sum + (totalFee - paidAmount);
+        }, 0);
         return { pendingCount, totalAmount };
     }, [appointments]);
 
@@ -213,7 +216,21 @@ function PaymentManagement() {
                                                         </div>
                                                     </td>
                                                     <td style={{ ...styles.tableCell, fontWeight: "700" }}>
-                                                        {(Number(apt.doctor?.doctor_fee || 0) + Number(apt.doctor?.center_fee || 600)).toLocaleString()}
+                                                        {(() => {
+                                                            const totalFee = Number(apt.doctor?.doctor_fee || 0) + Number(apt.doctor?.center_fee || 600);
+                                                            const paidAmount = (apt.payments || []).reduce((pSum, p) => pSum + parseFloat(p.amount), 0);
+                                                            const balance = totalFee - paidAmount;
+                                                            return (
+                                                                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                                                    <span>LKR {balance.toLocaleString()}</span>
+                                                                    {apt.payment_status === 'PARTIAL' && (
+                                                                        <span style={{ fontSize: '10px', color: '#64748b', fontWeight: '500' }}>
+                                                                            (Partial Balance)
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                            );
+                                                        })()}
                                                     </td>
                                                     <td style={styles.tableCell}>
                                                         <button

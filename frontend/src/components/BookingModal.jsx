@@ -14,11 +14,19 @@ const BookingModal = ({ isOpen, onClose, appointment, onUpdate }) => {
     const [bookedSlots, setBookedSlots] = useState([]);
     const [isProcessing, setIsProcessing] = useState(false);
 
+    // Cross-Doctor additions
+    const [isChangingDoctor, setIsChangingDoctor] = useState(false);
+    const [altDoctors, setAltDoctors] = useState([]);
+    const [selectedDoctor, setSelectedDoctor] = useState(null);
+    const [transferAction, setTransferAction] = useState("PAY_LATER");
+    const [paymentMethod, setPaymentMethod] = useState("CASH");
+
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
     useEffect(() => {
-        if (isOpen && appointment?.doctor_id) {
-            fetchAvailability();
+        if (isOpen && appointment?.doctor) {
+            setSelectedDoctor(appointment.doctor);
+            setIsChangingDoctor(false);
             if (appointment.appointment_date) {
                 const date = new Date(appointment.appointment_date + 'T00:00:00');
                 setSelectedDate(date);
@@ -32,32 +40,70 @@ const BookingModal = ({ isOpen, onClose, appointment, onUpdate }) => {
     }, [isOpen, appointment]);
 
     useEffect(() => {
-        if (selectedDate && appointment?.doctor_id) {
-            fetchBookedSlots();
+        if (isChangingDoctor && appointment?.doctor?.specialization) {
+            // When switching to transfer mode, clear the selected doctor so availability resets
+            setSelectedDoctor(null);
+            setDoctorAvailability([]);
+            
+            axios.get(`${API_URL}/doctors/specialization/${appointment.doctor.specialization}`)
+                .then(res => setAltDoctors(res.data.data.filter(d => d.doctor_id !== appointment.doctor_id)))
+                .catch(err => console.error(err));
+        } else {
+            setSelectedDoctor(appointment?.doctor);
         }
-    }, [selectedDate]);
+    }, [isChangingDoctor, appointment]);
 
-    const fetchAvailability = async () => {
+    useEffect(() => {
+        if (selectedDoctor?.doctor_id && isOpen) {
+            console.log("Fetching availability for Doctor ID:", selectedDoctor.doctor_id);
+            fetchAvailability(selectedDoctor.doctor_id);
+            // Reset selection when changing doctor
+            if (selectedDoctor.doctor_id !== appointment?.doctor_id) {
+                setSelectedDate(null);
+                setSelectedSession(null);
+            }
+        } else if (isOpen) {
+            console.warn("Cannot fetch availability: selectedDoctor.doctor_id is missing", selectedDoctor);
+            setDoctorAvailability([]);
+        }
+    }, [selectedDoctor?.doctor_id, isOpen]);
+
+    useEffect(() => {
+        if (selectedDate && selectedDoctor?.doctor_id) {
+            fetchBookedSlots(selectedDoctor.doctor_id);
+        }
+    }, [selectedDate, selectedDoctor]);
+
+    const fetchAvailability = async (docId) => {
         try {
-            const response = await axios.get(`${API_URL}/doctors/${appointment.doctor_id}/availability`);
+            const token = localStorage.getItem('token');
+            const response = await axios.get(`${API_URL}/doctors/${docId}/availability`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
             if (response.data.success) {
                 setDoctorAvailability(response.data.data);
+            } else {
+                setDoctorAvailability([]);
             }
         } catch (error) {
             console.error("Error fetching availability:", error);
+            setDoctorAvailability([]);
         }
     };
 
-    const fetchBookedSlots = async () => {
+    const fetchBookedSlots = async (docId) => {
         try {
-            const formattedDate = selectedDate.toISOString().split('T')[0];
+            const bYear = selectedDate.getFullYear();
+            const bMonth = String(selectedDate.getMonth() + 1).padStart(2, '0');
+            const bDay = String(selectedDate.getDate()).padStart(2, '0');
+            const formattedDate = `${bYear}-${bMonth}-${bDay}`;
             const token = localStorage.getItem('token');
             const response = await axios.get(`${API_URL}/appointments`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             if (response.data.success) {
                 const relevant = response.data.data.filter(apt =>
-                    apt.doctor_id === appointment.doctor_id &&
+                    apt.doctor_id === docId &&
                     apt.appointment_date === formattedDate &&
                     ['PENDING', 'CONFIRMED'].includes(apt.status) &&
                     apt.appointment_id !== appointment.appointment_id
@@ -72,8 +118,8 @@ const BookingModal = ({ isOpen, onClose, appointment, onUpdate }) => {
     const [showConfirm, setShowConfirm] = useState(false);
 
     const handleReschedule = async () => {
-        if (!selectedDate || !selectedSession) {
-            toast.error("Please select a date and session");
+        if (!selectedDate || !selectedSession || !selectedDoctor) {
+            toast.error("Please select a doctor, date, and session");
             return;
         }
         setShowConfirm(true);
@@ -84,13 +130,24 @@ const BookingModal = ({ isOpen, onClose, appointment, onUpdate }) => {
         const toastId = toast.loading("Rescheduling appointment...");
         try {
             const token = localStorage.getItem('token');
-            const formattedDate = selectedDate.toISOString().split('T')[0];
+            const year = selectedDate.getFullYear();
+            const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+            const day = String(selectedDate.getDate()).padStart(2, '0');
+            const formattedDate = `${year}-${month}-${day}`;
             
-            const response = await axios.put(`${API_URL}/appointments/${appointment.appointment_id}/reschedule`, {
+            const payload = {
                 appointment_date: formattedDate,
                 time_slot: selectedSession.timeRange,
                 schedule_id: selectedSession.id
-            }, {
+            };
+
+            if (isChangingDoctor) {
+                payload.new_doctor_id = selectedDoctor.doctor_id;
+                payload.transfer_action = transferAction;
+                payload.payment_method = paymentMethod;
+            }
+            
+            const response = await axios.put(`${API_URL}/appointments/${appointment.appointment_id}/reschedule`, payload, {
                 headers: { Authorization: `Bearer ${token}` }
             });
 
@@ -108,6 +165,23 @@ const BookingModal = ({ isOpen, onClose, appointment, onUpdate }) => {
         }
     };
 
+    const getFinancialSummary = () => {
+        if (!appointment || !isChangingDoctor || !selectedDoctor) return null;
+        
+        // Show calculations based on original fee requirement vs new doctor requirement
+        const oldFee = Number(appointment.doctor?.doctor_fee || 0) + Number(appointment.doctor?.center_fee || 600);
+        const newFee = Number(selectedDoctor.doctor_fee || 0) + Number(selectedDoctor.center_fee || 600);
+        
+        // If already paid, we calculate balance/refund
+        // if unpaid, we just show the new total
+        const amountPaid = appointment.payment_status === 'PAID' ? oldFee : 0;
+        const diff = newFee - amountPaid;
+
+        return { oldFee, newFee, diff, amountPaid };
+    };
+
+    const finSummary = getFinancialSummary();
+
     // Calendar logic
     const daysInMonth = (date) => {
         const year = date.getFullYear();
@@ -118,30 +192,55 @@ const BookingModal = ({ isOpen, onClose, appointment, onUpdate }) => {
     };
 
     const isDateAvailable = (dayDate) => {
-        const formattedDate = dayDate.toISOString().split('T')[0];
-        const dayName = dayDate.toLocaleString('en-US', { weekday: 'long' }).toUpperCase();
+        const dYear = dayDate.getFullYear();
+        const dMonth = String(dayDate.getMonth() + 1).padStart(2, '0');
+        const dDay = String(dayDate.getDate()).padStart(2, '0');
+        const formattedDate = `${dYear}-${dMonth}-${dDay}`;
+        
+        const daysMap = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
+        const dayName = daysMap[dayDate.getDay()];
 
-        const specific = doctorAvailability.find(a => a.schedule_date === formattedDate);
-        if (specific) return true;
+        const specificActive = doctorAvailability.filter(a => a.schedule_date === formattedDate && a.status === 'ACTIVE' && !a.is_exclusion);
+        const exclusions = doctorAvailability.filter(a => a.schedule_date === formattedDate && a.is_exclusion);
 
-        return doctorAvailability.some(a => 
+        if (specificActive.length > 0) return true;
+
+        const recurring = doctorAvailability.filter(a => 
             a.day_of_week?.toUpperCase() === dayName && 
             !a.schedule_date && 
+            a.status === 'ACTIVE' &&
             (!a.end_date || formattedDate <= a.end_date)
         );
+
+        const activeRecurring = recurring.filter(r => 
+            !exclusions.some(e => e.start_time === r.start_time && e.end_time === r.end_time)
+        );
+
+        return activeRecurring.length > 0;
     };
 
     const getTimeSlots = () => {
         if (!selectedDate) return [];
-        const formattedDate = selectedDate.toISOString().split('T')[0];
+        const tYear = selectedDate.getFullYear();
+        const tMonth = String(selectedDate.getMonth() + 1).padStart(2, '0');
+        const tDay = String(selectedDate.getDate()).padStart(2, '0');
+        const formattedDate = `${tYear}-${tMonth}-${tDay}`;
         const dayName = selectedDate.toLocaleString('en-US', { weekday: 'long' }).toUpperCase();
 
-        let avails = doctorAvailability.filter(a => a.schedule_date === formattedDate);
-        if (avails.length === 0) {
-            avails = doctorAvailability.filter(a => a.day_of_week?.toUpperCase() === dayName && !a.schedule_date);
-        }
+        const specific = doctorAvailability.filter(a => a.schedule_date === formattedDate && a.status === 'ACTIVE' && !a.is_exclusion);
+        const recurring = doctorAvailability.filter(a => 
+            !a.schedule_date && 
+            a.day_of_week === dayName && 
+            a.status === 'ACTIVE' &&
+            (!a.end_date || formattedDate <= a.end_date)
+        );
+        const exclusions = doctorAvailability.filter(a => a.schedule_date === formattedDate && a.is_exclusion);
 
-        return avails.map(avail => ({
+        const daySessions = [...specific, ...recurring].filter(as => 
+            !exclusions.some(e => e.start_time === as.start_time && e.end_time === as.end_time)
+        );
+
+        return daySessions.map(avail => ({
             id: avail.schedule_id,
             timeRange: `${avail.start_time} - ${avail.end_time}`
         }));
@@ -166,59 +265,151 @@ const BookingModal = ({ isOpen, onClose, appointment, onUpdate }) => {
                     <button onClick={onClose} style={styles.closeBtn}><FiX size={20} /></button>
                 </div>
 
-                <div style={styles.body}>
-                    <div style={styles.calendarSection}>
-                        <div style={styles.calHeader}>
-                            <button onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1))} style={styles.navBtn}><FiChevronLeft /></button>
-                            <span style={styles.monthLabel}>{currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' })}</span>
-                            <button onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1))} style={styles.navBtn}><FiChevronRight /></button>
+                <div style={{ padding: "40px", display: "flex", flexDirection: "column", gap: "24px", maxHeight: "70vh", overflowY: "auto" }}>
+                    {/* Step 1: Doctor Choice */}
+                    <div style={{ backgroundColor: '#f8fafc', padding: '20px', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
+                        <div style={{ display: 'flex', gap: '20px', marginBottom: '16px', flexWrap: 'wrap' }}>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: !isChangingDoctor ? '700' : '500', color: !isChangingDoctor ? '#2563eb' : '#64748b' }}>
+                                <input type="radio" checked={!isChangingDoctor} onChange={() => setIsChangingDoctor(false)} />
+                                Keep Dr. {appointment?.doctor?.full_name}
+                            </label>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: isChangingDoctor ? '700' : '500', color: isChangingDoctor ? '#2563eb' : '#64748b' }}>
+                                <input type="radio" checked={isChangingDoctor} onChange={() => setIsChangingDoctor(true)} />
+                                Transfer to another Specialist
+                            </label>
                         </div>
-                        <div style={styles.grid}>
-                            {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(d => <div key={d} style={styles.dayHead}>{d}</div>)}
-                            {[...Array(firstDay)].map((_, i) => <div key={`e-${i}`} />)}
-                            {[...Array(days)].map((_, i) => {
-                                const d = i + 1;
-                                const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), d);
-                                const isAvailable = isDateAvailable(date);
-                                const isSelected = selectedDate?.getDate() === d && selectedDate?.getMonth() === currentMonth.getMonth();
-                                const isPast = date < new Date().setHours(0,0,0,0);
+                        
+                        {isChangingDoctor && (
+                            <div>
+                                {altDoctors.length > 0 ? (
+                                    <select 
+                                        style={{ width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid #cbd5e1', fontSize: '15px' }}
+                                        onChange={(e) => setSelectedDoctor(altDoctors.find(d => d.doctor_id == e.target.value))}
+                                        value={selectedDoctor?.doctor_id || ''}
+                                    >
+                                        <option value="" disabled>Select a new {appointment?.doctor?.specialization}</option>
+                                        {altDoctors.map(d => (
+                                            <option key={d.doctor_id} value={d.doctor_id}>Dr. {d.full_name} ({d.specialization}) - Fee: LKR {(Number(d.doctor_fee || 0) + Number(d.center_fee || 600)).toLocaleString()}</option>
+                                        ))}
+                                    </select>
+                                ) : (
+                                    <p style={{ color: '#ea580c', margin: 0, fontWeight: '600' }}>No other {appointment?.doctor?.specialization}s are currently available.</p>
+                                )}
+                            </div>
+                        )}
+                    </div>
 
-                                return (
-                                    <button 
-                                        key={d}
-                                        disabled={!isAvailable || isPast}
-                                        onClick={() => setSelectedDate(date)}
+                    {/* NEW: Financial Summary (Moved up for visibility) */}
+                    {finSummary && (
+                        <div style={{ backgroundColor: finSummary.diff > 0 ? '#fffbeb' : finSummary.diff < 0 ? '#ecfdf5' : '#f8fafc', padding: '20px', borderRadius: '16px', border: `1px solid ${finSummary.diff > 0 ? '#fde68a' : finSummary.diff < 0 ? '#a7f3d0' : '#e2e8f0'}` }}>
+                            <h4 style={{ margin: '0 0 12px 0', fontSize: '16px', color: '#0f172a', fontWeight: '800' }}>Financial Impact</h4>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '14px', color: '#64748b' }}>
+                                <span>{appointment.payment_status === 'PAID' ? 'Amount Already Paid:' : 'Original Total Fee:'}</span> <span>LKR {(finSummary.amountPaid > 0 ? finSummary.amountPaid : finSummary.oldFee).toLocaleString()}</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '14px', color: '#64748b' }}>
+                                <span>New Doctor Total Fee:</span> <span>LKR {finSummary.newFee.toLocaleString()}</span>
+                            </div>
+                            
+                            {finSummary.diff !== 0 && (
+                                <div style={{ margin: '12px 0', borderTop: '1px dashed #cbd5e1' }}></div>
+                            )}
+                            
+                            {finSummary.diff > 0 && (
+                                <>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px', fontSize: '16px', fontWeight: '800', color: '#b45309' }}>
+                                        <span>{appointment.payment_status === 'PAID' ? 'Balance to Collect:' : 'Requirement Increase:'}</span> <span>LKR {finSummary.diff.toLocaleString()}</span>
+                                    </div>
+                                    <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                                        <select value={transferAction} onChange={(e) => setTransferAction(e.target.value)} style={{ padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px' }}>
+                                            <option value="PAY_LATER">Transfer & Pay Later</option>
+                                            <option value="COLLECT_DIFFERENCE">Collect & Transfer Now</option>
+                                        </select>
+                                        {transferAction === 'COLLECT_DIFFERENCE' && (
+                                            <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} style={{ padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px' }}>
+                                                <option value="CASH">Cash</option>
+                                                <option value="CARD">Card</option>
+                                            </select>
+                                        )}
+                                    </div>
+                                </>
+                            )}
+                            {finSummary.diff < 0 && (
+                                <>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '16px', fontWeight: '800', color: '#059669' }}>
+                                        <span>Refund to Patient:</span> <span>LKR {Math.abs(finSummary.diff).toLocaleString()}</span>
+                                    </div>
+                                    <div style={{ fontSize: '13px', color: '#059669' }}>Please hand the cash difference to the patient at the desk.</div>
+                                </>
+                            )}
+                            {finSummary.diff === 0 && appointment.payment_status === 'PAID' && (
+                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '16px', fontWeight: '800', color: '#0f172a' }}>
+                                    <span>Fees are identical. No balance due.</span>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Step 2: Calendar & Time */}
+                    <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: "48px" }}>
+                        <div style={styles.calendarSection}>
+                            <div style={styles.calHeader}>
+                                <button onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1))} style={styles.navBtn}><FiChevronLeft /></button>
+                                <span style={styles.monthLabel}>{currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' })}</span>
+                                <button onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1))} style={styles.navBtn}><FiChevronRight /></button>
+                            </div>
+                            <div style={styles.grid}>
+                                {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(d => <div key={d} style={styles.dayHead}>{d}</div>)}
+                                {[...Array(firstDay)].map((_, i) => <div key={`e-${i}`} />)}
+                                {[...Array(days)].map((_, i) => {
+                                    const d = i + 1;
+                                    const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), d);
+                                    const isAvailable = isDateAvailable(date);
+                                    const isSelected = selectedDate && 
+                                                      date.getDate() === selectedDate.getDate() && 
+                                                      date.getMonth() === selectedDate.getMonth() && 
+                                                      date.getFullYear() === selectedDate.getFullYear();
+                                    const isPast = date < new Date().setHours(0,0,0,0);
+
+                                    return (
+                                        <button 
+                                            key={i}
+                                            disabled={!isAvailable || isPast}
+                                            onClick={() => !isPast && isAvailable && setSelectedDate(date)}
+                                            style={{
+                                                ...styles.dayBtn,
+                                                ...(isAvailable && !isPast ? styles.dayAvailable : {}),
+                                                ...(isSelected ? styles.daySelected : {}),
+                                                ...(!isAvailable || isPast ? styles.dayDisabled : {})
+                                            }}
+                                        >
+                                            {d}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        <div style={styles.timeSection}>
+                            <h3 style={styles.sectionTitle}><FiClock style={{marginRight: '8px'}} /> Select Time</h3>
+                            <div style={styles.timeGrid}>
+                                {getTimeSlots().map(session => (
+                                    <button
+                                        key={session.id}
+                                        onClick={() => setSelectedSession(session)}
                                         style={{
-                                            ...styles.dayBtn,
-                                            ...(isSelected ? styles.daySelected : {}),
-                                            ...(!isAvailable || isPast ? styles.dayDisabled : {})
+                                            ...styles.timeBtn,
+                                            ...(selectedSession?.id === session.id ? styles.timeSelected : {}),
+                                            gridColumn: 'span 2'
                                         }}
                                     >
-                                        {d}
+                                        {session.timeRange}
                                     </button>
-                                );
-                            })}
+                                ))}
+                            </div>
                         </div>
                     </div>
 
-                    <div style={styles.timeSection}>
-                        <h3 style={styles.sectionTitle}><FiClock style={{marginRight: '8px'}} /> Select Time</h3>
-                        <div style={styles.timeGrid}>
-                            {getTimeSlots().map(session => (
-                                <button
-                                    key={session.id}
-                                    onClick={() => setSelectedSession(session)}
-                                    style={{
-                                        ...styles.timeBtn,
-                                        ...(selectedSession?.id === session.id ? styles.timeSelected : {}),
-                                        gridColumn: 'span 2'
-                                    }}
-                                >
-                                    {session.timeRange}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
+                    {/* Step 3: Financial Summary removed from here and moved up */}
                 </div>
 
                 <div style={styles.footer}>
@@ -226,7 +417,10 @@ const BookingModal = ({ isOpen, onClose, appointment, onUpdate }) => {
                     <button 
                         onClick={handleReschedule} 
                         disabled={isProcessing || !selectedDate || !selectedSession}
-                        style={styles.confirmBtn}
+                        style={{
+                            ...styles.confirmBtn,
+                            opacity: (isProcessing || !selectedDate || !selectedSession) ? 0.6 : 1
+                        }}
                     >
                         {isProcessing ? "Processing..." : "Confirm Reschedule"}
                     </button>
@@ -238,8 +432,8 @@ const BookingModal = ({ isOpen, onClose, appointment, onUpdate }) => {
                 onClose={() => setShowConfirm(false)}
                 onConfirm={confirmReschedule}
                 title="Confirm Reschedule"
-                message={`Are you sure you want to reschedule ${appointment?.patient?.full_name}'s appointment to ${selectedDate?.toLocaleDateString()} at ${selectedSession?.timeRange}?`}
-                confirmLabel="Confirm Reschedule"
+                message={`Are you sure you want to reschedule ${appointment?.patient?.full_name}'s appointment to ${selectedDoctor?.full_name} on ${selectedDate?.toLocaleDateString()} at ${selectedSession?.timeRange}?`}
+                confirmLabel="Confirm"
                 cancelLabel="Go Back"
                 type="warning"
             />
@@ -266,7 +460,7 @@ const styles = {
         backgroundColor: "white",
         borderRadius: "28px",
         width: "100%",
-        maxWidth: "750px", // Medium size (from 950px)
+        maxWidth: "750px", 
         boxShadow: "0 25px 50px -12px rgba(15, 23, 42, 0.15)",
         overflow: "hidden",
         border: "1px solid #e2e8f0"
@@ -304,12 +498,6 @@ const styles = {
         alignItems: "center",
         justifyContent: "center",
         transition: "all 0.2s"
-    },
-    body: {
-        padding: "40px",
-        display: "grid",
-        gridTemplateColumns: "1.2fr 1fr",
-        gap: "48px"
     },
     calHeader: {
         display: "flex",
@@ -351,11 +539,11 @@ const styles = {
         textTransform: "uppercase"
     },
     dayBtn: {
-        aspectRatio: "1.1", // Medium proportions
+        aspectRatio: "1.1", 
         border: "none",
         borderRadius: "10px",
         backgroundColor: "white",
-        fontSize: "15px", // Medium font
+        fontSize: "15px", 
         fontWeight: "600",
         color: "#475569",
         cursor: "pointer",
@@ -367,14 +555,21 @@ const styles = {
     daySelected: {
         backgroundColor: "#2563eb",
         color: "white",
-        fontWeight: "700",
-        boxShadow: "0 4px 12px rgba(37, 99, 235, 0.3)"
+        boxShadow: "0 4px 6px -1px rgba(37, 99, 235, 0.4)",
+        border: "none"
+    },
+    dayAvailable: {
+        backgroundColor: "#eff6ff",
+        color: "#2563eb",
+        border: "1px solid #dbeafe",
+        fontWeight: "700"
     },
     dayDisabled: {
-        color: "#000000",
-        opacity: 0.2,
+        color: "#cbd5e1",
+        backgroundColor: "transparent",
         cursor: "not-allowed",
-        backgroundColor: "transparent"
+        border: "none",
+        opacity: 0.4
     },
     sectionTitle: {
         fontSize: "16px",
@@ -405,13 +600,6 @@ const styles = {
         backgroundColor: "#2563eb",
         color: "white",
         boxShadow: "0 4px 12px rgba(37, 99, 235, 0.2)"
-    },
-    timeBooked: {
-        backgroundColor: "#f8fafc",
-        color: "#cbd5e1",
-        cursor: "not-allowed",
-        borderStyle: "dashed",
-        borderColor: "#e2e8f0"
     },
     footer: {
         padding: "24px 40px",

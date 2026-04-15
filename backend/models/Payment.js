@@ -33,8 +33,17 @@ const Payment = sequelize.define('payment', {
         allowNull: false,
         unique: true
     },
-    description: {
+    transaction_type: {
+        type: DataTypes.ENUM('PAYMENT', 'REFUND'),
+        allowNull: false,
+        defaultValue: 'PAYMENT'
+    },
+    reason: {
         type: DataTypes.STRING(255),
+        allowNull: true
+    },
+    processed_by: {
+        type: DataTypes.INTEGER,
         allowNull: true
     }
 }, {

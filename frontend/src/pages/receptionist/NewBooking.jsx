@@ -48,6 +48,7 @@ function NewBooking() {
   const [bookedSlots, setBookedSlots] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [nextQueueNumber, setNextQueueNumber] = useState(null);
+  const [receptionistName, setReceptionistName] = useState("Receptionist");
 
   // Calendar state
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -58,10 +59,25 @@ function NewBooking() {
       try {
         const response = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/doctors`);
         if (response.data.success) {
-          setDoctors(response.data.data);
+          const doctorsList = response.data.data;
+          setDoctors(doctorsList);
+          
           // Extract unique specializations
-          const specs = [...new Set(response.data.data.map(d => d.specialization))];
+          const specs = [...new Set(doctorsList.map(d => d.specialization))];
           setServices(specs);
+
+          // Handle Pre-selection from URL (?doctor=ID)
+          const queryParams = new URLSearchParams(location.search);
+          const preSelectedId = queryParams.get('doctor');
+          
+          if (preSelectedId && doctorsList.length > 0) {
+            const doc = doctorsList.find(d => d.doctor_id === parseInt(preSelectedId));
+            if (doc) {
+              setSelectedDoctor(doc.doctor_id.toString());
+              setSelectedService(doc.specialization);
+              // Note: We don't skip to step 2 here because we still need to identify the patient at step 1
+            }
+          }
         }
       } catch (error) {
         console.error("Error fetching doctors:", error);
@@ -69,6 +85,24 @@ function NewBooking() {
       }
     };
     fetchDoctors();
+  }, []);
+
+  // Fetch receptionist profile
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/auth/profile`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (response.data.success) {
+          setReceptionistName(response.data.data.profile.full_name);
+        }
+      } catch (error) {
+        console.error("Error fetching receptionist profile:", error);
+      }
+    };
+    fetchProfile();
   }, []);
 
   // Fetch availability when doctor is selected
@@ -373,15 +407,17 @@ function NewBooking() {
     const days = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
     const dayName = days[date.getDay()];
 
-    // Check specific date overrides first
-    const specific = doctorAvailability.find(a => a.schedule_date === formattedDate);
-    if (specific) {
-      return true;
-    }
+    // 1. Check for specific date entries first (Overrides/Exclusions)
+    const specificActive = doctorAvailability.filter(a => a.schedule_date === formattedDate && a.status === 'ACTIVE' && !a.is_exclusion);
+    const exclusions = doctorAvailability.filter(a => a.schedule_date === formattedDate && a.is_exclusion && a.status === 'CANCELLED');
 
-    // Fallback to recurring
+    if (exclusions.length > 0) return false; // Hard block for cancelled days
+    if (specificActive.length > 0) return true; // Available for specific date
+
+    // 2. Check for recurring slots
     return doctorAvailability.some(a => {
       if (!a.day_of_week || a.day_of_week.toUpperCase() !== dayName || a.schedule_date) return false;
+      if (a.status !== 'ACTIVE') return false; // Ensure recurring is ACTIVE
       if (a.end_date) {
         return formattedDate <= a.end_date;
       }
@@ -400,13 +436,14 @@ function NewBooking() {
 
     // Specific date overrides take precedence
     let dayAvails = doctorAvailability.filter(a =>
-      a.schedule_date === formattedDate
+      a.schedule_date === formattedDate && a.status === 'ACTIVE' && !a.is_exclusion
     );
 
     // If no specific override, use recurring
     if (dayAvails.length === 0) {
       dayAvails = doctorAvailability.filter(a => {
         if (!a.day_of_week || a.day_of_week.toUpperCase() !== dayName || a.schedule_date) return false;
+        if (a.status !== 'ACTIVE') return false; // Ensure recurring is ACTIVE
         if (a.end_date) {
           return formattedDate <= a.end_date;
         }
@@ -453,7 +490,7 @@ function NewBooking() {
         animate="visible"
         variants={containerVariants}
       >
-        <ReceptionistHeader receptionistName="Sarah Johnson" />
+        <ReceptionistHeader receptionistName={receptionistName} />
 
         <main className="content-padding" style={{ flex: 1, overflowY: 'auto' }}>
           <motion.div variants={itemVariants} style={styles.contentCard}>
@@ -616,7 +653,12 @@ function NewBooking() {
                               setSelectedService(e.target.value);
                               setSelectedDoctor("");
                             }}
-                            style={styles.customSelect}
+                            style={{
+                              ...styles.customSelect,
+                              backgroundColor: new URLSearchParams(location.search).get('doctor') ? '#f8fafc' : 'white',
+                              cursor: new URLSearchParams(location.search).get('doctor') ? 'not-allowed' : 'pointer'
+                            }}
+                            disabled={!!new URLSearchParams(location.search).get('doctor')}
                           >
                             <option value="">Choose Service</option>
                             {services.map((service) => (
@@ -630,8 +672,12 @@ function NewBooking() {
                           <select
                             value={selectedDoctor}
                             onChange={(e) => setSelectedDoctor(e.target.value)}
-                            style={styles.customSelect}
-                            disabled={!selectedService}
+                            style={{
+                              ...styles.customSelect,
+                              backgroundColor: new URLSearchParams(location.search).get('doctor') ? '#f8fafc' : 'white',
+                              cursor: new URLSearchParams(location.search).get('doctor') ? 'not-allowed' : 'pointer'
+                            }}
+                            disabled={!selectedService || !!new URLSearchParams(location.search).get('doctor')}
                           >
                             <option value="">Choose Doctor</option>
                             {doctors
@@ -724,7 +770,10 @@ function NewBooking() {
                           return sessions.map((session) => (
                             <button
                               key={session.id}
-                              onClick={() => setSelectedSession(session)}
+                              onClick={() => {
+                                setSelectedSession(session);
+                                setSelectedTime(session.timeRange);
+                              }}
                               style={{
                                 ...styles.timeBtn,
                                 ...(selectedSession?.id === session.id ? styles.timeBtnActive : {}),

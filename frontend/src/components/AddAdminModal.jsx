@@ -1,55 +1,47 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiX, FiCheck, FiUser, FiLock, FiMail, FiPhone, FiTarget, FiActivity, FiBriefcase } from 'react-icons/fi';
+import { FiX, FiCheck, FiUser, FiLock, FiMail, FiPhone, FiShield } from 'react-icons/fi';
 
-const AddReceptionistModal = ({ 
+const AddAdminModal = ({ 
   isOpen, 
   onClose, 
   onSubmit, 
-  editingReceptionist = null,
+  editingAdmin = null,
   isLoading = false 
 }) => {
   const [formData, setFormData] = useState({
     username: '',
     password: '',
-    full_name: '',
     email: '',
     contact_number: '',
-    nic: ''
+    role_id: 1 // Default to Regular Admin
   });
 
   const [formErrors, setFormErrors] = useState({});
 
   useEffect(() => {
-    if (editingReceptionist) {
+    if (editingAdmin) {
       setFormData({
-        username: editingReceptionist.user?.username || '',
+        username: editingAdmin.username || '',
         password: '', // Password not editable
-        full_name: editingReceptionist.full_name || '',
-        email: editingReceptionist.user?.email || '',
-        contact_number: editingReceptionist.user?.contact_number || '',
-        nic: editingReceptionist.nic || ''
+        email: editingAdmin.email || '',
+        contact_number: editingAdmin.contact_number || '',
+        role_id: editingAdmin.role_id || 1
       });
     } else {
       setFormData({
         username: '',
         password: '',
-        full_name: '',
         email: '',
         contact_number: '',
-        nic: ''
+        role_id: 1
       });
     }
-  }, [editingReceptionist, isOpen]);
+  }, [editingAdmin, isOpen]);
 
   const validateField = (name, value) => {
     let error = '';
     switch (name) {
-      case 'full_name':
-        if (!value) error = 'Full name is required';
-        else if (value.length < 3) error = 'Minimum 3 characters required';
-        else if (!/^[a-zA-Z\s.]+$/.test(value)) error = 'Only letters, spaces and periods allowed';
-        break;
       case 'email':
         if (!value) error = 'Email is required';
         else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) error = 'Invalid email format';
@@ -65,32 +57,15 @@ const AddReceptionistModal = ({
           if (digits.length !== 10) error = 'Must be exactly 10 digits';
           else if (!digits.startsWith('07')) error = 'Must start with 07';
           else if (!validPrefixes.includes(prefix)) error = 'Invalid Sri Lankan mobile prefix';
-          else if (/(\d)\1{7,}/.test(digits)) error = 'Too many repeating digits';
-          else if (/0123456|1234567|2345678|3456789/.test(digits)) error = 'Sequential numbers not allowed';
-        }
-        break;
-      case 'nic':
-        if (!value) error = 'NIC is required';
-        else {
-          const nic = value.trim().toUpperCase();
-          const oldNicRegex = /^[0-9]{9}[VX]$/;
-          const newNicRegex = /^[0-9]{12}$/;
-          
-          if (!oldNicRegex.test(nic) && !newNicRegex.test(nic)) {
-            error = 'Invalid NIC format (e.g., 123456789V or 12 digits)';
-          } else {
-            const digitsOnly = nic.replace(/[VX]/g, '');
-            if (/(\d)\1{8,}/.test(digitsOnly)) error = 'Invalid repeating pattern';
-            if (/012345678|123456789|987654321/.test(digitsOnly)) error = 'Sequential digits not allowed';
-          }
         }
         break;
       case 'username':
-        if (!editingReceptionist && !value) error = 'Username is required';
-        else if (value && !/^Rep_[A-Z][A-Za-z0-9]*$/.test(value)) error = "Username must start with 'Rep_' followed by a Capital letter (e.g., Rep_Sarah)";
+        if (!editingAdmin && !value) error = 'Username is required';
+        else if (value && value.length < 3) error = 'Username too short, minimum 3 characters required';
+        else if (value && !/^[A-Za-z0-9_]*_[A-Za-z0-9_]*$/.test(value)) error = "Admin username must contain an underscore '_' (e.g., Admin_01)";
         break;
       case 'password':
-        if (!editingReceptionist && !value) error = 'Password is required';
+        if (!editingAdmin && !value) error = 'Password is required';
         else if (value && value.length < 8) error = 'Password must be at least 8 characters';
         else if (value && !/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]*$/.test(value)) error = 'Password requires at least 1 uppercase, 1 lowercase, 1 number, and 1 special character';
         break;
@@ -121,7 +96,14 @@ const AddReceptionistModal = ({
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!validateForm()) return;
-    onSubmit(formData);
+    
+    // Map contact_number to phone for backend consistency
+    const submissionData = {
+      ...formData,
+      phone: formData.contact_number
+    };
+    
+    onSubmit(submissionData);
   };
 
   if (!isOpen) return null;
@@ -138,8 +120,8 @@ const AddReceptionistModal = ({
           {/* Header */}
           <div style={styles.header}>
             <div>
-              <h2 style={styles.title}>{editingReceptionist ? 'Edit Receptionist' : 'Add New Receptionist'}</h2>
-              <p style={styles.subtitle}>Enter account information and shift details</p>
+              <h2 style={styles.title}>{editingAdmin ? 'Edit Administrator' : 'Add New Administrator'}</h2>
+              <p style={styles.subtitle}>Configure access credentials and administrative permissions</p>
             </div>
             <button onClick={onClose} style={styles.closeBtn}>
               <FiX />
@@ -149,7 +131,7 @@ const AddReceptionistModal = ({
           <form onSubmit={handleSubmit} style={styles.form}>
             <div style={styles.scrollContent}>
               <div style={styles.section}>
-                <h3 style={styles.sectionTitle}>Account Information</h3>
+                <h3 style={styles.sectionTitle}>Account Credentials</h3>
                 <div style={styles.grid}>
                   <div style={styles.formGroup}>
                     <label style={styles.label}>Username <span style={styles.req}>*</span></label>
@@ -160,19 +142,19 @@ const AddReceptionistModal = ({
                         name="username" 
                         value={formData.username} 
                         onChange={handleInputChange}
-                        disabled={!!editingReceptionist}
+                        disabled={!!editingAdmin}
                         style={{
                           ...styles.input, 
-                          ...(editingReceptionist ? styles.disabledInput : {}),
+                          ...(editingAdmin ? styles.disabledInput : {}),
                           ...(formErrors.username ? styles.inputError : {})
                         }}
-                        placeholder="Rep_Admin"
+                        placeholder="admin_user"
                       />
                     </div>
                     {formErrors.username && <span style={styles.errorText}>{formErrors.username}</span>}
                   </div>
 
-                  {!editingReceptionist && (
+                  {!editingAdmin && (
                     <div style={styles.formGroup}>
                       <label style={styles.label}>Password <span style={styles.req}>*</span></label>
                       <div style={styles.inputWrapper}>
@@ -196,51 +178,7 @@ const AddReceptionistModal = ({
               </div>
 
               <div style={styles.section}>
-                <h3 style={styles.sectionTitle}>Personal Details</h3>
-                <div style={styles.grid}>
-                  <div style={styles.formGroup}>
-                    <label style={styles.label}>Full Name <span style={styles.req}>*</span></label>
-                    <input 
-                      type="text" 
-                      name="full_name" 
-                      value={formData.full_name} 
-                      onChange={handleInputChange}
-                      style={{
-                        ...styles.input,
-                        ...(formErrors.full_name ? styles.inputError : {})
-                      }}
-                      placeholder="Sayumi Manujana"
-                    />
-                    {formErrors.full_name && <span style={styles.errorText}>{formErrors.full_name}</span>}
-                  </div>
-
-                  <div style={styles.formGroup}>
-                    <label style={styles.label}>NIC <span style={styles.req}>*</span></label>
-                    <div style={styles.inputWrapper}>
-                      <FiTarget style={styles.inputIcon} />
-                      <input 
-                        type="text" 
-                        name="nic" 
-                        value={formData.nic} 
-                        onChange={handleInputChange}
-                        disabled={!!editingReceptionist}
-                        style={{
-                          ...styles.input, 
-                          ...(editingReceptionist ? styles.disabledInput : {}),
-                          ...(formErrors.nic ? styles.inputError : {})
-                        }}
-                        placeholder="123456789V"
-                      />
-                    </div>
-                    {formErrors.nic && <span style={styles.errorText}>{formErrors.nic}</span>}
-                  </div>
-
-
-                </div>
-              </div>
-
-              <div style={styles.section}>
-                <h3 style={styles.sectionTitle}>Contact Info</h3>
+                <h3 style={styles.sectionTitle}>Contact Information</h3>
                 <div style={styles.grid}>
                   <div style={styles.formGroup}>
                     <label style={styles.label}>Email Address <span style={styles.req}>*</span></label>
@@ -255,7 +193,7 @@ const AddReceptionistModal = ({
                           ...styles.input,
                           ...(formErrors.email ? styles.inputError : {})
                         }}
-                        placeholder="receptionist@example.com"
+                        placeholder="admin@pmc.lk"
                       />
                     </div>
                     {formErrors.email && <span style={styles.errorText}>{formErrors.email}</span>}
@@ -282,6 +220,35 @@ const AddReceptionistModal = ({
                   </div>
                 </div>
               </div>
+
+              <div style={styles.section}>
+                <h3 style={styles.sectionTitle}>System Permissions</h3>
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Administrative Role</label>
+                  <div style={styles.roleToggle}>
+                    <button 
+                      type="button"
+                      onClick={() => setFormData({...formData, role_id: 1})}
+                      style={{
+                        ...styles.roleBtn,
+                        ...(formData.role_id === 1 ? styles.roleBtnActive : {})
+                      }}
+                    >
+                      Regular Admin
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={() => setFormData({...formData, role_id: 5})}
+                      style={{
+                        ...styles.roleBtn,
+                        ...(formData.role_id === 5 ? styles.roleBtnActive : {})
+                      }}
+                    >
+                      <FiShield style={{marginRight: '8px'}} /> Super Admin
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <div style={styles.footer}>
@@ -293,7 +260,7 @@ const AddReceptionistModal = ({
                 style={styles.submitBtn}
                 disabled={isLoading}
               >
-                {isLoading ? 'Processing...' : (editingReceptionist ? 'Update Receptionist' : 'Add Receptionist')}
+                {isLoading ? 'Saving...' : (editingAdmin ? 'Update Administrator' : 'Add Administrator')}
               </button>
             </div>
           </form>
@@ -322,7 +289,7 @@ const styles = {
     backgroundColor: 'white',
     borderRadius: '24px',
     width: '100%',
-    maxWidth: '720px',
+    maxWidth: '650px',
     maxHeight: '90vh',
     display: 'flex',
     flexDirection: 'column',
@@ -338,14 +305,14 @@ const styles = {
     flexShrink: 0
   },
   title: {
-    fontSize: '24px',
+    fontSize: '22px',
     fontWeight: '800',
     color: '#0f172a',
     margin: '0 0 4px 0',
     letterSpacing: '-0.5px'
   },
   subtitle: {
-    fontSize: '14px',
+    fontSize: '13px',
     color: '#64748b',
     margin: 0,
     fontWeight: '500'
@@ -354,14 +321,14 @@ const styles = {
     background: '#f8fafc',
     border: 'none',
     color: '#64748b',
-    width: '40px',
-    height: '40px',
-    borderRadius: '12px',
+    width: '36px',
+    height: '36px',
+    borderRadius: '10px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     cursor: 'pointer',
-    fontSize: '20px',
+    fontSize: '18px',
     transition: 'all 0.2s'
   },
   form: {
@@ -376,15 +343,15 @@ const styles = {
     flex: 1
   },
   section: {
-    marginBottom: '32px'
+    marginBottom: '28px'
   },
   sectionTitle: {
-    fontSize: '14px',
+    fontSize: '12px',
     fontWeight: '700',
-    color: '#2563eb', // blue theme for receptionist (matches doctors)
+    color: '#4f46e5',
     textTransform: 'uppercase',
     letterSpacing: '1px',
-    marginBottom: '20px',
+    marginBottom: '16px',
     display: 'flex',
     alignItems: 'center',
     gap: '8px'
@@ -422,20 +389,51 @@ const styles = {
     width: '100%',
     padding: '12px 14px 12px 42px',
     borderRadius: '12px',
-    border: '1px solid #e2e8f0',
+    border: '2px solid #f1f5f9',
     backgroundColor: '#fff',
-    fontSize: '15px',
+    fontSize: '14px',
     color: '#0f172a',
     outline: 'none',
-    transition: 'all 0.2s'
+    transition: 'all 0.2s',
+    '&:focus': {
+      borderColor: '#4f46e5'
+    }
   },
   disabledInput: {
     backgroundColor: '#f8fafc',
     color: '#94a3b8',
     cursor: 'not-allowed'
   },
+  roleToggle: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: '10px',
+    backgroundColor: '#f8fafc',
+    padding: '6px',
+    borderRadius: '12px',
+    border: '1px solid #e2e8f0'
+  },
+  roleBtn: {
+    padding: '10px',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: '13px',
+    fontWeight: '700',
+    color: '#64748b',
+    backgroundColor: 'transparent',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  roleBtnActive: {
+    backgroundColor: 'white',
+    color: '#4f46e5',
+    boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
+  },
   errorText: {
-    fontSize: '12px',
+    fontSize: '11px',
     color: '#ef4444',
     marginTop: '4px',
     fontWeight: '500'
@@ -445,7 +443,7 @@ const styles = {
     backgroundColor: '#fffafb'
   },
   footer: {
-    padding: '24px 32px',
+    padding: '20px 32px',
     backgroundColor: '#f8fafc',
     borderTop: '1px solid #f1f5f9',
     display: 'flex',
@@ -454,28 +452,26 @@ const styles = {
     flexShrink: 0
   },
   cancelBtn: {
-    padding: '12px 24px',
-    borderRadius: '12px',
-    fontSize: '15px',
+    padding: '10px 24px',
+    borderRadius: '10px',
+    fontSize: '14px',
     fontWeight: '600',
     color: '#64748b',
     backgroundColor: 'white',
     border: '1px solid #e2e8f0',
-    cursor: 'pointer',
-    transition: 'all 0.2s'
+    cursor: 'pointer'
   },
   submitBtn: {
-    padding: '12px 32px',
-    borderRadius: '12px',
-    fontSize: '15px',
+    padding: '10px 32px',
+    borderRadius: '10px',
+    fontSize: '14px',
     fontWeight: '700',
     color: 'white',
-    backgroundColor: '#2563eb', // keeping same brand blue for buttons
+    backgroundColor: '#4f46e5',
     border: 'none',
     cursor: 'pointer',
-    transition: 'all 0.2s',
-    boxShadow: '0 4px 6px -1px rgba(37, 99, 235, 0.2)'
+    boxShadow: '0 4px 6px -1px rgba(79, 70, 229, 0.2)'
   }
 };
 
-export default AddReceptionistModal;
+export default AddAdminModal;

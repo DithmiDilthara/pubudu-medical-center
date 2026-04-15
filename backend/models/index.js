@@ -3,6 +3,8 @@ import Role from './Role.js';
 import User from './User.js';
 import Admin from './Admin.js';
 import Patient from './Patient.js';
+import Adult from './Adult.js';
+import Child from './Child.js';
 import Doctor from './Doctor.js';
 import Receptionist from './Receptionist.js';
 import Token from './Token.js';
@@ -28,6 +30,14 @@ Admin.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 // User - Patient (One-to-One)
 User.hasOne(Patient, { foreignKey: 'user_id', as: 'patient', onDelete: 'CASCADE' });
 Patient.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+
+// Patient - Adult (One-to-One)
+Patient.hasOne(Adult, { foreignKey: 'patient_id', as: 'adult', onDelete: 'CASCADE' });
+Adult.belongsTo(Patient, { foreignKey: 'patient_id', as: 'patient' });
+
+// Patient - Child (One-to-One)
+Patient.hasOne(Child, { foreignKey: 'patient_id', as: 'child', onDelete: 'CASCADE' });
+Child.belongsTo(Patient, { foreignKey: 'patient_id', as: 'patient' });
 
 // User - Doctor (One-to-One)
 User.hasOne(Doctor, { foreignKey: 'user_id', as: 'doctor', onDelete: 'CASCADE' });
@@ -69,9 +79,13 @@ MedicalRecord.belongsTo(Patient, { foreignKey: 'patient_id', as: 'patient' });
 Doctor.hasMany(MedicalRecord, { foreignKey: 'doctor_id', as: 'medical_records' });
 MedicalRecord.belongsTo(Doctor, { foreignKey: 'doctor_id', as: 'doctor' });
 
-// Appointment - Payment (One-to-One)
-Appointment.hasOne(Payment, { foreignKey: 'appointment_id', as: 'payment' });
+// Appointment - Payment (One-to-Many)
+Appointment.hasMany(Payment, { foreignKey: 'appointment_id', as: 'payments' });
 Payment.belongsTo(Appointment, { foreignKey: 'appointment_id', as: 'appointment' });
+
+// Availability - Appointment (One-to-Many)
+Availability.hasMany(Appointment, { foreignKey: 'schedule_id', as: 'appointments' });
+Appointment.belongsTo(Availability, { foreignKey: 'schedule_id', as: 'availability' });
 
 export {
   sequelize,
@@ -79,6 +93,8 @@ export {
   User,
   Admin,
   Patient,
+  Adult,
+  Child,
   Doctor,
   Receptionist,
   Token,

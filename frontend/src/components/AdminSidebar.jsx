@@ -7,7 +7,8 @@ import {
   FiLogOut, 
   FiActivity, 
   FiUser,
-  FiChevronRight
+  FiChevronRight,
+  FiShield
 } from "react-icons/fi";
 import { useAuth } from '../context/AuthContext';
 import { motion } from "framer-motion";
@@ -15,7 +16,7 @@ import { motion } from "framer-motion";
 function AdminSidebar() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { logout } = useAuth();
+  const { logout, isSuperAdmin } = useAuth();
 
   const handleLogout = () => {
     logout();
@@ -27,6 +28,7 @@ function AdminSidebar() {
     { path: "/admin/doctors", label: "Doctors", icon: FiUsers },
     { path: "/admin/receptionist", label: "Receptionists", icon: FiUserCheck },
     { path: "/admin/reports", label: "System Reports", icon: FiFileText },
+    ...(isSuperAdmin ? [{ path: "/admin/manage-admins", label: "Manage Administrators", icon: FiShield }] : []),
     { path: "/profile", label: "My Profile", icon: FiUser }
   ];
 

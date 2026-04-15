@@ -1,4 +1,4 @@
-import { User, Doctor, Receptionist, Admin, Appointment, Payment, Patient, Availability, MedicalRecord, sequelize } from '../models/index.js';
+import { User, Doctor, Receptionist, Admin, Appointment, Payment, Patient, Adult, Availability, MedicalRecord, sequelize } from '../models/index.js';
 import { Op } from 'sequelize';
 import ReportGenerator from '../utils/ReportGenerator.js';
 import NotificationService from '../utils/NotificationService.js';
@@ -16,7 +16,7 @@ export const getSystemStats = async (req, res) => {
       Receptionist.count(),
       Appointment.count(),
       Appointment.findAll({
-        where: { payment_status: 'PAID' },
+        where: { payment_status: { [Op.in]: ['PAID', 'REFUNDED', 'PARTIAL'] } },
         include: [{ model: Doctor, as: 'doctor', attributes: ['center_fee'] }]
       })
     ]);
@@ -43,41 +43,62 @@ export const getRevenueReport = async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
     
-    const where = {
-      payment_status: 'PAID'
-    };
-
+    // Unifying logic: Query Payments based on created_at range
+    const paymentWhere = { transaction_type: 'PAYMENT' };
     if (startDate && endDate) {
-      where.appointment_date = {
-        [Op.between]: [startDate, endDate]
+      paymentWhere.created_at = {
+        [Op.between]: [new Date(startDate), new Date(endDate + 'T23:59:59')]
       };
     }
 
-    const appointments = await Appointment.findAll({
-      where,
+    const payments = await Payment.findAll({
+      where: paymentWhere,
       include: [
         {
-          model: Doctor,
-          as: 'doctor',
-          attributes: ['center_fee', 'full_name']
-        },
-        {
-          model: Patient,
-          as: 'patient',
-          attributes: ['full_name']
+          model: Appointment,
+          as: 'appointment',
+          include: [
+            {
+              model: Doctor,
+              as: 'doctor',
+              attributes: ['center_fee', 'full_name']
+            },
+            {
+              model: Patient,
+              as: 'patient',
+              attributes: ['full_name']
+            }
+          ]
         }
       ]
     });
 
-    const totalCenterRevenue = appointments.reduce((sum, appt) => sum + parseFloat(appt.doctor?.center_fee || 0), 0);
-
-    // Group by Doctor for Chart
+    const processedAppointments = new Set();
+    let totalCenterRevenue = 0;
     const doctorStats = {};
-    appointments.forEach(a => {
-      const docName = a.doctor?.full_name || 'Unknown';
-      if (!doctorStats[docName]) doctorStats[docName] = { revenue: 0, patients: 0 };
-      doctorStats[docName].revenue += parseFloat(a.doctor?.center_fee || 0);
-      doctorStats[docName].patients += 1;
+    const processedApptDetails = [];
+
+    payments.forEach(p => {
+      const appt = p.appointment;
+      if (appt && !processedAppointments.has(p.appointment_id)) {
+        processedAppointments.add(p.appointment_id);
+        const centerFee = parseFloat(appt.doctor?.center_fee || 0);
+        
+        totalCenterRevenue += centerFee;
+
+        const docName = appt.doctor?.full_name || 'Unknown';
+        if (!doctorStats[docName]) doctorStats[docName] = { revenue: 0, patients: 0 };
+        doctorStats[docName].revenue += centerFee;
+        doctorStats[docName].patients += 1;
+
+        processedApptDetails.push({
+          appointment_id: appt.appointment_id,
+          patient_name: appt.patient?.full_name,
+          doctor_name: appt.doctor?.full_name,
+          date: appt.appointment_date,
+          center_fee: centerFee
+        });
+      }
     });
 
     const chartData = Object.entries(doctorStats).map(([name, stats]) => ({
@@ -90,15 +111,9 @@ export const getRevenueReport = async (req, res) => {
       success: true,
       data: {
         totalRevenue: totalCenterRevenue,
-        appointmentCount: appointments.length,
+        appointmentCount: processedAppointments.size,
         chartData,
-        appointments: appointments.map(a => ({
-          appointment_id: a.appointment_id,
-          patient_name: a.patient?.full_name,
-          doctor_name: a.doctor?.full_name,
-          date: a.appointment_date,
-          center_fee: parseFloat(a.doctor?.center_fee || 0)
-        }))
+        appointments: processedApptDetails
       }
     });
 
@@ -109,59 +124,148 @@ export const getRevenueReport = async (req, res) => {
 };
 
 /**
- * @desc    Get Patient Registration Report
- * @route   GET /api/admin/reports/patients
+ * @desc    Get Advanced Income Report
+ * @route   GET /api/admin/reports/income
  * @access  Private/Admin
  */
-export const getPatientRegistrationReport = async (req, res) => {
+export const getIncomeReport = async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
-    const where = {};
-
+    
+    // Filter for payments in the range
+    const paymentWhere = {};
     if (startDate && endDate) {
-      where.created_at = {
+      paymentWhere.created_at = {
         [Op.between]: [new Date(startDate), new Date(endDate + 'T23:59:59')]
       };
     }
 
-    const patients = await Patient.findAll({
-      where,
-      include: [{
-        model: User,
-        as: 'user',
-        attributes: ['email', 'contact_number']
-      }],
-      order: [['created_at', 'DESC']]
+    const payments = await Payment.findAll({
+      where: paymentWhere,
+      include: [
+        { model: Patient, as: 'patient', attributes: ['full_name'] },
+        {
+          model: Appointment,
+          as: 'appointment',
+          include: [{ model: Doctor, as: 'doctor', attributes: ['doctor_fee', 'center_fee', 'full_name'] }]
+        }
+      ]
     });
 
-    const summary = {
-      total: patients.length,
-      online: patients.filter(p => p.registration_source === 'ONLINE').length,
-      receptionist: patients.filter(p => p.registration_source === 'RECEPTIONIST').length
-    };
+    // Calculations
+    const processedAppointments = new Set();
+    const paymentMethodStats = { CASH: 0, ONLINE: 0 };
+    const statusStats = { COMPLETED: 0, CANCELLED: 0, PENDING: 0, NO_SHOW: 0, OTHER: 0 };
+    const doctorStatsMap = {};
+    const individualRefunds = []; // Track refunds
+    
+    let grossCenterIncome = 0;
+    let grossDoctorIncome = 0;
+    let totalRefunds = 0;
 
-    // Chart Data: Registration Source
-    const chartData = [
-      { name: 'Online', count: summary.online },
-      { name: 'Receptionist', count: summary.receptionist }
+    payments.forEach(p => {
+      const amount = parseFloat(p.amount);
+      const appt = p.appointment;
+      
+      // 1. Payment Method Breakdown (Cash vs Online)
+      const method = (p.payment_method || 'CASH').toUpperCase();
+      if (method.includes('PAYHERE') || method.includes('ONLINE') || method.includes('REFUND_CREDIT')) {
+        paymentMethodStats.ONLINE += amount;
+      } else {
+        paymentMethodStats.CASH += amount;
+      }
+
+      // Initialize Doctor Stat if appointment exists
+      let docStats = null;
+      if (appt) {
+        const docId = appt.doctor_id || 'unknown';
+        if (!doctorStatsMap[docId]) {
+          doctorStatsMap[docId] = {
+            doctorName: appt.doctor?.full_name || 'Unknown',
+            patientCount: 0,
+            grossCenter: 0,
+            grossDoctor: 0,
+            refunds: 0
+          };
+        }
+        docStats = doctorStatsMap[docId];
+      }
+
+      // 2. Transaction Type Logic
+      if (p.transaction_type === 'REFUND') {
+        const absRefund = Math.abs(amount);
+        totalRefunds += absRefund;
+        if (docStats) docStats.refunds += absRefund;
+        
+        individualRefunds.push({
+          patientName: p.patient?.full_name || 'Individual Patient',
+          amount: absRefund
+        });
+      } else if (p.transaction_type === 'PAYMENT') {
+        if (appt && !processedAppointments.has(p.appointment_id)) {
+          const cFee = parseFloat(appt.doctor?.center_fee || 0);
+          const dFee = parseFloat(appt.doctor?.doctor_fee || 0);
+          
+          grossCenterIncome += cFee;
+          grossDoctorIncome += dFee;
+          
+          if (docStats) {
+            docStats.patientCount++;
+            docStats.grossCenter += cFee;
+            docStats.grossDoctor += dFee;
+          }
+          
+          processedAppointments.add(p.appointment_id);
+          
+          // Status Tracking
+          const status = appt.status;
+          if (statusStats[status] !== undefined) {
+            statusStats[status]++;
+          } else {
+            statusStats.OTHER++;
+          }
+        }
+      }
+    });
+
+    const netDoctorIncome = grossDoctorIncome - totalRefunds;
+    const totalNetCash = grossCenterIncome + netDoctorIncome;
+    const doctorBreakdown = Object.values(doctorStatsMap);
+
+    // Chart Data Conversions
+    const paymentChartData = [
+      { name: 'Cash', value: paymentMethodStats.CASH },
+      { name: 'Online', value: paymentMethodStats.ONLINE }
     ];
+
+    const statusChartData = Object.entries(statusStats)
+      .filter(([_, value]) => value > 0)
+      .map(([name, value]) => ({ name, value }));
 
     res.status(200).json({
       success: true,
       data: {
-        summary,
-        chartData,
-        patients: patients.map(p => ({
-          name: p.full_name,
-          nic: p.nic,
-          source: p.registration_source,
-          date: p.created_at,
-          contact: p.user?.contact_number || 'N/A'
-        }))
+        summary: {
+          totalBookings: processedAppointments.size,
+          grossCenterIncome,
+          grossDoctorIncome,
+          totalRefunds,
+          netDoctorIncome,
+          totalNetCash,
+          noShowCount: statusStats.NO_SHOW
+        },
+        doctorBreakdown,
+        individualRefunds,
+        charts: {
+          paymentMethods: paymentChartData,
+          appointmentStatus: statusChartData
+        },
+        period: { startDate, endDate }
       }
     });
+
   } catch (error) {
-    console.error('Patient report error:', error);
+    console.error('Income report error:', error);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };
@@ -193,8 +297,10 @@ export const getAppointmentReport = async (req, res) => {
     const summary = {
       total: appointments.length,
       completed: appointments.filter(a => a.status === 'COMPLETED').length,
+      confirmed: appointments.filter(a => a.status === 'CONFIRMED').length,
       cancelled: appointments.filter(a => a.status === 'CANCELLED').length,
-      absent: appointments.filter(a => a.status === 'CANCELLED' && a.is_noshow).length,
+      reschedule_required: appointments.filter(a => a.status === 'RESCHEDULE_REQUIRED').length,
+      absent: appointments.filter(a => a.status === 'NO_SHOW').length,
       pending: appointments.filter(a => a.status === 'PENDING').length
     };
 
@@ -208,18 +314,22 @@ export const getAppointmentReport = async (req, res) => {
           specialisation: a.doctor?.specialization || 'General',
           total: 0,
           completed: 0,
+          confirmed: 0,
           cancelled: 0,
-          noshow: 0
+          reschedule_required: 0,
+          noshow: 0,
+          pending: 0
         };
       }
       
       const stats = doctorStatsMap[docId];
       stats.total += 1;
       if (a.status === 'COMPLETED') stats.completed += 1;
-      if (a.status === 'CANCELLED') {
-        stats.cancelled += 1;
-        if (a.is_noshow) stats.noshow += 1;
-      }
+      if (a.status === 'CONFIRMED') stats.confirmed += 1;
+      if (a.status === 'RESCHEDULE_REQUIRED') stats.reschedule_required += 1;
+      if (a.status === 'CANCELLED') stats.cancelled += 1;
+      if (a.status === 'NO_SHOW') stats.noshow += 1;
+      if (a.status === 'PENDING') stats.pending += 1;
     });
 
     const doctorStats = Object.values(doctorStatsMap);
@@ -237,7 +347,9 @@ export const getAppointmentReport = async (req, res) => {
         generated: new Date().toISOString().split('T')[0],
         totalAppointments: summary.total,
         totalCompleted: summary.completed,
+        totalConfirmed: summary.confirmed,
         totalCancelled: summary.cancelled,
+        totalRescheduleRequired: summary.reschedule_required,
         totalNoShow: summary.absent,
         totalPending: summary.pending,
         doctors: doctorStats,
@@ -265,39 +377,56 @@ export const exportReport = async (req, res) => {
     let reportData = {};
     
     if (type === 'revenue') {
-      const where = { payment_status: 'PAID' };
-      if (startDate && endDate) where.appointment_date = { [Op.between]: [startDate, endDate] };
-      const appointments = await Appointment.findAll({
-        where,
+      const paymentWhere = { transaction_type: 'PAYMENT' };
+      if (startDate && endDate) {
+        paymentWhere.created_at = {
+          [Op.between]: [new Date(startDate), new Date(endDate + 'T23:59:59')]
+        };
+      }
+      
+      const payments = await Payment.findAll({
+        where: paymentWhere,
         include: [
-          { model: Doctor, as: 'doctor', attributes: ['center_fee', 'full_name', 'specialization'] },
-          { model: Patient, as: 'patient', attributes: ['full_name'] }
+          {
+            model: Appointment,
+            as: 'appointment',
+            include: [
+              { model: Doctor, as: 'doctor', attributes: ['center_fee', 'full_name', 'specialization'] },
+              { model: Patient, as: 'patient', attributes: ['full_name'] }
+            ]
+          }
         ]
       });
+
       // Aggregate by Doctor
       const doctorAggregation = {};
       let grandTotalVolume = 0;
       let grandTotalRevenue = 0;
+      const processedAppointments = new Set();
 
-      appointments.forEach(appt => {
-        const docId = appt.doctor_id || 'unknown';
-        const doc = appt.doctor;
-        const centerFee = parseFloat(doc?.center_fee || 0);
+      payments.forEach(p => {
+        const appt = p.appointment;
+        if (appt && !processedAppointments.has(p.appointment_id)) {
+          processedAppointments.add(p.appointment_id);
+          const docId = appt.doctor_id || 'unknown';
+          const doc = appt.doctor;
+          const centerFee = parseFloat(doc?.center_fee || 0);
 
-        if (!doctorAggregation[docId]) {
-          doctorAggregation[docId] = {
-            doctor_name: doc?.full_name || 'Unknown',
-            specialisation: doc?.specialization || 'General',
-            patient_volume: 0,
-            center_fee: centerFee,
-            total_revenue: 0
-          };
+          if (!doctorAggregation[docId]) {
+            doctorAggregation[docId] = {
+              doctor_name: doc?.full_name || 'Unknown',
+              specialisation: doc?.specialization || 'General',
+              patient_volume: 0,
+              center_fee: centerFee,
+              total_revenue: 0
+            };
+          }
+
+          doctorAggregation[docId].patient_volume += 1;
+          doctorAggregation[docId].total_revenue += centerFee;
+          grandTotalVolume += 1;
+          grandTotalRevenue += centerFee;
         }
-
-        doctorAggregation[docId].patient_volume += 1;
-        doctorAggregation[docId].total_revenue += centerFee;
-        grandTotalVolume += 1;
-        grandTotalRevenue += centerFee;
       });
 
       reportData = {
@@ -309,26 +438,45 @@ export const exportReport = async (req, res) => {
           revenue: grandTotalRevenue
         }
       };
-    } else if (type === 'patients') {
-      const where = {};
-      if (startDate && endDate) where.created_at = { [Op.between]: [new Date(startDate), new Date(endDate + 'T23:59:59')] };
-      const patients = await Patient.findAll({
-        where,
-        include: [{ model: User, as: 'user', attributes: ['email', 'contact_number'] }],
-        order: [['created_at', 'DESC']]
+    } else if (type === 'income') {
+      const paymentWhere = {};
+      if (startDate && endDate) {
+        paymentWhere.created_at = {
+          [Op.between]: [new Date(startDate), new Date(endDate + 'T23:59:59')]
+        };
+      }
+      const payments = await Payment.findAll({
+        where: paymentWhere,
+        include: [
+          {
+            model: Appointment,
+            as: 'appointment',
+            include: [{ model: Doctor, as: 'doctor', attributes: ['doctor_fee', 'center_fee', 'full_name'] }]
+          }
+        ]
       });
+
+      const processedAppointments = new Set();
+      let grossCenter = 0, grossDoc = 0, refunds = 0;
+      
+      payments.forEach(p => {
+        if (p.transaction_type === 'REFUND') refunds += Math.abs(parseFloat(p.amount));
+        else if (p.transaction_type === 'PAYMENT' && p.appointment && !processedAppointments.has(p.appointment_id)) {
+          grossCenter += parseFloat(p.appointment.doctor?.center_fee || 0);
+          grossDoc += parseFloat(p.appointment.doctor?.doctor_fee || 0);
+          processedAppointments.add(p.appointment_id);
+        }
+      });
+
       reportData = {
         summary: {
-          total: patients.length,
-          online: patients.filter(p => p.registration_source === 'ONLINE').length,
-          receptionist: patients.filter(p => p.registration_source === 'RECEPTIONIST').length
-        },
-        patients: patients.map(p => ({
-          name: p.full_name,
-          nic: p.nic,
-          source: p.registration_source,
-          contact: p.user?.contact_number || 'N/A'
-        }))
+          totalBookings: processedAppointments.size,
+          grossCenter,
+          grossDoc,
+          refunds,
+          netDoc: grossDoc - refunds,
+          netTotal: grossCenter + (grossDoc - refunds)
+        }
       };
     } else if (type === 'appointments') {
       const where = {};
@@ -344,7 +492,8 @@ export const exportReport = async (req, res) => {
         summary: {
           total: appointments.length,
           cancelled: appointments.filter(a => a.status === 'CANCELLED').length,
-          absent: appointments.filter(a => a.status === 'CANCELLED' && a.is_noshow).length
+          reschedule_required: appointments.filter(a => a.status === 'RESCHEDULE_REQUIRED').length,
+          absent: appointments.filter(a => a.status === 'NO_SHOW').length
         },
         appointments: appointments.map(a => ({
           patient_name: a.patient?.full_name,
@@ -452,6 +601,7 @@ export const createDoctor = async (req, res) => {
       license_no,
       doctor_fee,
       center_fee,
+      consultation_fee: (Number(doctor_fee) || 0) + (Number(center_fee) || 0),
       gender
     });
 
@@ -503,7 +653,8 @@ export const getDoctors = async (req, res) => {
           as: 'user',
           attributes: ['user_id', 'username', 'email', 'contact_number']
         }
-      ]
+      ],
+      order: [['doctor_id', 'DESC']]
     });
 
     res.status(200).json({
@@ -527,43 +678,84 @@ export const getDoctors = async (req, res) => {
 export const updateDoctor = async (req, res) => {
   try {
     const { id } = req.params;
-    const { full_name, specialization, email, contact_number, doctor_fee, center_fee, gender } = req.body;
+    const { 
+      full_name, 
+      specialization, 
+      email, 
+      contact_number, 
+      doctor_fee, 
+      center_fee, 
+      gender,
+      license_no 
+    } = req.body;
 
     const doctor = await Doctor.findByPk(id);
     if (!doctor) {
       return res.status(404).json({
         success: false,
-        message: 'Doctor not found'
+        message: 'Doctor record not found'
       });
     }
 
-    // Update doctor info
+    // Update doctor professional details
     if (full_name) doctor.full_name = full_name;
     if (specialization) doctor.specialization = specialization;
+    if (license_no) doctor.license_no = license_no;
     if (doctor_fee !== undefined) doctor.doctor_fee = doctor_fee;
     if (center_fee !== undefined) doctor.center_fee = center_fee;
     if (gender) doctor.gender = gender;
-    await doctor.save();
+    
+    // Safety check for fees
+    const dFee = parseFloat(doctor.doctor_fee) || 0;
+    const cFee = parseFloat(doctor.center_fee) || 0;
+    doctor.consultation_fee = dFee + cFee;
+    
+    try {
+      await doctor.save();
+    } catch (saveError) {
+      console.error('Doctor Save Error:', saveError);
+      return res.status(400).json({
+        success: false,
+        message: 'Failed to update doctor professional details',
+        error: saveError.message,
+        details: saveError.errors?.map(e => e.message)
+      });
+    }
 
-    // Update user info
+    // Update associated user account if details provided
     if (email || contact_number) {
-      const user = await User.findByPk(doctor.user_id);
-      if (email) user.email = email;
-      if (contact_number) user.contact_number = contact_number;
-      await user.save();
+      if (doctor.user_id) {
+        const user = await User.findByPk(doctor.user_id);
+        if (user) {
+          if (email) user.email = email;
+          if (contact_number) user.contact_number = contact_number;
+          
+          try {
+            await user.save();
+          } catch (userSaveError) {
+            console.error('User Save Error:', userSaveError);
+            return res.status(400).json({
+              success: false,
+              message: 'Failed to update user account details (Email might be in use)',
+              error: userSaveError.message,
+              details: userSaveError.errors?.map(e => e.message)
+            });
+          }
+        }
+      }
     }
 
     res.status(200).json({
       success: true,
-      message: 'Doctor updated successfully',
+      message: 'Doctor information updated successfully',
       data: doctor
     });
 
   } catch (error) {
-    console.error('Update doctor error:', error);
+    console.error('Update doctor controller crash:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error while updating doctor',
+      message: 'A server crash occurred while updating the doctor',
       error: error.message
     });
   }
@@ -745,7 +937,8 @@ export const getReceptionists = async (req, res) => {
           as: 'user',
           attributes: ['user_id', 'username', 'email', 'contact_number']
         }
-      ]
+      ],
+      order: [['receptionist_id', 'DESC']]
     });
 
     res.status(200).json({
@@ -911,47 +1104,33 @@ export const getDashboardData = async (req, res) => {
       }))
       .sort((a, b) => new Date(a.fullDate) - new Date(b.fullDate));
 
-    // 2. Revenue Breakdown by Doctor (Based on Period)
-    let startDate = new Date();
-    if (period === 'Daily') {
-      startDate.setHours(0, 0, 0, 0);
-    } else if (period === 'Monthly') {
-      startDate.setDate(1);
-    } else { // Default Weekly
-      startDate.setDate(startDate.getDate() - 7);
-    }
-
-    // 2. Revenue Trend based on Period
-    const revenueTrendData = await Appointment.findAll({
-      where: {
-        payment_status: 'PAID',
-        appointment_date: { [Op.gte]: startDate.toISOString().split('T')[0] }
-      },
-      include: [{ model: Doctor, as: 'doctor', attributes: ['full_name', 'center_fee'] }],
-      attributes: ['appointment_date', 'created_at'], 
-      raw: true,
-      nest: true
+    // 2. Registration Channel Breakdown (Based on Patient Registration Source)
+    const channelData = await Appointment.findAll({
+      include: [
+        {
+          model: Patient,
+          as: 'patient',
+          attributes: ['registration_source']
+        }
+      ],
+      attributes: [
+        [sequelize.col('patient.registration_source'), 'channel'],
+        [sequelize.fn('COUNT', sequelize.col('appointment.appointment_id')), 'count']
+      ],
+      group: ['patient.registration_source'],
+      raw: true
     });
 
-    // Group by Doctor for the specified Period
-    const doctorMap = {};
-    revenueTrendData.forEach(appt => {
-      const docName = appt.doctor?.full_name || 'Unknown';
-      if (!doctorMap[docName]) {
-        doctorMap[docName] = 0;
-      }
-      doctorMap[docName] += parseFloat(appt.doctor?.center_fee || 0);
-    });
-
-    const revenueTrend = Object.entries(doctorMap)
-      .map(([name, revenue]) => ({ name, revenue }))
-      .sort((a, b) => b.revenue - a.revenue); // Sort by highest revenue
+    const registrationChannel = channelData.map(c => ({
+      name: c.channel === 'ONLINE' ? 'Online Portal' : 'Reception Desk',
+      value: parseInt(c['count']) || 0
+    }));
 
     res.status(200).json({
       success: true,
       data: {
         weeklyTrend,
-        revenueTrend
+        registrationChannel
       }
     });
 

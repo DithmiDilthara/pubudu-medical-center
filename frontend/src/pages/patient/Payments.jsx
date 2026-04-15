@@ -104,10 +104,10 @@ function Payments() {
   // Calculations
   const currentYear = new Date().getFullYear();
   const paidAppointments = appointments.filter(a => a.payment_status === 'PAID');
-  const pendingAppointments = appointments.filter(a => a.payment_status === 'UNPAID' && a.status !== 'CANCELLED');
+  const pendingAppointments = appointments.filter(a => (a.payment_status === 'UNPAID' || a.payment_status === 'PARTIAL') && a.status !== 'CANCELLED');
 
   // Filter transaction list according to user request: "paid and to be paid" only
-  const displayAppointments = appointments.filter(a => (a.payment_status === 'PAID' || a.payment_status === 'UNPAID') && a.status !== 'CANCELLED');
+  const displayAppointments = appointments.filter(a => (a.payment_status === 'PAID' || a.payment_status === 'UNPAID' || a.payment_status === 'PARTIAL') && a.status !== 'CANCELLED');
 
   // Paginated appointments
   const paginatedAppointments = displayAppointments.slice(
@@ -119,13 +119,23 @@ function Payments() {
 
   const totalSpentYTD = paidAppointments
     .filter(a => new Date(a.appointment_date).getFullYear() === currentYear)
-    .reduce((sum, a) => sum + (Number(a.doctor?.doctor_fee || 0) + Number(a.doctor?.center_fee || 600)), 0);
+    .reduce((sum, a) => {
+      const paid = (a.payments || []).reduce((pSum, p) => pSum + parseFloat(p.amount), 0);
+      return sum + paid;
+    }, 0);
 
   const pendingAmount = pendingAppointments
-    .reduce((sum, a) => sum + (Number(a.doctor?.doctor_fee || 0) + Number(a.doctor?.center_fee || 600)), 0);
+    .reduce((sum, a) => {
+      const total = Number(a.doctor?.doctor_fee || 0) + Number(a.doctor?.center_fee || 600);
+      const paid = (a.payments || []).reduce((pSum, p) => pSum + parseFloat(p.amount), 0);
+      return sum + (total - paid);
+    }, 0);
 
   const totalPaidAllTime = paidAppointments
-    .reduce((sum, a) => sum + (Number(a.doctor?.doctor_fee || 0) + Number(a.doctor?.center_fee || 600)), 0);
+    .reduce((sum, a) => {
+      const paid = (a.payments || []).reduce((pSum, p) => pSum + parseFloat(p.amount), 0);
+      return sum + paid;
+    }, 0);
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -220,22 +230,25 @@ function Payments() {
                         </thead>
                         <tbody>
                         {paginatedAppointments.map((apt) => {
-                            const total = Number(apt.doctor?.doctor_fee || 0) + Number(apt.doctor?.center_fee || 600);
+                            const totalFee = Number(apt.doctor?.doctor_fee || 0) + Number(apt.doctor?.center_fee || 600);
+                            const paidAmount = (apt.payments || []).reduce((pSum, p) => pSum + parseFloat(p.amount), 0);
                             const isPaid = apt.payment_status === 'PAID';
-                            const isPending = apt.payment_status === 'UNPAID';
+                            const isPartial = apt.payment_status === 'PARTIAL';
+                            const isUnpaid = apt.payment_status === 'UNPAID';
+                            const balance = totalFee - paidAmount;
 
-                            let statusLabel = isPaid ? 'PAID' : 'TO BE PAID';
+                            let statusLabel = isPaid ? 'PAID' : (isPartial ? 'PARTIAL BALANCE' : 'TO BE PAID');
                             let statusColor = isPaid ? '#10b981' : '#dc2626';
                             let statusBg = isPaid ? '#f0fdf4' : '#fef2f2';
 
-                            const rowStyle = isPending ? { ...styles.tr, backgroundColor: '#fff5f5', borderLeft: '4px solid #dc2626' } : styles.tr;
+                            const rowStyle = (isUnpaid || isPartial) ? { ...styles.tr, backgroundColor: isPartial ? '#fffbeb' : '#fff5f5', borderLeft: isPartial ? '4px solid #f59e0b' : '4px solid #dc2626' } : styles.tr;
 
                             return (
                                 <motion.tr 
                                     key={apt.appointment_id} 
                                     style={rowStyle}
                                     whileHover={{ 
-                                        backgroundColor: isPending ? '#fff1f1' : 'rgba(37, 99, 235, 0.03)',
+                                        backgroundColor: (isUnpaid || isPartial) ? (isPartial ? '#fff8e1' : '#fff1f1') : 'rgba(37, 99, 235, 0.03)',
                                         transition: { duration: 0.2 }
                                     }}
                                 >
@@ -256,14 +269,31 @@ function Payments() {
                                         </p>
                                     </td>
                                     <td style={styles.td}>
-                                        <p style={styles.amountVal}>LKR {total.toLocaleString()}</p>
+                                        <p style={styles.amountVal}>
+                                          {isPaid ? (
+                                            <>
+                                              LKR {paidAmount.toLocaleString()}
+                                              <span style={{display: 'block', fontSize: '10px', color: '#10b981', fontWeight: '500'}}>(Total Paid)</span>
+                                            </>
+                                          ) : isPartial ? (
+                                            <>
+                                              LKR {balance.toLocaleString()}
+                                              <span style={{display: 'block', fontSize: '10px', color: '#f59e0b', fontWeight: '500'}}>(Remaining Balance)</span>
+                                            </>
+                                          ) : (
+                                            <>
+                                              LKR {totalFee.toLocaleString()}
+                                              <span style={{display: 'block', fontSize: '10px', color: '#94a3b8', fontWeight: '500'}}>(To be Paid)</span>
+                                            </>
+                                          )}
+                                        </p>
                                     </td>
                                     <td style={styles.td}>
                                         <span style={{ 
                                             ...styles.statusChip, 
-                                            color: statusColor, 
-                                            backgroundColor: statusBg,
-                                            border: `1px solid ${isPaid ? '#dcfce7' : '#fee2e2'}`
+                                            color: isPartial ? '#92400e' : statusColor, 
+                                            backgroundColor: isPartial ? '#fef3c7' : statusBg,
+                                            border: `1px solid ${isPaid ? '#dcfce7' : (isPartial ? '#fde68a' : '#fee2e2')}`
                                         }}>
                                             {statusLabel}
                                         </span>
@@ -278,7 +308,7 @@ function Payments() {
                                                 >
                                                     <FiDownload />
                                                 </button>
-                                            ) : isPending ? (
+                                            ) : (isUnpaid || isPartial) ? (
                                                 <button 
                                                     onClick={() => handleCancelClick(apt.appointment_id)}
                                                     style={{...styles.downloadBtn, backgroundColor: '#fff1f2', color: '#e11d48'}}

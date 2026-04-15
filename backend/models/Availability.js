@@ -30,6 +30,21 @@ const Availability = sequelize.define('availability', {
     end_date: {
         type: DataTypes.DATEONLY,
         allowNull: true
+    },
+    is_exclusion: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false
+    },
+    status: {
+        type: DataTypes.ENUM('ACTIVE', 'CANCELLED'),
+        allowNull: false,
+        defaultValue: 'ACTIVE'
+    },
+    max_patients: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 20
     }
 }, {
     tableName: 'doctor_schedule',

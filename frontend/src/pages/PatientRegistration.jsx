@@ -205,7 +205,11 @@ function PatientRegistration() {
     email: "",
     contact_number: "",
     full_name: "",
+    patient_type: "ADULT",
     nic: "",
+    guardian_name: "",
+    guardian_contact: "",
+    guardian_relationship: "",
     gender: "",
     date_of_birth: "",
     address: "",
@@ -265,6 +269,8 @@ function PatientRegistration() {
           error = "Email is required";
         } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
           error = "Please enter a valid email";
+        } else if (!value.toLowerCase().endsWith('@gmail.com')) {
+          error = "Only @gmail.com emails are allowed";
         }
         break;
 
@@ -295,20 +301,47 @@ function PatientRegistration() {
         break;
 
       case "nic":
-        if (!value.trim()) {
-          error = "NIC is required";
-        } else {
-          const nic = value.trim().toUpperCase();
-          const oldNicRegex = /^[0-9]{9}[VX]$/;
-          const newNicRegex = /^[0-9]{12}$/;
-          
-          if (!oldNicRegex.test(nic) && !newNicRegex.test(nic)) {
-            error = "Invalid NIC format (e.g., 123456789V or 12 digits)";
+        if (formData.patient_type === 'ADULT') {
+          if (!value.trim()) {
+            error = "NIC is required";
           } else {
-            const digitsOnly = nic.replace(/[VX]/g, '');
-            if (/(\d)\1{8,}/.test(digitsOnly)) error = "Invalid repeating pattern";
-            if (/012345678|123456789|987654321/.test(digitsOnly)) error = "Sequential digits not allowed";
+            const nic = value.trim().toUpperCase();
+            const oldNicRegex = /^[0-9]{9}[VX]$/;
+            const newNicRegex = /^[0-9]{12}$/;
+            
+            if (!oldNicRegex.test(nic) && !newNicRegex.test(nic)) {
+              error = "Invalid NIC format (e.g., 123456789V or 12 digits)";
+            } else {
+              const digitsOnly = nic.replace(/[VX]/g, '');
+              if (/(\d)\1{8,}/.test(digitsOnly)) error = "Invalid repeating pattern";
+              if (/012345678|123456789|987654321/.test(digitsOnly)) error = "Sequential digits not allowed";
+            }
           }
+        }
+        break;
+
+      case "guardian_name":
+        if (formData.patient_type === 'CHILD') {
+          if (!value.trim()) error = "Guardian name is required";
+          else if (value.length < 3) error = "Guardian name must be at least 3 characters";
+          else if (!/^[a-zA-Z\s.]+$/.test(value)) error = "Guardian name can only contain letters, spaces and periods";
+        }
+        break;
+
+      case "guardian_contact":
+        if (formData.patient_type === 'CHILD') {
+          if (!value.trim()) error = "Guardian contact is required";
+          else {
+            const digits = value.replace(/\D/g, "");
+            if (digits.length !== 10) error = "Phone number must be exactly 10 digits";
+            else if (!digits.startsWith('07')) error = "Phone number must start with 07";
+          }
+        }
+        break;
+
+      case "guardian_relationship":
+        if (formData.patient_type === 'CHILD') {
+          if (!value.trim()) error = "Guardian relationship is required";
         }
         break;
 
@@ -324,8 +357,22 @@ function PatientRegistration() {
         } else {
           const birthDate = new Date(value);
           const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          
           if (birthDate > today) {
             error = "Birth date cannot be in the future";
+          } else {
+            let age = today.getFullYear() - birthDate.getFullYear();
+            const m = today.getMonth() - birthDate.getMonth();
+            if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+              age--;
+            }
+
+            if (formData.patient_type === 'ADULT' && age < 18) {
+              error = "Adult patients must be 18 years or older";
+            } else if (formData.patient_type === 'CHILD' && age >= 18) {
+              error = "Child patients must be under 18 years old";
+            }
           }
         }
         break;
@@ -361,10 +408,30 @@ function PatientRegistration() {
       const { name, value, type, checked } = e.target;
       const fieldValue = type === "checkbox" ? checked : value;
 
-      setFormData(prev => ({
-        ...prev,
-        [name]: fieldValue
-      }));
+      setFormData(prev => {
+        const updated = { ...prev, [name]: fieldValue };
+        // Clear type-specific fields when switching patient_type
+        if (name === 'patient_type') {
+          if (fieldValue === 'ADULT') {
+            updated.guardian_name = '';
+            updated.guardian_contact = '';
+            updated.guardian_relationship = '';
+          } else {
+            updated.nic = '';
+          }
+          // Clear errors for type-specific fields
+          setErrors(prev => {
+            const newErrors = { ...prev };
+            delete newErrors.nic;
+            delete newErrors.guardian_name;
+            delete newErrors.guardian_contact;
+            delete newErrors.guardian_relationship;
+            delete newErrors.date_of_birth; // Force re-validation of age if type changes
+            return newErrors;
+          });
+        }
+        return updated;
+      });
 
       if (errors[name]) {
         setErrors(prev => ({
@@ -394,6 +461,9 @@ function PatientRegistration() {
           ...prev,
           [name]: error
         }));
+      } else if ((name === 'email' || name === 'nic' || name === 'username') && formData[name]) {
+        // Trigger async availability check if frontend validation passed
+        checkDatabaseAvailability(name, formData[name]);
       }
     } catch (error) {
       console.error("Error in handleBlur:", error);
@@ -403,7 +473,14 @@ function PatientRegistration() {
   const validateForm = () => {
     try {
       const newErrors = {};
-      const requiredFields = ["username", "password", "confirmPassword", "full_name", "nic", "gender", "email", "contact_number", "date_of_birth", "address", "agreeTerms"];
+      let requiredFields = ["username", "password", "confirmPassword", "full_name", "gender", "email", "contact_number", "date_of_birth", "address", "agreeTerms"];
+
+      // Add conditional required fields
+      if (formData.patient_type === 'ADULT') {
+        requiredFields.push('nic');
+      } else {
+        requiredFields.push('guardian_name', 'guardian_contact', 'guardian_relationship');
+      }
 
       requiredFields.forEach(field => {
         const error = validateField(field, formData[field]);
@@ -425,6 +502,23 @@ function PatientRegistration() {
       console.error("Validation error:", error);
       setGeneralError("An error occurred during validation");
       return false;
+    }
+  };
+
+  const checkDatabaseAvailability = async (type, value) => {
+    try {
+      // Don't check if basic validation already failed
+      if (errors[type]) return;
+
+      const response = await axios.post(`${API_URL}/auth/check-availability`, { type, value });
+      if (response.data.success && response.data.exists) {
+        setErrors(prev => ({
+          ...prev,
+          [type]: response.data.message
+        }));
+      }
+    } catch (err) {
+      console.error(`Availability check failed for ${type}:`, err);
     }
   };
 
@@ -453,7 +547,11 @@ function PatientRegistration() {
         email: formData.email || null,
         phone: formData.contact_number || null,
         full_name: formData.full_name,
-        nic: formData.nic,
+        patient_type: formData.patient_type,
+        nic: formData.patient_type === 'ADULT' ? formData.nic : null,
+        guardian_name: formData.patient_type === 'CHILD' ? formData.guardian_name : null,
+        guardian_contact: formData.patient_type === 'CHILD' ? formData.guardian_contact : null,
+        guardian_relationship: formData.patient_type === 'CHILD' ? formData.guardian_relationship : null,
         gender: formData.gender,
         date_of_birth: formData.date_of_birth || null,
         address: formData.address || null,
@@ -517,8 +615,98 @@ function PatientRegistration() {
           )}
 
           <form onSubmit={handleSubmit}>
-            {/* Personal Information Section */}
-            <SectionHeader title="Personal Information" />
+            {/* 1. Account Type Selection (Always First) */}
+            <div style={{ 
+              marginBottom: "24px", 
+              padding: "20px", 
+              backgroundColor: "#F9FAFB", 
+              borderRadius: "12px", 
+              border: "1px solid #E5E7EB" 
+            }}>
+              <label style={{ display: "block", marginBottom: "12px", fontSize: "14px", color: "#374151", fontWeight: "600" }}>
+                Select Account Type <span style={{ color: "#EF4444" }}>*</span>
+              </label>
+              <div style={{ display: "flex", gap: "12px" }}>
+                {['ADULT', 'CHILD'].map(type => (
+                  <label key={type} style={{
+                    flex: 1,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    padding: "12px",
+                    borderRadius: "10px",
+                    border: `2px solid ${formData.patient_type === type ? '#0066CC' : '#E5E7EB'}`,
+                    backgroundColor: formData.patient_type === type ? '#F0F7FF' : '#FFFFFF',
+                    cursor: "pointer",
+                    transition: "all 0.2s ease",
+                    fontWeight: formData.patient_type === type ? "600" : "400",
+                    color: formData.patient_type === type ? '#0066CC' : '#6B7280',
+                    fontSize: "14px"
+                  }}>
+                    <input
+                      type="radio"
+                      name="patient_type"
+                      value={type}
+                      checked={formData.patient_type === type}
+                      onChange={handleChange}
+                      style={{ display: "none" }}
+                    />
+                    {type === 'ADULT' ? ' Adults Account (Age 18+)' : 'Child Account (Under 18)'}
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* 2. Guardian Details (Only for Child, comes FIRST) */}
+            {formData.patient_type === 'CHILD' && (
+              <>
+                <SectionHeader title="Guardian Information" />
+                <div style={styles.gridContainer}>
+                  <FormInput
+                    label="Guardian Name"
+                    name="guardian_name"
+                    value={formData.guardian_name}
+                    onChange={handleChange}
+                    onBlur={handleBlur}
+                    touched={touched.guardian_name}
+                    error={errors.guardian_name}
+                    placeholder="John Doe"
+                    required
+                    style={{ gridColumn: "1 / -1" }}
+                  />
+                  <FormInput
+                    label="Guardian Contact"
+                    name="guardian_contact"
+                    value={formData.guardian_contact}
+                    onChange={handleChange}
+                    onBlur={handleBlur}
+                    touched={touched.guardian_contact}
+                    error={errors.guardian_contact}
+                    placeholder="0771234567"
+                    required
+                  />
+                  <FormSelect
+                    label="Guardian Relationship"
+                    name="guardian_relationship"
+                    value={formData.guardian_relationship}
+                    onChange={handleChange}
+                    onBlur={handleBlur}
+                    touched={touched.guardian_relationship}
+                    error={errors.guardian_relationship}
+                    options={[
+                      { value: "", label: "Select Relationship" },
+                      { value: "Father", label: "Father" },
+                      { value: "Mother", label: "Mother" },
+                      { value: "Guardian", label: "Guardian" }
+                    ]}
+                    required
+                  />
+                </div>
+              </>
+            )}
+
+            {/* 3. Patient Details (Renamed from Personal Information) */}
+            <SectionHeader title={formData.patient_type === 'ADULT' ? "Patient Details" : "Child Information"} />
 
             <div style={styles.gridContainer}>
               <FormInput
@@ -529,22 +717,26 @@ function PatientRegistration() {
                 onBlur={handleBlur}
                 touched={touched.full_name}
                 error={errors.full_name}
-                placeholder="sayumi manujana"
+                placeholder="Sayumi Manujana"
                 required
                 style={{ gridColumn: "1 / -1" }}
               />
 
-              <FormInput
-                label="NIC"
-                name="nic"
-                value={formData.nic}
-                onChange={handleChange}
-                onBlur={handleBlur}
-                touched={touched.nic}
-                error={errors.nic}
-                placeholder="123456789V"
-                required
-              />
+              {/* Conditional: NIC for Adult */}
+              {formData.patient_type === 'ADULT' && (
+                <FormInput
+                  label="NIC"
+                  name="nic"
+                  value={formData.nic}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  touched={touched.nic}
+                  error={errors.nic}
+                  placeholder="123456789V"
+                  required
+                  style={{ gridColumn: "1 / -1" }}
+                />
+              )}
 
               <FormSelect
                 label="Gender"

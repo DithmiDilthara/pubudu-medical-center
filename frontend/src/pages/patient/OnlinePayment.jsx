@@ -12,6 +12,7 @@ function OnlinePayment() {
   const location = useLocation();
   const paymentData = location.state?.paymentData;
   const [isProcessing, setIsProcessing] = useState(false);
+  const [policyAgreed, setPolicyAgreed] = useState(false);
 
   if (!paymentData) {
     navigate("/patient/find-doctor");
@@ -42,6 +43,12 @@ function OnlinePayment() {
             const payData = response.data.data;
 
             if (payData.merchant_id) {
+                if (!window.payhere) {
+                    toast.error("PayHere gateway could not be loaded. Please disable ad-blockers or check your connection.");
+                    setIsProcessing(false);
+                    return;
+                }
+
                 const payment = {
                     sandbox: payData.sandbox,
                     merchant_id: payData.merchant_id,
@@ -95,7 +102,7 @@ function OnlinePayment() {
             }
         }
     } catch (error) {
-        toast.error("Failed to initiate secure tunnel", { id: toastId });
+        toast.error(error.response?.data?.message || error.message || "Payment Gateway Error: Check server logs", { id: toastId });
         setIsProcessing(false);
     }
   };
@@ -184,12 +191,32 @@ function OnlinePayment() {
                         </div>
                     </div>
 
+                    <div style={styles.policyCard}>
+                        <h4 style={styles.policyTitle}>Refund Policy Summary</h4>
+                        <ul style={styles.policyList}>
+                            <li><strong>Center Fee (LKR 600):</strong> Non-refundable under any circumstances.</li>
+                            <li><strong>Doctor Fee:</strong> 100% refundable <u>only if</u> you cancel before the doctor's session ends.</li>
+                            <li><strong>Transfers:</strong> If transferred to a cheaper doctor, the difference is refunded.</li>
+                        </ul>
+                        <label style={styles.checkboxLabel}>
+                            <input 
+                                type="checkbox" 
+                                checked={policyAgreed}
+                                onChange={(e) => setPolicyAgreed(e.target.checked)}
+                                style={styles.checkboxInput}
+                            />
+                            <span>I have read and agree to the Refund Policy & Terms</span>
+                        </label>
+                    </div>
+
                     <button
                         onClick={handlePayment}
-                        disabled={isProcessing}
+                        disabled={isProcessing || !policyAgreed}
                         style={{
                             ...styles.mainPayBtn,
-                            opacity: isProcessing ? 0.7 : 1
+                            opacity: (isProcessing || !policyAgreed) ? 0.6 : 1,
+                            cursor: (isProcessing || !policyAgreed) ? "not-allowed" : "pointer",
+                            boxShadow: (isProcessing || !policyAgreed) ? "none" : styles.mainPayBtn.boxShadow
                         }}
                     >
                         {isProcessing ? "Opening Secure Gateway..." : `Confirm & Pay LKR ${Number(totalFee).toLocaleString()}`}
@@ -198,7 +225,7 @@ function OnlinePayment() {
 
                     <div style={styles.noticeBox}>
                         <FiAlertTriangle style={styles.alertIcon} />
-                        <span>A non-refundable service fee of LKR 600 is applied to all online bookings.</span>
+                        <span>Refund eligibility expires once the doctor's session concludes.</span>
                     </div>
                 </div>
             </div>
@@ -447,6 +474,52 @@ const styles = {
   alertIcon: {
     fontSize: "20px",
     flexShrink: 0
+  },
+  policyCard: {
+    backgroundColor: "white",
+    borderRadius: "20px",
+    padding: "24px",
+    border: "1px solid #e2e8f0",
+    display: "flex",
+    flexDirection: "column",
+    gap: "16px"
+  },
+  policyTitle: {
+    fontSize: "14px",
+    fontWeight: "800",
+    color: "#0f172a",
+    margin: 0,
+    textTransform: "uppercase",
+    letterSpacing: "0.5px"
+  },
+  policyList: {
+    paddingLeft: "20px",
+    margin: 0,
+    fontSize: "13px",
+    color: "#64748b",
+    lineHeight: "1.6",
+    display: "flex",
+    flexDirection: "column",
+    gap: "8px"
+  },
+  checkboxLabel: {
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
+    fontSize: "13px",
+    fontWeight: "700",
+    color: "#1e293b",
+    cursor: "pointer",
+    marginTop: "8px",
+    padding: "12px",
+    backgroundColor: "#f8fafc",
+    borderRadius: "12px",
+    transition: "all 0.2s"
+  },
+  checkboxInput: {
+    width: "18px",
+    height: "18px",
+    cursor: "pointer"
   }
 };
 
