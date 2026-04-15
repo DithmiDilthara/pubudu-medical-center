@@ -233,9 +233,7 @@ function FindDoctor() {
                             ? `${doctor.availability[0].day_of_week}, ${doctor.availability[0].start_time}` 
                             : 'No schedule set'}
                         </span></span>
-                        <span style={{ fontSize: '12px', color: '#2563eb', fontWeight: '600' }}>
-                          Next Appointment No: {doctor.next_appointment_number || 1}
-                        </span>
+                        
                       </div>
                     </div>
 

@@ -402,10 +402,10 @@ const Reports = () => {
           { text: `Period: ${startDate} – ${endDate}  |  Generated: ${today} at ${timeStr}`, style: 'subtitle' },
           { canvas: [{ type: 'line', x1: 0, y1: 5, x2: 515, y2: 5, lineWidth: 0.5, lineColor: colors.headerBg }], margin: [0, 5, 0, 20] },
 
-          // --- KPI Cards (Refactored to Table for reliable Background Rendering) ---
+          // --- KPI Cards: Row 1 (4 boxes) ---
           {
             table: {
-              widths: ['20%', '20%', '20%', '20%', '20%'],
+              widths: ['25%', '25%', '25%', '25%'],
               body: [[
                 {
                   stack: [
@@ -427,13 +427,30 @@ const Reports = () => {
                 },
                 {
                   stack: [
+                    { text: 'CONFIRMED', style: 'kpiLabel' },
+                    { text: reportData.totalConfirmed.toString(), style: 'kpiValue' }
+                  ],
+                  fillColor: '#0891b2',
+                  border: [false, false, true, false],
+                  borderColor: ['white', 'white', 'white', 'white']
+                },
+                {
+                  stack: [
                     { text: 'CANCELLED', style: 'kpiLabel' },
                     { text: reportData.totalCancelled.toString(), style: 'kpiValue' }
                   ],
                   fillColor: colors.cancelled,
-                  border: [false, false, true, false],
-                  borderColor: ['white', 'white', 'white', 'white']
-                },
+                  border: [false, false, false, false]
+                }
+              ]]
+            },
+            margin: [0, 0, 0, 4]
+          },
+          // --- KPI Cards: Row 2 (3 boxes) ---
+          {
+            table: {
+              widths: ['33.3%', '33.3%', '33.4%'],
+              body: [[
                 {
                   stack: [
                     { text: 'NO-SHOW (ABSENT)', style: 'kpiLabel' },
@@ -449,6 +466,15 @@ const Reports = () => {
                     { text: reportData.totalPending.toString(), style: 'kpiValue' }
                   ],
                   fillColor: colors.pending,
+                  border: [false, false, true, false],
+                  borderColor: ['white', 'white', 'white', 'white']
+                },
+                {
+                  stack: [
+                    { text: 'RESCHEDULE REQUIRED', style: 'kpiLabel' },
+                    { text: reportData.totalRescheduleRequired.toString(), style: 'kpiValue' }
+                  ],
+                  fillColor: '#7c3aed',
                   border: [false, false, false, false]
                 }
               ]]
@@ -461,23 +487,29 @@ const Reports = () => {
           {
             table: {
               headerRows: 1,
-              widths: ['*', '*', 50, 60, 60, 50],
+              widths: ['*', '*', 34, 40, 40, 38, 38, 38, 44],
               body: [
                 [
                   { text: 'DOCTOR', style: 'tableHeader' },
                   { text: 'SPECIALISATION', style: 'tableHeader' },
                   { text: 'TOTAL', style: 'tableHeader', alignment: 'center' },
-                  { text: 'COMPLETED', style: 'tableHeader', alignment: 'center' },
-                  { text: 'CANCELLED', style: 'tableHeader', alignment: 'center' },
-                  { text: 'NO-SHOW', style: 'tableHeader', alignment: 'center' }
+                  { text: 'DONE', style: 'tableHeader', alignment: 'center' },
+                  { text: 'CONFIRMED', style: 'tableHeader', alignment: 'center' },
+                  { text: 'CANCEL', style: 'tableHeader', alignment: 'center' },
+                  { text: 'NO-SHOW', style: 'tableHeader', alignment: 'center' },
+                  { text: 'PENDING', style: 'tableHeader', alignment: 'center' },
+                  { text: 'RESCHEDULE', style: 'tableHeader', alignment: 'center' }
                 ],
                 ...reportData.doctors.map((doc, i) => [
                   { text: doc.doctor_name, style: 'tableCell', fillColor: i % 2 === 0 ? '#fff' : colors.altRow },
                   { text: doc.specialisation, style: 'tableCell', fillColor: i % 2 === 0 ? '#fff' : colors.altRow },
                   { text: doc.total.toString(), style: 'tableCell', alignment: 'center', fillColor: i % 2 === 0 ? '#fff' : colors.altRow },
                   { text: doc.completed.toString(), style: 'tableCell', alignment: 'center', bold: true, color: colors.completed, fillColor: i % 2 === 0 ? '#fff' : colors.altRow },
+                  { text: (doc.confirmed || 0).toString(), style: 'tableCell', alignment: 'center', bold: true, color: '#0891b2', fillColor: i % 2 === 0 ? '#fff' : colors.altRow },
                   { text: doc.cancelled.toString(), style: 'tableCell', alignment: 'center', bold: true, color: colors.cancelled, fillColor: i % 2 === 0 ? '#fff' : colors.altRow },
-                  { text: doc.noshow.toString(), style: 'tableCell', alignment: 'center', bold: true, color: colors.noshow, fillColor: i % 2 === 0 ? '#fff' : colors.altRow }
+                  { text: doc.noshow.toString(), style: 'tableCell', alignment: 'center', bold: true, color: colors.noshow, fillColor: i % 2 === 0 ? '#fff' : colors.altRow },
+                  { text: (doc.pending || 0).toString(), style: 'tableCell', alignment: 'center', bold: true, color: colors.pending, fillColor: i % 2 === 0 ? '#fff' : colors.altRow },
+                  { text: (doc.reschedule_required || 0).toString(), style: 'tableCell', alignment: 'center', bold: true, color: '#7c3aed', fillColor: i % 2 === 0 ? '#fff' : colors.altRow }
                 ]),
                 // Total Row
                 [
@@ -485,8 +517,11 @@ const Reports = () => {
                   {},
                   { text: reportData.totalAppointments.toString(), style: 'tableFooter', alignment: 'center' },
                   { text: reportData.totalCompleted.toString(), style: 'tableFooter', alignment: 'center' },
+                  { text: reportData.totalConfirmed.toString(), style: 'tableFooter', alignment: 'center' },
                   { text: reportData.totalCancelled.toString(), style: 'tableFooter', alignment: 'center' },
-                  { text: reportData.totalNoShow.toString(), style: 'tableFooter', alignment: 'center' }
+                  { text: reportData.totalNoShow.toString(), style: 'tableFooter', alignment: 'center' },
+                  { text: reportData.totalPending.toString(), style: 'tableFooter', alignment: 'center' },
+                  { text: reportData.totalRescheduleRequired.toString(), style: 'tableFooter', alignment: 'center' }
                 ]
               ]
             },
@@ -495,10 +530,10 @@ const Reports = () => {
               vLineWidth: (i, node) => 0.5,
               hLineColor: (i, node) => colors.borderBlue,
               vLineColor: (i, node) => colors.borderBlue,
-              paddingLeft: (i) => 8,
-              paddingRight: (i) => 8,
-              paddingTop: (i) => 6,
-              paddingBottom: (i) => 6
+              paddingLeft: (i) => 4,
+              paddingRight: (i) => 4,
+              paddingTop: (i) => 5,
+              paddingBottom: (i) => 5
             },
             margin: [0, 0, 0, 30]
           },

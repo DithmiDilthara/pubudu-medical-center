@@ -103,6 +103,42 @@ export const setAvailability = async (req, res) => {
             }
         }
 
+        // --- NEW: AUTOMATIC EXCLUSION SWEEP ---
+        // Find all future exclusions for this doctor
+        const futureExclusions = await Availability.findAll({
+            where: {
+                doctor_id: doctor.doctor_id,
+                is_exclusion: true,
+                schedule_date: { [Op.gte]: todayStr }
+            }
+        });
+
+        const toDeleteIds = [];
+        
+        for (const exclusion of futureExclusions) {
+            const exDate = new Date(exclusion.schedule_date);
+            const exDayName = exDate.toLocaleDateString('en-US', { weekday: 'long' }).toUpperCase();
+            
+            // Check if this exclusion overlaps with any of the new slots being added
+            for (const slot of availability) {
+                const datesMatch = (slot.day_of_week && slot.day_of_week === exDayName) || 
+                                   (slot.schedule_date && slot.schedule_date === exclusion.schedule_date);
+                                   
+                if (datesMatch) {
+                    // Check if times overlap (start < existEnd AND end > existStart)
+                    if (slot.start_time < exclusion.end_time && slot.end_time > exclusion.start_time) {
+                        toDeleteIds.push(exclusion.schedule_id);
+                        break; // Already matched for this exclusion, move to next exclusion
+                    }
+                }
+            }
+        }
+
+        if (toDeleteIds.length > 0) {
+            await Availability.destroy({ where: { schedule_id: toDeleteIds } });
+        }
+        // --------------------------------------
+
         // Add the sessions (Additive approach)
         const sessionsToCreate = availability.map(slot => {
             const data = {
