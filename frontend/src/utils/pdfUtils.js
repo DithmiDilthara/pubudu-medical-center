@@ -51,13 +51,13 @@ export const getCircularBase64ImageFromURL = (url) => {
     img.setAttribute('crossOrigin', 'anonymous');
     img.onload = () => {
       const canvas = document.createElement('canvas');
-      // Create a square canvas based on the smallest dimension
+      // create a square canvas based on the smallest dimension
       const size = Math.min(img.width, img.height);
       canvas.width = size;
       canvas.height = size;
       const ctx = canvas.getContext('2d');
 
-      // Create a circular clipping path
+      // create a circular clipping path
       ctx.beginPath();
       ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
       ctx.closePath();

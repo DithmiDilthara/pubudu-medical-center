@@ -1,13 +1,13 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import axios from 'axios';
 
-// Create Auth Context
+// create Auth Context
 const AuthContext = createContext(null);
 
 // API base URL
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
-// Create axios instance with default config
+// create axios instance with default config
 const api = axios.create({
     baseURL: API_URL,
     headers: {
@@ -15,7 +15,7 @@ const api = axios.create({
     }
 });
 
-// Add token to requests if available
+//  token to requests if available
 api.interceptors.request.use(
     (config) => {
         const token = localStorage.getItem('token');
@@ -173,7 +173,7 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
-    // Add staff function (admin only)
+    //  staff function (admin only)
     const addStaff = async (staffData) => {
         try {
             setError(null);
@@ -217,12 +217,12 @@ export const AuthProvider = ({ children }) => {
     // Check if user has specific role
     const hasRole = (requiredRoles) => {
         if (!user) return false;
-        
+
         // Handle Role IDs (preferred)
         if (typeof requiredRoles === 'number') {
             return user.role_id === requiredRoles;
         }
-        
+
         if (Array.isArray(requiredRoles)) {
             return requiredRoles.includes(user.role_id) || requiredRoles.includes(user.role?.role_name);
         }
@@ -231,7 +231,7 @@ export const AuthProvider = ({ children }) => {
         if (typeof requiredRoles === 'string') {
             return user.role?.role_name === requiredRoles || user.role === requiredRoles;
         }
-        
+
         return false;
     };
 

@@ -19,10 +19,10 @@ export const setAvailability = async (req, res) => {
 
         let doctor;
         if (currentUser.role_id === 1 || currentUser.role_id === 3) { // Admin or Receptionist
-          if (!doctor_id) return res.status(400).json({ success: false, message: 'Doctor ID is required for staff' });
-          doctor = await Doctor.findByPk(doctor_id);
+            if (!doctor_id) return res.status(400).json({ success: false, message: 'Doctor ID is required for staff' });
+            doctor = await Doctor.findByPk(doctor_id);
         } else {
-          doctor = await Doctor.findOne({ where: { user_id: currentUser.user_id } });
+            doctor = await Doctor.findOne({ where: { user_id: currentUser.user_id } });
         }
 
         if (!doctor) return res.status(404).json({ success: false, message: 'Doctor profile not found' });
@@ -47,26 +47,26 @@ export const setAvailability = async (req, res) => {
 
             // CHECK 2: Operating hours 07:00 – 21:00
             if (startMinutes < parseToMinutes('07:00') || endMinutes > parseToMinutes('21:00')) {
-              return res.status(400).json({
-                  success: false,
-                  message: "Session times must be within operating hours (07:00–21:00)."
-              });
+                return res.status(400).json({
+                    success: false,
+                    message: "Session times must be within operating hours (07:00–21:00)."
+                });
             }
 
             // CHECK 3: Minimum 1 hour
             if (durationMinutes < 60) {
-              return res.status(400).json({
-                  success: false,
-                  message: "Session must be at least 1 hour long."
-              });
+                return res.status(400).json({
+                    success: false,
+                    message: "Session must be at least 1 hour long."
+                });
             }
 
             // CHECK 4: Maximum 4 hours
             if (durationMinutes > 240) {
-              return res.status(400).json({
-                  success: false,
-                  message: "Session duration cannot exceed 4 hours."
-              });
+                return res.status(400).json({
+                    success: false,
+                    message: "Session duration cannot exceed 4 hours."
+                });
             }
 
             // Check specific date logic
@@ -77,27 +77,89 @@ export const setAvailability = async (req, res) => {
                 });
             }
 
-            // --- CHANGE 2: OVERLAP CHECK ---
-            const whereClause = {
-                doctor_id: doctor.doctor_id,
-                status: 'ACTIVE' // Only check overlap with ACTIVE sessions
+            // --- OVERLAP CHECK (Cross-type: one-time vs recurring, recurring vs one-time) ---
+
+            // Helper: check a list of sessions for a time overlap with the new slot
+            const hasTimeOverlap = (sessions) => {
+                for (const existing of sessions) {
+                    if (slot.start_time < existing.end_time && slot.end_time > existing.start_time) {
+                        return existing; // return the conflicting session
+                    }
+                }
+                return null;
             };
 
             if (slot.schedule_date) {
-                whereClause.schedule_date = slot.schedule_date;
-            } else if (slot.day_of_week) {
-                whereClause.day_of_week = slot.day_of_week;
-                whereClause.schedule_date = null;
-            }
-
-            const existingSessions = await Availability.findAll({ where: whereClause });
-
-            for (const existing of existingSessions) {
-                // newStart < existingEnd AND newEnd > existingStart
-                if (slot.start_time < existing.end_time && slot.end_time > existing.start_time) {
+                // --- ONE-TIME SESSION BEING ADDED ---
+                // 1. Check against other one-time sessions on the exact same date
+                const sameDate = await Availability.findAll({
+                    where: { doctor_id: doctor.doctor_id, status: 'ACTIVE', schedule_date: slot.schedule_date }
+                });
+                const conflict1 = hasTimeOverlap(sameDate);
+                if (conflict1) {
                     return res.status(400).json({
                         success: false,
-                        message: `This time slot overlaps with an existing session (${existing.start_time}-${existing.end_time}). Please choose a different time.`
+                        message: `This time slot conflicts with an existing one-time session on ${slot.schedule_date} (${conflict1.start_time}–${conflict1.end_time}). Please choose a different time.`
+                    });
+                }
+
+                // 2. Cross-check: also check the recurring rule for that day of week
+                const dateObj = new Date(slot.schedule_date);
+                const dayNames = ['SUNDAY','MONDAY','TUESDAY','WEDNESDAY','THURSDAY','FRIDAY','SATURDAY'];
+                const dayName = dayNames[dateObj.getDay()];
+
+                const recurringOnThatDay = await Availability.findAll({
+                    where: {
+                        doctor_id: doctor.doctor_id,
+                        status: 'ACTIVE',
+                        day_of_week: dayName,
+                        schedule_date: null
+                    }
+                });
+                const conflict2 = hasTimeOverlap(recurringOnThatDay);
+                if (conflict2) {
+                    return res.status(400).json({
+                        success: false,
+                        message: `This time slot conflicts with an existing recurring ${dayName} session (${conflict2.start_time}–${conflict2.end_time}). A session already exists at that time. Please choose a different time.`
+                    });
+                }
+
+            } else if (slot.day_of_week) {
+                // --- RECURRING SESSION BEING ADDED ---
+                // 1. Check against other recurring sessions for the same day
+                const sameDay = await Availability.findAll({
+                    where: {
+                        doctor_id: doctor.doctor_id,
+                        status: 'ACTIVE',
+                        day_of_week: slot.day_of_week,
+                        schedule_date: null
+                    }
+                });
+                const conflict3 = hasTimeOverlap(sameDay);
+                if (conflict3) {
+                    return res.status(400).json({
+                        success: false,
+                        message: `This time slot conflicts with an existing recurring ${slot.day_of_week} session (${conflict3.start_time}–${conflict3.end_time}). Please choose a different time.`
+                    });
+                }
+
+                // 2. Cross-check: also check any one-time sessions on upcoming dates for that day
+                const upcomingOneTime = await Availability.findAll({
+                    where: {
+                        doctor_id: doctor.doctor_id,
+                        status: 'ACTIVE',
+                        day_of_week: null,
+                        schedule_date: { [Op.gte]: todayStr }
+                    }
+                });
+                // Filter to only those that fall on the same day of week
+                const dayIndex = ['SUNDAY','MONDAY','TUESDAY','WEDNESDAY','THURSDAY','FRIDAY','SATURDAY'].indexOf(slot.day_of_week);
+                const filteredOneTime = upcomingOneTime.filter(s => new Date(s.schedule_date).getDay() === dayIndex);
+                const conflict4 = hasTimeOverlap(filteredOneTime);
+                if (conflict4) {
+                    return res.status(400).json({
+                        success: false,
+                        message: `This recurring ${slot.day_of_week} session conflicts with an existing one-time session on ${conflict4.schedule_date} (${conflict4.start_time}–${conflict4.end_time}). Please resolve the one-time session first.`
                     });
                 }
             }
@@ -114,16 +176,16 @@ export const setAvailability = async (req, res) => {
         });
 
         const toDeleteIds = [];
-        
+
         for (const exclusion of futureExclusions) {
             const exDate = new Date(exclusion.schedule_date);
             const exDayName = exDate.toLocaleDateString('en-US', { weekday: 'long' }).toUpperCase();
-            
+
             // Check if this exclusion overlaps with any of the new slots being added
             for (const slot of availability) {
-                const datesMatch = (slot.day_of_week && slot.day_of_week === exDayName) || 
-                                   (slot.schedule_date && slot.schedule_date === exclusion.schedule_date);
-                                   
+                const datesMatch = (slot.day_of_week && slot.day_of_week === exDayName) ||
+                    (slot.schedule_date && slot.schedule_date === exclusion.schedule_date);
+
                 if (datesMatch) {
                     // Check if times overlap (start < existEnd AND end > existStart)
                     if (slot.start_time < exclusion.end_time && slot.end_time > exclusion.start_time) {
@@ -139,7 +201,7 @@ export const setAvailability = async (req, res) => {
         }
         // --------------------------------------
 
-        // Add the sessions (Additive approach)
+        //  the sessions (Additive approach)
         const sessionsToCreate = availability.map(slot => {
             const data = {
                 ...slot,
@@ -180,22 +242,22 @@ export const deleteAvailability = async (req, res) => {
         let slot;
 
         if (currentUser.role_id === 1 || currentUser.role_id === 3) { // Admin or Receptionist
-          // Staff can find any slot
-          slot = await Availability.findByPk(id);
-          if (slot) {
-            doctor = await Doctor.findByPk(slot.doctor_id);
-          }
+            // Staff can find any slot
+            slot = await Availability.findByPk(id);
+            if (slot) {
+                doctor = await Doctor.findByPk(slot.doctor_id);
+            }
         } else {
-          // Doctor can only find their own slot (Backwards compatibility safeguard)
-          doctor = await Doctor.findOne({ where: { user_id: currentUser.user_id } });
-          if (doctor) {
-            slot = await Availability.findOne({
-                where: {
-                    schedule_id: id,
-                    doctor_id: doctor.doctor_id
-                }
-            });
-          }
+            // Doctor can only find their own slot (Backwards compatibility safeguard)
+            doctor = await Doctor.findOne({ where: { user_id: currentUser.user_id } });
+            if (doctor) {
+                slot = await Availability.findOne({
+                    where: {
+                        schedule_id: id,
+                        doctor_id: doctor.doctor_id
+                    }
+                });
+            }
         }
 
         if (!slot || !doctor) return res.status(404).json({ success: false, message: 'Availability slot or Doctor not found' });
@@ -283,9 +345,9 @@ export const updateAvailability = async (req, res) => {
                 return res.status(400).json({ success: false, message: 'Minimum patient capacity must be at least 20.' });
             }
             if (hasBookings && max_patients < bookingCount) {
-                return res.status(400).json({ 
-                    success: false, 
-                    message: `Cannot reduce capacity below the current ${bookingCount} booked patients.` 
+                return res.status(400).json({
+                    success: false,
+                    message: `Cannot reduce capacity below the current ${bookingCount} booked patients.`
                 });
             }
             session.max_patients = max_patients;
@@ -398,7 +460,7 @@ export const getDoctorAvailability = async (req, res) => {
             where,
             order: [
                 ['schedule_date', 'DESC'], // Specific dates first for override priority
-                ['day_of_week', 'ASC'], 
+                ['day_of_week', 'ASC'],
                 ['start_time', 'ASC']
             ]
         });
@@ -424,8 +486,8 @@ export const getDoctorAvailability = async (req, res) => {
             raw: true
         });
 
-        res.status(200).json({ 
-            success: true, 
+        res.status(200).json({
+            success: true,
             data: availability,
             bookingCounts: bookingCounts.map(c => ({
                 schedule_id: c.schedule_id,

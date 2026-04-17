@@ -414,7 +414,7 @@ function DoctorSchedule() {
             </button>
             <div style={{ textAlign: 'right' }}>
               <h1 style={styles.pageTitle}>Manage Schedule</h1>
-              <p style={styles.pageSubtitle}>Dr. {doctorInfo?.full_name} | {doctorInfo?.specialization}</p>
+              <p style={styles.pageSubtitle}> {doctorInfo?.full_name} | {doctorInfo?.specialization}</p>
             </div>
           </div>
 
@@ -518,7 +518,7 @@ function DoctorSchedule() {
                       <h3 style={styles.modalTitle}>Cancel Recurring Session</h3>
                     </div>
                     <p style={styles.modalText}>
-                      How would you like to cancel this recurring session for <strong>Dr. {doctorInfo?.full_name}</strong>?
+                      How would you like to cancel this recurring session for <strong> {doctorInfo?.full_name}</strong>?
                     </p>
                     <div style={styles.modalInfo}>
                       <p><strong>Time:</strong> {activeSession?.start_time} - {activeSession?.end_time}</p>
@@ -532,7 +532,7 @@ function DoctorSchedule() {
                         disabled={isLoading}
                         style={styles.confirmExclusionBtn}
                       >
-                        {isLoading ? 'Processing...' : '📅 Cancel This Day Only'}
+                        {isLoading ? 'Processing...' : 'Cancel This Day Only'}
                       </button>
                       <p style={{ fontSize: '12px', color: '#64748b', margin: '0 0 4px 0', textAlign: 'center' }}>
                         Only {selectedDate} will be cancelled. Future occurrences continue as normal.
@@ -547,7 +547,7 @@ function DoctorSchedule() {
                         disabled={isLoading}
                         style={{ ...styles.confirmExclusionBtn, backgroundColor: '#7f1d1d', marginTop: '8px' }}
                       >
-                        ⚠️ Delete Entire Recurring Series
+                        Delete Entire Recurring Series
                       </button>
                       <p style={{ fontSize: '12px', color: '#64748b', margin: '0 0 4px 0', textAlign: 'center' }}>
                         Permanently removes all future occurrences. All patient appointments will be flagged.
@@ -584,13 +584,13 @@ function DoctorSchedule() {
                               onClick={() => setEditMode('TODAY')}
                               style={{ ...styles.toggleBtn, ...(editMode === 'TODAY' ? styles.activeToggle : {}) }}
                             >
-                              📅 This Day Only
+                              This Day Only
                             </button>
                             <button
                               onClick={() => setEditMode('SERIES')}
                               style={{ ...styles.toggleBtn, ...(editMode === 'SERIES' ? styles.activeToggle : {}) }}
                             >
-                              🔄 Entire Series
+                              Entire Series
                             </button>
                           </div>
                           <p style={{ fontSize: '12px', color: '#64748b', marginTop: '8px' }}>

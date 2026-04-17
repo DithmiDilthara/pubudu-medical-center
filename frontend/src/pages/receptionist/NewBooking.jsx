@@ -15,7 +15,7 @@ function NewBooking() {
 
   // Form data
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchType, setSearchType] = useState("nic"); // Add search type
+  const [searchType, setSearchType] = useState("nic"); //  search type
   const [patientInfo, setPatientInfo] = useState({
     fullName: "",
     contactNumber: "",
@@ -61,7 +61,7 @@ function NewBooking() {
         if (response.data.success) {
           const doctorsList = response.data.data;
           setDoctors(doctorsList);
-          
+
           // Extract unique specializations
           const specs = [...new Set(doctorsList.map(d => d.specialization))];
           setServices(specs);
@@ -69,7 +69,7 @@ function NewBooking() {
           // Handle Pre-selection from URL (?doctor=ID)
           const queryParams = new URLSearchParams(location.search);
           const preSelectedId = queryParams.get('doctor');
-          
+
           if (preSelectedId && doctorsList.length > 0) {
             const doc = doctorsList.find(d => d.doctor_id === parseInt(preSelectedId));
             if (doc) {
@@ -162,13 +162,13 @@ function NewBooking() {
           const month = selectedDate.getMonth();
           const day = selectedDate.getDate();
           const formattedDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-          
+
           const token = localStorage.getItem('token');
           const response = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/appointments/next-number`, {
             params: { doctor_id: selectedDoctor, date: formattedDate },
             headers: { Authorization: `Bearer ${token}` }
           });
-          
+
           if (response.data.success) {
             setNextQueueNumber(response.data.nextNumber);
           }
@@ -331,7 +331,7 @@ function NewBooking() {
         headers: { Authorization: `Bearer ${token}` }
       });
 
-        if (response.data.success) {
+      if (response.data.success) {
         toast.dismiss(toastId);
         const selectedDocObj = doctors.find(d => d.doctor_id === parseInt(selectedDoctor));
         const docFee = Number(selectedDocObj?.doctor_fee || 0);
@@ -468,7 +468,7 @@ function NewBooking() {
 
   const containerVariants = {
     hidden: { opacity: 0 },
-    visible: { 
+    visible: {
       opacity: 1,
       transition: { staggerChildren: 0.1 }
     }
@@ -483,8 +483,8 @@ function NewBooking() {
     <div style={styles.container}>
       <ReceptionistSidebar onLogout={handleLogout} />
 
-      <motion.div 
-        className="main-wrapper" 
+      <motion.div
+        className="main-wrapper"
         style={{ flex: 1, display: 'flex', flexDirection: 'column' }}
         initial="hidden"
         animate="visible"
@@ -518,7 +518,7 @@ function NewBooking() {
                         }}
                       />
                     )}
-                    
+
                     <div style={styles.stepIndicator}>
                       <motion.div
                         initial={false}
@@ -716,7 +716,7 @@ function NewBooking() {
                               <div key={d} style={styles.dayName}>{d}</div>
                             ))}
                           </div>
-                          
+
                           <div style={styles.daysGrid}>
                             {getDaysInMonth(currentMonth).map((day, index) => {
                               const currentDayDate = day ? new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day) : null;
@@ -858,10 +858,10 @@ function NewBooking() {
                   }
                   style={{
                     ...styles.btnPrimary,
-                    ...((currentStep === 1 && !patientInfo.fullName) || 
-                        (currentStep === 2 && (!selectedService || !selectedDoctor)) ||
-                        (currentStep === 3 && !selectedDate) ||
-                        (currentStep === 4 && !selectedTime) ? styles.btnDisabled : {})
+                    ...((currentStep === 1 && !patientInfo.fullName) ||
+                      (currentStep === 2 && (!selectedService || !selectedDoctor)) ||
+                      (currentStep === 3 && !selectedDate) ||
+                      (currentStep === 4 && !selectedTime) ? styles.btnDisabled : {})
                   }}
                 >
                   Continue <FiArrowRight />

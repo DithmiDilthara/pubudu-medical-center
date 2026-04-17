@@ -50,9 +50,9 @@ export const createAppointment = async (req, res) => {
 
         const maxPatients = session.max_patients || 20;
         if (activeCount >= maxPatients) {
-            return res.status(400).json({ 
-                success: false, 
-                message: `This session has reached its maximum capacity of ${maxPatients} patients.` 
+            return res.status(400).json({
+                success: false,
+                message: `This session has reached its maximum capacity of ${maxPatients} patients.`
             });
         }
         // ------------------------------------------
@@ -65,9 +65,9 @@ export const createAppointment = async (req, res) => {
             const thirtyMinsBefore = new Date(sessionStartTime.getTime() - 30 * 60000);
 
             if (now > thirtyMinsBefore) {
-                return res.status(400).json({ 
-                    success: false, 
-                    message: 'Online booking is not allowed within 30 minutes of the session start time. Please contact the receptionist for last-minute bookings.' 
+                return res.status(400).json({
+                    success: false,
+                    message: 'Online booking is not allowed within 30 minutes of the session start time. Please contact the receptionist for last-minute bookings.'
                 });
             }
         }
@@ -104,9 +104,9 @@ export const createAppointment = async (req, res) => {
         });
 
         if (existingBooking) {
-            return res.status(400).json({ 
-                success: false, 
-                message: 'You already have an active appointment for this doctor\'s session.' 
+            return res.status(400).json({
+                success: false,
+                message: 'You already have an active appointment for this doctor\'s session.'
             });
         }
         // -----------------------------------------------------
@@ -183,9 +183,9 @@ export const cancelAppointment = async (req, res) => {
 
         // Authorization: Patients can only cancel their own, but online cancellation is restricted.
         if (req.user.role_id === 4) {
-            return res.status(403).json({ 
-                success: false, 
-                message: 'Online patients are not allowed to cancel appointments. Please contact the Pubudu Medical Center receptionist to cancel your appointment.' 
+            return res.status(403).json({
+                success: false,
+                message: 'Online patients are not allowed to cancel appointments. Please contact the Pubudu Medical Center receptionist to cancel your appointment.'
             });
         }
 
@@ -250,21 +250,21 @@ export const processRefund = async (req, res) => {
 
         if (cancelledAt > sessionEndTime) {
             await t.rollback();
-            return res.status(400).json({ 
-                success: false, 
-                message: 'Refund period has expired. This appointment was cancelled after the session ended.' 
+            return res.status(400).json({
+                success: false,
+                message: 'Refund period has expired. This appointment was cancelled after the session ended.'
             });
         }
 
         // --- CALCULATE REFUND (Doctor Fee Only) ---
         const doctorFee = parseFloat(appointment.doctor?.doctor_fee) || 0;
-        
+
         if (doctorFee <= 0) {
             await t.rollback();
             return res.status(400).json({ success: false, message: 'No refundable doctor fee found' });
         }
 
-        // Create REFUND entry
+        // create REFUND entry
         const transactionId = `REF-${id}-${Date.now()}`;
         await Payment.create({
             patient_id: appointment.patient_id,
@@ -284,8 +284,8 @@ export const processRefund = async (req, res) => {
 
         await t.commit();
 
-        res.status(200).json({ 
-            success: true, 
+        res.status(200).json({
+            success: true,
             message: `Refund of ${doctorFee} LKR processed successfully. Center Fee (non-refundable) retained.`,
             data: { refundAmount: doctorFee }
         });
@@ -359,7 +359,7 @@ export const getAppointments = async (req, res) => {
             if (doctor_id) where.doctor_id = doctor_id;
         }
 
-        // Add payment status filter if provided (Receptionist/Admin)
+        //  payment status filter if provided (Receptionist/Admin)
         if (req.query.payment_status && (role_id === 3 || role_id === 1)) {
             where.payment_status = req.query.payment_status;
         }
@@ -369,13 +369,13 @@ export const getAppointments = async (req, res) => {
             { model: Payment, as: 'payments', attributes: ['amount', 'payment_method', 'status'] },
             { model: Availability, as: 'availability' }
         ];
-        
+
 
         // Only include patient info if it's NOT a patient looking at another doctor's slots
         if (role_id !== 4 || !doctor_id) {
-            include.push({ 
-                model: Patient, 
-                as: 'patient', 
+            include.push({
+                model: Patient,
+                as: 'patient',
                 attributes: ['patient_id', 'full_name', 'patient_type', 'date_of_birth', 'gender'],
                 include: [
                     { model: User, as: 'user', attributes: ['contact_number', 'email'] },
@@ -439,15 +439,15 @@ export const updateStatus = async (req, res) => {
         const appointment = await Appointment.findByPk(id, {
             include: [
                 { model: Doctor, as: 'doctor' },
-                { 
-                    model: Patient, 
+                {
+                    model: Patient,
                     as: 'patient',
                     include: [{ model: User, as: 'user', attributes: ['email', 'contact_number'] }]
                 }
             ],
             transaction: t
         });
-        
+
         if (!appointment) {
             await t.rollback();
             return res.status(404).json({ success: false, message: 'Appointment not found' });
@@ -464,20 +464,20 @@ export const updateStatus = async (req, res) => {
                 appointment.status = 'CONFIRMED';
             }
 
-            // Create LEDGER entry for receptionist payments
+            // create LEDGER entry for receptionist payments
             if (payment_status === 'PAID' && oldPaymentStatus !== 'PAID') {
                 isReceivingFinalPayment = true;
                 const allPayments = await Payment.findAll({
                     where: { appointment_id: id },
                     transaction: t
                 });
-                
+
                 const alreadyPaid = allPayments.reduce((sum, p) => sum + parseFloat(p.amount), 0);
                 const doctorFee = parseFloat(appointment.doctor?.doctor_fee) || 0;
                 const centerFee = parseFloat(appointment.doctor?.center_fee) || 600;
                 const totalAmount = doctorFee + centerFee;
                 const balanceDue = totalAmount - alreadyPaid;
-                
+
                 if (balanceDue > 0) {
                     const randomId = Math.floor(100000 + Math.random() * 900000);
                     finalTransactionId = `REP-${id}-${randomId}`;
@@ -495,7 +495,7 @@ export const updateStatus = async (req, res) => {
                 }
             }
         }
-        
+
         if (status) appointment.status = status;
 
         await appointment.save({ transaction: t });
@@ -505,7 +505,7 @@ export const updateStatus = async (req, res) => {
         if (isReceivingFinalPayment && appointment.patient?.user) {
             try {
                 const totalAmount = (parseFloat(appointment.doctor?.doctor_fee) || 0) + (parseFloat(appointment.doctor?.center_fee) || 600);
-                
+
                 NotificationService.sendPaymentSuccess(
                     appointment.patient.user.email,
                     appointment.patient.user.contact_number,
@@ -579,7 +579,7 @@ export const cancelDoctorSession = async (req, res) => {
         }
 
         const [affectedCount] = await Appointment.update(
-            { 
+            {
                 status: 'CANCELLED',
                 cancellation_reason: cancellation_reason || 'Doctor cancelled the session'
             },
@@ -592,8 +592,8 @@ export const cancelDoctorSession = async (req, res) => {
             }
         );
 
-        res.status(200).json({ 
-            success: true, 
+        res.status(200).json({
+            success: true,
             message: `Successfully cancelled ${affectedCount} appointments for the session`,
             data: { affectedCount }
         });
@@ -618,9 +618,9 @@ export const rescheduleAppointment = async (req, res) => {
         // Authorization: Patients are not allowed to reschedule online
         if (req.user.role_id === 4) {
             await t.rollback();
-            return res.status(403).json({ 
-                success: false, 
-                message: 'Online patients are not allowed to reschedule appointments. Please contact the Pubudu Medical Center receptionist.' 
+            return res.status(403).json({
+                success: false,
+                message: 'Online patients are not allowed to reschedule appointments. Please contact the Pubudu Medical Center receptionist.'
             });
         }
 
@@ -673,7 +673,7 @@ export const rescheduleAppointment = async (req, res) => {
                 where: { appointment_id: id },
                 transaction: t
             });
-            
+
             const amountPaid = payments.reduce((sum, p) => sum + parseFloat(p.amount), 0);
             const newTotalFee = parseFloat(finalDoctor.doctor_fee || 0) + parseFloat(finalDoctor.center_fee || 0);
             const difference = newTotalFee - amountPaid;

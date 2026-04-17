@@ -3,6 +3,28 @@ import { Op } from 'sequelize';
 import ReportGenerator from '../utils/ReportGenerator.js';
 import NotificationService from '../utils/NotificationService.js';
 
+const validateDateRange = (startDate, endDate) => {
+  if (!startDate || !endDate) return { isValid: false, message: 'Both start and end dates are required' };
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  
+  const oneYearAgo = new Date();
+  oneYearAgo.setFullYear(today.getFullYear() - 1);
+  const oneYearFuture = new Date();
+  oneYearFuture.setFullYear(today.getFullYear() + 1);
+
+  if (start > today) return { isValid: false, message: 'Start date cannot be in the future' };
+  if (start < oneYearAgo) return { isValid: false, message: 'Start date cannot be more than 1 year in the past' };
+  if (end > oneYearFuture) return { isValid: false, message: 'End date cannot be more than 1 year in the future' };
+  if (start > end) return { isValid: false, message: 'Start date must be before or equal to end date' };
+
+  return { isValid: true };
+};
+
+
 /**
  * @desc    Get system-wide statistics (counts)
  * @route   GET /api/admin/stats
@@ -42,7 +64,13 @@ export const getSystemStats = async (req, res) => {
 export const getRevenueReport = async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
-    
+
+    const validation = validateDateRange(startDate, endDate);
+    if (!validation.isValid) {
+      return res.status(400).json({ success: false, message: validation.message });
+    }
+
+
     // Unifying logic: Query Payments based on created_at range
     const paymentWhere = { transaction_type: 'PAYMENT' };
     if (startDate && endDate) {
@@ -83,7 +111,7 @@ export const getRevenueReport = async (req, res) => {
       if (appt && !processedAppointments.has(p.appointment_id)) {
         processedAppointments.add(p.appointment_id);
         const centerFee = parseFloat(appt.doctor?.center_fee || 0);
-        
+
         totalCenterRevenue += centerFee;
 
         const docName = appt.doctor?.full_name || 'Unknown';
@@ -131,7 +159,13 @@ export const getRevenueReport = async (req, res) => {
 export const getIncomeReport = async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
-    
+
+    const validation = validateDateRange(startDate, endDate);
+    if (!validation.isValid) {
+      return res.status(400).json({ success: false, message: validation.message });
+    }
+
+
     // Filter for payments in the range
     const paymentWhere = {};
     if (startDate && endDate) {
@@ -158,7 +192,7 @@ export const getIncomeReport = async (req, res) => {
     const statusStats = { COMPLETED: 0, CANCELLED: 0, PENDING: 0, NO_SHOW: 0, OTHER: 0 };
     const doctorStatsMap = {};
     const individualRefunds = []; // Track refunds
-    
+
     let grossCenterIncome = 0;
     let grossDoctorIncome = 0;
     let totalRefunds = 0;
@@ -166,7 +200,7 @@ export const getIncomeReport = async (req, res) => {
     payments.forEach(p => {
       const amount = parseFloat(p.amount);
       const appt = p.appointment;
-      
+
       // 1. Payment Method Breakdown (Cash vs Online)
       const method = (p.payment_method || 'CASH').toUpperCase();
       if (method.includes('PAYHERE') || method.includes('ONLINE') || method.includes('REFUND_CREDIT')) {
@@ -196,7 +230,7 @@ export const getIncomeReport = async (req, res) => {
         const absRefund = Math.abs(amount);
         totalRefunds += absRefund;
         if (docStats) docStats.refunds += absRefund;
-        
+
         individualRefunds.push({
           patientName: p.patient?.full_name || 'Individual Patient',
           amount: absRefund
@@ -205,18 +239,18 @@ export const getIncomeReport = async (req, res) => {
         if (appt && !processedAppointments.has(p.appointment_id)) {
           const cFee = parseFloat(appt.doctor?.center_fee || 0);
           const dFee = parseFloat(appt.doctor?.doctor_fee || 0);
-          
+
           grossCenterIncome += cFee;
           grossDoctorIncome += dFee;
-          
+
           if (docStats) {
             docStats.patientCount++;
             docStats.grossCenter += cFee;
             docStats.grossDoctor += dFee;
           }
-          
+
           processedAppointments.add(p.appointment_id);
-          
+
           // Status Tracking
           const status = appt.status;
           if (statusStats[status] !== undefined) {
@@ -278,7 +312,14 @@ export const getIncomeReport = async (req, res) => {
 export const getAppointmentReport = async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
+    
+    const validation = validateDateRange(startDate, endDate);
+    if (!validation.isValid) {
+      return res.status(400).json({ success: false, message: validation.message });
+    }
+
     const where = {};
+
 
     if (startDate && endDate) {
       where.appointment_date = {
@@ -321,7 +362,7 @@ export const getAppointmentReport = async (req, res) => {
           pending: 0
         };
       }
-      
+
       const stats = doctorStatsMap[docId];
       stats.total += 1;
       if (a.status === 'COMPLETED') stats.completed += 1;
@@ -373,9 +414,15 @@ export const exportReport = async (req, res) => {
     const { type } = req.params;
     const { startDate, endDate } = req.query;
 
+    const validation = validateDateRange(startDate, endDate);
+    if (!validation.isValid) {
+      return res.status(400).json({ success: false, message: validation.message });
+    }
+
+
     // 1. Fetch data similar to the report functions
     let reportData = {};
-    
+
     if (type === 'revenue') {
       const paymentWhere = { transaction_type: 'PAYMENT' };
       if (startDate && endDate) {
@@ -383,7 +430,7 @@ export const exportReport = async (req, res) => {
           [Op.between]: [new Date(startDate), new Date(endDate + 'T23:59:59')]
         };
       }
-      
+
       const payments = await Payment.findAll({
         where: paymentWhere,
         include: [
@@ -458,7 +505,7 @@ export const exportReport = async (req, res) => {
 
       const processedAppointments = new Set();
       let grossCenter = 0, grossDoc = 0, refunds = 0;
-      
+
       payments.forEach(p => {
         if (p.transaction_type === 'REFUND') refunds += Math.abs(parseFloat(p.amount));
         else if (p.transaction_type === 'PAYMENT' && p.appointment && !processedAppointments.has(p.appointment_id)) {
@@ -583,7 +630,7 @@ export const createDoctor = async (req, res) => {
       });
     }
 
-    // Create user with Doctor role (role_id: 2)
+    // create user with Doctor role (role_id: 2)
     const user = await User.create({
       username,
       password_hash: password,
@@ -592,7 +639,7 @@ export const createDoctor = async (req, res) => {
       role_id: 2 // Doctor role
     });
 
-    // Create doctor record
+    // create doctor record
     const doctor = await Doctor.create({
       user_id: user.user_id,
       admin_id: adminRecord.admin_id,
@@ -678,15 +725,15 @@ export const getDoctors = async (req, res) => {
 export const updateDoctor = async (req, res) => {
   try {
     const { id } = req.params;
-    const { 
-      full_name, 
-      specialization, 
-      email, 
-      contact_number, 
-      doctor_fee, 
-      center_fee, 
+    const {
+      full_name,
+      specialization,
+      email,
+      contact_number,
+      doctor_fee,
+      center_fee,
       gender,
-      license_no 
+      license_no
     } = req.body;
 
     const doctor = await Doctor.findByPk(id);
@@ -704,12 +751,12 @@ export const updateDoctor = async (req, res) => {
     if (doctor_fee !== undefined) doctor.doctor_fee = doctor_fee;
     if (center_fee !== undefined) doctor.center_fee = center_fee;
     if (gender) doctor.gender = gender;
-    
+
     // Safety check for fees
     const dFee = parseFloat(doctor.doctor_fee) || 0;
     const cFee = parseFloat(doctor.center_fee) || 0;
     doctor.consultation_fee = dFee + cFee;
-    
+
     try {
       await doctor.save();
     } catch (saveError) {
@@ -729,7 +776,7 @@ export const updateDoctor = async (req, res) => {
         if (user) {
           if (email) user.email = email;
           if (contact_number) user.contact_number = contact_number;
-          
+
           try {
             await user.save();
           } catch (userSaveError) {
@@ -874,7 +921,7 @@ export const createReceptionist = async (req, res) => {
       });
     }
 
-    // Create user with Receptionist role (role_id: 3)
+    // create user with Receptionist role (role_id: 3)
     const user = await User.create({
       username,
       password_hash: password,
@@ -883,7 +930,7 @@ export const createReceptionist = async (req, res) => {
       role_id: 3 // Receptionist role
     });
 
-    // Create receptionist record
+    // create receptionist record
     const receptionist = await Receptionist.create({
       user_id: user.user_id,
       admin_id: adminRecord.admin_id,
@@ -1067,7 +1114,7 @@ export const getPatientRegistrationStats = async (req, res) => {
 export const getDashboardData = async (req, res) => {
   try {
     const { period } = req.query; // 'Daily', 'Weekly', 'Monthly' for revenue
-    
+
     // 1. Weekly Appointment Trends (Last 7 Days)
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);

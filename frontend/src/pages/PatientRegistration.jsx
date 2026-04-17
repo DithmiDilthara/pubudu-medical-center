@@ -281,7 +281,7 @@ function PatientRegistration() {
           const digits = value.replace(/\D/g, "");
           const validPrefixes = ['070', '071', '072', '074', '075', '076', '077', '078'];
           const prefix = digits.substring(0, 3);
-          
+
           if (digits.length !== 10) error = "Phone number must be exactly 10 digits";
           else if (!digits.startsWith('07')) error = "Phone number must start with 07";
           else if (!validPrefixes.includes(prefix)) error = "Invalid Sri Lankan mobile prefix";
@@ -308,13 +308,22 @@ function PatientRegistration() {
             const nic = value.trim().toUpperCase();
             const oldNicRegex = /^[0-9]{9}[VX]$/;
             const newNicRegex = /^[0-9]{12}$/;
-            
+
             if (!oldNicRegex.test(nic) && !newNicRegex.test(nic)) {
               error = "Invalid NIC format (e.g., 123456789V or 12 digits)";
             } else {
               const digitsOnly = nic.replace(/[VX]/g, '');
               if (/(\d)\1{8,}/.test(digitsOnly)) error = "Invalid repeating pattern";
               if (/012345678|123456789|987654321/.test(digitsOnly)) error = "Sequential digits not allowed";
+
+              // Year cross-validation
+              if (!error && formData.date_of_birth) {
+                const dobYear = new Date(formData.date_of_birth).getFullYear().toString();
+                const nicYear = nic.length === 10 ? "19" + nic.substring(0, 2) : nic.substring(0, 4);
+                if (dobYear !== nicYear) {
+                  error = `NIC year (${nicYear}) does not match Birth Year (${dobYear})`;
+                }
+              }
             }
           }
         }
@@ -358,7 +367,7 @@ function PatientRegistration() {
           const birthDate = new Date(value);
           const today = new Date();
           today.setHours(0, 0, 0, 0);
-          
+
           if (birthDate > today) {
             error = "Birth date cannot be in the future";
           } else {
@@ -372,6 +381,18 @@ function PatientRegistration() {
               error = "Adult patients must be 18 years or older";
             } else if (formData.patient_type === 'CHILD' && age >= 18) {
               error = "Child patients must be under 18 years old";
+            }
+
+            // Year cross-validation with NIC
+            if (!error && formData.patient_type === 'ADULT' && formData.nic) {
+              const nic = formData.nic.trim().toUpperCase();
+              if (nic.length === 10 || nic.length === 12) {
+                const dobYear = birthDate.getFullYear().toString();
+                const nicYear = nic.length === 10 ? "19" + nic.substring(0, 2) : nic.substring(0, 4);
+                if (dobYear !== nicYear) {
+                  error = `Birth year (${dobYear}) does not match NIC (${nicYear})`;
+                }
+              }
             }
           }
         }
@@ -475,7 +496,7 @@ function PatientRegistration() {
       const newErrors = {};
       let requiredFields = ["username", "password", "confirmPassword", "full_name", "gender", "email", "contact_number", "date_of_birth", "address", "agreeTerms"];
 
-      // Add conditional required fields
+      //  conditional required fields
       if (formData.patient_type === 'ADULT') {
         requiredFields.push('nic');
       } else {
@@ -565,11 +586,11 @@ function PatientRegistration() {
         setSuccessMessage("Registration successful! Redirecting to email verification...");
 
         setTimeout(() => {
-          navigate("/register/verify", { 
-            state: { 
+          navigate("/register/verify", {
+            state: {
               otpToken: response.data.otpToken,
-              email: formData.email 
-            } 
+              email: formData.email
+            }
           });
         }, 1500);
       } else {
@@ -616,12 +637,12 @@ function PatientRegistration() {
 
           <form onSubmit={handleSubmit}>
             {/* 1. Account Type Selection (Always First) */}
-            <div style={{ 
-              marginBottom: "24px", 
-              padding: "20px", 
-              backgroundColor: "#F9FAFB", 
-              borderRadius: "12px", 
-              border: "1px solid #E5E7EB" 
+            <div style={{
+              marginBottom: "24px",
+              padding: "20px",
+              backgroundColor: "#F9FAFB",
+              borderRadius: "12px",
+              border: "1px solid #E5E7EB"
             }}>
               <label style={{ display: "block", marginBottom: "12px", fontSize: "14px", color: "#374151", fontWeight: "600" }}>
                 Select Account Type <span style={{ color: "#EF4444" }}>*</span>

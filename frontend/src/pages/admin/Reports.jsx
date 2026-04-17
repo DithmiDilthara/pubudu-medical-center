@@ -55,14 +55,68 @@ const Reports = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [reportData, setReportData] = useState(null);
+  const [errors, setErrors] = useState({ startDate: "", endDate: "" });
   
   // Chart Refs for PDF capture
   const barChartRef = useRef(null);
   const pieChartRef = useRef(null);
 
+  const validateDates = (start, end) => {
+    const newErrors = { startDate: "", endDate: "" };
+    let isValid = true;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const oneYearAgo = new Date();
+    oneYearAgo.setFullYear(today.getFullYear() - 1);
+
+    const oneYearFuture = new Date();
+    oneYearFuture.setFullYear(today.getFullYear() + 1);
+
+    if (start) {
+      const sDate = new Date(start);
+      if (sDate > today) {
+        newErrors.startDate = "From date cannot be in the future";
+        isValid = false;
+      } else if (sDate < oneYearAgo) {
+        newErrors.startDate = "Cannot go back more than 1 year";
+        isValid = false;
+      }
+    }
+
+    if (end) {
+      const eDate = new Date(end);
+      if (eDate > oneYearFuture) {
+        newErrors.endDate = "Limit: 1 year into the future only";
+        isValid = false;
+      }
+    }
+
+    if (start && end) {
+      const sDate = new Date(start);
+      const eDate = new Date(end);
+      if (sDate > eDate) {
+        newErrors.endDate = "To date must be after From date";
+        isValid = false;
+      }
+    }
+
+    setErrors(newErrors);
+    return isValid;
+  };
+
   const handleGenerateReport = async () => {
     if (!startDate || !endDate) {
-      toast.error("Please select a date range");
+      setErrors({
+        startDate: !startDate ? "Required" : "",
+        endDate: !endDate ? "Required" : ""
+      });
+      toast.error("Please complete the date selection");
+      return;
+    }
+
+    if (!validateDates(startDate, endDate)) {
+      toast.error("Please fix the date errors");
       return;
     }
 
@@ -652,11 +706,18 @@ const Reports = () => {
                   <FiCalendar style={styles.dateIcon} />
                   <input 
                     type="date" 
-                    style={styles.dateInput}
+                    style={{
+                      ...styles.dateInput,
+                      ...(errors.startDate ? styles.inputError : {})
+                    }}
                     value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
+                    onChange={(e) => {
+                      setStartDate(e.target.value);
+                      validateDates(e.target.value, endDate);
+                    }}
                   />
                 </div>
+                {errors.startDate && <span style={styles.errorText}>{errors.startDate}</span>}
               </div>
 
               <div style={styles.formGroup}>
@@ -665,11 +726,18 @@ const Reports = () => {
                   <FiCalendar style={styles.dateIcon} />
                   <input 
                     type="date" 
-                    style={styles.dateInput}
+                    style={{
+                      ...styles.dateInput,
+                      ...(errors.endDate ? styles.inputError : {})
+                    }}
                     value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
+                    onChange={(e) => {
+                      setEndDate(e.target.value);
+                      validateDates(startDate, e.target.value);
+                    }}
                   />
                 </div>
+                {errors.endDate && <span style={styles.errorText}>{errors.endDate}</span>}
               </div>
 
               <div style={styles.formGroup}>
@@ -1147,6 +1215,19 @@ const styles = {
     display: 'flex',
     flexDirection: 'column',
     gap: '8px'
+  },
+  errorText: {
+    color: '#ef4444',
+    fontSize: '11px',
+    fontWeight: '700',
+    marginTop: '4px',
+    marginLeft: '4px',
+    display: 'flex',
+    alignItems: 'center'
+  },
+  inputError: {
+    borderColor: '#ef4444',
+    backgroundColor: '#fff1f2'
   },
   summaryLabel: {
     fontSize: '14px',

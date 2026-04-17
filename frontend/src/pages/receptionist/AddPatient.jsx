@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import toast from "react-hot-toast";
 import { motion, AnimatePresence } from "framer-motion";
-import { FiUser, FiMail, FiPhone, FiMapPin, FiCreditCard, FiLock, FiCalendar, FiActivity, FiShield, FiAlertCircle, FiCheck } from "react-icons/fi";
+import { FiUser, FiMail, FiPhone, FiMapPin, FiCreditCard, FiLock, FiCalendar, FiActivity, FiShield, FiAlertCircle, FiCheck, FiEye, FiEyeOff } from "react-icons/fi";
 import ReceptionistSidebar from "../../components/ReceptionistSidebar";
 import ReceptionistHeader from "../../components/ReceptionistHeader";
 import { useAuth } from "../../context/AuthContext";
@@ -37,6 +37,8 @@ function AddPatient() {
   const [touched, setTouched] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [focusedField, setFocusedField] = useState(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // Validation rules
   const validationRules = {
@@ -71,6 +73,18 @@ function AddPatient() {
           }
           if (formData.patientType === 'CHILD' && age >= 18) {
             return "Child patients must be under 18 years old";
+          }
+
+          // Year cross-validation with NIC
+          if (formData.patientType === 'ADULT' && formData.nic) {
+            const nic = formData.nic.trim().toUpperCase();
+            if (nic.length === 10 || nic.length === 12) {
+              const dobYear = birthDate.getFullYear().toString();
+              const nicYear = nic.length === 10 ? "19" + nic.substring(0, 2) : nic.substring(0, 4);
+              if (dobYear !== nicYear) {
+                return `Birth year (${dobYear}) does not match NIC (${nicYear})`;
+              }
+            }
           }
 
           return age >= 0 ? null : "Invalid date of birth";
@@ -133,6 +147,15 @@ function AddPatient() {
         if (/(\d)\1{8,}/.test(digitsOnly)) return "Invalid repeating pattern";
         if (/012345678|123456789|987654321/.test(digitsOnly)) return "Sequential digits not allowed";
         
+        // Year cross-validation
+        if (formData.dateOfBirth) {
+          const dobYear = new Date(formData.dateOfBirth).getFullYear().toString();
+          const nicYear = nic.length === 10 ? "19" + nic.substring(0, 2) : nic.substring(0, 4);
+          if (dobYear !== nicYear) {
+            return `NIC year (${nicYear}) does not match Birth Year (${dobYear})`;
+          }
+        }
+
         return null;
       }
     },
@@ -814,7 +837,7 @@ function AddPatient() {
                     <div style={styles.inputWrapper}>
                       <FiLock style={{...styles.inputIcon, color: focusedField === 'password' ? '#2563eb' : '#94a3b8'}} />
                       <input
-                        type="password"
+                        type={showPassword ? "text" : "password"}
                         name="password"
                         placeholder="••••••••"
                         value={formData.password}
@@ -824,9 +847,18 @@ function AddPatient() {
                         style={{
                           ...styles.input,
                           ...(focusedField === 'password' ? styles.inputFocus : {}),
-                          ...(touched.password && errors.password ? styles.errorInput : {})
+                          ...(touched.password && errors.password ? styles.errorInput : {}),
+                          paddingRight: "48px"
                         }}
                       />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        style={styles.eyeToggle}
+                        tabIndex="-1"
+                      >
+                        {showPassword ? <FiEyeOff /> : <FiEye />}
+                      </button>
                     </div>
                     <AnimatePresence>
                       {focusedField === 'password' && (
@@ -853,7 +885,7 @@ function AddPatient() {
                     <div style={styles.inputWrapper}>
                       <FiLock style={{...styles.inputIcon, color: focusedField === 'confirmPassword' ? '#2563eb' : '#94a3b8'}} />
                       <input
-                        type="password"
+                        type={showConfirmPassword ? "text" : "password"}
                         name="confirmPassword"
                         placeholder="••••••••"
                         value={formData.confirmPassword}
@@ -863,9 +895,18 @@ function AddPatient() {
                         style={{
                           ...styles.input,
                           ...(focusedField === 'confirmPassword' ? styles.inputFocus : {}),
-                          ...(touched.confirmPassword && errors.confirmPassword ? styles.errorInput : {})
+                          ...(touched.confirmPassword && errors.confirmPassword ? styles.errorInput : {}),
+                          paddingRight: "48px"
                         }}
                       />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        style={styles.eyeToggle}
+                        tabIndex="-1"
+                      >
+                        {showConfirmPassword ? <FiEyeOff /> : <FiEye />}
+                      </button>
                     </div>
                     {touched.confirmPassword && errors.confirmPassword && <div style={styles.errorText}><FiAlertCircle /> {errors.confirmPassword}</div>}
                   </div>
@@ -1121,6 +1162,25 @@ const styles = {
     opacity: 0.6,
     cursor: "not-allowed",
     boxShadow: "none"
+  },
+  eyeToggle: {
+    position: "absolute",
+    right: "12px",
+    background: "none",
+    border: "none",
+    cursor: "pointer",
+    color: "#94a3b8",
+    fontSize: "18px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "8px",
+    transition: "color 0.2s",
+    outline: "none",
+    zIndex: 2,
+    ':hover': {
+      color: "#2563eb"
+    }
   }
 };
 

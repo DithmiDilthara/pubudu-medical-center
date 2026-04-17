@@ -22,8 +22,8 @@ const PORT = process.env.PORT || 3000;
 app.use((req, res, next) => {
     const start = Date.now();
     console.log(`[${new Date().toISOString()}] ${req.method} ${req.url} - Request Received`);
-    
-    // Add timeout to request
+
+    //  timeout to request
     res.setTimeout(15000, () => {
         console.error(`[${new Date().toISOString()}] ${req.method} ${req.url} - REQUEST TIMEOUT (15s)`);
         if (!res.headersSent) {

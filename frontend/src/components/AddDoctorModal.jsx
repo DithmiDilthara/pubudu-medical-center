@@ -4,12 +4,12 @@ import { FiX, FiCheck, FiUser, FiLock, FiCreditCard, FiMail, FiPhone, FiTarget, 
 
 
 
-const AddDoctorModal = ({ 
-  isOpen, 
-  onClose, 
-  onSubmit, 
+const AddDoctorModal = ({
+  isOpen,
+  onClose,
+  onSubmit,
   editingDoctor = null,
-  isLoading = false 
+  isLoading = false
 }) => {
   const [formData, setFormData] = useState({
     username: '',
@@ -87,7 +87,7 @@ const AddDoctorModal = ({
           const digits = value.replace(/\D/g, '');
           const validPrefixes = ['070', '071', '072', '074', '075', '076', '077', '078'];
           const prefix = digits.substring(0, 3);
-          
+
           if (digits.length !== 10) error = 'Must be exactly 10 digits';
           else if (!digits.startsWith('07')) error = 'Must start with 07';
           else if (!validPrefixes.includes(prefix)) error = 'Invalid Sri Lankan mobile prefix';
@@ -142,7 +142,7 @@ const AddDoctorModal = ({
       const error = validateField(key, formData[key]);
       if (error) errors[key] = error;
     });
-    
+
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -160,7 +160,7 @@ const AddDoctorModal = ({
   return (
     <AnimatePresence>
       <div style={styles.overlay}>
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, scale: 0.9, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.9, y: 20 }}
@@ -186,14 +186,14 @@ const AddDoctorModal = ({
                     <label style={styles.label}>Username <span style={styles.req}>*</span></label>
                     <div style={styles.inputWrapper}>
                       <FiUser style={styles.inputIcon} />
-                      <input 
-                        type="text" 
-                        name="username" 
-                        value={formData.username} 
+                      <input
+                        type="text"
+                        name="username"
+                        value={formData.username}
                         onChange={handleInputChange}
                         disabled={!!editingDoctor}
                         style={{
-                          ...styles.input, 
+                          ...styles.input,
                           ...(editingDoctor ? styles.disabledInput : {}),
                           ...(formErrors.username ? styles.inputError : {})
                         }}
@@ -207,14 +207,14 @@ const AddDoctorModal = ({
                     <label style={styles.label}>Password <span style={styles.req}>*</span></label>
                     <div style={styles.inputWrapper}>
                       <FiLock style={styles.inputIcon} />
-                      <input 
-                        type="password" 
-                        name="password" 
-                        value={formData.password} 
+                      <input
+                        type="password"
+                        name="password"
+                        value={formData.password}
                         onChange={handleInputChange}
                         disabled={!!editingDoctor}
                         style={{
-                          ...styles.input, 
+                          ...styles.input,
                           ...(editingDoctor ? styles.disabledInput : {}),
                           ...(formErrors.password ? styles.inputError : {})
                         }}
@@ -231,12 +231,12 @@ const AddDoctorModal = ({
                 <div style={styles.grid}>
                   <div style={styles.formGroup}>
                     <label style={styles.label}>Full Name <span style={styles.req}>*</span></label>
-                    <input 
-                      type="text" 
-                      name="full_name" 
-                      value={formData.full_name} 
+                    <input
+                      type="text"
+                      name="full_name"
+                      value={formData.full_name}
                       onChange={handleInputChange}
-                      style={{...styles.input, ...(formErrors.full_name ? styles.inputError : {})}}
+                      style={{ ...styles.input, ...(formErrors.full_name ? styles.inputError : {}) }}
                       placeholder="Dr. Tachini Thaweesha"
                     />
                     {formErrors.full_name && <span style={styles.errorText}>{formErrors.full_name}</span>}
@@ -244,11 +244,11 @@ const AddDoctorModal = ({
 
                   <div style={styles.formGroup}>
                     <label style={styles.label}>Gender <span style={styles.req}>*</span></label>
-                    <select 
-                      name="gender" 
-                      value={formData.gender} 
+                    <select
+                      name="gender"
+                      value={formData.gender}
                       onChange={handleInputChange}
-                      style={{...styles.input, ...(formErrors.gender ? styles.inputError : {})}}
+                      style={{ ...styles.input, ...(formErrors.gender ? styles.inputError : {}) }}
                     >
                       <option value="MALE">Male</option>
                       <option value="FEMALE">Female</option>
@@ -259,11 +259,11 @@ const AddDoctorModal = ({
 
                   <div style={styles.formGroup}>
                     <label style={styles.label}>Specialization <span style={styles.req}>*</span></label>
-                    <select 
-                      name="specialization" 
-                      value={formData.specialization} 
+                    <select
+                      name="specialization"
+                      value={formData.specialization}
                       onChange={handleInputChange}
-                      style={{...styles.input, ...(formErrors.specialization ? styles.inputError : {})}}
+                      style={{ ...styles.input, ...(formErrors.specialization ? styles.inputError : {}) }}
                     >
                       <option value="">Select Specialization</option>
                       {specializations.map(spec => (
@@ -273,18 +273,18 @@ const AddDoctorModal = ({
                     {formErrors.specialization && <span style={styles.errorText}>{formErrors.specialization}</span>}
                   </div>
 
-                   <div style={styles.formGroup}>
+                  <div style={styles.formGroup}>
                     <label style={styles.label}>License Number <span style={styles.req}>*</span></label>
                     <div style={styles.inputWrapper}>
                       <FiTarget style={styles.inputIcon} />
-                      <input 
-                        type="text" 
-                        name="license_no" 
-                        value={formData.license_no} 
+                      <input
+                        type="text"
+                        name="license_no"
+                        value={formData.license_no}
                         onChange={handleInputChange}
                         disabled={!!editingDoctor}
                         style={{
-                          ...styles.input, 
+                          ...styles.input,
                           ...(editingDoctor ? styles.disabledInput : {}),
                           ...(formErrors.license_no ? styles.inputError : {})
                         }}
@@ -301,12 +301,12 @@ const AddDoctorModal = ({
                 <div style={styles.grid}>
                   <div style={styles.formGroup}>
                     <label style={styles.label}>Doctor Fee (LKR) <span style={styles.req}>*</span></label>
-                    <input 
-                      type="number" 
-                      name="doctor_fee" 
-                      value={formData.doctor_fee} 
+                    <input
+                      type="number"
+                      name="doctor_fee"
+                      value={formData.doctor_fee}
                       onChange={handleInputChange}
-                      style={{...styles.input, ...(formErrors.doctor_fee ? styles.inputError : {})}}
+                      style={{ ...styles.input, ...(formErrors.doctor_fee ? styles.inputError : {}) }}
                       placeholder="2500"
                       min="1000"
                     />
@@ -315,12 +315,12 @@ const AddDoctorModal = ({
 
                   <div style={styles.formGroup}>
                     <label style={styles.label}>Center Fee (LKR) <span style={styles.req}>*</span></label>
-                    <input 
-                      type="number" 
-                      name="center_fee" 
-                      value={formData.center_fee} 
+                    <input
+                      type="number"
+                      name="center_fee"
+                      value={formData.center_fee}
                       onChange={handleInputChange}
-                      style={{...styles.input, ...(formErrors.center_fee ? styles.inputError : {})}}
+                      style={{ ...styles.input, ...(formErrors.center_fee ? styles.inputError : {}) }}
                       placeholder="600"
                       min="600"
                     />
@@ -329,9 +329,9 @@ const AddDoctorModal = ({
 
                   <div style={styles.formGroup}>
                     <label style={styles.label}>Total Fee (LKR)</label>
-                    <input 
-                      type="text" 
-                      value={totalFee.toLocaleString()} 
+                    <input
+                      type="text"
+                      value={totalFee.toLocaleString()}
                       disabled
                       style={styles.readOnlyInput}
                     />
@@ -346,12 +346,12 @@ const AddDoctorModal = ({
                     <label style={styles.label}>Email Address <span style={styles.req}>*</span></label>
                     <div style={styles.inputWrapper}>
                       <FiMail style={styles.inputIcon} />
-                      <input 
-                        type="email" 
-                        name="email" 
-                        value={formData.email} 
+                      <input
+                        type="email"
+                        name="email"
+                        value={formData.email}
                         onChange={handleInputChange}
-                        style={{...styles.input, ...(formErrors.email ? styles.inputError : {})}}
+                        style={{ ...styles.input, ...(formErrors.email ? styles.inputError : {}) }}
                         placeholder="doctor@example.com"
                       />
                     </div>
@@ -362,12 +362,12 @@ const AddDoctorModal = ({
                     <label style={styles.label}>Contact Number <span style={styles.req}>*</span></label>
                     <div style={styles.inputWrapper}>
                       <FiPhone style={styles.inputIcon} />
-                      <input 
-                        type="text" 
-                        name="contact_number" 
-                        value={formData.contact_number} 
+                      <input
+                        type="text"
+                        name="contact_number"
+                        value={formData.contact_number}
                         onChange={handleInputChange}
-                        style={{...styles.input, ...(formErrors.contact_number ? styles.inputError : {})}}
+                        style={{ ...styles.input, ...(formErrors.contact_number ? styles.inputError : {}) }}
                         placeholder="0771234567"
                         maxLength="10"
                       />
@@ -384,8 +384,8 @@ const AddDoctorModal = ({
               <button type="button" onClick={onClose} style={styles.cancelBtn}>
                 Cancel
               </button>
-              <button 
-                type="submit" 
+              <button
+                type="submit"
                 style={styles.submitBtn}
                 disabled={isLoading}
               >
@@ -613,19 +613,19 @@ const styles = {
   }
 };
 
-// Add default input icon logic for specialization
+//  default input icon logic for specialization
 const iconStyles = {
-    ...styles.inputIcon,
-    left: '14px'
+  ...styles.inputIcon,
+  left: '14px'
 };
 
 // Adjust select padding manually since it doesn't have an icon in my current structure
 styles.input = {
-    ...styles.input,
-    '&:focus': {
-        borderColor: '#2563eb',
-        boxShadow: '0 0 0 4px rgba(37, 99, 235, 0.1)'
-    }
+  ...styles.input,
+  '&:focus': {
+    borderColor: '#2563eb',
+    boxShadow: '0 0 0 4px rgba(37, 99, 235, 0.1)'
+  }
 };
 
 export default AddDoctorModal;

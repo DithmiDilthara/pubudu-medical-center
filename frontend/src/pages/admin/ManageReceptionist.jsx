@@ -1,12 +1,12 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  FiPlus, 
-  FiEdit2, 
-  FiTrash2, 
-  FiSearch, 
-  FiFilter, 
-  FiUser, 
+import {
+  FiPlus,
+  FiEdit2,
+  FiTrash2,
+  FiSearch,
+  FiFilter,
+  FiUser,
   FiActivity,
   FiMail,
   FiPhone,
@@ -24,7 +24,7 @@ const ManageReceptionist = () => {
   const { api, user } = useAuth();
   const adminName = user?.username || 'Admin';
   const navigate = useNavigate();
-  
+
   // State
   const [receptionists, setReceptionists] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -33,7 +33,7 @@ const ManageReceptionist = () => {
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(8);
-  
+
   // Modal States
   const [showModal, setShowModal] = useState(false);
   const [editingReceptionist, setEditingReceptionist] = useState(null);
@@ -56,8 +56,8 @@ const ManageReceptionist = () => {
       const response = await api.get('/admin/receptionists');
       if (response.data.success) {
         let docs = response.data.data;
-        
-        // Add mock receptionists if list is empty for demonstration as requested
+
+        //  mock receptionists if list is empty for demonstration as requested
         if (docs.length === 0) {
           docs = [
             { receptionist_id: 'm1', full_name: 'Kumara Perera', user: { email: 'kumara@pubudu.lk', contact_number: '0771234567', is_active: true } },
@@ -80,7 +80,7 @@ const ManageReceptionist = () => {
   const handleCreateOrUpdate = async (formData) => {
     try {
       setIsSubmitting(true);
-      const response = editingReceptionist 
+      const response = editingReceptionist
         ? await api.put(`/admin/receptionists/${editingReceptionist.receptionist_id}`, formData)
         : await api.post('/admin/receptionists', formData);
 
@@ -114,7 +114,7 @@ const ManageReceptionist = () => {
   const filteredReceptionists = useMemo(() => {
     return receptionists.filter(rec => {
       const matchesSearch = rec.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                           rec.user?.email?.toLowerCase().includes(searchQuery.toLowerCase());
+        rec.user?.email?.toLowerCase().includes(searchQuery.toLowerCase());
       return matchesSearch;
     });
   }, [receptionists, searchQuery]);
@@ -133,8 +133,8 @@ const ManageReceptionist = () => {
 
   const containerVariants = {
     hidden: { opacity: 0, y: 20 },
-    visible: { 
-      opacity: 1, 
+    visible: {
+      opacity: 1,
       y: 0,
       transition: { duration: 0.5, staggerChildren: 0.05 }
     }
@@ -146,7 +146,7 @@ const ManageReceptionist = () => {
       <div className="main-wrapper">
         <AdminHeader adminName={adminName} />
 
-        <motion.main 
+        <motion.main
           className="content-padding"
           variants={containerVariants}
           initial="hidden"
@@ -162,9 +162,9 @@ const ManageReceptionist = () => {
             <div style={styles.toolbarContent}>
               <div style={styles.searchBox}>
                 <FiSearch style={styles.searchIcon} />
-                <input 
-                  type="text" 
-                  placeholder="Search receptionists by name or email..." 
+                <input
+                  type="text"
+                  placeholder="Search receptionists by name or email..."
                   style={styles.searchInput}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
@@ -172,12 +172,12 @@ const ManageReceptionist = () => {
               </div>
 
             </div>
-            <button 
-                onClick={() => {
-                    setEditingReceptionist(null);
-                    setShowModal(true);
-                }} 
-                style={styles.addButton}
+            <button
+              onClick={() => {
+                setEditingReceptionist(null);
+                setShowModal(true);
+              }}
+              style={styles.addButton}
             >
               <FiPlus />
               <span>Add Receptionist</span>
@@ -188,7 +188,7 @@ const ManageReceptionist = () => {
           <div style={styles.tableCard}>
             {loading ? (
               <div style={styles.loadingContainer}>
-                <motion.div 
+                <motion.div
                   animate={{ rotate: 360 }}
                   transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
                   style={styles.spinner}
@@ -200,7 +200,7 @@ const ManageReceptionist = () => {
                 <FiActivity style={styles.emptyIcon} />
                 <h3>No Receptionists Found</h3>
                 <p>We couldn't find any staff matching your current criteria.</p>
-                <button onClick={() => {setSearchQuery('');}} style={styles.resetBtn}>
+                <button onClick={() => { setSearchQuery(''); }} style={styles.resetBtn}>
                   Clear all filters
                 </button>
               </div>
@@ -217,11 +217,11 @@ const ManageReceptionist = () => {
                   </thead>
                   <tbody>
                     {paginatedReceptionists.map((rec, idx) => (
-                      <motion.tr 
-                        key={rec.receptionist_id} 
+                      <motion.tr
+                        key={rec.receptionist_id}
                         initial={{ opacity: 0, x: -10 }}
                         animate={{ opacity: 1, x: 0 }}
-                        whileHover={{ 
+                        whileHover={{
                           backgroundColor: '#eff6ff',
                           y: -2,
                           transition: { duration: 0.2 }
@@ -258,21 +258,21 @@ const ManageReceptionist = () => {
                         </td>
                         <td style={styles.td}>
                           <div style={styles.actions}>
-                            <button 
-                                onClick={() => {
-                                    setEditingReceptionist(rec);
-                                    setShowModal(true);
-                                }} 
-                                style={styles.actionBtnEdit}
+                            <button
+                              onClick={() => {
+                                setEditingReceptionist(rec);
+                                setShowModal(true);
+                              }}
+                              style={styles.actionBtnEdit}
                             >
                               <FiEdit2 />
                             </button>
-                            <button 
-                                onClick={() => {
-                                    setReceptionistToDelete(rec);
-                                    setShowDeleteConfirm(true);
-                                }} 
-                                style={styles.actionBtnDelete}
+                            <button
+                              onClick={() => {
+                                setReceptionistToDelete(rec);
+                                setShowDeleteConfirm(true);
+                              }}
+                              style={styles.actionBtnDelete}
                             >
                               <FiTrash2 />
                             </button>
@@ -284,43 +284,43 @@ const ManageReceptionist = () => {
                 </table>
               </div>
             )}
-            
+
             {/* Pagination Controls */}
             {!loading && filteredReceptionists.length > 0 && (
               <div style={styles.paginationPanel}>
                 <div style={styles.paginationInfo}>
-                  Showing <span style={{fontWeight: '700'}}>{Math.min(filteredReceptionists.length, (currentPage - 1) * itemsPerPage + 1)}</span> to <span style={{fontWeight: '700'}}>{Math.min(filteredReceptionists.length, currentPage * itemsPerPage)}</span> of <span style={{fontWeight: '700'}}>{filteredReceptionists.length}</span> staff
+                  Showing <span style={{ fontWeight: '700' }}>{Math.min(filteredReceptionists.length, (currentPage - 1) * itemsPerPage + 1)}</span> to <span style={{ fontWeight: '700' }}>{Math.min(filteredReceptionists.length, currentPage * itemsPerPage)}</span> of <span style={{ fontWeight: '700' }}>{filteredReceptionists.length}</span> staff
                 </div>
                 <div style={styles.paginationControls}>
-                  <button 
+                  <button
                     disabled={currentPage === 1}
                     onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                    style={{...styles.pageBtn, opacity: currentPage === 1 ? 0.5 : 1, cursor: currentPage === 1 ? 'not-allowed' : 'pointer'}}
+                    style={{ ...styles.pageBtn, opacity: currentPage === 1 ? 0.5 : 1, cursor: currentPage === 1 ? 'not-allowed' : 'pointer' }}
                   >
                     Previous
                   </button>
-                  
+
                   <div style={styles.pageNumbers}>
-                      {[...Array(totalPages)].map((_, i) => (
-                          <button 
-                              key={i + 1}
-                              onClick={() => setCurrentPage(i + 1)}
-                              style={{
-                                  ...styles.pageNumber,
-                                  backgroundColor: currentPage === i + 1 ? '#2563eb' : 'white',
-                                  color: currentPage === i + 1 ? 'white' : '#475569',
-                                  borderColor: currentPage === i + 1 ? '#2563eb' : '#e2e8f0'
-                              }}
-                          >
-                              {i + 1}
-                          </button>
-                      ))}
+                    {[...Array(totalPages)].map((_, i) => (
+                      <button
+                        key={i + 1}
+                        onClick={() => setCurrentPage(i + 1)}
+                        style={{
+                          ...styles.pageNumber,
+                          backgroundColor: currentPage === i + 1 ? '#2563eb' : 'white',
+                          color: currentPage === i + 1 ? 'white' : '#475569',
+                          borderColor: currentPage === i + 1 ? '#2563eb' : '#e2e8f0'
+                        }}
+                      >
+                        {i + 1}
+                      </button>
+                    ))}
                   </div>
 
-                  <button 
+                  <button
                     disabled={currentPage === totalPages}
                     onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                    style={{...styles.pageBtn, opacity: currentPage === totalPages ? 0.5 : 1, cursor: currentPage === totalPages ? 'not-allowed' : 'pointer'}}
+                    style={{ ...styles.pageBtn, opacity: currentPage === totalPages ? 0.5 : 1, cursor: currentPage === totalPages ? 'not-allowed' : 'pointer' }}
                   >
                     Next
                   </button>
@@ -330,13 +330,13 @@ const ManageReceptionist = () => {
           </div>
 
           <div style={styles.footer_container}>
-             <button onClick={() => navigate('/admin/dashboard')} style={styles.backBtn}>Back to Dashboard</button>
+            <button onClick={() => navigate('/admin/dashboard')} style={styles.backBtn}>Back to Dashboard</button>
           </div>
         </motion.main>
       </div>
 
       {/* Components */}
-      <AddReceptionistModal 
+      <AddReceptionistModal
         isOpen={showModal}
         onClose={() => setShowModal(false)}
         onSubmit={handleCreateOrUpdate}
@@ -344,7 +344,7 @@ const ManageReceptionist = () => {
         isLoading={isSubmitting}
       />
 
-      <ConfirmDialog 
+      <ConfirmDialog
         isOpen={showDeleteConfirm}
         onClose={() => setShowDeleteConfirm(false)}
         onConfirm={handleDelete}

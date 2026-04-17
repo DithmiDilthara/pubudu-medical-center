@@ -40,7 +40,7 @@ export const initiatePayment = async (req, res) => {
         const doctorFee = parseFloat(appointment.doctor.doctor_fee) || 0;
         const centerFee = parseFloat(appointment.doctor.center_fee) || 600;
         const amount = doctorFee + centerFee;
-        
+
         const merchantId = process.env.PAYHERE_MERCHANT_ID;
         const merchantSecret = process.env.PAYHERE_MERCHANT_SECRET;
         const currency = 'LKR';
@@ -127,7 +127,7 @@ export const handleNotify = async (req, res) => {
                 appointment.status = 'CONFIRMED';
                 await appointment.save();
 
-                // Create Payment Record
+                // create Payment Record
                 await Payment.create({
                     patient_id: patient_id,
                     appointment_id: appointment_id,
@@ -206,7 +206,7 @@ export const verifyPayment = async (req, res) => {
                 const centerFee = parseFloat(appointment.doctor.center_fee) || 600;
                 const amount = doctorFee + centerFee;
 
-                // Create Payment Record
+                // create Payment Record
                 await Payment.create({
                     patient_id: appointment.patient_id,
                     appointment_id: appointment_id,
@@ -294,7 +294,7 @@ export const downloadReceipt = async (req, res) => {
         // Format dates and times
         const dateOptions = { day: '2-digit', month: 'long', year: 'numeric' };
         const timeOptions = { hour: '2-digit', minute: '2-digit', hour12: true };
-        
+
         const issueDateStr = new Intl.DateTimeFormat('en-GB', dateOptions).format(new Date());
         const issueTimeStr = new Intl.DateTimeFormat('en-US', timeOptions).format(new Date());
         const consultDateStr = new Intl.DateTimeFormat('en-GB', dateOptions).format(new Date(appointment.appointment_date));
@@ -302,7 +302,7 @@ export const downloadReceipt = async (req, res) => {
         // Get fixed fees with strict Number casting and defaults
         const rawDoctorFee = appointment.doctor?.doctor_fee;
         const rawCenterFee = appointment.doctor?.center_fee;
-        
+
         const doctorFee = Number(rawDoctorFee) || 0;
         const centerFee = Number(rawCenterFee) || 600;
         const total = doctorFee + centerFee;
@@ -312,8 +312,8 @@ export const downloadReceipt = async (req, res) => {
 
         // Force 'Online' label for PayHere
         const rawMethod = payment?.payment_method || '';
-        const displayMethod = (rawMethod && rawMethod.toLowerCase().includes('payhere')) 
-            ? 'Online' 
+        const displayMethod = (rawMethod && rawMethod.toLowerCase().includes('payhere'))
+            ? 'Online'
             : rawMethod;
 
         console.log("Mapped Data for Receipt:", {
@@ -359,16 +359,16 @@ export const downloadReceipt = async (req, res) => {
 export const getTransactionHistory = async (req, res) => {
     try {
         const { patientName, startDate, endDate, type } = req.query;
-        
+
         const where = {};
-        
+
         // Date range filter
         if (startDate && endDate) {
             where.created_at = {
                 [Op.between]: [new Date(startDate), new Date(endDate + 'T23:59:59')]
             };
         }
-        
+
         // Transaction Type Filter (PAYMENT or REFUND)
         if (type && type !== 'ALL') {
             where.transaction_type = type.toUpperCase();

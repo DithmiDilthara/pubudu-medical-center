@@ -6,7 +6,7 @@ async function testSMS() {
     console.log("Starting SMS Test...");
     console.log("Using Token:", process.env.TEXT_LK_TOKEN ? "X...X" : "MISSING");
     
-    const testPhone = "0771234567"; // FIXME: Replace with your actual phone number for a real test
+    const testPhone = "0771234567"; 
     const testName = "Test Patient";
     const doctorName = "Dr. Smith";
     const appointmentNumber = 5;

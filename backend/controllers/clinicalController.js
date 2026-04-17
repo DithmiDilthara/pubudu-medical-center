@@ -19,16 +19,16 @@ export const addMedicalRecord = async (req, res) => {
         if (appointment_id) {
             const appointment = await Appointment.findByPk(appointment_id);
             if (!appointment) return res.status(404).json({ success: false, message: 'Appointment not found' });
-            
+
             if (appointment.payment_status !== 'PAID') {
-                return res.status(403).json({ 
-                    success: false, 
-                    message: 'Payment Required: This patient has not settled their center fees. Please refer them to the reception desk before continuing.' 
+                return res.status(403).json({
+                    success: false,
+                    message: 'Payment Required: This patient has not settled their center fees. Please refer them to the reception desk before continuing.'
                 });
             }
         }
 
-        // Create the Medical Record
+        // create the Medical Record
         const medicalRecord = await MedicalRecord.create({
             patient_id,
             doctor_id: doctor.doctor_id,
@@ -50,7 +50,7 @@ export const addMedicalRecord = async (req, res) => {
                 });
                 if (appointmentWithPatient?.patient?.user?.email) {
                     NotificationService.sendPrescriptionReady(
-                        appointmentWithPatient.patient.user.email, 
+                        appointmentWithPatient.patient.user.email,
                         appointmentWithPatient.patient.full_name
                     );
                 }
@@ -91,10 +91,10 @@ export const getMedicalHistory = async (req, res) => {
 
         const history = await MedicalRecord.findAll({
             where: { patient_id },
-            include: [{ 
-                model: Doctor, 
-                as: 'doctor', 
-                attributes: ['full_name', 'specialization'] 
+            include: [{
+                model: Doctor,
+                as: 'doctor',
+                attributes: ['full_name', 'specialization']
             }],
             order: [['record_date', 'DESC'], ['record_id', 'DESC']]
         });

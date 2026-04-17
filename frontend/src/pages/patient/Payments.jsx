@@ -14,7 +14,7 @@ function Payments() {
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
-  
+
   // Cancellation Modal State
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
   const [apptToCancel, setApptToCancel] = useState(null);
@@ -63,7 +63,7 @@ function Payments() {
       if (response.data.success) {
         toast.success("Appointment cancelled successfully!", { id: toastId });
         // Real-time update: marks the appointment as cancelled in local state
-        setAppointments(prev => prev.map(a => 
+        setAppointments(prev => prev.map(a =>
           a.appointment_id === apptToCancel ? { ...a, status: 'CANCELLED' } : a
         ));
       }
@@ -84,7 +84,7 @@ function Payments() {
         responseType: 'blob'
       });
 
-      // Create a link to download the PDF
+      // create a link to download the PDF
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
@@ -93,7 +93,7 @@ function Payments() {
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
-      
+
       toast.success("Receipt downloaded successfully");
     } catch (error) {
       console.error("Download Error:", error);
@@ -156,239 +156,239 @@ function Payments() {
 
         <main style={styles.mainContent}>
           <div style={styles.contentWrapper}>
-          <motion.div 
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            style={styles.headerSection}
-          >
-            <h1 style={styles.welcomeTitle}>Billing & Invoices</h1>
-            <p style={styles.welcomeSubtitle}>View and track your medical payment history.</p>
-          </motion.div>
-
-          {/* Summary Cards */}
-          <motion.section 
-            variants={containerVariants}
-            initial="hidden"
-            animate="visible"
-            style={styles.summarySection}
-          >
-            <motion.div variants={itemVariants} style={styles.summaryCard}>
-              <div style={{ ...styles.iconBox, backgroundColor: '#eff6ff', color: '#2563eb' }}>
-                <FiTrendingUp />
-              </div>
-              <div style={styles.summaryInfo}>
-                <p style={styles.summaryLabel}>Total Spent ({currentYear})</p>
-                <h3 style={styles.summaryValue}>LKR {totalSpentYTD.toLocaleString()}</h3>
-              </div>
-              <div style={styles.cardDecoration} />
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              style={styles.headerSection}
+            >
+              <h1 style={styles.welcomeTitle}>Billing & Invoices</h1>
+              <p style={styles.welcomeSubtitle}>View and track your medical payment history.</p>
             </motion.div>
 
-            <motion.div variants={itemVariants} style={styles.summaryCard}>
-              <div style={{ ...styles.iconBox, backgroundColor: '#fff7ed', color: '#f97316' }}>
-                <FiAlertCircle />
-              </div>
-              <div style={styles.summaryInfo}>
-                <p style={styles.summaryLabel}>Pending Dues</p>
-                <h3 style={{...styles.summaryValue, color: '#f97316'}}>LKR {pendingAmount.toLocaleString()}</h3>
-              </div>
-            </motion.div>
+            {/* Summary Cards */}
+            <motion.section
+              variants={containerVariants}
+              initial="hidden"
+              animate="visible"
+              style={styles.summarySection}
+            >
+              <motion.div variants={itemVariants} style={styles.summaryCard}>
+                <div style={{ ...styles.iconBox, backgroundColor: '#eff6ff', color: '#2563eb' }}>
+                  <FiTrendingUp />
+                </div>
+                <div style={styles.summaryInfo}>
+                  <p style={styles.summaryLabel}>Total Spent ({currentYear})</p>
+                  <h3 style={styles.summaryValue}>LKR {totalSpentYTD.toLocaleString()}</h3>
+                </div>
+                <div style={styles.cardDecoration} />
+              </motion.div>
 
-            <motion.div variants={itemVariants} style={styles.summaryCard}>
-              <div style={{ ...styles.iconBox, backgroundColor: '#f0fdf4', color: '#10b981' }}>
-                <FiCheckCircle />
-              </div>
-              <div style={styles.summaryInfo}>
-                <p style={styles.summaryLabel}>All-time Paid</p>
-                <h3 style={styles.summaryValue}>LKR {totalPaidAllTime.toLocaleString()}</h3>
-              </div>
-            </motion.div>
-          </motion.section>
+              <motion.div variants={itemVariants} style={styles.summaryCard}>
+                <div style={{ ...styles.iconBox, backgroundColor: '#fff7ed', color: '#f97316' }}>
+                  <FiAlertCircle />
+                </div>
+                <div style={styles.summaryInfo}>
+                  <p style={styles.summaryLabel}>Pending Dues</p>
+                  <h3 style={{ ...styles.summaryValue, color: '#f97316' }}>LKR {pendingAmount.toLocaleString()}</h3>
+                </div>
+              </motion.div>
 
-          {/* History Header */}
-          <div style={styles.sectionHeader}>
-            <h2 style={styles.sectionTitle}>Transaction Records</h2>
-            <div style={styles.filterChip}>Recent activity first</div>
-          </div>
+              <motion.div variants={itemVariants} style={styles.summaryCard}>
+                <div style={{ ...styles.iconBox, backgroundColor: '#f0fdf4', color: '#10b981' }}>
+                  <FiCheckCircle />
+                </div>
+                <div style={styles.summaryInfo}>
+                  <p style={styles.summaryLabel}>All-time Paid</p>
+                  <h3 style={styles.summaryValue}>LKR {totalPaidAllTime.toLocaleString()}</h3>
+                </div>
+              </motion.div>
+            </motion.section>
 
-          {/* Transaction List */}
-          <motion.section 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            style={styles.tableCard}
-          >
-            <div style={styles.tableWrapper}>
-                {appointments.length > 0 ? (
-                    <table style={styles.table}>
-                        <thead>
-                        <tr style={styles.theadRow}>
-                            <th style={styles.th}>Transaction Details</th>
-                            <th style={styles.th}>Date</th>
-                            <th style={styles.th}>Amount</th>
-                            <th style={styles.th}>Status</th>
-                            <th style={styles.th}>Actions</th>
-                        </tr>
-                        </thead>
-                        <tbody>
-                        {paginatedAppointments.map((apt) => {
-                            const totalFee = Number(apt.doctor?.doctor_fee || 0) + Number(apt.doctor?.center_fee || 600);
-                            const paidAmount = (apt.payments || []).reduce((pSum, p) => pSum + parseFloat(p.amount), 0);
-                            const isPaid = apt.payment_status === 'PAID';
-                            const isPartial = apt.payment_status === 'PARTIAL';
-                            const isUnpaid = apt.payment_status === 'UNPAID';
-                            const balance = totalFee - paidAmount;
-
-                            let statusLabel = isPaid ? 'PAID' : (isPartial ? 'PARTIAL BALANCE' : 'TO BE PAID');
-                            let statusColor = isPaid ? '#10b981' : '#dc2626';
-                            let statusBg = isPaid ? '#f0fdf4' : '#fef2f2';
-
-                            const rowStyle = (isUnpaid || isPartial) ? { ...styles.tr, backgroundColor: isPartial ? '#fffbeb' : '#fff5f5', borderLeft: isPartial ? '4px solid #f59e0b' : '4px solid #dc2626' } : styles.tr;
-
-                            return (
-                                <motion.tr 
-                                    key={apt.appointment_id} 
-                                    style={rowStyle}
-                                    whileHover={{ 
-                                        backgroundColor: (isUnpaid || isPartial) ? (isPartial ? '#fff8e1' : '#fff1f1') : 'rgba(37, 99, 235, 0.03)',
-                                        transition: { duration: 0.2 }
-                                    }}
-                                >
-                                    <td style={styles.td}>
-                                        <div style={styles.txCell}>
-                                            <div style={styles.txIcon}><FiFileText /></div>
-                                            <div>
-                                                <p style={styles.txTitle}>Medical Consultation</p>
-                                                <p style={styles.txSub}>{apt.doctor?.full_name}</p>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td style={styles.td}>
-                                        <p style={styles.dateVal}>
-                                            {new Date(apt.appointment_date).toLocaleDateString('en-US', {
-                                                month: 'short', day: 'numeric', year: 'numeric'
-                                            })}
-                                        </p>
-                                    </td>
-                                    <td style={styles.td}>
-                                        <p style={styles.amountVal}>
-                                          {isPaid ? (
-                                            <>
-                                              LKR {paidAmount.toLocaleString()}
-                                              <span style={{display: 'block', fontSize: '10px', color: '#10b981', fontWeight: '500'}}>(Total Paid)</span>
-                                            </>
-                                          ) : isPartial ? (
-                                            <>
-                                              LKR {balance.toLocaleString()}
-                                              <span style={{display: 'block', fontSize: '10px', color: '#f59e0b', fontWeight: '500'}}>(Remaining Balance)</span>
-                                            </>
-                                          ) : (
-                                            <>
-                                              LKR {totalFee.toLocaleString()}
-                                              <span style={{display: 'block', fontSize: '10px', color: '#94a3b8', fontWeight: '500'}}>(To be Paid)</span>
-                                            </>
-                                          )}
-                                        </p>
-                                    </td>
-                                    <td style={styles.td}>
-                                        <span style={{ 
-                                            ...styles.statusChip, 
-                                            color: isPartial ? '#92400e' : statusColor, 
-                                            backgroundColor: isPartial ? '#fef3c7' : statusBg,
-                                            border: `1px solid ${isPaid ? '#dcfce7' : (isPartial ? '#fde68a' : '#fee2e2')}`
-                                        }}>
-                                            {statusLabel}
-                                        </span>
-                                    </td>
-                                    <td style={styles.td}>
-                                        <div style={styles.actionsCell}>
-                                            {isPaid ? (
-                                                <button 
-                                                    style={styles.downloadBtn} 
-                                                    onClick={() => handleDownloadReceipt(apt.appointment_id)}
-                                                    title="Download Receipt"
-                                                >
-                                                    <FiDownload />
-                                                </button>
-                                            ) : (isUnpaid || isPartial) ? (
-                                                <button 
-                                                    onClick={() => handleCancelClick(apt.appointment_id)}
-                                                    style={{...styles.downloadBtn, backgroundColor: '#fff1f2', color: '#e11d48'}}
-                                                    title="Cancel Appointment"
-                                                >
-                                                    <FiX />
-                                                </button>
-                                            ) : (
-                                                <span style={{ color: '#cbd5e1' }}>N/A</span>
-                                            )}
-                                        </div>
-                                    </td>
-                                </motion.tr>
-                            );
-                        })}
-                        </tbody>
-                    </table>
-                ) : (
-                    <div style={styles.emptyContainer}>
-                        {isLoading ? (
-                            <div style={styles.fetching}>Verifying financial records...</div>
-                        ) : (
-                            <>
-                                <div style={styles.emptyIcon}><FiCreditCard /></div>
-                                <h4 style={styles.emptyHeading}>No payment history</h4>
-                                <p style={styles.emptyPara}>All your digital receipts and billing information will be stored here.</p>
-                            </>
-                        )}
-                    </div>
-                )}
+            {/* History Header */}
+            <div style={styles.sectionHeader}>
+              <h2 style={styles.sectionTitle}>Transaction Records</h2>
+              <div style={styles.filterChip}>Recent activity first</div>
             </div>
 
-            {/* Pagination Controls */}
-            {!isLoading && displayAppointments.length > 0 && (
-              <div style={styles.paginationPanel}>
-                <div style={styles.paginationInfo}>
-                  Showing <span style={{fontWeight: '700'}}>{Math.min(displayAppointments.length, (currentPage - 1) * itemsPerPage + 1)}</span> to <span style={{fontWeight: '700'}}>{Math.min(displayAppointments.length, currentPage * itemsPerPage)}</span> of <span style={{fontWeight: '700'}}>{displayAppointments.length}</span> records
-                </div>
-                <div style={styles.paginationControls}>
-                  <button 
-                    disabled={currentPage === 1}
-                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                    style={{...styles.pageBtn, opacity: currentPage === 1 ? 0.5 : 1, cursor: currentPage === 1 ? 'not-allowed' : 'pointer'}}
-                  >
-                    Previous
-                  </button>
-                  
-                  <div style={styles.pageNumbers}>
-                      {[...Array(totalPages)].map((_, i) => (
-                          <button 
-                              key={i + 1}
-                              onClick={() => setCurrentPage(i + 1)}
-                              style={{
-                                  ...styles.pageNumber,
-                                  backgroundColor: currentPage === i + 1 ? '#2563eb' : 'white',
-                                  color: currentPage === i + 1 ? 'white' : '#475569',
-                                  borderColor: currentPage === i + 1 ? '#2563eb' : '#e2e8f0'
-                              }}
-                          >
-                              {i + 1}
-                          </button>
-                      ))}
-                  </div>
+            {/* Transaction List */}
+            <motion.section
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              style={styles.tableCard}
+            >
+              <div style={styles.tableWrapper}>
+                {appointments.length > 0 ? (
+                  <table style={styles.table}>
+                    <thead>
+                      <tr style={styles.theadRow}>
+                        <th style={styles.th}>Transaction Details</th>
+                        <th style={styles.th}>Date</th>
+                        <th style={styles.th}>Amount</th>
+                        <th style={styles.th}>Status</th>
+                        <th style={styles.th}>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {paginatedAppointments.map((apt) => {
+                        const totalFee = Number(apt.doctor?.doctor_fee || 0) + Number(apt.doctor?.center_fee || 600);
+                        const paidAmount = (apt.payments || []).reduce((pSum, p) => pSum + parseFloat(p.amount), 0);
+                        const isPaid = apt.payment_status === 'PAID';
+                        const isPartial = apt.payment_status === 'PARTIAL';
+                        const isUnpaid = apt.payment_status === 'UNPAID';
+                        const balance = totalFee - paidAmount;
 
-                  <button 
-                    disabled={currentPage === totalPages}
-                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                    style={{...styles.pageBtn, opacity: currentPage === totalPages ? 0.5 : 1, cursor: currentPage === totalPages ? 'not-allowed' : 'pointer'}}
-                  >
-                    Next
-                  </button>
-                </div>
+                        let statusLabel = isPaid ? 'PAID' : (isPartial ? 'PARTIAL BALANCE' : 'TO BE PAID');
+                        let statusColor = isPaid ? '#10b981' : '#dc2626';
+                        let statusBg = isPaid ? '#f0fdf4' : '#fef2f2';
+
+                        const rowStyle = (isUnpaid || isPartial) ? { ...styles.tr, backgroundColor: isPartial ? '#fffbeb' : '#fff5f5', borderLeft: isPartial ? '4px solid #f59e0b' : '4px solid #dc2626' } : styles.tr;
+
+                        return (
+                          <motion.tr
+                            key={apt.appointment_id}
+                            style={rowStyle}
+                            whileHover={{
+                              backgroundColor: (isUnpaid || isPartial) ? (isPartial ? '#fff8e1' : '#fff1f1') : 'rgba(37, 99, 235, 0.03)',
+                              transition: { duration: 0.2 }
+                            }}
+                          >
+                            <td style={styles.td}>
+                              <div style={styles.txCell}>
+                                <div style={styles.txIcon}><FiFileText /></div>
+                                <div>
+                                  <p style={styles.txTitle}>Medical Consultation</p>
+                                  <p style={styles.txSub}>{apt.doctor?.full_name}</p>
+                                </div>
+                              </div>
+                            </td>
+                            <td style={styles.td}>
+                              <p style={styles.dateVal}>
+                                {new Date(apt.appointment_date).toLocaleDateString('en-US', {
+                                  month: 'short', day: 'numeric', year: 'numeric'
+                                })}
+                              </p>
+                            </td>
+                            <td style={styles.td}>
+                              <p style={styles.amountVal}>
+                                {isPaid ? (
+                                  <>
+                                    LKR {paidAmount.toLocaleString()}
+                                    <span style={{ display: 'block', fontSize: '10px', color: '#10b981', fontWeight: '500' }}>(Total Paid)</span>
+                                  </>
+                                ) : isPartial ? (
+                                  <>
+                                    LKR {balance.toLocaleString()}
+                                    <span style={{ display: 'block', fontSize: '10px', color: '#f59e0b', fontWeight: '500' }}>(Remaining Balance)</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    LKR {totalFee.toLocaleString()}
+                                    <span style={{ display: 'block', fontSize: '10px', color: '#94a3b8', fontWeight: '500' }}>(To be Paid)</span>
+                                  </>
+                                )}
+                              </p>
+                            </td>
+                            <td style={styles.td}>
+                              <span style={{
+                                ...styles.statusChip,
+                                color: isPartial ? '#92400e' : statusColor,
+                                backgroundColor: isPartial ? '#fef3c7' : statusBg,
+                                border: `1px solid ${isPaid ? '#dcfce7' : (isPartial ? '#fde68a' : '#fee2e2')}`
+                              }}>
+                                {statusLabel}
+                              </span>
+                            </td>
+                            <td style={styles.td}>
+                              <div style={styles.actionsCell}>
+                                {isPaid ? (
+                                  <button
+                                    style={styles.downloadBtn}
+                                    onClick={() => handleDownloadReceipt(apt.appointment_id)}
+                                    title="Download Receipt"
+                                  >
+                                    <FiDownload />
+                                  </button>
+                                ) : (isUnpaid || isPartial) ? (
+                                  <button
+                                    onClick={() => handleCancelClick(apt.appointment_id)}
+                                    style={{ ...styles.downloadBtn, backgroundColor: '#fff1f2', color: '#e11d48' }}
+                                    title="Cancel Appointment"
+                                  >
+                                    <FiX />
+                                  </button>
+                                ) : (
+                                  <span style={{ color: '#cbd5e1' }}>N/A</span>
+                                )}
+                              </div>
+                            </td>
+                          </motion.tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                ) : (
+                  <div style={styles.emptyContainer}>
+                    {isLoading ? (
+                      <div style={styles.fetching}>Verifying financial records...</div>
+                    ) : (
+                      <>
+                        <div style={styles.emptyIcon}><FiCreditCard /></div>
+                        <h4 style={styles.emptyHeading}>No payment history</h4>
+                        <p style={styles.emptyPara}>All your digital receipts and billing information will be stored here.</p>
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
-            )}
-          </motion.section>
+
+              {/* Pagination Controls */}
+              {!isLoading && displayAppointments.length > 0 && (
+                <div style={styles.paginationPanel}>
+                  <div style={styles.paginationInfo}>
+                    Showing <span style={{ fontWeight: '700' }}>{Math.min(displayAppointments.length, (currentPage - 1) * itemsPerPage + 1)}</span> to <span style={{ fontWeight: '700' }}>{Math.min(displayAppointments.length, currentPage * itemsPerPage)}</span> of <span style={{ fontWeight: '700' }}>{displayAppointments.length}</span> records
+                  </div>
+                  <div style={styles.paginationControls}>
+                    <button
+                      disabled={currentPage === 1}
+                      onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                      style={{ ...styles.pageBtn, opacity: currentPage === 1 ? 0.5 : 1, cursor: currentPage === 1 ? 'not-allowed' : 'pointer' }}
+                    >
+                      Previous
+                    </button>
+
+                    <div style={styles.pageNumbers}>
+                      {[...Array(totalPages)].map((_, i) => (
+                        <button
+                          key={i + 1}
+                          onClick={() => setCurrentPage(i + 1)}
+                          style={{
+                            ...styles.pageNumber,
+                            backgroundColor: currentPage === i + 1 ? '#2563eb' : 'white',
+                            color: currentPage === i + 1 ? 'white' : '#475569',
+                            borderColor: currentPage === i + 1 ? '#2563eb' : '#e2e8f0'
+                          }}
+                        >
+                          {i + 1}
+                        </button>
+                      ))}
+                    </div>
+
+                    <button
+                      disabled={currentPage === totalPages}
+                      onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                      style={{ ...styles.pageBtn, opacity: currentPage === totalPages ? 0.5 : 1, cursor: currentPage === totalPages ? 'not-allowed' : 'pointer' }}
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              )}
+            </motion.section>
           </div>
         </main>
       </div>
 
-      <CancelAppointmentModal 
+      <CancelAppointmentModal
         isOpen={isCancelModalOpen}
         onClose={() => setIsCancelModalOpen(false)}
         onConfirm={confirmCancel}
