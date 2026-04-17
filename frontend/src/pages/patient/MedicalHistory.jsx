@@ -188,11 +188,7 @@ const MedicalHistory = () => {
                                                     </div>
                                                 </div>
                                                 
-                                                <div className="record-card-footer">
-                                                    <button style={styles.downloadBtn}>
-                                                        <FiFileText className="icon" style={{marginRight: '8px'}} /> Download PDF
-                                                    </button>
-                                                </div>
+                                               
                                             </motion.div>
                                         ))
                                     ) : (
@@ -343,20 +339,7 @@ const styles = {
         color: "#64748b",
         margin: 0
     },
-    downloadBtn: {
-        display: "flex",
-        alignItems: "center",
-        gap: "8px",
-        padding: "10px 18px",
-        borderRadius: "12px",
-        backgroundColor: "#f8fafc",
-        border: "1px solid #e2e8f0",
-        color: "#475569",
-        fontSize: "13px",
-        fontWeight: "600",
-        cursor: "pointer",
-        transition: "all 0.2s ease"
-    }
+    
 };
 
 export default MedicalHistory;

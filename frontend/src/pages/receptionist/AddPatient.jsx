@@ -8,28 +8,30 @@ import ReceptionistSidebar from "../../components/ReceptionistSidebar";
 import ReceptionistHeader from "../../components/ReceptionistHeader";
 import { useAuth } from "../../context/AuthContext";
 
+const INITIAL_FORM_DATA = {
+  fullName: "",
+  dateOfBirth: "",
+  gender: "",
+  address: "",
+  phoneNumber: "",
+  email: "",
+  patientType: "ADULT",
+  nic: "",
+  guardianName: "",
+  guardianContact: "",
+  guardianRelationship: "",
+  username: "",
+  password: "",
+  confirmPassword: "",
+  bloodGroup: "",
+  allergies: ""
+};
+
 function AddPatient() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const receptionistName = user?.profile?.full_name || user?.username || "Receptionist";
-  const [formData, setFormData] = useState({
-    fullName: "",
-    dateOfBirth: "",
-    gender: "",
-    address: "",
-    phoneNumber: "",
-    email: "",
-    patientType: "ADULT",
-    nic: "",
-    guardianName: "",
-    guardianContact: "",
-    guardianRelationship: "",
-    username: "",
-    password: "",
-    confirmPassword: "",
-    bloodGroup: "",
-    allergies: ""
-  });
+  const [formData, setFormData] = useState(INITIAL_FORM_DATA);
 
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
@@ -336,6 +338,9 @@ function AddPatient() {
 
       if (response.data.success) {
         toast.success("Patient registered successfully!", { id: toastId });
+        setFormData(INITIAL_FORM_DATA);
+        setTouched({});
+        setErrors({});
         navigate("/receptionist/patients");
       }
     } catch (error) {

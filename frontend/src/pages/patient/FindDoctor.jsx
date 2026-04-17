@@ -31,6 +31,39 @@ const getDoctorImage = (doctor) => {
   }
 };
 
+const groupAvailability = (availability) => {
+  if (!availability || availability.length === 0) return null;
+
+  const dayOrder = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
+  
+  // 1. Filter only ACTIVE sessions and skip exclusions (cancellations)
+  const activeAvailability = availability.filter(a => a.status === 'ACTIVE' && !a.is_exclusion);
+  
+  // 2. Group by day and use a Set to automatically remove duplicate times
+  const grouped = activeAvailability.reduce((acc, current) => {
+    const day = current.day_of_week;
+    if (!acc[day]) acc[day] = new Set();
+    acc[day].add(current.start_time);
+    return acc;
+  }, {});
+
+  return dayOrder
+    .filter(day => grouped[day])
+    .map(day => ({
+      // 3. Use FULL name (e.g. "Monday") and capitalize correctly
+      day: day.charAt(0) + day.slice(1).toLowerCase(),
+      times: Array.from(grouped[day]).sort().map(t => {
+        const timeArr = t.split(':');
+        let hours = parseInt(timeArr[0]);
+        const minutes = timeArr[1];
+        const ampm = hours >= 12 ? 'PM' : 'AM';
+        hours = hours % 12;
+        hours = hours ? hours : 12; 
+        return `${hours}:${minutes} ${ampm}`;
+      })
+    }));
+};
+
 function FindDoctor() {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
@@ -227,13 +260,20 @@ function FindDoctor() {
 
                     <div style={styles.availabilityBox}>
                       <FiClock style={styles.clockIcon} />
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                        <span>Next availability: <span style={{ fontWeight: '700', color: '#0f172a' }}>
-                          {doctor.availability && doctor.availability.length > 0 
-                            ? `${doctor.availability[0].day_of_week}, ${doctor.availability[0].start_time}` 
-                            : 'No schedule set'}
-                        </span></span>
-                        
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', width: '100%' }}>
+                        <span style={{ fontSize: '11px', fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Weekly Schedule</span>
+                        {doctor.availability && doctor.availability.length > 0 ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                            {groupAvailability(doctor.availability).map((item, idx) => (
+                              <div key={idx} style={{ display: 'flex', alignItems: 'center', borderBottom: '1px dashed #f1f5f9', paddingBottom: '2px', gap: '12px' }}>
+                                <span style={{ fontWeight: '700', color: '#475569', fontSize: '12px', width: '85px', flexShrink: 0 }}>{item.day}</span>
+                                <span style={{ color: '#0f172a', fontSize: '12px', fontWeight: '600', textAlign: 'right', flex: 1 }}>{item.times.join(' | ')}</span>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>No schedule set</span>
+                        )}
                       </div>
                     </div>
 
@@ -483,14 +523,15 @@ const styles = {
   },
   availabilityBox: {
     display: 'flex',
-    alignItems: 'center',
-    gap: '10px',
-    padding: '14px 16px',
+    alignItems: 'flex-start',
+    gap: '12px',
+    padding: '16px',
     backgroundColor: '#f8fafc',
-    borderRadius: '14px',
+    borderRadius: '16px',
     fontSize: '13px',
     color: '#64748b',
     marginBottom: '24px',
+    border: '1px solid #f1f5f9'
   },
   clockIcon: {
     fontSize: '16px',
