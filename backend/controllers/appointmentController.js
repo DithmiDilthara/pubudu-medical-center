@@ -155,10 +155,24 @@ export const createAppointment = async (req, res) => {
             }
         }
 
+        // Fetch the full appointment details with associations for the frontend
+        const fullAppointment = await Appointment.findByPk(appointment.appointment_id, {
+            include: [
+                { model: Doctor, as: 'doctor', attributes: ['doctor_id', 'full_name', 'specialization', 'doctor_fee', 'center_fee'] },
+                { 
+                    model: Patient, 
+                    as: 'patient', 
+                    attributes: ['patient_id', 'full_name', 'patient_type'],
+                    include: [{ model: User, as: 'user', attributes: ['contact_number', 'email'] }]
+                },
+                { model: Payment, as: 'payments', attributes: ['amount', 'payment_method', 'status'] }
+            ]
+        });
+
         res.status(201).json({
             success: true,
             message: 'Appointment booked successfully',
-            data: appointment
+            data: fullAppointment
         });
 
     } catch (error) {
@@ -189,11 +203,18 @@ export const cancelAppointment = async (req, res) => {
             });
         }
 
-        const { cancellation_reason, is_noshow } = req.body;
+        // Guard: Do not allow cancelling already-resolved appointments
+        if (['COMPLETED', 'NO_SHOW'].includes(appointment.status)) {
+            return res.status(400).json({
+                success: false,
+                message: `This appointment is already marked as ${appointment.status} and cannot be cancelled.`
+            });
+        }
+
+        const { cancellation_reason } = req.body;
         appointment.status = 'CANCELLED';
         appointment.cancelled_at = new Date();
         if (cancellation_reason) appointment.cancellation_reason = cancellation_reason;
-        if (is_noshow !== undefined) appointment.is_noshow = is_noshow;
         await appointment.save();
 
         res.status(200).json({ success: true, message: 'Appointment cancelled successfully', data: appointment });

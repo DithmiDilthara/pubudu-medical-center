@@ -333,22 +333,8 @@ function NewBooking() {
 
       if (response.data.success) {
         toast.dismiss(toastId);
-        const selectedDocObj = doctors.find(d => d.doctor_id === parseInt(selectedDoctor));
-        const docFee = Number(selectedDocObj?.doctor_fee || 0);
-        const centerFee = Number(selectedDocObj?.center_fee || 600);
-        const totalAmount = docFee + centerFee;
-
-        const appointmentData = {
-          patientName: patientInfo.fullName,
-          patientId: `PHE-${patientInfo.patientId}`,
-          dateOfService: formattedDate,
-          service: selectedService,
-          amount: totalAmount,
-          appointment_id: response.data.data.appointment_id
-        };
-
-        navigate("/receptionist/payment", {
-          state: { appointment: appointmentData }
+        navigate("/receptionist/payment/confirm", {
+          state: { appointment: response.data.data }
         });
       }
     } catch (error) {

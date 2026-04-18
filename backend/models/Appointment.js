@@ -46,11 +46,7 @@ const Appointment = sequelize.define('appointment', {
         type: DataTypes.INTEGER,
         allowNull: true
     },
-    is_noshow: {
-        type: DataTypes.BOOLEAN,
-        allowNull: false,
-        defaultValue: false
-    }
+
 }, {
     tableName: 'appointment',
     timestamps: true,

@@ -11,6 +11,7 @@ import clinicalRoutes from './routes/clinicalRoutes.js';
 import doctorRoutes from './routes/doctorRoutes.js';
 import paymentRoutes from './routes/paymentRoutes.js';
 import staffRoutes from './routes/staffRoutes.js';
+import { startNoShowScheduler } from './utils/noShowScheduler.js';
 
 dotenv.config();
 dotenv.config({ path: './config/.env' });
@@ -96,6 +97,9 @@ const startServer = async () => {
         console.log('Synchronizing database models...');
         await sequelize.sync({ alter: false });
         console.log('✓ Database models synchronized.');
+
+        // Start the no-show midnight scheduler
+        startNoShowScheduler();
 
         // Start server
         const server = app.listen(PORT, () => {
