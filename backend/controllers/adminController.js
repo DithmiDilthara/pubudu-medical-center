@@ -236,27 +236,41 @@ export const getIncomeReport = async (req, res) => {
           amount: absRefund
         });
       } else if (p.transaction_type === 'PAYMENT') {
-        if (appt && !processedAppointments.has(p.appointment_id)) {
-          const cFee = parseFloat(appt.doctor?.center_fee || 0);
-          const dFee = parseFloat(appt.doctor?.doctor_fee || 0);
+        if (appt) {
+          const truePaymentAmount = parseFloat(p.amount) || 0;
+          const isFirstPayment = !processedAppointments.has(p.appointment_id);
 
-          grossCenterIncome += cFee;
-          grossDoctorIncome += dFee;
+          if (isFirstPayment) {
+            // First payment for this appointment:
+            // Center takes their one-time booking fee, doctor gets the rest
+            const cFee = parseFloat(appt.doctor?.center_fee || 0);
+            let dFee = truePaymentAmount - cFee;
+            if (dFee < 0) dFee = 0;
 
-          if (docStats) {
-            docStats.patientCount++;
-            docStats.grossCenter += cFee;
-            docStats.grossDoctor += dFee;
-          }
+            grossCenterIncome += cFee;
+            grossDoctorIncome += dFee;
 
-          processedAppointments.add(p.appointment_id);
+            if (docStats) {
+              docStats.patientCount++;
+              docStats.grossCenter += cFee;
+              docStats.grossDoctor += dFee;
+            }
 
-          // Status Tracking
-          const status = appt.status;
-          if (statusStats[status] !== undefined) {
-            statusStats[status]++;
+            processedAppointments.add(p.appointment_id);
+
+            // Status Tracking (only count once per appointment)
+            const status = appt.status;
+            if (statusStats[status] !== undefined) {
+              statusStats[status]++;
+            } else {
+              statusStats.OTHER++;
+            }
           } else {
-            statusStats.OTHER++;
+            // Top-up payment from rescheduling to a higher-priced doctor.
+            // Center fee was already collected on first payment.
+            // All extra money goes to the doctor.
+            grossDoctorIncome += truePaymentAmount;
+            if (docStats) docStats.grossDoctor += truePaymentAmount;
           }
         }
       }
@@ -509,8 +523,13 @@ export const exportReport = async (req, res) => {
       payments.forEach(p => {
         if (p.transaction_type === 'REFUND') refunds += Math.abs(parseFloat(p.amount));
         else if (p.transaction_type === 'PAYMENT' && p.appointment && !processedAppointments.has(p.appointment_id)) {
-          grossCenter += parseFloat(p.appointment.doctor?.center_fee || 0);
-          grossDoc += parseFloat(p.appointment.doctor?.doctor_fee || 0);
+          const truePaymentAmount = parseFloat(p.amount) || 0;
+          const cFee = parseFloat(p.appointment.doctor?.center_fee || 0);
+          let dFee = truePaymentAmount - cFee;
+          if (dFee < 0) dFee = 0;
+
+          grossCenter += cFee;
+          grossDoc += dFee;
           processedAppointments.add(p.appointment_id);
         }
       });

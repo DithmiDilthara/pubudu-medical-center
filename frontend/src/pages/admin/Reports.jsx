@@ -694,7 +694,7 @@ const Reports = () => {
                   value={reportType}
                   onChange={(e) => setReportType(e.target.value)}
                 >
-                  <option value="revenue">Revenue Stats (Summary)</option>
+                  <option value="revenue">Medical center Revenue Report</option>
                   <option value="income">Advanced Income Report</option>
                   <option value="appointments">Appointment Reports</option>
                 </select>
