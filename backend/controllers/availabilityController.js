@@ -32,6 +32,8 @@ export const setAvailability = async (req, res) => {
         today.setHours(0, 0, 0, 0);
         const todayStr = today.toISOString().split('T')[0];
 
+        const oneTimeSessionsToMerge = [];
+
         for (const slot of availability) {
             // CHECK 1: Overnight session — minute-based (catches 21:00 → 08:00 overnight)
             const startMinutes = parseToMinutes(slot.start_time);
@@ -155,12 +157,14 @@ export const setAvailability = async (req, res) => {
                 // Filter to only those that fall on the same day of week
                 const dayIndex = ['SUNDAY','MONDAY','TUESDAY','WEDNESDAY','THURSDAY','FRIDAY','SATURDAY'].indexOf(slot.day_of_week);
                 const filteredOneTime = upcomingOneTime.filter(s => new Date(s.schedule_date).getDay() === dayIndex);
-                const conflict4 = hasTimeOverlap(filteredOneTime);
-                if (conflict4) {
-                    return res.status(400).json({
-                        success: false,
-                        message: `This recurring ${slot.day_of_week} session conflicts with an existing one-time session on ${conflict4.schedule_date} (${conflict4.start_time}–${conflict4.end_time}). Please resolve the one-time session first.`
-                    });
+                
+                for (const existing of filteredOneTime) {
+                    if (slot.start_time < existing.end_time && slot.end_time > existing.start_time) {
+                        oneTimeSessionsToMerge.push({
+                            existingSlot: existing,
+                            newSlotTemplate: slot
+                        });
+                    }
                 }
             }
         }
@@ -215,7 +219,37 @@ export const setAvailability = async (req, res) => {
             return data;
         });
 
-        await Availability.bulkCreate(sessionsToCreate);
+        const createdSessions = [];
+        for (const data of sessionsToCreate) {
+            const created = await Availability.create(data);
+            createdSessions.push(created);
+        }
+
+        // --- Execute Auto-Merge for One-Time Sessions ---
+        if (oneTimeSessionsToMerge.length > 0) {
+            for (const mergeTask of oneTimeSessionsToMerge) {
+                const { existingSlot, newSlotTemplate } = mergeTask;
+
+                // Find the DB record of the new recurring session that matches the template
+                const matchingNewSession = createdSessions.find(cs => 
+                    cs.day_of_week === newSlotTemplate.day_of_week && 
+                    cs.start_time === newSlotTemplate.start_time && 
+                    cs.end_time === newSlotTemplate.end_time
+                );
+
+                if (matchingNewSession) {
+                    // Update all appointments pointing to the old one-time session
+                    await Appointment.update(
+                        { schedule_id: matchingNewSession.schedule_id },
+                        { where: { schedule_id: existingSlot.schedule_id } }
+                    );
+
+                    // Delete the old one-time session
+                    await Availability.destroy({ where: { schedule_id: existingSlot.schedule_id } });
+                }
+            }
+        }
+        // ------------------------------------------------
 
         res.status(201).json({
             success: true,

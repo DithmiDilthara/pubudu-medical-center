@@ -1,4 +1,4 @@
-import { FiUser, FiChevronDown } from "react-icons/fi";
+import { FiUser } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 
@@ -31,7 +31,7 @@ function ReceptionistHeader({ receptionistName = "Receptionist" }) {
           <div style={styles.avatar}>
             {receptionistName.charAt(0).toUpperCase()}
           </div>
-          <FiChevronDown style={styles.chevron} />
+          
         </div>
       </div>
     </motion.header>

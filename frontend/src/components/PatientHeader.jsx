@@ -1,4 +1,4 @@
-import { FiUser, FiChevronDown, FiBell } from "react-icons/fi";
+import { FiUser, FiBell } from "react-icons/fi";
 import { useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useAuth } from "../context/AuthContext";
@@ -51,14 +51,14 @@ function PatientHeader() {
           Patient Portal
         </div>
 
-        <div style={styles.profileSection} onClick={() => navigate('/patient/profile')}>
+        <div style={styles.profileSection} onClick={() => navigate('/profile')}>
           <div style={styles.profileDetails}>
             <p style={styles.profileName}>{user?.profile?.full_name || "Patient"}</p>
           </div>
           <div style={styles.avatar}>
             {(user?.profile?.full_name || user?.username)?.charAt(0).toUpperCase() || <FiUser style={styles.avatarIcon} />}
           </div>
-          <FiChevronDown style={styles.chevron} />
+          
         </div>
       </div>
     </motion.header>

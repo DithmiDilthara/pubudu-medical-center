@@ -1,4 +1,4 @@
-import { FiUser, FiChevronDown } from "react-icons/fi";
+import { FiUser } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useAuth } from "../context/AuthContext";
@@ -36,7 +36,7 @@ function DoctorHeader({ doctorName }) {
           <div style={styles.avatar}>
             {displayName.charAt(0).toUpperCase()}
           </div>
-          <FiChevronDown style={styles.chevron} />
+          
         </div>
       </div>
     </motion.header>

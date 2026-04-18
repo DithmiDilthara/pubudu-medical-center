@@ -1,4 +1,4 @@
-import { FiUser, FiChevronDown } from "react-icons/fi";
+import { FiUser } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useAuth } from "../context/AuthContext";
@@ -32,7 +32,7 @@ function AdminHeader({ adminName = "Admin User" }) {
           <div style={styles.avatar}>
             {(user?.username || adminName)?.charAt(0).toUpperCase() || <FiUser style={styles.avatarIcon} />}
           </div>
-          <FiChevronDown style={styles.chevron} />
+          
         </div>
       </div>
     </motion.header>
