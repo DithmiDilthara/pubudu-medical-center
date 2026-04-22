@@ -302,15 +302,7 @@ const ManageDoctors = () => {
                             >
                               <FiEdit2 />
                             </button>
-                            <button 
-                                onClick={() => {
-                                    setDoctorToDelete(doctor);
-                                    setShowDeleteConfirm(true);
-                                }} 
-                                style={styles.actionBtnDelete}
-                            >
-                              <FiTrash2 />
-                            </button>
+                            
                           </div>
                         </td>
                       </motion.tr>
