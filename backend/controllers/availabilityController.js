@@ -18,7 +18,7 @@ export const setAvailability = async (req, res) => {
         const currentUser = req.user;
 
         let doctor;
-        if (currentUser.role_id === 1 || currentUser.role_id === 3) { // Admin or Receptionist
+        if (currentUser.role_id === 3) { // Receptionist
             if (!doctor_id) return res.status(400).json({ success: false, message: 'Doctor ID is required for staff' });
             doctor = await Doctor.findByPk(doctor_id);
         } else {
@@ -205,7 +205,7 @@ export const setAvailability = async (req, res) => {
         }
         // --------------------------------------
 
-        //  the sessions (Additive approach)
+        //  the sessions (recurring approach)
         const sessionsToCreate = availability.map(slot => {
             const data = {
                 ...slot,

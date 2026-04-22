@@ -21,7 +21,7 @@ function Payments() {
   const [isCancelling, setIsCancelling] = useState(false);
 
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
-
+// get appointments with payment details
   useEffect(() => {
     const fetchAppointments = async () => {
       try {
@@ -75,7 +75,7 @@ function Payments() {
       setApptToCancel(null);
     }
   };
-
+// Download receipt as PDF
   const handleDownloadReceipt = async (appointmentId) => {
     try {
       const token = localStorage.getItem('token');

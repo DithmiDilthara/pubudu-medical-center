@@ -134,7 +134,7 @@ function DoctorDetails() {
       <PatientSidebar onLogout={handleLogout} />
 
       <div className="main-wrapper" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-        <PatientHeader patientName="Dithmi" />
+        <PatientHeader  />
 
         <main style={styles.mainContent}>
           {/* Top Bar with Back Link */}

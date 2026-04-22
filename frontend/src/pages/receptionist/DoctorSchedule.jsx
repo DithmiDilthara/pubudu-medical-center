@@ -215,6 +215,7 @@ function DoctorSchedule() {
           max_patients: maxPatients
         }]
       };
+//create new recurring session 
 
       const response = await axios.post(`${API_URL}/clinical/availability`, payload, {
         headers: { Authorization: `Bearer ${token}` }

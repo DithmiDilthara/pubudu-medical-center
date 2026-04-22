@@ -449,7 +449,7 @@ export const getAppointments = async (req, res) => {
 /**
  * @desc    Update appointment status (Confirm, Complete)
  * @route   PUT /api/appointments/:id/status
- * @access  Private (Receptionist, Doctor)
+ * @access  Private (Receptionist,)
  */
 export const updateStatus = async (req, res) => {
     const t = await sequelize.transaction();

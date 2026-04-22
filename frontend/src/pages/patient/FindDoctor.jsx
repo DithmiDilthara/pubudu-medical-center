@@ -30,7 +30,7 @@ const getDoctorImage = (doctor) => {
     return allImages[id % allImages.length];
   }
 };
-
+// 
 const groupAvailability = (availability) => {
   if (!availability || availability.length === 0) return null;
 
@@ -139,7 +139,7 @@ function FindDoctor() {
       <PatientSidebar onLogout={handleLogout} />
 
       <div className="main-wrapper" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-        <PatientHeader patientName="Dithmi" />
+        <PatientHeader  />
 
         <main style={styles.mainContent}>
           <div style={styles.contentWrapper}>

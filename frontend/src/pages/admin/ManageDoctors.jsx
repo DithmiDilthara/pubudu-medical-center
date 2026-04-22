@@ -64,7 +64,7 @@ const ManageDoctors = () => {
       setLoading(false);
     }
   };
-
+// Handle Create or Update Doctor
   const handleCreateOrUpdate = async (formData) => {
     const dataToSend = {
       username: formData.username,
@@ -96,7 +96,7 @@ const ManageDoctors = () => {
       setIsSubmitting(false);
     }
   };
-
+// Handle Doctor Deletion
   const handleDelete = async () => {
     if (!doctorToDelete) return;
     try {
@@ -190,6 +190,24 @@ const ManageDoctors = () => {
                   <option value="Neurology">Neurology</option>
                   <option value="Pediatrics">Pediatrics</option>
                   <option value="Dermatology">Dermatology</option>
+                  <option value="Orthopedics">Orthopedics</option>
+                  <option value="ENT (Otolaryngology)">ENT (Otolaryngology)</option>
+                  <option value="Ophthalmology">Ophthalmology</option>
+                  <option value="Obstetrics & Gynecology">Obstetrics & Gynecology</option>
+                  <option value="Psychiatry">Psychiatry</option>
+                  <option value="Radiology">Radiology</option>
+                  <option value="Oncology">Oncology</option>
+                  <option value="Nephrology">Nephrology</option>
+                  <option value="Urology">Urology</option>
+                  <option value="Gastroenterology">Gastroenterology</option>
+                  <option value="Endocrinology">Endocrinology</option>
+                  <option value="Rheumatology">Rheumatology</option>
+                  <option value="Pulmonology">Pulmonology</option>
+                  <option value="Diabetology">Diabetology</option>
+                  <option value="General Surgery">General Surgery</option>
+                  <option value="Anesthesiology">Anesthesiology</option>
+                  <option value="Pathology">Pathology</option>
+                  <option value="Vascular Surgery">Vascular Surgery</option>
                 </select>
               </div>
             </div>
