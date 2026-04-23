@@ -72,7 +72,7 @@ const Reports = () => {
 
     const oneYearFuture = new Date();
     oneYearFuture.setFullYear(today.getFullYear() + 1);
-
+// Validate start date
     if (start) {
       const sDate = new Date(start);
       if (sDate > today) {
@@ -83,7 +83,7 @@ const Reports = () => {
         isValid = false;
       }
     }
-
+// Validate end date
     if (end) {
       const eDate = new Date(end);
       if (eDate > oneYearFuture) {
@@ -91,7 +91,7 @@ const Reports = () => {
         isValid = false;
       }
     }
-
+// Validate date range
     if (start && end) {
       const sDate = new Date(start);
       const eDate = new Date(end);
@@ -104,7 +104,7 @@ const Reports = () => {
     setErrors(newErrors);
     return isValid;
   };
-
+// Handle report generation
   const handleGenerateReport = async () => {
     if (!startDate || !endDate) {
       setErrors({

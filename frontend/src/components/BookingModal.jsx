@@ -22,7 +22,7 @@ const BookingModal = ({ isOpen, onClose, appointment, onUpdate }) => {
     const [paymentMethod, setPaymentMethod] = useState("CASH");
 
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
-
+// Initialize modal state when opened
     useEffect(() => {
         if (isOpen && appointment?.doctor) {
             setSelectedDoctor(appointment.doctor);
@@ -38,7 +38,7 @@ const BookingModal = ({ isOpen, onClose, appointment, onUpdate }) => {
             }
         }
     }, [isOpen, appointment]);
-
+// Fetch alternative doctors when switching to transfer mode
     useEffect(() => {
         if (isChangingDoctor && appointment?.doctor?.specialization) {
             // When switching to transfer mode, clear the selected doctor so availability resets
@@ -52,7 +52,7 @@ const BookingModal = ({ isOpen, onClose, appointment, onUpdate }) => {
             setSelectedDoctor(appointment?.doctor);
         }
     }, [isChangingDoctor, appointment]);
-
+// Fetch availability when doctor changes or modal opens
     useEffect(() => {
         if (selectedDoctor?.doctor_id && isOpen) {
             console.log("Fetching availability for Doctor ID:", selectedDoctor.doctor_id);
@@ -67,13 +67,13 @@ const BookingModal = ({ isOpen, onClose, appointment, onUpdate }) => {
             setDoctorAvailability([]);
         }
     }, [selectedDoctor?.doctor_id, isOpen]);
-
+// Fetch booked slots when date or doctor changes
     useEffect(() => {
         if (selectedDate && selectedDoctor?.doctor_id) {
             fetchBookedSlots(selectedDoctor.doctor_id);
         }
     }, [selectedDate, selectedDoctor]);
-
+// Fetch availability for a doctor
     const fetchAvailability = async (docId) => {
         try {
             const token = localStorage.getItem('token');
@@ -90,7 +90,7 @@ const BookingModal = ({ isOpen, onClose, appointment, onUpdate }) => {
             setDoctorAvailability([]);
         }
     };
-
+// Fetch already booked slots for the selected doctor and date
     const fetchBookedSlots = async (docId) => {
         try {
             const bYear = selectedDate.getFullYear();
@@ -116,7 +116,7 @@ const BookingModal = ({ isOpen, onClose, appointment, onUpdate }) => {
     };
 
     const [showConfirm, setShowConfirm] = useState(false);
-
+// Handle the main reschedule action
     const handleReschedule = async () => {
         if (!selectedDate || !selectedSession || !selectedDoctor) {
             toast.error("Please select a doctor, date, and session");
@@ -124,7 +124,7 @@ const BookingModal = ({ isOpen, onClose, appointment, onUpdate }) => {
         }
         setShowConfirm(true);
     };
-
+// Confirm and execute the rescheduling
     const confirmReschedule = async () => {
         setIsProcessing(true);
         const toastId = toast.loading("Rescheduling appointment...");
@@ -146,7 +146,7 @@ const BookingModal = ({ isOpen, onClose, appointment, onUpdate }) => {
                 payload.transfer_action = transferAction;
                 payload.payment_method = paymentMethod;
             }
-            
+ // If changing doctor and there's a fee difference, we need to handle payment first           
             const response = await axios.put(`${API_URL}/appointments/${appointment.appointment_id}/reschedule`, payload, {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -164,7 +164,7 @@ const BookingModal = ({ isOpen, onClose, appointment, onUpdate }) => {
             setIsProcessing(false);
         }
     };
-
+// Calculate financial summary when doctor change is involved
     const getFinancialSummary = () => {
         if (!appointment || !isChangingDoctor || !selectedDoctor) return null;
         
@@ -190,7 +190,7 @@ const BookingModal = ({ isOpen, onClose, appointment, onUpdate }) => {
         const days = new Date(year, month + 1, 0).getDate();
         return { firstDay, days };
     };
-
+// Check if a given date has available slots based on doctor's availability and exclusions
     const isDateAvailable = (dayDate) => {
         const dYear = dayDate.getFullYear();
         const dMonth = String(dayDate.getMonth() + 1).padStart(2, '0');
@@ -218,7 +218,7 @@ const BookingModal = ({ isOpen, onClose, appointment, onUpdate }) => {
 
         return activeRecurring.length > 0;
     };
-
+// Get available time slots for the selected date, considering specific availability, recurring schedules, and exclusions
     const getTimeSlots = () => {
         if (!selectedDate) return [];
         const tYear = selectedDate.getFullYear();

@@ -300,7 +300,7 @@ const Doctors = () => {
         fetchProfile();
         fetchDoctors();
     }, []);
-
+// Fetch receptionist profile to get name
     const fetchProfile = async () => {
         try {
             const token = localStorage.getItem('token');
@@ -314,7 +314,7 @@ const Doctors = () => {
             console.error("Error fetching profile:", error);
         }
     };
-
+// Fetch doctors and extract specializations
     const fetchDoctors = async () => {
         try {
             setLoading(true);
@@ -332,7 +332,7 @@ const Doctors = () => {
             setLoading(false);
         }
     };
-
+// Fetch upcoming sessions for a doctor
     const fetchUpcomingSessions = async (doctorId) => {
         try {
             setLoadingUpcoming(true);
@@ -356,7 +356,7 @@ const Doctors = () => {
         setShowUpcomingModal(true);
         fetchUpcomingSessions(doctor.doctor_id);
     };
-
+// Filter doctors based on search term and selected specialization
     const filteredDoctors = doctors.filter(doctor => {
         const name = doctor.full_name || "";
         const specialty = doctor.specialization || "";

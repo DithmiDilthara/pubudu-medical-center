@@ -78,7 +78,7 @@ function DoctorAppointments() {
     setSelectedAppointment(apt);
     setShowRecordModal(true);
   };
-
+// Add medical record and mark appointment as completed
   const handleAddRecord = async () => {
     setIsLoading(true);
     try {
@@ -120,7 +120,7 @@ function DoctorAppointments() {
   };
 
   const todayDate = getLocalDateString(new Date());
-
+// Update appointment status (e.g., mark as Completed)  
   const handleUpdateStatus = async (apptId, newStatus) => {
     try {
       const token = localStorage.getItem('token');
@@ -152,7 +152,7 @@ function DoctorAppointments() {
       default: return { backgroundColor: '#f8fafc', color: '#64748b', border: '1px solid #f1f5f9' };
     }
   };
-
+// Filter appointments based on search term and active tab
   const getFilteredAppointments = () => {
     let filtered = appointments.filter(apt => {
         // Exclude Cancelled appointments entirely for the doctor
